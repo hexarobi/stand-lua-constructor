@@ -6,4 +6,4 @@ Allows for creation of custom vehicles and maps using the in-game props and vehi
 
 ## Installation
 
-Download [Constructor.lua](https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua) and place in `Stand/Lua Scripts`
+Save [Constructor.lua](https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua) into `Stand/Lua Scripts`
