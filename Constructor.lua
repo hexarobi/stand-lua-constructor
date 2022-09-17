@@ -1,10 +1,10 @@
 -- Constructor
 -- by Hexarobi
--- Turns any vehicle into a police vehicle, with controllable flashing lights and sirens.
--- Save and share your policified vehicles.
--- https://github.com/hexarobi/stand-lua-policify
+-- A Lua Script for the Stand mod menu for GTA5
+-- Allows for constructing custom vehicles and maps
+-- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.1"
+local SCRIPT_VERSION = "0.2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -51,6 +51,7 @@ local config = {
     source_code_branch = "main",
     edit_offset_step = 1,
     edit_rotation_step = 1,
+    add_attachment_gun_active = false,
 }
 
 local CONSTRUCTS_DIR = filesystem.store_dir() .. 'Constructor\\constructs\\'
@@ -67,6 +68,7 @@ ensure_directory_exists(CONSTRUCTS_DIR)
 
 local spawned_constructs = {}
 local last_spawned_construct
+local menus = {}
 
 --local example_construct = {
 --    name="Police",
@@ -99,6 +101,8 @@ local construct_base = {
     children = {},
     options = {},
 }
+
+local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
 
 -- Good props for cop lights
 -- prop_air_lights_02a blue
@@ -523,6 +527,22 @@ local function load_hash(hash)
     end
 end
 
+local function spawn_vehicle_for_player(pid, model_name)
+    local model = util.joaat(model_name)
+    if not STREAMING.IS_MODEL_VALID(model) or not STREAMING.IS_MODEL_A_VEHICLE(model) then
+         util.toast("Error: Invalid vehicle name")
+        return
+    else
+        load_hash(model)
+        local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid)
+        local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(target_ped, 0.0, 4.0, 0.5)
+        local heading = ENTITY.GET_ENTITY_HEADING(target_ped)
+        local vehicle = entities.create_vehicle(model, pos, heading)
+        STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(model)
+        return vehicle
+    end
+end
+
 ---
 --- Specific Serializers
 ---
@@ -535,8 +555,6 @@ local function serialize_vehicle_headlights(vehicle, serialized_vehicle)
 end
 
 local function deserialize_vehicle_headlights(vehicle, serialized_vehicle)
-    util.log("deserializing "..vehicle.name)
-    --VEHICLE.SET_VEHICLE_LIGHTS(policified_vehicle.handle, 0)    -- Restore full headlight control
     VEHICLE._SET_VEHICLE_XENON_LIGHTS_COLOR(vehicle.handle, serialized_vehicle.headlights.headlights_color)
     VEHICLE.TOGGLE_VEHICLE_MOD(vehicle.handle, 22, serialized_vehicle.headlights.headlights_type or false)
 end
@@ -817,8 +835,18 @@ local function set_attachment_defaults(attachment)
     if attachment.has_collision == nil then
         attachment.has_collision = false
     end
+    if attachment.hash == nil and attachment.model == nil then
+        error("Cannot create attachment: Requires either a hash or a model")
+    end
     if attachment.hash == nil then
         attachment.hash = util.joaat(attachment.model)
+    else
+        if attachment.model == nil then
+            attachment.model = util.reverse_joaat(attachment.hash)
+        end
+    end
+    if attachment.name == nil then
+        attachment.name = attachment.model
     end
     if attachment.children == nil then
         attachment.children = {}
@@ -846,8 +874,11 @@ local function update_attachment(attachment)
 end
 
 local function load_hash_for_attachment(attachment)
-    if not STREAMING.IS_MODEL_VALID(attachment.hash) or (attachment.type ~= "VEHICLE" and STREAMING.IS_MODEL_A_VEHICLE(attachment.hash)) then
-        error("Error attaching: Invalid model: " .. attachment.model)
+    if not STREAMING.IS_MODEL_VALID(attachment.hash) then
+        if not STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) then
+            error("Error attaching: Invalid model: " .. attachment.model)
+        end
+        attachment.type = "VEHICLE"
     end
     load_hash(attachment.hash)
 end
@@ -885,15 +916,6 @@ local function attach_attachment(attachment)
     end
 
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
-
-    if attachment.type == nil then
-        attachment.type = "OBJECT"
-        if ENTITY.IS_ENTITY_A_VEHICLE(attachment.handle) then
-            attachment.type  = "VEHICLE"
-        elseif ENTITY.IS_ENTITY_A_PED(attachment.handle) then
-            attachment.type  = "PED"
-        end
-    end
 
     if attachment.flash_start_on ~= nil then
         ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0)
@@ -959,21 +981,6 @@ local function remove_attachment_from_parent(attachment)
     end)
 end
 
-local function build_attachment_from_parent(attachment, child_counter)
-    if child_counter == 1 then
-        if attachment.name == nil then
-            error("Cannot build base attachment without a name")
-        end
-        attachment.base_name = attachment.name
-    else
-        attachment.base_name = attachment.parent.base_name
-    end
-    if attachment.name == nil then
-        attachment.name = attachment.model
-    end
-    return attachment
-end
-
 local function reattach_attachment_with_children(attachment)
     if attachment.root ~= attachment then
         attach_attachment(attachment)
@@ -985,10 +992,8 @@ local function reattach_attachment_with_children(attachment)
     end
 end
 
-local function attach_attachment_with_children(new_attachment, child_counter)
-    if child_counter == nil then child_counter = 0 end
-    child_counter = child_counter + 1
-    local attachment = attach_attachment(build_attachment_from_parent(new_attachment, child_counter))
+local function attach_attachment_with_children(new_attachment)
+    local attachment = attach_attachment(new_attachment)
     if attachment.children then
         for _, child_attachment in pairs(attachment.children) do
             build_parent_child_relationship(attachment, child_attachment)
@@ -998,10 +1003,19 @@ local function attach_attachment_with_children(new_attachment, child_counter)
             if child_attachment.reflection_axis then
                 update_reflection_offsets(child_attachment)
             end
-            attach_attachment_with_children(child_attachment, child_counter)
+            attach_attachment_with_children(child_attachment)
         end
     end
     return attachment
+end
+
+local function add_attachment_to_construct(attachment)
+    attach_attachment_with_children(attachment)
+    table.insert(attachment.parent.children, attachment)
+    attachment.root.menus.refresh()
+    if attachment.root.menus.focus_menu then
+        menu.focus(attachment.root.menus.focus_menu)
+    end
 end
 
 local function clone_attachment(attachment)
@@ -1016,19 +1030,19 @@ local function clone_attachment(attachment)
     }
 end
 
-local function build_on_vehicle(vehicle)
+local function create_construct_from_vehicle(vehicle_handle)
     for _, construct in pairs(spawned_constructs) do
-        if construct.handle == vehicle then
+        if construct.handle == vehicle_handle then
             util.toast("Vehicle is already a construct")
-            --menu.focus(construct.menus.siren)
+            menu.focus(construct.menus.focus_menu)
             return
         end
     end
     local construct = table.table_copy(construct_base)
     construct.type = "VEHICLE"
-    construct.handle = vehicle
+    construct.handle = vehicle_handle
     construct.root = construct
-    construct.hash = ENTITY.GET_ENTITY_MODEL(vehicle)
+    construct.hash = ENTITY.GET_ENTITY_MODEL(vehicle_handle)
     construct.model = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(construct.hash)
     construct.name = construct.model
     table.insert(spawned_constructs, construct)
@@ -1093,11 +1107,11 @@ end
 
 local rebuild_saved_constructs_menu_function
 
-local function save_vehicle(policified_vehicle)
-    local filepath = CONSTRUCTS_DIR .. policified_vehicle.name .. ".policify.json"
+local function save_vehicle(construct)
+    local filepath = CONSTRUCTS_DIR .. construct.name .. ".construct.json"
     local file = io.open(filepath, "wb")
     if not file then error("Cannot write to file '" .. filepath .. "'", TOAST_ALL) end
-    local content = json.encode(serialize_attachment(policified_vehicle))
+    local content = json.encode(serialize_attachment(construct))
     if content == "" or (not string.starts(content, "{")) then
         util.toast("Cannot save vehicle: Error serializing.", TOAST_ALL)
         return
@@ -1105,34 +1119,20 @@ local function save_vehicle(policified_vehicle)
     --util.toast(content, TOAST_ALL)
     file:write(content)
     file:close()
-    util.toast("Saved "..policified_vehicle.name)
+    util.toast("Saved ".. construct.name)
     rebuild_saved_constructs_menu_function()
-end
-
-local function spawn_vehicle_for_player(policified_vehicle, pid)
-    if policified_vehicle.hash == nil then
-        policified_vehicle.hash = util.joaat(policified_vehicle.model)
-    end
-    if not (STREAMING.IS_MODEL_VALID(policified_vehicle.hash) and STREAMING.IS_MODEL_A_VEHICLE(policified_vehicle.hash)) then
-        util.toast("Cannot spawn vehicle model: "..policified_vehicle.model)
-    end
-    load_hash(policified_vehicle.hash)
-    local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(pid)
-    local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(target_ped, 0.0, 4.0, 0.5)
-    local heading = ENTITY.GET_ENTITY_HEADING(target_ped)
-    policified_vehicle.handle = entities.create_vehicle(policified_vehicle.hash, pos, heading)
-    STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(policified_vehicle.hash)
 end
 
 local function spawn_loaded_construct(loaded_vehicle)
     -- TODO: Handle constructs other than vehicles
-    spawn_vehicle_for_player(loaded_vehicle, players.user())
+    loaded_vehicle.handle = spawn_vehicle_for_player(players.user(), loaded_vehicle.model)
     deserialize_vehicle_attributes(loaded_vehicle)
     loaded_vehicle.root = loaded_vehicle
     loaded_vehicle.parent = loaded_vehicle
     reattach_attachment_with_children(loaded_vehicle)
     table.insert(spawned_constructs, loaded_vehicle)
     last_spawned_construct = loaded_vehicle
+    menus.refresh_loaded_constructs()
 end
 
 ---
@@ -1152,12 +1152,7 @@ local function rebuild_add_attachments_menu(attachment)
                 local child_attachment = table.table_copy(available_attachment)
                 child_attachment.root = attachment.root
                 child_attachment.parent = attachment
-                attach_attachment_with_children(child_attachment)
-                table.insert(attachment.children, child_attachment)
-                local newly_added_edit_menu = attachment.rebuild_edit_attachments_menu_function(attachment.root)
-                if newly_added_edit_menu then
-                    menu.focus(newly_added_edit_menu)
-                end
+                add_attachment_to_construct(child_attachment)
             end)
         end
         table.insert(attachment.menus.add_attachment_categories, category_menu)
@@ -1165,54 +1160,50 @@ local function rebuild_add_attachments_menu(attachment)
 
     menu.text_input(attachment.menus.add_attachment, "Object by Name", {"constructorattachobject"},
             "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
-                local new_attachment = {
+                add_attachment_to_construct({
                     root = attachment.root,
                     parent = attachment,
                     name = value,
                     model = value,
-                }
-                attach_attachment_with_children(new_attachment)
-                refresh_siren_status(new_attachment)
-                local newly_added_edit_menu = attachment.rebuild_edit_attachments_menu_function(attachment)
-                if newly_added_edit_menu then
-                    menu.focus(newly_added_edit_menu)
-                end
+                })
             end)
 
     menu.text_input(attachment.menus.add_attachment, "Vehicle by Name", {"constructorattachvehicle"},
             "Add a vehicle by exact name.", function (value)
-                local new_attachment = {
+                add_attachment_to_construct({
                     root = attachment.root,
                     parent = attachment,
                     name = value,
                     model = value,
                     type = "VEHICLE",
-                }
-                attach_attachment_with_children(new_attachment)
-                refresh_siren_status(new_attachment)
-                local newly_added_edit_menu = attachment.rebuild_edit_attachments_menu_function(attachment)
-                if newly_added_edit_menu then
-                    menu.focus(newly_added_edit_menu)
-                end
+                })
             end)
+
+    menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
+        config.add_attachment_gun_active = on
+    end, config.add_attachment_gun_active)
 
 end
 
 local function rebuild_edit_attachments_menu(parent_attachment)
-    local focus
+    parent_attachment.menus.focus_menu = nil
     for _, attachment in pairs(parent_attachment.children) do
         if not (attachment.menus and attachment.menus.main) then
             attachment.menus = {}
             attachment.menus.main = menu.list(attachment.parent.menus.edit_attachments, attachment.name or "unknown")
 
+            menu.divider(attachment.menus.main, "Info")
+            menu.readonly(attachment.menus.main, "Handle", attachment.handle)
+            attachment.menus.name = menu.text_input(attachment.menus.main, "Name", { "constructorsetattachmentname"..attachment.handle}, "Set name of the attachment", function(value)
+                attachment.name = value
+                attachment.menus.refresh()
+            end, attachment.name)
+
             menu.divider(attachment.menus.main, "Position")
-            attachment.menus.first_menu = menu.slider_float(attachment.menus.main, "X: Left / Right", {"constructorposition"..attachment.handle.."x"}, "", -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
+            local focus_menu = menu.slider_float(attachment.menus.main, "X: Left / Right", { "constructorposition"..attachment.handle.."x"}, "", -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
                 attachment.offset.x = value / 100
                 move_attachment(attachment)
             end)
-            if focus == nil then
-                focus = attachment.menus.first_menu
-            end
             menu.slider_float(attachment.menus.main, "Y: Forward / Back", {"constructorposition"..attachment.handle.."y"}, "", -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
                 attachment.offset.y = value / -100
                 move_attachment(attachment)
@@ -1273,9 +1264,9 @@ local function rebuild_edit_attachments_menu(parent_attachment)
                 local new_attachment = clone_attachment(attachment)
                 new_attachment.name = attachment.name .. " (Clone)"
                 attach_attachment_with_children(new_attachment)
-                local newly_added_edit_menu = attachment.rebuild_edit_attachments_menu_function(attachment.root)
-                if newly_added_edit_menu then
-                    menu.focus(newly_added_edit_menu)
+                attachment.rebuild_edit_attachments_menu_function(attachment.root)
+                if attachment.root.menus.focus_menu then
+                    menu.focus(attachment.root.menus.focus_menu)
                 end
             end)
 
@@ -1284,14 +1275,11 @@ local function rebuild_edit_attachments_menu(parent_attachment)
                 new_attachment.name = attachment.name .. " (Clone)"
                 new_attachment.offset = {x=-attachment.offset.x, y=attachment.offset.y, z=attachment.offset.z}
                 attach_attachment_with_children(new_attachment)
-                local newly_added_edit_menu = attachment.rebuild_edit_attachments_menu_function(attachment.root)
-                if newly_added_edit_menu then
-                    menu.focus(newly_added_edit_menu)
+                attachment.rebuild_edit_attachments_menu_function(attachment.root)
+                if attachment.root.menus.focus_menu then
+                    menu.focus(attachment.root.menus.focus_menu)
                 end
             end)
-
-            menu.divider(attachment.menus.main, "Info")
-            menu.readonly(attachment.menus.main, "Handle", attachment.handle)
 
             menu.divider(attachment.menus.main, "Actions")
             if attachment.type == "VEHICLE" then
@@ -1306,25 +1294,32 @@ local function rebuild_edit_attachments_menu(parent_attachment)
                 end)
             end)
 
+            attachment.menus.refresh = function()
+                menu.set_menu_name(attachment.menus.main, attachment.name)
+                menu.set_menu_name(attachment.menus.edit_attachments, "Edit Attachments ("..#attachment.children..")")
+            end
+
+            if parent_attachment.menus.focus_menu == nil then
+                parent_attachment.menus.focus_menu = focus_menu
+            end
         end
-        local submenu_focus = rebuild_edit_attachments_menu(attachment)
-        if focus == nil and submenu_focus ~= nil then
-            focus = submenu_focus
+        rebuild_edit_attachments_menu(attachment)
+        if parent_attachment.menus.focus_menu == nil and attachment.menus.focus_menu ~= nil then
+            util.toast("setting focus menu from child")
+            parent_attachment.menus.focus_menu = attachment.menus.focus_menu
         end
     end
-    return focus
 end
-
-local spawned_constructs_menu
 
 local function rebuild_spawned_constructs_menu(construct)
     if construct.menus == nil then
         construct.menus = {}
-        construct.menus.main = menu.list(spawned_constructs_menu, construct.name)
+        construct.menus.main = menu.list(menus.loaded_constructs, construct.name)
 
-        menu.text_input(construct.menus.main, "Name", { "policifysetvehiclename"}, "Set name of the vehicle", function(value)
+        menu.divider(construct.menus.main, "Construct")
+        construct.menus.name = menu.text_input(construct.menus.main, "Name", { "constructsetname"}, "Set name of the construct", function(value)
             construct.name = value
-            construct.rebuild_edit_attachments_menu_function(construct)
+            construct.menus.refresh()
         end, construct.name)
 
         --menu.toggle_loop(options_menu, "Engine Always On", {}, "If enabled, vehicle engine will stay on even when unoccupied", function()
@@ -1353,10 +1348,16 @@ local function rebuild_spawned_constructs_menu(construct)
             menu.show_warning(construct.menus.delete_vehicle, CLICK_COMMAND, "Are you sure you want to delete this construct? All attachments will also be deleted.", function()
                 detach_attachment(construct)
                 entities.delete_by_handle(construct.handle)
-                menu.trigger_commands("luaconstuctor")
+                menu.trigger_commands("luaconstructor")
             end)
         end)
 
+        construct.menus.refresh = function()
+            menu.set_menu_name(construct.menus.main, construct.name)
+            menu.set_menu_name(construct.menus.edit_attachments, "Edit Attachments ("..#construct.children..")")
+            rebuild_edit_attachments_menu(construct)
+        end
+        construct.menus.spawn_focus = construct.menus.name
     end
 end
 
@@ -1364,30 +1365,43 @@ end
 --- Static Menus
 ---
 
-menu.action(menu.my_root(), "Build on Current Vehicle", { "buildonvehicle" }, "Create a new construct based on current vehicle", function()
+menus.create_new_construct = menu.list(menu.my_root(), "Create New Construct")
+
+menu.action(menus.create_new_construct, "Create from current vehicle", { "constructfromvehicle" }, "Create a new construct based on current (or last in) vehicle", function()
     local vehicle = entities.get_user_vehicle_as_handle()
     if vehicle == 0 then
-        util.toast("Error: Must be in a vehicle to build on it")
+        util.toast("Error: You must be (or recently been) in a vehicle to create a construct from it")
         return
     end
-    local construct = build_on_vehicle(vehicle)
+    local construct = create_construct_from_vehicle(vehicle)
     if construct then
         rebuild_spawned_constructs_menu(construct)
         rebuild_edit_attachments_menu(construct)
-        --menu.focus(construct.menus.first_menu)
+        menu.focus(construct.menus.spawn_focus)
     end
 end)
 
-spawned_constructs_menu = menu.list(menu.my_root(), "Spawned Constructs")
+menu.text_input(menus.create_new_construct, "Create from vehicle name", { "constructfromvehiclename"}, "Create a new construct from a vehicle name", function(value)
+    local vehicle_handle = spawn_vehicle_for_player(players.user(), value)
+    if vehicle_handle == 0 then
+        util.toast("Error: You must be (or recently been) in a vehicle to create a construct from it")
+        return
+    end
+    local construct = create_construct_from_vehicle(vehicle_handle)
+    if construct then
+        rebuild_spawned_constructs_menu(construct)
+        rebuild_edit_attachments_menu(construct)
+        menu.focus(construct.menus.spawn_focus)
+    end
+end)
 
 ---
 --- Saved Constructs Menu
 ---
 
-local saved_constructs_menu = menu.list(menu.my_root(), "Saved Constructs")
-local saved_constructs_menu_items = {}
+menus.load_construct = menu.list(menu.my_root(), "Load Construct")
 
-menu.hyperlink(saved_constructs_menu, "Open Saved Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open Saved Constructs folder")
+menu.hyperlink(menus.load_construct, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
 
 local function load_construct_from_file(filepath)
     local file = io.open(filepath, "r")
@@ -1408,7 +1422,7 @@ local function load_construct_from_file(filepath)
     end
 end
 
-local function load_saved_construct(directory)
+local function load_constructs_from_dir(directory)
     local loaded_constructs = {}
     for _, filepath in ipairs(filesystem.list_files(directory)) do
         local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
@@ -1422,24 +1436,31 @@ local function load_saved_construct(directory)
     return loaded_constructs
 end
 
+menus.loaded_constructs_items = {}
 rebuild_saved_constructs_menu_function = function()
-    for _, saved_constructs_menu_item in pairs(saved_constructs_menu_items) do
-        menu.delete(saved_constructs_menu_item)
+    for _, loaded_construct_menu in pairs(menus.loaded_constructs_items) do
+        menu.delete(loaded_construct_menu)
     end
-    saved_constructs_menu_items = {}
-    for _, loaded_construct in pairs(load_saved_construct(CONSTRUCTS_DIR)) do
-        local saved_constructs_menu_item = menu.action(saved_constructs_menu, loaded_construct.name, {}, "", function()
+    menus.loaded_constructs_items = {}
+    for _, loaded_construct in pairs(load_constructs_from_dir(CONSTRUCTS_DIR)) do
+        local loaded_construct_menu = menu.action(menus.load_construct, loaded_construct.name, {}, "", function()
             local spawn_construct = table.table_copy(loaded_construct)
             spawn_loaded_construct(spawn_construct)
             rebuild_spawned_constructs_menu(spawn_construct)
             rebuild_edit_attachments_menu(spawn_construct)
-            menu.focus(spawn_construct.menus.first_menu)
+            menu.focus(spawn_construct.menus.spawn_focus)
         end)
-        table.insert(saved_constructs_menu_items, saved_constructs_menu_item)
+        table.insert(menus.loaded_constructs_items, loaded_construct_menu)
     end
 end
 
 rebuild_saved_constructs_menu_function()
+
+menus.loaded_constructs = menu.list(menu.my_root(), "Loaded Constructs ("..#spawned_constructs..")")
+
+menus.refresh_loaded_constructs = function()
+    menu.set_menu_name(menus.loaded_constructs, "Loaded Constructs ("..#spawned_constructs..")")
+end
 
 local options_menu = menu.list(menu.my_root(), "Options")
 
@@ -1465,7 +1486,53 @@ menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open
 menu.divider(script_meta_menu, "Credits")
 menu.readonly(script_meta_menu, "Jackz for writing Vehicle Builder", "Much of Constructor is based on code from Jackz Vehicle Builder and wouldn't have been possible without this foundation")
 
+local function get_aim_info()
+    local outptr = memory.alloc(4)
+    local success = PLAYER.GET_ENTITY_PLAYER_IS_FREE_AIMING_AT(players.user(), outptr)
+    local aim_info = {handle=0}
+    if success then
+        local handle = memory.read_int(outptr)
+        if ENTITY.DOES_ENTITY_EXIST(handle) then
+            aim_info.handle = handle
+        end
+        if ENTITY.GET_ENTITY_TYPE(handle) == 1 then
+            local vehicle = PED.GET_VEHICLE_PED_IS_IN(handle, false)
+            if vehicle ~= 0 then
+                if VEHICLE.GET_PED_IN_VEHICLE_SEAT(vehicle, -1) then
+                    handle = vehicle
+                    aim_info.handle = handle
+                end
+            end
+        end
+        aim_info.hash = ENTITY.GET_ENTITY_MODEL(handle)
+        aim_info.model = util.reverse_joaat(aim_info.hash)
+        aim_info.health = ENTITY.GET_ENTITY_HEALTH(handle)
+        aim_info.type = ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(handle)]
+    end
+    memory.free(outptr)
+    return aim_info
+end
+
+local function constructor_tick()
+    if config.add_attachment_gun_active then
+        local info = get_aim_info()
+        if info.handle ~= 0 then
+            local text = "Shoot to add " .. info.type .. " `" .. info.model .. "` to construct " .. last_spawned_construct.name
+            directx.draw_text(0.5, 0.3, text, 5, 0.5, {r=1,g=1,b=1,a=1}, true)
+            if PED.IS_PED_SHOOTING(players.user_ped()) then
+                util.toast("Attaching "..info.model)
+                add_attachment_to_construct({
+                    parent=last_spawned_construct,
+                    root=last_spawned_construct,
+                    hash=info.hash,
+                    model=info.model,
+                })
+            end
+        end
+    end
+end
+
 util.create_tick_handler(function()
+    constructor_tick()
     return true
 end)
-
