@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.4"
+local SCRIPT_VERSION = "0.5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -664,9 +664,18 @@ local function spawn_construct_from_plan(construct_plan)
         error("Unsupported construct type")
     end
     menus.rebuild_spawned_constructs_menu(construct)
-    menus.rebuild_edit_attachments_menu(construct)
+    construct.menus.refresh()
     construct.menus.focus()
-    --menu.focus(spawn_construct.menus.spawn_focus)
+end
+
+local function delete_construct(construct)
+    constructor_lib.detach_attachment(construct)
+    entities.delete_by_handle(construct.handle)
+    array_remove(spawned_constructs, function(t, i)
+        local spawned_construct = t[i]
+        return spawned_construct ~= construct
+    end)
+    menus.refresh_loaded_constructs()
 end
 
 ---
@@ -692,7 +701,55 @@ menus.rebuild_add_attachments_menu = function(attachment)
         table.insert(attachment.menus.add_attachment_categories, category_menu)
     end
 
-    menu.text_input(attachment.menus.add_attachment, "Object by Name", {"constructorattachobject"},
+    local PROPS_PATH = filesystem.resources_dir().."objects.txt"
+    local PEDS_PATH = filesystem.resources_dir().."peds.txt"
+    local VEHICLES_PATH = filesystem.resources_dir().."vehicles.txt"
+
+    local function search_props(query)
+        local results = {}
+        for prop in io.lines(PROPS_PATH) do
+            local i, j = prop:find(query)
+            if i then
+                -- Add the distance:
+                table.insert(results, {
+                    prop = prop,
+                    distance = j - i
+                })
+            end
+        end
+        table.sort(results, function(a, b) return a.distance > b.distance end)
+        return results
+    end
+
+    local function clear_menu_list(t)
+        for k, h in pairs(t) do
+            pcall(menu.delete, h)
+            t[k] = nil
+        end
+    end
+
+    attachment.menus.search_results = {}
+    attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search Props", {}, "Search for a prop by name")
+    menu.text_input(attachment.menus.search_add_prop, "Search for Object", {"constructorsearchobject"}, "", function (query)
+        clear_menu_list(attachment.menus.search_results)
+        local results = search_props(query)
+        for i = 1,30 do
+            if results[i] then
+                local model = results[i].prop
+                local search_result_menu_item = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
+                    constructor_lib.add_attachment_to_construct({
+                        root = attachment.root,
+                        parent = attachment,
+                        name = model,
+                        model = model,
+                    })
+                end)
+                table.insert(attachment.menus.search_results, search_result_menu_item)
+            end
+        end
+    end)
+
+    menu.text_input(attachment.menus.add_attachment, "Object/Vehicle by Name", {"constructorattachobject"},
             "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
                 constructor_lib.add_attachment_to_construct({
                     root = attachment.root,
@@ -702,16 +759,16 @@ menus.rebuild_add_attachments_menu = function(attachment)
                 })
             end)
 
-    menu.text_input(attachment.menus.add_attachment, "Vehicle by Name", {"constructorattachvehicle"},
-            "Add a vehicle by exact name.", function (value)
-                constructor_lib.add_attachment_to_construct({
-                    root = attachment.root,
-                    parent = attachment,
-                    name = value,
-                    model = value,
-                    type = "VEHICLE",
-                })
-            end)
+    --menu.text_input(attachment.menus.add_attachment, "Vehicle by Name", {"constructorattachvehicle"},
+    --        "Add a vehicle by exact name.", function (value)
+    --            constructor_lib.add_attachment_to_construct({
+    --                root = attachment.root,
+    --                parent = attachment,
+    --                name = value,
+    --                model = value,
+    --                type = "VEHICLE",
+    --            })
+    --        end)
 
     menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
         config.add_attachment_gun_active = on
@@ -797,22 +854,14 @@ menus.rebuild_edit_attachments_menu = function(parent_attachment)
             menu.action(clone_menu, "Clone (In Place)", {}, "", function()
                 local new_attachment = constructor_lib.clone_attachment(attachment)
                 new_attachment.name = attachment.name .. " (Clone)"
-                constructor_lib.attach_attachment_with_children(new_attachment)
-                attachment.rebuild_edit_attachments_menu_function(attachment.root)
-                if attachment.root.menus.focus_menu then
-                    menu.focus(attachment.root.menus.focus_menu)
-                end
+                constructor_lib.add_attachment_to_construct(new_attachment)
             end)
 
             menu.action(clone_menu, "Clone Reflection: Left/Right", {}, "", function()
                 local new_attachment = constructor_lib.clone_attachment(attachment)
                 new_attachment.name = attachment.name .. " (Clone)"
                 new_attachment.offset = {x=-attachment.offset.x, y=attachment.offset.y, z=attachment.offset.z}
-                constructor_lib.attach_attachment_with_children(new_attachment)
-                attachment.rebuild_edit_attachments_menu_function(attachment.root)
-                if attachment.root.menus.focus_menu then
-                    menu.focus(attachment.root.menus.focus_menu)
-                end
+                constructor_lib.add_attachment_to_construct(new_attachment)
             end)
 
             menu.divider(attachment.menus.main, "Actions")
@@ -822,10 +871,13 @@ menus.rebuild_edit_attachments_menu = function(parent_attachment)
                 end)
             end
             menu.action(attachment.menus.main, "Delete", {}, "", function()
-                menu.show_warning(attachment.menus.main, CLICK_COMMAND, "Are you sure you want to delete this attachment? All children will also be deleted.", function()
+                if #attachment.children > 0 then
+                    menu.show_warning(attachment.menus.main, CLICK_COMMAND, "Are you sure you want to delete this attachment? "..#attachment.children.." children will also be deleted.", function()
+                        constructor_lib.remove_attachment_from_parent(attachment)
+                    end)
+                else
                     constructor_lib.remove_attachment_from_parent(attachment)
-                    menu.focus(attachment.parent.menus.edit_attachments)
-                end)
+                end
             end)
 
             attachment.menus.refresh = function()
@@ -882,20 +934,14 @@ menus.rebuild_spawned_constructs_menu = function(construct)
 
         construct.menus.delete_vehicle = menu.action(construct.menus.main, "Delete", {}, "Delete construct and all attachments", function()
             menu.show_warning(construct.menus.delete_vehicle, CLICK_COMMAND, "Are you sure you want to delete this construct? All attachments will also be deleted.", function()
-                constructor_lib.detach_attachment(construct)
-                entities.delete_by_handle(construct.handle)
-                --menu.focus(menus.create_new_construct)
-                --menu.trigger_commands("luaconstructor")
+                delete_construct(construct)
             end)
         end)
         construct.menus.rebuild_vehicle = menu.action(construct.menus.main, "Rebuild", {}, "Delete construct, then rebuild a new one from scratch.", function()
             menu.show_warning(construct.menus.delete_vehicle, CLICK_COMMAND, "Are you sure you want to rebuild this construct?", function()
                 local construct_plan = constructor_lib.serialize_attachment(construct)
-                constructor_lib.detach_attachment(construct)
-                entities.delete_by_handle(construct.handle)
+                delete_construct(construct)
                 spawn_construct_from_plan(construct_plan)
-                --menu.focus(menus.create_new_construct)
-                --menu.trigger_commands("luaconstructor")
             end)
         end)
 
@@ -903,8 +949,13 @@ menus.rebuild_spawned_constructs_menu = function(construct)
             menu.set_menu_name(construct.menus.main, construct.name)
             menu.set_menu_name(construct.menus.edit_attachments, "Edit Attachments ("..#construct.children..")")
             menus.rebuild_edit_attachments_menu(construct)
+            menus.refresh_loaded_constructs()
         end
         construct.menus.focus = function()
+            if construct.menus.name == nil then
+                error("Cannot focus, missing name menu for construct "..construct.name)
+            end
+            --util.toast("Focusing on construct menu "..construct.name.." name menu handle="..tostring(construct.menus.name))
             menu.focus(construct.menus.name)
         end
         construct.menus.spawn_focus = construct.menus.name
@@ -926,7 +977,7 @@ menu.action(menus.create_new_construct, "Create from current vehicle", { "constr
     local construct = create_construct_from_vehicle(vehicle)
     if construct then
         menus.rebuild_spawned_constructs_menu(construct)
-        menus.rebuild_edit_attachments_menu(construct)
+        construct.menus.refresh()
         menu.focus(construct.menus.spawn_focus)
     end
 end)
@@ -940,7 +991,7 @@ menu.text_input(menus.create_new_construct, "Create from vehicle name", { "const
     local construct = create_construct_from_vehicle(vehicle_handle)
     if construct then
         menus.rebuild_spawned_constructs_menu(construct)
-        menus.rebuild_edit_attachments_menu(construct)
+        construct.menus.refresh()
         menu.focus(construct.menus.spawn_focus)
     end
 end)
@@ -1009,8 +1060,20 @@ menus.rebuild_load_construct_menu()
 
 menus.loaded_constructs = menu.list(menu.my_root(), "Loaded Constructs ("..#spawned_constructs..")")
 
+-- TODO: Why does this work, but I get an access error trying to focus on create new construct menu
+--menus.main_menu = menu.list(menu.my_root(), "Main Menu")
+--menus.refocus = function()
+--    menu.action(menu.my_root(), "Refocus", { "" }, "", function()
+--        menu.focus(menus.main_menu)
+--    end)
+--end
+--menus.refocus()
+
 menus.refresh_loaded_constructs = function()
     menu.set_menu_name(menus.loaded_constructs, "Loaded Constructs ("..#spawned_constructs..")")
+    --if #spawned_constructs == 0 then
+    --    menu.focus(menus.create_new_construct)
+    --end
 end
 
 local options_menu = menu.list(menu.my_root(), "Options")
