@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.3"
+local SCRIPT_VERSION = "0.4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -50,6 +50,8 @@ auto_update_branch(AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1])
 --- Dependencies
 ---
 
+local loading_menu = menu.divider(menu.my_root(), "Please wait...")
+
 util.require_natives(1660775568)
 local status, natives = pcall(require, "natives-1660775568")
 if not status then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1660775568") end
@@ -57,17 +59,16 @@ if not status then error("Could not natives lib. Make sure it is selected under 
 local status, json = pcall(require, "json")
 if not status then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
-auto_updater.run_auto_update({
+local constructor_lib = auto_updater.require_with_auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
     script_relpath="lib/constructor/constructor_lib.lua",
     verify_file_begins_with="--",
-    auto_restart=false,
 })
-local status, constructor_lib = pcall(require, "constructor/constructor_lib")
-if not status then error("Could not load constructor_lib. This should have auto-installed. Please visit discord for help: https://discord.gg/RF4N7cKz") end
 
 --local status, json = pcall(require, "inspect")
 --if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
+
+menu.delete(loading_menu)
 
 ---
 --- Data
