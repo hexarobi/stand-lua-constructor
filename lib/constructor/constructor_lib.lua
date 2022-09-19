@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.3.1"
+local LIB_VERSION = "3.4"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -74,6 +74,107 @@ constructor_lib.spawn_vehicle_for_player = function(pid, model_name)
         return vehicle
     end
 end
+
+
+---
+--- Draw Utils
+---
+
+
+local minimum = memory.alloc()
+local maximum = memory.alloc()
+local upVector_pointer = memory.alloc()
+local rightVector_pointer = memory.alloc()
+local forwardVector_pointer = memory.alloc()
+local position_pointer = memory.alloc()
+
+-- From GridSpawn
+constructor_lib.draw_bounding_box = function(entity, colour)
+    if colour == nil then
+        colour = {r=255,g=0,b=0,a=255}
+    end
+    ENTITY.GET_ENTITY_MATRIX(entity, rightVector_pointer, forwardVector_pointer, upVector_pointer, position_pointer);
+    local forward_vector = v3.new(forwardVector_pointer)
+    local forward_vector = v3.new(forwardVector_pointer)
+    local right_vector = v3.new(rightVector_pointer)
+    local up_vector = v3.new(upVector_pointer)
+
+    MISC.GET_MODEL_DIMENSIONS(ENTITY.GET_ENTITY_MODEL(entity), minimum, maximum)
+    local minimum_vec = v3.new(minimum)
+    local maximum_vec = v3.new(maximum)
+    local dimensions = {x = maximum_vec.y - minimum_vec.y, y = maximum_vec.x - minimum_vec.x, z = maximum_vec.z - minimum_vec.z}
+
+    local top_right =           ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(entity,       maximum_vec.x, maximum_vec.y, maximum_vec.z)
+    local top_right_back =      {x = forward_vector.x * -dimensions.y + top_right.x,        y = forward_vector.y * -dimensions.y + top_right.y,         z = forward_vector.z * -dimensions.y + top_right.z}
+    local bottom_right_back =   {x = up_vector.x * -dimensions.z + top_right_back.x,        y = up_vector.y * -dimensions.z + top_right_back.y,         z = up_vector.z * -dimensions.z + top_right_back.z}
+    local bottom_left_back =    {x = -right_vector.x * dimensions.x + bottom_right_back.x,  y = -right_vector.y * dimensions.x + bottom_right_back.y,   z = -right_vector.z * dimensions.x + bottom_right_back.z}
+    local top_left =            {x = -right_vector.x * dimensions.x + top_right.x,          y = -right_vector.y * dimensions.x + top_right.y,           z = -right_vector.z * dimensions.x + top_right.z}
+    local bottom_right =        {x = -up_vector.x * dimensions.z + top_right.x,             y = -up_vector.y * dimensions.z + top_right.y,              z = -up_vector.z * dimensions.z + top_right.z}
+    local bottom_left =         {x = forward_vector.x * dimensions.y + bottom_left_back.x,  y = forward_vector.y * dimensions.y + bottom_left_back.y,   z = forward_vector.z * dimensions.y + bottom_left_back.z}
+    local top_left_back =       {x = up_vector.x * dimensions.z + bottom_left_back.x,       y = up_vector.y * dimensions.z + bottom_left_back.y,        z = up_vector.z * dimensions.z + bottom_left_back.z}
+
+    GRAPHICS.DRAW_LINE(
+            top_right.x, top_right.y, top_right.z,
+            top_right_back.x, top_right_back.y, top_right_back.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            top_right.x, top_right.y, top_right.z,
+            top_left.x, top_left.y, top_left.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            top_right.x, top_right.y, top_right.z,
+            bottom_right.x, bottom_right.y, bottom_right.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            bottom_left_back.x, bottom_left_back.y, bottom_left_back.z,
+            bottom_right_back.x, bottom_right_back.y, bottom_right_back.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            bottom_left_back.x, bottom_left_back.y, bottom_left_back.z,
+            bottom_left.x, bottom_left.y, bottom_left.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            bottom_left_back.x, bottom_left_back.y, bottom_left_back.z,
+            top_left_back.x, top_left_back.y, top_left_back.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            top_left_back.x, top_left_back.y, top_left_back.z,
+            top_right_back.x, top_right_back.y, top_right_back.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            top_left_back.x, top_left_back.y, top_left_back.z,
+            top_left.x, top_left.y, top_left.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            bottom_right_back.x, bottom_right_back.y, bottom_right_back.z,
+            top_right_back.x, top_right_back.y, top_right_back.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            bottom_left.x, bottom_left.y, bottom_left.z,
+            top_left.x, top_left.y, top_left.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            bottom_left.x, bottom_left.y, bottom_left.z,
+            bottom_right.x, bottom_right.y, bottom_right.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+    GRAPHICS.DRAW_LINE(
+            bottom_right_back.x, bottom_right_back.y, bottom_right_back.z,
+            bottom_right.x, bottom_right.y, bottom_right.z,
+            colour.r, colour.g, colour.b, colour.a
+    )
+end
+
 
 ---
 --- Specific Serializers
@@ -354,21 +455,14 @@ constructor_lib.set_attachment_internal_collisions = function(attachment, new_at
 end
 
 constructor_lib.set_attachment_defaults = function(attachment)
-    if attachment.offset == nil then
-        attachment.offset = { x = 0, y = 0, z = 0 }
-    end
-    if attachment.rotation == nil then
-        attachment.rotation = { x = 0, y = 0, z = 0 }
-    end
-    if attachment.is_visible == nil then
-        attachment.is_visible = true
-    end
-    if attachment.has_gravity == nil then
-        attachment.has_gravity = false
-    end
-    if attachment.has_collision == nil then
-        attachment.has_collision = false
-    end
+    if attachment.children == nil then attachment.children = {} end
+    if attachment.options == nil then attachment.options = {} end
+    if attachment.offset == nil then attachment.offset = { x = 0, y = 0, z = 0 } end
+    if attachment.rotation == nil then attachment.rotation = { x = 0, y = 0, z = 0 } end
+    if attachment.is_visible == nil then attachment.is_visible = true end
+    if attachment.has_gravity == nil then attachment.has_gravity = false end
+    if attachment.has_collision == nil then attachment.has_collision = false end
+    if attachment.is_networked == nil then attachment.is_networked = true end
     if attachment.hash == nil and attachment.model == nil then
         error("Cannot create attachment: Requires either a hash or a model")
     end
@@ -379,15 +473,7 @@ constructor_lib.set_attachment_defaults = function(attachment)
             attachment.model = util.reverse_joaat(attachment.hash)
         end
     end
-    if attachment.name == nil then
-        attachment.name = attachment.model
-    end
-    if attachment.children == nil then
-        attachment.children = {}
-    end
-    if attachment.options == nil then
-        attachment.options = {}
-    end
+    if attachment.name == nil then attachment.name = attachment.model end
 end
 
 constructor_lib.update_attachment = function(attachment)
@@ -400,22 +486,23 @@ constructor_lib.update_attachment = function(attachment)
     if attachment.parent.handle == attachment.handle then
         ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0)
         if attachment.position ~= nil then
-            ENTITY.SET_ENTITY_COORDS(attachment.handle, attachment.position.x, attachment.position.y, attachment.position.z, true, false, false)
+            ENTITY.SET_ENTITY_COORDS_NO_OFFSET(attachment.handle, attachment.position.x, attachment.position.y, attachment.position.z, true, false, false)
         end
     else
         ENTITY.ATTACH_ENTITY_TO_ENTITY(
                 attachment.handle, attachment.parent.handle, attachment.bone_index or 0,
                 attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
                 attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                false, true, attachment.has_collision, false, 2, true
+                false, attachment.is_preview or attachment.is_networked, attachment.has_collision, false, 2, true
         )
     end
+
 end
 
 constructor_lib.load_hash_for_attachment = function(attachment)
     if not STREAMING.IS_MODEL_VALID(attachment.hash) then
         if not STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) then
-            error("Error attaching: Invalid model: " .. attachment.model)
+            util.toast("Error attaching: Invalid model: " .. attachment.model, TOAST_ALL)
         end
         attachment.type = "VEHICLE"
     end
@@ -473,11 +560,12 @@ constructor_lib.attach_attachment = function(attachment)
     end
 
     if attachment.root.is_preview == true then
-        ENTITY.SET_ENTITY_ALPHA(attachment.handle, 150)
+        ENTITY.SET_ENTITY_ALPHA(attachment.handle, 206)
     end
 
     if attachment.has_collision == false then
-        ENTITY.GET_ENTITY_COLLISION_DISABLED(attachment.handle)
+        --ENTITY.SET_ENTITY_COLLISION(attachment.handle, false, false)
+        ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, false)
     end
 
     constructor_lib.update_attachment(attachment)
