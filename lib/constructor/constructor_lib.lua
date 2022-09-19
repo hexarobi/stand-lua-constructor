@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.5"
+local LIB_VERSION = "3.6"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -465,6 +465,10 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options == nil then attachment.options = {} end
     if attachment.offset == nil then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil then attachment.rotation = { x = 0, y = 0, z = 0 } end
+    if attachment.heading == nil then
+        attachment.heading = attachment.root.heading
+        if attachment.heading == nil then attachment.heading = 0 end
+    end
     if attachment.is_visible == nil then attachment.is_visible = true end
     if attachment.has_gravity == nil then attachment.has_gravity = false end
     if attachment.has_collision == nil then attachment.has_collision = false end
@@ -534,8 +538,8 @@ constructor_lib.attach_attachment = function(attachment)
     end
 
     if attachment.type == "VEHICLE" then
-        local heading = ENTITY.GET_ENTITY_HEADING(attachment.root.handle)
-        attachment.handle = entities.create_vehicle(attachment.hash, attachment.offset, heading)
+        attachment.handle = entities.create_vehicle(attachment.hash, attachment.offset, attachment.heading)
+        constructor_lib.deserialize_vehicle_attributes(attachment)
     elseif attachment.type == "PED" then
         local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
         attachment.handle = entities.create_ped(1, attachment.hash, pos, 0.0)
@@ -560,11 +564,7 @@ constructor_lib.attach_attachment = function(attachment)
 
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
 
-    if attachment.num_bones == nil then
-        -- TODO: why always zero?
-        attachment.num_bones = ENTITY._GET_ENTITY_BONE_COUNT(attachment.handle)
-        --util.toast("Setting num bones "..attachment.num_bones, TOAST_ALL)
-    end
+    if attachment.num_bones == nil then attachment.num_bones = ENTITY._GET_ENTITY_BONE_COUNT(attachment.handle) end
     if attachment.type == nil then attachment.type = ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)] end
     if attachment.flash_start_on ~= nil then ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0) end
     if attachment.is_invincible ~= nil then ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, attachment.is_invincible) end
@@ -640,9 +640,9 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
 end
 
 constructor_lib.reattach_attachment_with_children = function(attachment)
-    if attachment.root ~= attachment then
+    --if attachment.root ~= attachment then
         constructor_lib.attach_attachment(attachment)
-    end
+    --end
     for _, child_attachment in pairs(attachment.children) do
         child_attachment.root = attachment.root
         child_attachment.parent = attachment
