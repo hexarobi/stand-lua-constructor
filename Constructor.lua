@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.5"
+local SCRIPT_VERSION = "0.6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -65,8 +65,8 @@ local constructor_lib = auto_updater.require_with_auto_update({
     verify_file_begins_with="--",
 })
 
---local status, json = pcall(require, "inspect")
---if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
+local status, inspect = pcall(require, "inspect")
+if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
 
 menu.delete(loading_menu)
 
@@ -76,10 +76,12 @@ menu.delete(loading_menu)
 
 local config = {
     source_code_branch = "main",
-    edit_offset_step = 1,
-    edit_rotation_step = 1,
+    edit_offset_step = 10,
+    edit_rotation_step = 15,
     add_attachment_gun_active = false,
-    debug_mode = true,
+    debug = true,
+    show_previews = true,
+    preview_camera_distance = 3,
 }
 
 local CONSTRUCTS_DIR = filesystem.store_dir() .. 'Constructor\\constructs\\'
@@ -576,6 +578,7 @@ local function get_aim_info()
 end
 
 local function aim_info_tick()
+    if not config.add_attachment_gun_active then return end
     local info = get_aim_info()
     if info.handle ~= 0 then
         local text = "Shoot to add " .. info.type .. " `" .. info.model .. "` to construct " .. config.add_attachment_gun_recipient.name
@@ -592,18 +595,12 @@ local function aim_info_tick()
     end
 end
 
-local function constructor_tick()
-    if config.add_attachment_gun_active then
-        aim_info_tick()
-    end
-end
-
 ---
 --- Construct Management
 ---
 
 local function create_construct_from_vehicle(vehicle_handle)
-    if config.debug_mode then util.log("Creating construct from vehicle handle "..vehicle_handle) end
+    if config.debug then util.log("Creating construct from vehicle handle "..vehicle_handle) end
     for _, construct in pairs(spawned_constructs) do
         if construct.handle == vehicle_handle then
             util.toast("Vehicle is already a construct")
@@ -679,6 +676,108 @@ local function delete_construct(construct)
 end
 
 ---
+--- Prop Search
+---
+
+local PROPS_PATH = filesystem.resources_dir().."objects.txt"
+--local PEDS_PATH = filesystem.resources_dir().."peds.txt"
+--local VEHICLES_PATH = filesystem.resources_dir().."vehicles.txt"
+
+local function search_props(query)
+    local results = {}
+    for prop in io.lines(PROPS_PATH) do
+        local i, j = prop:find(query)
+        if i then
+            table.insert(results, { prop = prop, distance = j - i })
+        end
+    end
+    table.sort(results, function(a, b) return a.distance > b.distance end)
+    return results
+end
+
+local function clear_menu_list(t)
+    for k, h in pairs(t) do
+        pcall(menu.delete, h)
+        t[k] = nil
+    end
+end
+
+---
+--- Preview
+---
+
+local current_preview
+
+local function rotation_to_direction(rotation)
+    local adjusted_rotation =
+    {
+        x = (math.pi / 180) * rotation.x,
+        y = (math.pi / 180) * rotation.y,
+        z = (math.pi / 180) * rotation.z
+    }
+    local direction =
+    {
+        x = -math.sin(adjusted_rotation.z) * math.abs(math.cos(adjusted_rotation.x)),
+        y =  math.cos(adjusted_rotation.z) * math.abs(math.cos(adjusted_rotation.x)),
+        z =  math.sin(adjusted_rotation.x)
+    }
+    return direction
+end
+
+local function get_offset_from_camera(distance)
+    local cam_rot = CAM.GET_FINAL_RENDERED_CAM_ROT(0)
+    local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
+    local direction = rotation_to_direction(cam_rot)
+    local destination =
+    {
+        x = cam_pos.x + direction.x * distance,
+        y = cam_pos.y + direction.y * distance,
+        z = cam_pos.z + direction.z * distance
+    }
+    return destination
+end
+
+local function calculate_model_size(model, minVec, maxVec)
+    MISC.GET_MODEL_DIMENSIONS(model, minVec, maxVec)
+    return (maxVec:getX() - minVec:getX()), (maxVec:getY() - minVec:getY()), (maxVec:getZ() - minVec:getZ())
+end
+
+local function remove_preview()
+    if current_preview ~= nil then
+        if config.debug then util.log("Removing preview "..current_preview.name) end
+        constructor_lib.detach_attachment(current_preview)
+        current_preview = nil
+    end
+end
+
+local minVec = v3.new()
+local maxVec = v3.new()
+
+local function add_preview(attachment)
+    if config.show_previews == false then return end
+    remove_preview()
+    attachment.name = attachment.model.." (Preview)"
+    attachment.root = attachment
+    attachment.parent = attachment
+    attachment.is_preview = true
+    attachment.hash = util.joaat(attachment.model)
+    constructor_lib.load_hash_for_attachment(attachment)
+    local l, w, h = calculate_model_size(attachment.hash, minVec, maxVec)
+    attachment.preview_camera_distance = math.max(l, w, h) + config.preview_camera_distance
+    attachment.position = get_offset_from_camera(attachment.preview_camera_distance)
+    if config.debug then util.log("Adding preview "..attachment.name) end
+    current_preview = constructor_lib.attach_attachment_with_children(attachment)
+end
+
+local function update_preview_tick()
+    if current_preview ~= nil then
+        current_preview.position = get_offset_from_camera(current_preview.preview_camera_distance)
+        current_preview.rotation.z = current_preview.rotation.z + 2
+        constructor_lib.update_attachment(current_preview)
+    end
+end
+
+---
 --- Dynamic Menus
 ---
 
@@ -691,41 +790,16 @@ menus.rebuild_add_attachments_menu = function(attachment)
     for _, category in pairs(available_attachments) do
         local category_menu = menu.list(attachment.menus.add_attachment, category.name)
         for _, available_attachment in pairs(category.objects) do
-            menu.action(category_menu, available_attachment.name, {}, "", function()
+            local menu_item = menu.action(category_menu, available_attachment.name, {}, "", function()
                 local child_attachment = table.table_copy(available_attachment)
                 child_attachment.root = attachment.root
                 child_attachment.parent = attachment
                 constructor_lib.add_attachment_to_construct(child_attachment)
             end)
+            menu.on_focus(menu_item, function() add_preview(available_attachment) end)
+            menu.on_blur(menu_item, function() remove_preview() end)
         end
         table.insert(attachment.menus.add_attachment_categories, category_menu)
-    end
-
-    local PROPS_PATH = filesystem.resources_dir().."objects.txt"
-    local PEDS_PATH = filesystem.resources_dir().."peds.txt"
-    local VEHICLES_PATH = filesystem.resources_dir().."vehicles.txt"
-
-    local function search_props(query)
-        local results = {}
-        for prop in io.lines(PROPS_PATH) do
-            local i, j = prop:find(query)
-            if i then
-                -- Add the distance:
-                table.insert(results, {
-                    prop = prop,
-                    distance = j - i
-                })
-            end
-        end
-        table.sort(results, function(a, b) return a.distance > b.distance end)
-        return results
-    end
-
-    local function clear_menu_list(t)
-        for k, h in pairs(t) do
-            pcall(menu.delete, h)
-            t[k] = nil
-        end
     end
 
     attachment.menus.search_results = {}
@@ -744,6 +818,8 @@ menus.rebuild_add_attachments_menu = function(attachment)
                         model = model,
                     })
                 end)
+                menu.on_focus(search_result_menu_item, function() add_preview({model=model}) end)
+                menu.on_blur(search_result_menu_item, function() remove_preview() end)
                 table.insert(attachment.menus.search_results, search_result_menu_item)
             end
         end
@@ -1086,6 +1162,10 @@ end)
 menu.slider(options_menu, "Edit Rotation Step", {}, "The amount of change each time you edit an attachment rotation", 1, 15, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
+menu.toggle(options_menu, "Show Previews", {}, "Show previews when adding attachments. Still a bit buggy.", function(on)
+    config.show_previews = on
+end, config.show_previews)
+
 
 local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
 
@@ -1099,6 +1179,16 @@ menu.hyperlink(script_meta_menu, "Github Source", "https://github.com/hexarobi/s
 menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open Discord Server")
 menu.divider(script_meta_menu, "Credits")
 menu.readonly(script_meta_menu, "Jackz for writing Vehicle Builder", "Much of Constructor is based on code from Jackz Vehicle Builder and wouldn't have been possible without this foundation")
+
+local tick_counter = 0
+local function constructor_tick()
+    if tick_counter == 10 then
+        aim_info_tick()
+        update_preview_tick()
+        tick_counter = 0
+    end
+    tick_counter = tick_counter + 1
+end
 
 util.create_tick_handler(function()
     constructor_tick()
