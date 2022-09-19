@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.7"
+local SCRIPT_VERSION = "0.8"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -65,8 +65,8 @@ local constructor_lib = auto_updater.require_with_auto_update({
     verify_file_begins_with="--",
 })
 
--- local status, inspect = pcall(require, "inspect")
--- if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
+local status, inspect = pcall(require, "inspect")
+if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
 
 menu.delete(loading_menu)
 
@@ -875,7 +875,7 @@ menus.rebuild_add_attachments_menu = function(attachment)
         end
     end)
 
-    menu.text_input(attachment.menus.add_attachment, "Object/Vehicle by Name", {"constructorattachobject"},
+    menu.text_input(attachment.menus.add_attachment, "Object by Name", {"constructorattachobject"},
             "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
                 constructor_lib.add_attachment_to_construct({
                     root = attachment.root,
@@ -885,16 +885,27 @@ menus.rebuild_add_attachments_menu = function(attachment)
                 })
             end)
 
-    --menu.text_input(attachment.menus.add_attachment, "Vehicle by Name", {"constructorattachvehicle"},
-    --        "Add a vehicle by exact name.", function (value)
-    --            constructor_lib.add_attachment_to_construct({
-    --                root = attachment.root,
-    --                parent = attachment,
-    --                name = value,
-    --                model = value,
-    --                type = "VEHICLE",
-    --            })
-    --        end)
+    menu.text_input(attachment.menus.add_attachment, "Vehicle by Name", {"constructorattachvehicle"},
+            "Add a vehicle by exact name.", function (value)
+                constructor_lib.add_attachment_to_construct({
+                    root = attachment.root,
+                    parent = attachment,
+                    name = value,
+                    model = value,
+                    type = "VEHICLE",
+                })
+            end)
+
+    menu.text_input(attachment.menus.add_attachment, "Ped by Name", {"constructorattachvehicle"},
+            "Add a vehicle by exact name.", function (value)
+                constructor_lib.add_attachment_to_construct({
+                    root = attachment.root,
+                    parent = attachment,
+                    name = value,
+                    model = value,
+                    type = "PED",
+                })
+            end)
 
     menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
         config.add_attachment_gun_active = on
@@ -911,7 +922,13 @@ menus.rebuild_edit_attachments_menu = function(parent_attachment)
             attachment.menus.main = menu.list(attachment.parent.menus.edit_attachments, attachment.name or "unknown")
 
             menu.divider(attachment.menus.main, "Info")
-            menu.readonly(attachment.menus.main, "Handle", attachment.handle)
+
+            attachment.menus.debug = menu.list(attachment.menus.main, "Debug")
+            menu.readonly(attachment.menus.debug, "Handle", attachment.handle)
+            menu.readonly(attachment.menus.debug, "Type", attachment.type or "none")
+            menu.readonly(attachment.menus.debug, "Parent Handle", attachment.parent.handle)
+            menu.readonly(attachment.menus.debug, "Root Handle", attachment.root.handle)
+
             attachment.menus.name = menu.text_input(attachment.menus.main, "Name", { "constructorsetattachmentname"..attachment.handle}, "Set name of the attachment", function(value)
                 attachment.name = value
                 attachment.menus.refresh()
@@ -922,65 +939,66 @@ menus.rebuild_edit_attachments_menu = function(parent_attachment)
                 attachment.offset.x = value / 100
                 constructor_lib.move_attachment(attachment)
             end)
-            menu.on_focus(attachment.menus.edit_position_x, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
-            menu.on_blur(attachment.menus.edit_position_x, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
-
             local focus_menu = attachment.menus.edit_position_x
             attachment.menus.edit_position_y = menu.slider_float(attachment.menus.main, "Y: Forward / Back", {"constructorposition"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
                 attachment.offset.y = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-            menu.on_focus(attachment.menus.edit_position_y, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
-            menu.on_blur(attachment.menus.edit_position_y, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
             attachment.menus.edit_position_z = menu.slider_float(attachment.menus.main, "Z: Up / Down", {"constructorposition"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
                 attachment.offset.z = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-            menu.on_focus(attachment.menus.edit_position_z, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
-            menu.on_blur(attachment.menus.edit_position_z, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
 
             menu.divider(attachment.menus.main, "Rotation")
             attachment.menus.edit_rotation_x = menu.slider(attachment.menus.main, "X: Pitch", {"constructorrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, attachment.rotation.x, config.edit_rotation_step, function(value)
                 attachment.rotation.x = value
                 constructor_lib.move_attachment(attachment)
             end)
-            menu.on_focus(attachment.menus.edit_rotation_x, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
-            menu.on_blur(attachment.menus.edit_rotation_x, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
             attachment.menus.edit_rotation_y = menu.slider(attachment.menus.main, "Y: Roll", {"constructorrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, attachment.rotation.y, config.edit_rotation_step, function(value)
                 attachment.rotation.y = value
                 constructor_lib.move_attachment(attachment)
             end)
-            menu.on_focus(attachment.menus.edit_rotation_y, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
-            menu.on_blur(attachment.menus.edit_rotation_y, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
             attachment.menus.edit_rotation_z = menu.slider(attachment.menus.main, "Z: Yaw", {"constructorrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, attachment.rotation.z, config.edit_rotation_step, function(value)
                 attachment.rotation.z = value
                 constructor_lib.move_attachment(attachment)
             end)
-            menu.on_focus(attachment.menus.edit_rotation_z, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
-            menu.on_blur(attachment.menus.edit_rotation_z, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
 
-            menu.divider(attachment.menus.main, "Toggles")
+            menu.divider(attachment.menus.main, "Options")
             --local light_color = {r=0}
             --menu.slider(attachment.menu, "Color: Red", {}, "", 0, 255, light_color.r, 1, function(value)
             --    -- Only seems to work locally :(
             --    OBJECT._SET_OBJECT_LIGHT_COLOR(attachment.handle, 1, light_color.r, 0, 128)
             --end)
-            menu.toggle(attachment.menus.main, "Is Visible", {}, "Will the attachment be visible, or invisible", function(on)
+            attachment.menus.option_visible = menu.toggle(attachment.menus.main, "Visible", {}, "Will the attachment be visible, or invisible", function(on)
                 attachment.is_visible = on
                 constructor_lib.update_attachment(attachment)
             end, attachment.is_visible)
-            menu.toggle(attachment.menus.main, "Has Collision", {}, "Will the attachment collide with things, or pass through them", function(on)
+            attachment.menus.option_collision = menu.toggle(attachment.menus.main, "Collision", {}, "Will the attachment collide with things, or pass through them", function(on)
                 attachment.has_collision = on
                 constructor_lib.update_attachment(attachment)
             end, attachment.has_collision)
-            menu.toggle(attachment.menus.main, "Has Gravity", {}, "Will the attachment be effected by gravity, or be weightless", function(on)
+
+            attachment.menus.more_options = menu.list(attachment.menus.main, "More Options")
+            attachment.menus.option_soft_pinning = menu.toggle(attachment.menus.more_options, "Soft Pinning", {}, "Will the attachment detach when repaired", function(on)
+                attachment.use_soft_pinning = on
+                constructor_lib.update_attachment(attachment)
+            end, attachment.use_soft_pinning)
+            attachment.menus.option_gravity = menu.toggle(attachment.menus.more_options, "Gravity", {}, "Will the attachment be effected by gravity, or be weightless", function(on)
                 attachment.has_gravity = on
                 constructor_lib.update_attachment(attachment)
             end, attachment.has_gravity)
-            menu.toggle(attachment.menus.main, "Is Light Disabled", {}, "If attachment is a light, it will be ALWAYS off, regardless of siren settings.", function(on)
+            attachment.menus.option_light_disabled = menu.toggle(attachment.menus.more_options, "Light Disabled", {}, "If attachment is a light, it will be ALWAYS off, regardless of others settings.", function(on)
                 attachment.is_light_disabled = on
                 constructor_lib.update_attachment(attachment)
             end, attachment.is_light_disabled)
+            attachment.menus.option_invincible = menu.toggle(attachment.menus.more_options, "Invincible", {}, "Will the attachment be impervious to damage, or be damageable.", function(on)
+                attachment.is_invincible = on
+                constructor_lib.update_attachment(attachment)
+            end, attachment.is_invincible)
+            attachment.menus.option_bone_index = menu.slider(attachment.menus.more_options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 10, attachment.bone_index, 1, function(value)
+                attachment.bone_index = value
+                constructor_lib.update_attachment(attachment)
+            end)
 
             menu.divider(attachment.menus.main, "Attachments")
             attachment.menus.add_attachment = menu.list(attachment.menus.main, "Add Attachment", {}, "", function()
@@ -990,17 +1008,24 @@ menus.rebuild_edit_attachments_menu = function(parent_attachment)
                 menus.rebuild_edit_attachments_menu(attachment)
             end)
 
-            local clone_menu = menu.list(attachment.menus.main, "Clone")
-            menu.action(clone_menu, "Clone (In Place)", {}, "", function()
+            attachment.menus.clone_options = menu.list(attachment.menus.main, "Clone")
+            attachment.menus.clone_in_place = menu.action(attachment.menus.clone_options, "Clone (In Place)", {}, "", function()
                 local new_attachment = constructor_lib.clone_attachment(attachment)
-                new_attachment.name = attachment.name .. " (Clone)"
                 constructor_lib.add_attachment_to_construct(new_attachment)
             end)
-
-            menu.action(clone_menu, "Clone Reflection: Left/Right", {}, "", function()
+            attachment.menus.clone_reflection_x = menu.action(attachment.menus.clone_options, "Clone Reflection: X:Left/Right", {}, "", function()
                 local new_attachment = constructor_lib.clone_attachment(attachment)
-                new_attachment.name = attachment.name .. " (Clone)"
                 new_attachment.offset = {x=-attachment.offset.x, y=attachment.offset.y, z=attachment.offset.z}
+                constructor_lib.add_attachment_to_construct(new_attachment)
+            end)
+            attachment.menus.clone_reflection_y = menu.action(attachment.menus.clone_options, "Clone Reflection: Y:Front/Back", {}, "", function()
+                local new_attachment = constructor_lib.clone_attachment(attachment)
+                new_attachment.offset = {x=attachment.offset.x, y=-attachment.offset.y, z=attachment.offset.z}
+                constructor_lib.add_attachment_to_construct(new_attachment)
+            end)
+            attachment.menus.clone_reflection_z = menu.action(attachment.menus.clone_options, "Clone Reflection: Z:Up/Down", {}, "", function()
+                local new_attachment = constructor_lib.clone_attachment(attachment)
+                new_attachment.offset = {x=attachment.offset.x, y=attachment.offset.y, z=-attachment.offset.z}
                 constructor_lib.add_attachment_to_construct(new_attachment)
             end)
 
@@ -1019,6 +1044,11 @@ menus.rebuild_edit_attachments_menu = function(parent_attachment)
                     constructor_lib.remove_attachment_from_parent(attachment)
                 end
             end)
+
+            for _, menu_handle in pairs(attachment.menus) do
+                menu.on_focus(menu_handle, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
+                menu.on_blur(menu_handle, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
+            end
 
             attachment.menus.refresh = function()
                 menu.set_menu_name(attachment.menus.main, attachment.name)
@@ -1186,12 +1216,9 @@ menus.rebuild_load_construct_menu = function()
     for _, construct_plan in pairs(load_construct_plans_from_dir(CONSTRUCTS_DIR)) do
         local construct_plan_menu = menu.action(menus.load_construct, construct_plan.name, {}, "", function()
             spawn_construct_from_plan(construct_plan)
-            --local spawn_construct = table.table_copy(loaded_construct)
-            --spawn_vehicle_construct(spawn_construct)
-            --rebuild_spawned_constructs_menu(spawn_construct)
-            --rebuild_edit_attachments_menu(spawn_construct)
-            --menu.focus(spawn_construct.menus.spawn_focus)
         end)
+        menu.on_focus(construct_plan_menu, function(direction) if direction ~= 0 then add_preview(construct_plan) end end)
+        menu.on_blur(construct_plan_menu, function(direction) if direction ~= 0 then remove_preview() end end)
         table.insert(menus.construct_plan_menus, construct_plan_menu)
     end
 end
@@ -1200,20 +1227,8 @@ menus.rebuild_load_construct_menu()
 
 menus.loaded_constructs = menu.list(menu.my_root(), "Loaded Constructs ("..#spawned_constructs..")")
 
--- TODO: Why does this work, but I get an access error trying to focus on create new construct menu
---menus.main_menu = menu.list(menu.my_root(), "Main Menu")
---menus.refocus = function()
---    menu.action(menu.my_root(), "Refocus", { "" }, "", function()
---        menu.focus(menus.main_menu)
---    end)
---end
---menus.refocus()
-
 menus.refresh_loaded_constructs = function()
     menu.set_menu_name(menus.loaded_constructs, "Loaded Constructs ("..#spawned_constructs..")")
-    --if #spawned_constructs == 0 then
-    --    menu.focus(menus.create_new_construct)
-    --end
 end
 
 local options_menu = menu.list(menu.my_root(), "Options")
@@ -1226,7 +1241,7 @@ end)
 menu.slider(options_menu, "Edit Rotation Step", {}, "The amount of change each time you edit an attachment rotation", 1, 15, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
-menu.toggle(options_menu, "Show Previews", {}, "Show previews when adding attachments. Still a bit buggy.", function(on)
+menu.toggle(options_menu, "Show Previews", {}, "Show previews when adding attachments", function(on)
     config.show_previews = on
 end, config.show_previews)
 
