@@ -65,8 +65,8 @@ local constructor_lib = auto_updater.require_with_auto_update({
     verify_file_begins_with="--",
 })
 
-local status, inspect = pcall(require, "inspect")
-if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
+-- local status, inspect = pcall(require, "inspect")
+-- if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
 
 menu.delete(loading_menu)
 
