@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.8.2"
+local SCRIPT_VERSION = "0.8.3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -131,6 +131,7 @@ local construct_base = {
     target_version = constructor_lib.LIB_VERSION,
     children = {},
     options = {},
+    heading = 0,
 }
 
 local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
@@ -551,6 +552,87 @@ local function array_remove(t, fnKeep)
 end
 
 ---
+--- Preview
+---
+
+local current_preview
+
+local function rotation_to_direction(rotation)
+    local adjusted_rotation =
+    {
+        x = (math.pi / 180) * rotation.x,
+        y = (math.pi / 180) * rotation.y,
+        z = (math.pi / 180) * rotation.z
+    }
+    local direction =
+    {
+        x = -math.sin(adjusted_rotation.z) * math.abs(math.cos(adjusted_rotation.x)),
+        y =  math.cos(adjusted_rotation.z) * math.abs(math.cos(adjusted_rotation.x)),
+        z =  math.sin(adjusted_rotation.x)
+    }
+    return direction
+end
+
+local function get_offset_from_camera(distance)
+    local cam_rot = CAM.GET_FINAL_RENDERED_CAM_ROT(0)
+    local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
+    local direction = rotation_to_direction(cam_rot)
+    local destination =
+    {
+        x = cam_pos.x + direction.x * distance,
+        y = cam_pos.y + direction.y * distance,
+        z = cam_pos.z + direction.z * distance
+    }
+    return destination
+end
+
+local function calculate_model_size(model, minVec, maxVec)
+    MISC.GET_MODEL_DIMENSIONS(model, minVec, maxVec)
+    return (maxVec:getX() - minVec:getX()), (maxVec:getY() - minVec:getY()), (maxVec:getZ() - minVec:getZ())
+end
+
+local function remove_preview()
+    if current_preview ~= nil then
+        if config.debug then util.log("Removing preview "..current_preview.name) end
+        constructor_lib.detach_attachment(current_preview)
+        current_preview = nil
+    end
+end
+
+local minVec = v3.new()
+local maxVec = v3.new()
+
+local function calculate_camera_distance(attachment)
+    if attachment.hash == nil then attachment.hash = util.joaat(attachment.model) end
+    constructor_lib.load_hash_for_attachment(attachment)
+    local l, w, h = calculate_model_size(attachment.hash, minVec, maxVec)
+    attachment.camera_distance = math.max(l, w, h) + config.preview_camera_distance
+end
+
+local function add_preview(construct_plan)
+    local attachment = table.table_copy(construct_plan)
+    if config.show_previews == false then return end
+    remove_preview()
+    attachment.name = attachment.model.." (Preview)"
+    attachment.root = attachment
+    attachment.parent = attachment
+    attachment.is_preview = true
+    calculate_camera_distance(attachment)
+    attachment.position = get_offset_from_camera(attachment.camera_distance)
+    if config.debug then util.log("Adding preview "..attachment.name) end
+    current_preview = constructor_lib.attach_attachment_with_children(attachment)
+end
+
+local function update_preview_tick()
+    if current_preview ~= nil then
+        current_preview.position = get_offset_from_camera(current_preview.camera_distance)
+        current_preview.rotation.z = current_preview.rotation.z + 2
+        constructor_lib.update_attachment(current_preview)
+        constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
+    end
+end
+
+---
 --- Tick Handler
 ---
 
@@ -615,7 +697,8 @@ end
 
 local is_fine_tune_sensitivity_active = false
 local function sensitivity_modifier_check_tick()
-    if util.is_key_down(0x10) then
+    if util.is_key_down(0x10) or PAD.IS_CONTROL_JUST_PRESSED(0, 37) then
+        --PAD.DISABLE_CONTROL_ACTION(0, 37)
         if is_fine_tune_sensitivity_active == false then
             for _, construct in pairs(spawned_constructs) do
                 set_attachment_edit_menu_sensitivity(construct, 1, 1)
@@ -694,8 +777,13 @@ end
 ---
 
 local function spawn_vehicle_construct(loaded_vehicle)
-    loaded_vehicle.handle = constructor_lib.spawn_vehicle_for_player(players.user(), loaded_vehicle.model)
-    constructor_lib.deserialize_vehicle_attributes(loaded_vehicle)
+
+    calculate_camera_distance(loaded_vehicle)
+    loaded_vehicle.position = get_offset_from_camera(loaded_vehicle.camera_distance)
+    local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    --loaded_vehicle.position = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(target_ped, 0.0, 4.0, 0.5)
+    loaded_vehicle.heading = ENTITY.GET_ENTITY_HEADING(target_ped)
+    util.toast("Setting heading to "..loaded_vehicle.heading, TOAST_ALL)
     loaded_vehicle.root = loaded_vehicle
     loaded_vehicle.parent = loaded_vehicle
     constructor_lib.reattach_attachment_with_children(loaded_vehicle)
@@ -751,83 +839,6 @@ local function clear_menu_list(t)
     for k, h in pairs(t) do
         pcall(menu.delete, h)
         t[k] = nil
-    end
-end
-
----
---- Preview
----
-
-local current_preview
-
-local function rotation_to_direction(rotation)
-    local adjusted_rotation =
-    {
-        x = (math.pi / 180) * rotation.x,
-        y = (math.pi / 180) * rotation.y,
-        z = (math.pi / 180) * rotation.z
-    }
-    local direction =
-    {
-        x = -math.sin(adjusted_rotation.z) * math.abs(math.cos(adjusted_rotation.x)),
-        y =  math.cos(adjusted_rotation.z) * math.abs(math.cos(adjusted_rotation.x)),
-        z =  math.sin(adjusted_rotation.x)
-    }
-    return direction
-end
-
-local function get_offset_from_camera(distance)
-    local cam_rot = CAM.GET_FINAL_RENDERED_CAM_ROT(0)
-    local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
-    local direction = rotation_to_direction(cam_rot)
-    local destination =
-    {
-        x = cam_pos.x + direction.x * distance,
-        y = cam_pos.y + direction.y * distance,
-        z = cam_pos.z + direction.z * distance
-    }
-    return destination
-end
-
-local function calculate_model_size(model, minVec, maxVec)
-    MISC.GET_MODEL_DIMENSIONS(model, minVec, maxVec)
-    return (maxVec:getX() - minVec:getX()), (maxVec:getY() - minVec:getY()), (maxVec:getZ() - minVec:getZ())
-end
-
-local function remove_preview()
-    if current_preview ~= nil then
-        if config.debug then util.log("Removing preview "..current_preview.name) end
-        constructor_lib.detach_attachment(current_preview)
-        current_preview = nil
-    end
-end
-
-local minVec = v3.new()
-local maxVec = v3.new()
-
-local function add_preview(construct_plan)
-    local attachment = table.table_copy(construct_plan)
-    if config.show_previews == false then return end
-    remove_preview()
-    attachment.name = attachment.model.." (Preview)"
-    attachment.root = attachment
-    attachment.parent = attachment
-    attachment.is_preview = true
-    attachment.hash = util.joaat(attachment.model)
-    constructor_lib.load_hash_for_attachment(attachment)
-    local l, w, h = calculate_model_size(attachment.hash, minVec, maxVec)
-    attachment.preview_camera_distance = math.max(l, w, h) + config.preview_camera_distance
-    attachment.position = get_offset_from_camera(attachment.preview_camera_distance)
-    if config.debug then util.log("Adding preview "..attachment.name) end
-    current_preview = constructor_lib.attach_attachment_with_children(attachment)
-end
-
-local function update_preview_tick()
-    if current_preview ~= nil then
-        current_preview.position = get_offset_from_camera(current_preview.preview_camera_distance)
-        current_preview.rotation.z = current_preview.rotation.z + 2
-        constructor_lib.update_attachment(current_preview)
-        constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
     end
 end
 
@@ -999,7 +1010,7 @@ menus.rebuild_edit_attachments_menu = function(parent_attachment)
                 attachment.is_invincible = on
                 constructor_lib.update_attachment(attachment)
             end, attachment.is_invincible)
-            attachment.menus.option_bone_index = menu.slider(attachment.menus.more_options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 10, attachment.bone_index, 1, function(value)
+            attachment.menus.option_bone_index = menu.slider(attachment.menus.more_options, "Bone Index", {}, "", -1, attachment.parent.num_bones, attachment.bone_index, 1, function(value)
                 attachment.bone_index = value
                 constructor_lib.update_attachment(attachment)
             end)
@@ -1170,6 +1181,25 @@ menu.text_input(menus.create_new_construct, "Create from vehicle name", { "const
     end
 end)
 
+-- TODO: create map
+--menu.text_input(menus.create_new_construct, "Create from object name", { "constructfromobjectname"}, "Create a new construct from an object name", function(value)
+--    local attachment = constructor_lib.attach_attachment({
+--        model = value,
+--        position = {}
+--    })
+--    local vehicle_handle = constructor_lib.spawn_vehicle_for_player(players.user(), value)
+--    if vehicle_handle == 0 or vehicle_handle == nil then
+--        util.toast("Error: Invalid vehicle name")
+--        return
+--    end
+--    local construct = create_construct_from_vehicle(vehicle_handle)
+--    if construct then
+--        menus.rebuild_spawned_constructs_menu(construct)
+--        construct.menus.refresh()
+--        menu.focus(construct.menus.spawn_focus)
+--    end
+--end)
+
 ---
 --- Saved Constructs Menu
 ---
@@ -1240,10 +1270,10 @@ local options_menu = menu.list(menu.my_root(), "Options")
 
 menu.divider(options_menu, "Global Configs")
 
-menu.slider(options_menu, "Edit Offset Step", {}, "The amount of change each time you edit an attachment offset", 1, 20, config.edit_offset_step, 1, function(value)
+menu.slider(options_menu, "Edit Offset Step", {}, "The amount of change each time you edit an attachment offset (hold SHIFT or L1 for fine tuning)", 1, 50, config.edit_offset_step, 1, function(value)
     config.edit_offset_step = value
 end)
-menu.slider(options_menu, "Edit Rotation Step", {}, "The amount of change each time you edit an attachment rotation", 1, 15, config.edit_rotation_step, 1, function(value)
+menu.slider(options_menu, "Edit Rotation Step", {}, "The amount of change each time you edit an attachment rotation (hold SHIFT or L1 for fine tuning)", 1, 30, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
 menu.toggle(options_menu, "Show Previews", {}, "Show previews when adding attachments", function(on)
@@ -1262,7 +1292,8 @@ end)
 menu.hyperlink(script_meta_menu, "Github Source", "https://github.com/hexarobi/stand-lua-constructor", "View source files on Github")
 menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open Discord Server")
 menu.divider(script_meta_menu, "Credits")
-menu.readonly(script_meta_menu, "Jackz for writing Vehicle Builder", "Much of Constructor is based on code from Jackz Vehicle Builder and wouldn't have been possible without this foundation")
+menu.readonly(script_meta_menu, "Jackz", "Much of Constructor is based on code from Jackz Vehicle Builder and wouldn't have been possible without this foundation")
+menu.readonly(script_meta_menu, "BigTuna", "Testing, Suggestions and Support")
 
 local function constructor_tick()
     aim_info_tick()
