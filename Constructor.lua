@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.8.1"
+local SCRIPT_VERSION = "0.8.2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -65,8 +65,8 @@ local constructor_lib = auto_updater.require_with_auto_update({
     verify_file_begins_with="--",
 })
 
-local status, inspect = pcall(require, "inspect")
-if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
+--local status, inspect = pcall(require, "inspect")
+--if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
 
 menu.delete(loading_menu)
 
@@ -1275,4 +1275,3 @@ util.create_tick_handler(function()
     constructor_tick()
     return true
 end)
-
