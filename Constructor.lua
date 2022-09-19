@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.8.3"
+local SCRIPT_VERSION = "0.8.4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1010,7 +1010,7 @@ menus.rebuild_edit_attachments_menu = function(parent_attachment)
                 attachment.is_invincible = on
                 constructor_lib.update_attachment(attachment)
             end, attachment.is_invincible)
-            attachment.menus.option_bone_index = menu.slider(attachment.menus.more_options, "Bone Index", {}, "", -1, attachment.parent.num_bones, attachment.bone_index, 1, function(value)
+            attachment.menus.option_bone_index = menu.slider(attachment.menus.more_options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 100, attachment.bone_index, 1, function(value)
                 attachment.bone_index = value
                 constructor_lib.update_attachment(attachment)
             end)
