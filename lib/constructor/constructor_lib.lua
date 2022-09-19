@@ -4,12 +4,18 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.4"
+local LIB_VERSION = "3.5"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
     debug = true
 }
+
+---
+--- Data
+---
+
+local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
 
 ---
 --- Utilities
@@ -462,7 +468,11 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.is_visible == nil then attachment.is_visible = true end
     if attachment.has_gravity == nil then attachment.has_gravity = false end
     if attachment.has_collision == nil then attachment.has_collision = false end
-    if attachment.is_networked == nil then attachment.is_networked = true end
+    if attachment.is_preview == nil then attachment.is_preview = false end
+    if attachment.is_networked == nil then attachment.is_networked = not attachment.is_preview end
+    if attachment.is_invincible == nil then attachment.is_invincible = true end
+    if attachment.use_soft_pinning == nil then attachment.use_soft_pinning = true end
+    if attachment.bone_index == nil then attachment.bone_index = 0 end
     if attachment.hash == nil and attachment.model == nil then
         error("Cannot create attachment: Requires either a hash or a model")
     end
@@ -490,10 +500,10 @@ constructor_lib.update_attachment = function(attachment)
         end
     else
         ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                attachment.handle, attachment.parent.handle, attachment.bone_index or 0,
+                attachment.handle, attachment.parent.handle, attachment.bone_index,
                 attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
                 attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                false, attachment.is_preview or attachment.is_networked, attachment.has_collision, false, 2, true
+                false, attachment.use_soft_pinning, attachment.has_collision, false, 2, true
         )
     end
 
@@ -539,7 +549,8 @@ constructor_lib.attach_attachment = function(attachment)
         else
             pos = ENTITY.GET_ENTITY_COORDS(attachment.root.handle)
         end
-        attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(attachment.hash, pos.x, pos.y, pos.z, true, true, false)
+        -- TODO: CFX for networking maps?
+        attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(attachment.hash, pos.x, pos.y, pos.z, attachment.is_networked, true, false)
         --args.handle = entities.create_object(hash, ENTITY.GET_ENTITY_COORDS(args.root.handle))
     end
 
@@ -549,29 +560,27 @@ constructor_lib.attach_attachment = function(attachment)
 
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
 
-    if attachment.flash_start_on ~= nil then
-        ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0)
+    if attachment.num_bones == nil then
+        -- TODO: why always zero?
+        attachment.num_bones = ENTITY._GET_ENTITY_BONE_COUNT(attachment.handle)
+        --util.toast("Setting num bones "..attachment.num_bones, TOAST_ALL)
     end
-
-    ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, false)
-
-    if attachment.alpha ~= nil then
-        ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.alpha)
-    end
-
+    if attachment.type == nil then attachment.type = ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)] end
+    if attachment.flash_start_on ~= nil then ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0) end
+    if attachment.is_invincible ~= nil then ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, attachment.is_invincible) end
+    if attachment.alpha ~= nil then ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.alpha) end
     if attachment.root.is_preview == true then
         ENTITY.SET_ENTITY_ALPHA(attachment.handle, 206)
-    end
-
-    if attachment.has_collision == false then
-        --ENTITY.SET_ENTITY_COLLISION(attachment.handle, false, false)
         ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, false)
     end
 
-    constructor_lib.update_attachment(attachment)
-    --if attachment ~= attachment.root then
-        constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
+    --if attachment.has_collision == false then
+    --    --ENTITY.SET_ENTITY_COLLISION(attachment.handle, false, false)
+    --    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, false)
     --end
+
+    constructor_lib.update_attachment(attachment)
+    constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
 
     return attachment
 end
