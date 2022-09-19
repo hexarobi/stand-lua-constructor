@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.6"
+local SCRIPT_VERSION = "0.7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -81,7 +81,8 @@ local config = {
     add_attachment_gun_active = false,
     debug = true,
     show_previews = true,
-    preview_camera_distance = 3,
+    preview_camera_distance = 1,
+    preview_bounding_box_color = {r=255,g=0,b=255,a=255},
 }
 
 local CONSTRUCTS_DIR = filesystem.store_dir() .. 'Constructor\\constructs\\'
@@ -495,7 +496,7 @@ local available_attachments = {
             },
             {
                 name = "Riot Van",
-                model = "rior",
+                model = "riot",
                 type = "VEHICLE",
             },
             {
@@ -592,6 +593,54 @@ local function aim_info_tick()
                 model=info.model,
             })
         end
+    end
+end
+
+local function set_attachment_edit_menu_sensitivity(attachment, offset_step, rotation_step)
+    if not (attachment.menus == nil or attachment.menus.edit_position_x == nil) then
+        menu.set_step_size(attachment.menus.edit_position_x, offset_step)
+        menu.set_step_size(attachment.menus.edit_position_y, offset_step)
+        menu.set_step_size(attachment.menus.edit_position_z, offset_step)
+        menu.set_step_size(attachment.menus.edit_rotation_x, rotation_step)
+        menu.set_step_size(attachment.menus.edit_rotation_y, rotation_step)
+        menu.set_step_size(attachment.menus.edit_rotation_z, rotation_step)
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        set_attachment_edit_menu_sensitivity(child_attachment, offset_step, rotation_step)
+    end
+end
+
+local is_fine_tune_sensitivity_active = false
+local function sensitivity_modifier_check_tick()
+    if util.is_key_down(0x10) then
+        if is_fine_tune_sensitivity_active == false then
+            for _, construct in pairs(spawned_constructs) do
+                set_attachment_edit_menu_sensitivity(construct, 1, 1)
+            end
+            is_fine_tune_sensitivity_active = true
+        end
+    else
+        if is_fine_tune_sensitivity_active == true then
+            for _, construct in pairs(spawned_constructs) do
+                set_attachment_edit_menu_sensitivity(construct, config.edit_offset_step, config.edit_rotation_step)
+            end
+            is_fine_tune_sensitivity_active = false
+        end
+    end
+end
+
+local function draw_editing_bounding_box(attachment)
+    if attachment.is_editing then
+        constructor_lib.draw_bounding_box(attachment.handle, config.preview_bounding_box_color)
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        draw_editing_bounding_box(child_attachment)
+    end
+end
+
+local function draw_editing_attachment_bounding_box_tick()
+    for _, construct in pairs(spawned_constructs) do
+        draw_editing_bounding_box(construct)
     end
 end
 
@@ -772,8 +821,9 @@ end
 local function update_preview_tick()
     if current_preview ~= nil then
         current_preview.position = get_offset_from_camera(current_preview.preview_camera_distance)
-        current_preview.rotation.z = current_preview.rotation.z + 20
+        current_preview.rotation.z = current_preview.rotation.z + 2
         constructor_lib.update_attachment(current_preview)
+        constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
     end
 end
 
@@ -796,8 +846,8 @@ menus.rebuild_add_attachments_menu = function(attachment)
                 child_attachment.parent = attachment
                 constructor_lib.add_attachment_to_construct(child_attachment)
             end)
-            menu.on_focus(menu_item, function() add_preview(available_attachment) end)
-            menu.on_blur(menu_item, function() remove_preview() end)
+            menu.on_focus(menu_item, function(direction) if direction ~= 0 then add_preview(table.table_copy(available_attachment)) end end)
+            menu.on_blur(menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
         end
         table.insert(attachment.menus.add_attachment_categories, category_menu)
     end
@@ -818,8 +868,8 @@ menus.rebuild_add_attachments_menu = function(attachment)
                         model = model,
                     })
                 end)
-                menu.on_focus(search_result_menu_item, function() add_preview({model=model}) end)
-                menu.on_blur(search_result_menu_item, function() remove_preview() end)
+                menu.on_focus(search_result_menu_item, function(direction) if direction ~= 0 then add_preview({model=model}) end end)
+                menu.on_blur(search_result_menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
                 table.insert(attachment.menus.search_results, search_result_menu_item)
             end
         end
@@ -868,32 +918,46 @@ menus.rebuild_edit_attachments_menu = function(parent_attachment)
             end, attachment.name)
 
             menu.divider(attachment.menus.main, "Position")
-            local focus_menu = menu.slider_float(attachment.menus.main, "X: Left / Right", { "constructorposition"..attachment.handle.."x"}, "", -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
+            attachment.menus.edit_position_x = menu.slider_float(attachment.menus.main, "X: Left / Right", { "constructorposition"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
                 attachment.offset.x = value / 100
                 constructor_lib.move_attachment(attachment)
             end)
-            menu.slider_float(attachment.menus.main, "Y: Forward / Back", {"constructorposition"..attachment.handle.."y"}, "", -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
+            menu.on_focus(attachment.menus.edit_position_x, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
+            menu.on_blur(attachment.menus.edit_position_x, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
+
+            local focus_menu = attachment.menus.edit_position_x
+            attachment.menus.edit_position_y = menu.slider_float(attachment.menus.main, "Y: Forward / Back", {"constructorposition"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
                 attachment.offset.y = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-            menu.slider_float(attachment.menus.main, "Z: Up / Down", {"constructorposition"..attachment.handle.."z"}, "", -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
+            menu.on_focus(attachment.menus.edit_position_y, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
+            menu.on_blur(attachment.menus.edit_position_y, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
+            attachment.menus.edit_position_z = menu.slider_float(attachment.menus.main, "Z: Up / Down", {"constructorposition"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
                 attachment.offset.z = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
+            menu.on_focus(attachment.menus.edit_position_z, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
+            menu.on_blur(attachment.menus.edit_position_z, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
 
             menu.divider(attachment.menus.main, "Rotation")
-            menu.slider(attachment.menus.main, "X: Pitch", {"constructorrotate"..attachment.handle.."x"}, "", -179, 180, attachment.rotation.x, config.edit_rotation_step, function(value)
+            attachment.menus.edit_rotation_x = menu.slider(attachment.menus.main, "X: Pitch", {"constructorrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, attachment.rotation.x, config.edit_rotation_step, function(value)
                 attachment.rotation.x = value
                 constructor_lib.move_attachment(attachment)
             end)
-            menu.slider(attachment.menus.main, "Y: Roll", {"constructorrotate"..attachment.handle.."y"}, "", -179, 180, attachment.rotation.y, config.edit_rotation_step, function(value)
+            menu.on_focus(attachment.menus.edit_rotation_x, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
+            menu.on_blur(attachment.menus.edit_rotation_x, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
+            attachment.menus.edit_rotation_y = menu.slider(attachment.menus.main, "Y: Roll", {"constructorrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, attachment.rotation.y, config.edit_rotation_step, function(value)
                 attachment.rotation.y = value
                 constructor_lib.move_attachment(attachment)
             end)
-            menu.slider(attachment.menus.main, "Z: Yaw", {"constructorrotate"..attachment.handle.."z"}, "", -179, 180, attachment.rotation.z, config.edit_rotation_step, function(value)
+            menu.on_focus(attachment.menus.edit_rotation_y, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
+            menu.on_blur(attachment.menus.edit_rotation_y, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
+            attachment.menus.edit_rotation_z = menu.slider(attachment.menus.main, "Z: Yaw", {"constructorrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, attachment.rotation.z, config.edit_rotation_step, function(value)
                 attachment.rotation.z = value
                 constructor_lib.move_attachment(attachment)
             end)
+            menu.on_focus(attachment.menus.edit_rotation_z, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
+            menu.on_blur(attachment.menus.edit_rotation_z, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
 
             menu.divider(attachment.menus.main, "Toggles")
             --local light_color = {r=0}
@@ -1180,14 +1244,11 @@ menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open
 menu.divider(script_meta_menu, "Credits")
 menu.readonly(script_meta_menu, "Jackz for writing Vehicle Builder", "Much of Constructor is based on code from Jackz Vehicle Builder and wouldn't have been possible without this foundation")
 
-local tick_counter = 0
 local function constructor_tick()
-    if tick_counter == 10 then
-        aim_info_tick()
-        update_preview_tick()
-        tick_counter = 0
-    end
-    tick_counter = tick_counter + 1
+    aim_info_tick()
+    update_preview_tick()
+    sensitivity_modifier_check_tick()
+    draw_editing_attachment_bounding_box_tick()
 end
 
 util.create_tick_handler(function()
