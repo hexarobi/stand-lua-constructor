@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.8"
+local SCRIPT_VERSION = "0.8.1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -512,13 +512,16 @@ local available_attachments = {
 --- Utilities
 ---
 
-function table.table_copy(obj)
+function table.table_copy(obj, depth)
+    if depth == nil then depth = 0 end
+    if depth > 1000 then error("Max table depth reached") end
+    depth = depth + 1
     if type(obj) ~= 'table' then
         return obj
     end
     local res = setmetatable({}, getmetatable(obj))
     for k, v in pairs(obj) do
-        res[table.table_copy(k)] = table.table_copy(v)
+        res[table.table_copy(k, depth)] = table.table_copy(v, depth)
     end
     return res
 end
@@ -802,7 +805,8 @@ end
 local minVec = v3.new()
 local maxVec = v3.new()
 
-local function add_preview(attachment)
+local function add_preview(construct_plan)
+    local attachment = table.table_copy(construct_plan)
     if config.show_previews == false then return end
     remove_preview()
     attachment.name = attachment.model.." (Preview)"
@@ -846,7 +850,7 @@ menus.rebuild_add_attachments_menu = function(attachment)
                 child_attachment.parent = attachment
                 constructor_lib.add_attachment_to_construct(child_attachment)
             end)
-            menu.on_focus(menu_item, function(direction) if direction ~= 0 then add_preview(table.table_copy(available_attachment)) end end)
+            menu.on_focus(menu_item, function(direction) if direction ~= 0 then add_preview(available_attachment) end end)
             menu.on_blur(menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
         end
         table.insert(attachment.menus.add_attachment_categories, category_menu)
@@ -1215,6 +1219,7 @@ menus.rebuild_load_construct_menu = function()
     menus.construct_plan_menus = {}
     for _, construct_plan in pairs(load_construct_plans_from_dir(CONSTRUCTS_DIR)) do
         local construct_plan_menu = menu.action(menus.load_construct, construct_plan.name, {}, "", function()
+            remove_preview()
             spawn_construct_from_plan(construct_plan)
         end)
         menu.on_focus(construct_plan_menu, function(direction) if direction ~= 0 then add_preview(construct_plan) end end)
@@ -1270,3 +1275,4 @@ util.create_tick_handler(function()
     constructor_tick()
     return true
 end)
+
