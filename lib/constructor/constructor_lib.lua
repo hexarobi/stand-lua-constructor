@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.3"
+local LIB_VERSION = "3.3.1"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -346,8 +346,10 @@ end
 
 constructor_lib.set_attachment_internal_collisions = function(attachment, new_attachment)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment.handle, new_attachment.handle)
-    for _, child_attachment in pairs(attachment.children) do
-        constructor_lib.set_attachment_internal_collisions(child_attachment, new_attachment)
+    if attachment.children ~= nil then
+        for _, child_attachment in pairs(attachment.children) do
+            constructor_lib.set_attachment_internal_collisions(child_attachment, new_attachment)
+        end
     end
 end
 
@@ -397,6 +399,9 @@ constructor_lib.update_attachment = function(attachment)
 
     if attachment.parent.handle == attachment.handle then
         ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0)
+        if attachment.position ~= nil then
+            ENTITY.SET_ENTITY_COORDS(attachment.handle, attachment.position.x, attachment.position.y, attachment.position.z, true, false, false)
+        end
     else
         ENTITY.ATTACH_ENTITY_TO_ENTITY(
                 attachment.handle, attachment.parent.handle, attachment.bone_index or 0,
@@ -441,7 +446,12 @@ constructor_lib.attach_attachment = function(attachment)
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, -1)
         end
     else
-        local pos = ENTITY.GET_ENTITY_COORDS(attachment.root.handle)
+        local pos
+        if attachment.position ~= nil then
+            pos = attachment.position
+        else
+            pos = ENTITY.GET_ENTITY_COORDS(attachment.root.handle)
+        end
         attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(attachment.hash, pos.x, pos.y, pos.z, true, true, false)
         --args.handle = entities.create_object(hash, ENTITY.GET_ENTITY_COORDS(args.root.handle))
     end
@@ -458,8 +468,22 @@ constructor_lib.attach_attachment = function(attachment)
 
     ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, false)
 
+    if attachment.alpha ~= nil then
+        ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.alpha)
+    end
+
+    if attachment.root.is_preview == true then
+        ENTITY.SET_ENTITY_ALPHA(attachment.handle, 150)
+    end
+
+    if attachment.has_collision == false then
+        ENTITY.GET_ENTITY_COLLISION_DISABLED(attachment.handle)
+    end
+
     constructor_lib.update_attachment(attachment)
-    constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
+    --if attachment ~= attachment.root then
+        constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
+    --end
 
     return attachment
 end
@@ -493,9 +517,9 @@ constructor_lib.detach_attachment = function(attachment)
         constructor_lib.detach_attachment(child_attachment)
         return false
     end)
-    if attachment ~= attachment.root then
+    --if attachment ~= attachment.root then
         entities.delete_by_handle(attachment.handle)
-    end
+    --end
     if attachment.menus then
         for _, attachment_menu in pairs(attachment.menus) do
             -- Sometimes these menu handles are invalid but I don't know why,
@@ -514,6 +538,8 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
         end
         return true
     end)
+    attachment.parent.menus.refresh()
+    attachment.parent.menus.focus()
 end
 
 constructor_lib.reattach_attachment_with_children = function(attachment)
