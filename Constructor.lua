@@ -772,7 +772,7 @@ end
 local function update_preview_tick()
     if current_preview ~= nil then
         current_preview.position = get_offset_from_camera(current_preview.preview_camera_distance)
-        current_preview.rotation.z = current_preview.rotation.z + 2
+        current_preview.rotation.z = current_preview.rotation.z + 20
         constructor_lib.update_attachment(current_preview)
     end
 end
