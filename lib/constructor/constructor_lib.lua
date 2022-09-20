@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.6"
+local LIB_VERSION = "3.7"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -497,17 +497,33 @@ constructor_lib.update_attachment = function(attachment)
     ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.is_visible, 0)
     ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.has_gravity)
 
-    if attachment.parent.handle == attachment.handle then
+    if attachment == attachment.parent then
         ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0)
         if attachment.position ~= nil then
-            ENTITY.SET_ENTITY_COORDS_NO_OFFSET(attachment.handle, attachment.position.x, attachment.position.y, attachment.position.z, true, false, false)
+            if attachment.is_preview then
+                ENTITY.SET_ENTITY_COORDS_NO_OFFSET(
+                        attachment.handle,
+                        attachment.position.x,
+                        attachment.position.y,
+                        attachment.position.z,
+                        true, false, false
+                )
+            else
+                ENTITY.SET_ENTITY_COORDS(
+                    attachment.handle,
+                    attachment.position.x + attachment.offset.x,
+                    attachment.position.y + attachment.offset.y,
+                    attachment.position.z + attachment.offset.z,
+                    true, false, false
+                )
+            end
         end
     else
         ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                attachment.handle, attachment.parent.handle, attachment.bone_index,
-                attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
-                attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                false, attachment.use_soft_pinning, attachment.has_collision, false, 2, true
+            attachment.handle, attachment.parent.handle, attachment.bone_index,
+            attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
+            attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
+            false, attachment.use_soft_pinning, attachment.has_collision, false, 2, true
         )
     end
 
@@ -574,11 +590,6 @@ constructor_lib.attach_attachment = function(attachment)
         ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, false)
     end
 
-    --if attachment.has_collision == false then
-    --    --ENTITY.SET_ENTITY_COLLISION(attachment.handle, false, false)
-    --    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, false)
-    --end
-
     constructor_lib.update_attachment(attachment)
     constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
 
@@ -627,16 +638,20 @@ constructor_lib.detach_attachment = function(attachment)
 end
 
 constructor_lib.remove_attachment_from_parent = function(attachment)
-    table.array_remove(attachment.parent.children, function(t, i)
-        local child_attachment = t[i]
-        if child_attachment.handle == attachment.handle then
-            constructor_lib.detach_attachment(attachment)
-            return false
-        end
-        return true
-    end)
-    attachment.parent.menus.refresh()
-    attachment.parent.menus.focus()
+    if attachment == attachment.parent then
+        constructor_lib.detach_attachment(attachment)
+    else
+        table.array_remove(attachment.parent.children, function(t, i)
+            local child_attachment = t[i]
+            if child_attachment.handle == attachment.handle then
+                constructor_lib.detach_attachment(attachment)
+                return false
+            end
+            return true
+        end)
+        attachment.parent.menus.refresh()
+        attachment.parent.menus.focus()
+    end
 end
 
 constructor_lib.reattach_attachment_with_children = function(attachment)
@@ -671,22 +686,35 @@ end
 constructor_lib.add_attachment_to_construct = function(attachment)
     constructor_lib.attach_attachment_with_children(attachment)
     table.insert(attachment.parent.children, attachment)
-    attachment.root.menus.refresh()
-    if attachment.root.menus.focus_menu then
-        menu.focus(attachment.root.menus.focus_menu)
+    attachment.root.menus.refresh(attachment)
+    --attachment.root.menus.focus_on_new()
+    --if attachment.root.menus.focus_menu then
+    --    menu.focus(attachment.root.menus.focus_menu)
+    --end
+end
+
+constructor_lib.copy_construct_plan = function(construct_plan)
+    local is_root = construct_plan == construct_plan.parent
+    construct_plan.root = nil
+    construct_plan.parent = nil
+    local construct = table.table_copy(construct_plan)
+    if is_root then
+        construct.root = construct
+        construct.parent = construct
     end
+    return construct
 end
 
 constructor_lib.clone_attachment = function(attachment)
-    return {
-        root = attachment.root,
-        parent = attachment.parent,
-        name = attachment.name,
-        model = attachment.model,
-        type = attachment.type,
-        offset = table.table_copy(attachment.offset),
-        rotation = table.table_copy(attachment.rotation),
-    }
+    local clone = constructor_lib.serialize_attachment(attachment)
+    if attachment == attachment.parent then
+        clone.root = clone
+        clone.parent = clone
+    else
+        clone.root = attachment.root
+        clone.parent = attachment.parent
+    end
+    return clone
 end
 
 ---
@@ -731,7 +759,7 @@ constructor_lib.copy_serializable = function(attachment)
         children = {}
     }
     for k, v in pairs(attachment) do
-        if not (k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "base_name") then
+        if not (k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children") then
             serializeable_attachment[k] = v
         end
     end
@@ -739,10 +767,13 @@ constructor_lib.copy_serializable = function(attachment)
 end
 
 constructor_lib.serialize_attachment = function(attachment)
+    if attachment.target_version == nil then attachment.target_version = LIB_VERSION end
     local serialized_attachment = constructor_lib.copy_serializable(attachment)
     serialized_attachment.vehicle_attributes = constructor_lib.serialize_vehicle_attributes(attachment)
-    for _, child_attachment in pairs(attachment.children) do
-        table.insert(serialized_attachment.children, constructor_lib.serialize_attachment(child_attachment))
+    if attachment.children then
+        for _, child_attachment in pairs(attachment.children) do
+            table.insert(serialized_attachment.children, constructor_lib.serialize_attachment(child_attachment))
+        end
     end
     --util.toast(inspect(serialized_attachment), TOAST_ALL)
     return serialized_attachment
