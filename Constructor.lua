@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.8.5"
+local SCRIPT_VERSION = "0.8.6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -552,16 +552,17 @@ local function array_remove(t, fnKeep)
 end
 
 local function copy_construct_plan(construct_plan)
-    return constructor_lib.clone_attachment(construct_plan)
-    --local is_root = construct_plan == construct_plan.parent
-    --construct_plan.root = nil
-    --construct_plan.parent = nil
-    --local construct = table.table_copy(construct_plan)
-    --if is_root then
-    --    construct.root = construct
-    --    construct.parent = construct
-    --end
-    --return construct
+    --return constructor_lib.clone_attachment(construct_plan)
+    --util.log(inspect(attachment.vehicle_attributes.paint))
+    local is_root = construct_plan == construct_plan.parent
+    construct_plan.root = nil
+    construct_plan.parent = nil
+    local construct = table.table_copy(construct_plan)
+    if is_root then
+        construct.root = construct
+        construct.parent = construct
+    end
+    return construct
 end
 
 ---
