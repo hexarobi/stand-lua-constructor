@@ -4,7 +4,10 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.7"
+--local status, inspect = pcall(require, "inspect")
+--if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
+
+local LIB_VERSION = "3.8"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -207,18 +210,18 @@ constructor_lib.serialize_vehicle_paint = function(vehicle, serialized_vehicle)
     end
 
     -- Create pointers to hold color values
-    local color = { r = memory.alloc(4), g = memory.alloc(4), b = memory.alloc(4) }
+    local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
 
-    VEHICLE.GET_VEHICLE_COLOR(vehicle, color.r, color.g, color.b)
+    VEHICLE.GET_VEHICLE_COLOR(vehicle.handle, color.r, color.g, color.b)
     serialized_vehicle.paint.vehicle_custom_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
-    VEHICLE.GET_VEHICLE_COLOURS(vehicle, color.r, color.g)
+    VEHICLE.GET_VEHICLE_COLOURS(vehicle.handle, color.r, color.g)
     serialized_vehicle.paint.primary.vehicle_standard_color = memory.read_int(color.r)
     serialized_vehicle.paint.secondary.vehicle_standard_color = memory.read_int(color.g)
 
     serialized_vehicle.paint.primary.is_custom = VEHICLE.GET_IS_VEHICLE_PRIMARY_COLOUR_CUSTOM(vehicle.handle)
     if serialized_vehicle.paint.primary.is_custom then
         VEHICLE.GET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle.handle, color.r, color.g, color.b)
-        serialized_vehicle.paint.primary.custom_color = { r = memory.read_int(color.r), b = memory.read_int(color.g), g = memory.read_int(color.b) }
+        serialized_vehicle.paint.primary.custom_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     else
         VEHICLE.GET_VEHICLE_MOD_COLOR_1(vehicle.handle, color.r, color.g, color.b)
         serialized_vehicle.paint.primary.paint_type = memory.read_int(color.r)
@@ -229,7 +232,7 @@ constructor_lib.serialize_vehicle_paint = function(vehicle, serialized_vehicle)
     serialized_vehicle.paint.secondary.is_custom = VEHICLE.GET_IS_VEHICLE_SECONDARY_COLOUR_CUSTOM(vehicle.handle)
     if serialized_vehicle.paint.secondary.is_custom then
         VEHICLE.GET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle.handle, color.r, color.g, color.b)
-        serialized_vehicle.paint.secondary.custom_color = { r = memory.read_int(color.r), b = memory.read_int(color.g), g = memory.read_int(color.b) }
+        serialized_vehicle.paint.secondary.custom_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     else
         VEHICLE.GET_VEHICLE_MOD_COLOR_2(vehicle.handle, color.r, color.g)
         serialized_vehicle.paint.secondary.paint_type = memory.read_int(color.r)
@@ -249,27 +252,28 @@ constructor_lib.serialize_vehicle_paint = function(vehicle, serialized_vehicle)
     -- Livery is also part of mods, but capture it here as well for when just saving paint
     serialized_vehicle.paint.livery = VEHICLE.GET_VEHICLE_MOD(vehicle.handle, 48)
 
-    memory.free(color.r) memory.free(color.g) memory.free(color.b)
+    --memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
 constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle)
 
-    --VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
+    VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
+    VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle.handle, serialized_vehicle.paint.color_combo or -1)
 
     VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
-            vehicle,
+            vehicle.handle,
             serialized_vehicle.paint.vehicle_custom_color.r,
             serialized_vehicle.paint.vehicle_custom_color.g,
             serialized_vehicle.paint.vehicle_custom_color.b
     )
     VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(
-            vehicle,
+            vehicle.handle,
             serialized_vehicle.paint.vehicle_custom_color.r,
             serialized_vehicle.paint.vehicle_custom_color.g,
             serialized_vehicle.paint.vehicle_custom_color.b
     )
     VEHICLE.SET_VEHICLE_COLOURS(
-            vehicle,
+            vehicle.handle,
             serialized_vehicle.paint.primary.vehicle_standard_color or 0,
             serialized_vehicle.paint.secondary.vehicle_standard_color or 0
     )
@@ -319,7 +323,6 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle
 
     VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle.handle, serialized_vehicle.paint.fade or 0)
     VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle.handle, serialized_vehicle.paint.dirt_level or 0.0)
-    VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle.handle, serialized_vehicle.paint.color_combo or -1)
     VEHICLE.SET_VEHICLE_MOD(vehicle.handle, 48, serialized_vehicle.paint.livery or -1)
 end
 
@@ -331,13 +334,13 @@ constructor_lib.serialize_vehicle_neon = function(vehicle, serialized_vehicle)
         front = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 2),
         back = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 3),
     }
-    local color = { r = memory.alloc(4), g = memory.alloc(4), b = memory.alloc(4) }
+    local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     if (serialized_vehicle.neon.lights.left or serialized_vehicle.neon.lights.right
             or serialized_vehicle.neon.lights.front or serialized_vehicle.neon.lights.back) then
         VEHICLE._GET_VEHICLE_NEON_LIGHTS_COLOUR(vehicle.handle, color.r, color.g, color.b)
         serialized_vehicle.neon.color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     end
-    memory.free(color.r) memory.free(color.g) memory.free(color.b)
+    --memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
 constructor_lib.deserialize_vehicle_neon = function(vehicle, serialized_vehicle)
@@ -358,10 +361,10 @@ end
 constructor_lib.serialize_vehicle_wheels = function(vehicle, serialized_vehicle)
     if serialized_vehicle.wheels == nil then serialized_vehicle.wheels = {} end
     serialized_vehicle.wheels.type = VEHICLE.GET_VEHICLE_WHEEL_TYPE(vehicle.handle)
-    local color = { r = memory.alloc(4), g = memory.alloc(4), b = memory.alloc(4) }
+    local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, color.r, color.g, color.b)
     serialized_vehicle.wheels.tire_smoke_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
-    memory.free(color.r) memory.free(color.g) memory.free(color.b)
+    --memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
 constructor_lib.deserialize_vehicle_wheels = function(vehicle, serialized_vehicle)
@@ -750,7 +753,7 @@ constructor_lib.deserialize_vehicle_attributes = function(vehicle)
     constructor_lib.deserialize_vehicle_mods(vehicle, serialized_vehicle)
     constructor_lib.deserialize_vehicle_extras(vehicle, serialized_vehicle)
 
-    ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle.handle, true, true)
+    --ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle.handle, true, true)
 
 end
 
