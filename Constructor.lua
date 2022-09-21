@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.9.0"
+local SCRIPT_VERSION = "0.9.1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1280,6 +1280,7 @@ local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
 
 menu.divider(script_meta_menu, "Constructor")
 menu.readonly(script_meta_menu, "Version", SCRIPT_VERSION)
+menu.readonly(script_meta_menu, "Constructor Lib Version", constructor_lib.LIB_VERSION)
 menu.list_select(script_meta_menu, "Release Branch", {}, "Switch from main to dev to get cutting edge updates, but also potentially more bugs.", AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
     if click_type ~= 0 then return end
     auto_update_branch(AUTO_UPDATE_BRANCHES[index][1])
