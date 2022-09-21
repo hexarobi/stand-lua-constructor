@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.8.6"
+local SCRIPT_VERSION = "0.8.7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -646,7 +646,20 @@ local function update_preview_tick()
     end
 end
 
----
+local function freeze_attachment(attachment)
+    ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.is_frozen)
+    for _, child_attachment in pairs(attachment.children) do
+        freeze_attachment(child_attachment)
+    end
+end
+
+local function frozen_attachment_tick()
+    for _, spawned_construct in pairs(spawned_constructs) do
+        freeze_attachment(spawned_construct)
+    end
+end
+
+    ---
 --- Tick Handler
 ---
 
@@ -834,6 +847,61 @@ local function delete_construct(construct)
 end
 
 ---
+--- File Loaders
+---
+
+local function read_file(filepath)
+    local file = io.open(filepath, "r")
+    if file then
+        local status, data = pcall(function() return file:read("*a") end)
+        if not status then
+            util.toast("Invalid construct file. "..filepath, TOAST_ALL)
+            return
+        end
+        file:close()
+        return data
+    else
+        error("Could not read file '" .. filepath .. "'", TOAST_ALL)
+    end
+end
+
+local function load_construct_plan_from_xml_file(filepath)
+    local data = read_file(filepath)
+    if not data then return end
+    return constructor_lib.convert_xml_to_construct_plan(data)
+end
+
+local function load_construct_plan_from_json_file(filepath)
+    local data = read_file(filepath)
+    if not data then return end
+    return json.decode(data)
+end
+
+local function load_construct_plans_from_dir(directory)
+    local construct_plans = {}
+    for _, filepath in ipairs(filesystem.list_files(directory)) do
+        local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+        if not filesystem.is_dir(filepath) then
+            local construct_plan
+            if ext == "json" then
+                construct_plan = load_construct_plan_from_json_file(filepath)
+            elseif ext == "xml" then
+                construct_plan = load_construct_plan_from_xml_file(filepath)
+            end
+            if construct_plan then
+                if not construct_plan.target_version then
+                    util.toast("Invalid construct file format. Missing target_version. "..filepath, TOAST_ALL)
+                    return
+                end
+                table.insert(construct_plans, construct_plan)
+            end
+        end
+    end
+    return construct_plans
+end
+
+
+---
 --- Prop Search
 ---
 
@@ -962,10 +1030,10 @@ menus.rebuild_attachment_menu = function(attachment)
         menu.divider(attachment.menus.main, "Info")
 
         attachment.menus.debug = menu.list(attachment.menus.main, "Debug")
-        menu.readonly(attachment.menus.debug, "Handle", attachment.handle)
-        menu.readonly(attachment.menus.debug, "Type", attachment.type or "none")
-        menu.readonly(attachment.menus.debug, "Parent Handle", attachment.parent.handle)
-        menu.readonly(attachment.menus.debug, "Root Handle", attachment.root.handle)
+        menu.readonly(attachment.menus.debug, "Handle", attachment.handle or "nil")
+        menu.readonly(attachment.menus.debug, "Type", attachment.type or "nil")
+        menu.readonly(attachment.menus.debug, "Parent Handle", attachment.parent.handle or "nil")
+        menu.readonly(attachment.menus.debug, "Root Handle", attachment.root.handle or "nil")
 
         attachment.menus.name = menu.text_input(attachment.menus.main, "Name", { "constructorsetattachmentname"..attachment.handle}, "Set name of the attachment", function(value)
             attachment.name = value
@@ -987,15 +1055,15 @@ menus.rebuild_attachment_menu = function(attachment)
         end)
 
         menu.divider(attachment.menus.main, "Rotation")
-        attachment.menus.edit_rotation_x = menu.slider(attachment.menus.main, "X: Pitch", {"constructorrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, attachment.rotation.x, config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_x = menu.slider(attachment.menus.main, "X: Pitch", {"constructorrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
             attachment.rotation.x = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_rotation_y = menu.slider(attachment.menus.main, "Y: Roll", {"constructorrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, attachment.rotation.y, config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_y = menu.slider(attachment.menus.main, "Y: Roll", {"constructorrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
             attachment.rotation.y = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_rotation_z = menu.slider(attachment.menus.main, "Z: Yaw", {"constructorrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, attachment.rotation.z, config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_z = menu.slider(attachment.menus.main, "Z: Yaw", {"constructorrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
             attachment.rotation.z = value
             constructor_lib.move_attachment(attachment)
         end)
@@ -1024,6 +1092,9 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.has_gravity = on
             constructor_lib.update_attachment(attachment)
         end, attachment.has_gravity)
+        attachment.menus.option_frozen = menu.toggle(attachment.menus.more_options, "Frozen", {}, "Will the attachment be frozen in place, or allowed to move freely", function(on)
+            attachment.is_frozen = on
+        end, attachment.is_frozen)
         attachment.menus.option_light_disabled = menu.toggle(attachment.menus.more_options, "Light Disabled", {}, "If attachment is a light, it will be ALWAYS off, regardless of others settings.", function(on)
             attachment.is_light_disabled = on
             constructor_lib.update_attachment(attachment)
@@ -1115,79 +1186,8 @@ menus.rebuild_attachment_menu = function(attachment)
             menus.rebuild_attachment_menu(child_attachment)
         end
 
-        --if parent_attachment.menus.focus_menu == nil then
-        --    parent_attachment.menus.focus_menu = focus_menu
-        --end
-        --
-        --menus.rebuild_attachment_menu(attachment)
-        --if parent_attachment.menus.focus_menu == nil and attachment.menus.focus_menu ~= nil then
-        --    util.toast("setting focus menu from child")
-        --    parent_attachment.menus.focus_menu = attachment.menus.focus_menu
-        --end
     end
 end
-
---menus.rebuild_spawned_constructs_menu = function(construct)
---    if construct.menus == nil then
---        construct.menus = {}
---        construct.menus.main = menu.list(menus.loaded_constructs, construct.name)
---
---        menu.divider(construct.menus.main, "Construct")
---        construct.menus.name = menu.text_input(construct.menus.main, "Name", { "constructsetname"}, "Set name of the construct", function(value)
---            construct.name = value
---            construct.menus.refresh()
---        end, construct.name)
---
---        --menu.toggle_loop(options_menu, "Engine Always On", {}, "If enabled, vehicle engine will stay on even when unoccupied", function()
---        --    VEHICLE.SET_VEHICLE_ENGINE_ON(construct.handle, true, true, true)
---        --end)
---
---        menu.divider(construct.menus.main, "Attachments")
---        construct.menus.add_attachment = menu.list(construct.menus.main, "Add Attachment", {}, "", function()
---            menus.rebuild_add_attachments_menu(construct)
---        end)
---        construct.menus.edit_attachments = menu.list(construct.menus.main, "Edit Attachments ("..#construct.children..")", {}, "", function()
---            menus.rebuild_edit_attachments_menu(construct)
---        end)
---        menus.rebuild_add_attachments_menu(construct)
---
---        menu.divider(construct.menus.main, "Actions")
---        menu.action(construct.menus.main, "Enter Drivers Seat", {}, "", function()
---            PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -1)
---        end)
---        menu.action(construct.menus.main, "Save Construct", {}, "Save this construct so it can be retrieved in the future", function()
---            save_vehicle(construct)
---        end)
---
---        construct.menus.delete_vehicle = menu.action(construct.menus.main, "Delete", {}, "Delete construct and all attachments", function()
---            menu.show_warning(construct.menus.delete_vehicle, CLICK_COMMAND, "Are you sure you want to delete this construct? All attachments will also be deleted.", function()
---                delete_construct(construct)
---            end)
---        end)
---        construct.menus.rebuild_vehicle = menu.action(construct.menus.main, "Rebuild", {}, "Delete construct, then rebuild a new one from scratch.", function()
---            menu.show_warning(construct.menus.delete_vehicle, CLICK_COMMAND, "Are you sure you want to rebuild this construct?", function()
---                local construct_plan = constructor_lib.serialize_attachment(construct)
---                delete_construct(construct)
---                spawn_construct_from_plan(construct_plan)
---            end)
---        end)
---
---        construct.menus.refresh = function()
---            menu.set_menu_name(construct.menus.main, construct.name)
---            menu.set_menu_name(construct.menus.edit_attachments, "Edit Attachments ("..#construct.children..")")
---            menus.rebuild_edit_attachments_menu(construct)
---            menus.refresh_loaded_constructs()
---        end
---        construct.menus.focus = function()
---            if construct.menus.name == nil then
---                error("Cannot focus, missing name menu for construct "..construct.name)
---            end
---            --util.toast("Focusing on construct menu "..construct.name.." name menu handle="..tostring(construct.menus.name))
---            menu.focus(construct.menus.name)
---        end
---        construct.menus.spawn_focus = construct.menus.name
---    end
---end
 
 ---
 --- Static Menus
@@ -1217,17 +1217,6 @@ menu.text_input(menus.create_new_construct, "Create from vehicle name", { "const
     construct_plan.root = construct_plan
     construct_plan.parent = construct_plan
     construct_from_plan(construct_plan)
-    --local vehicle_handle = constructor_lib.spawn_vehicle_for_player(players.user(), value)
-    --if vehicle_handle == 0 or vehicle_handle == nil then
-    --    util.toast("Error: Invalid vehicle name")
-    --    return
-    --end
-    --local construct = create_construct_from_vehicle(vehicle_handle)
-    --if construct then
-    --    menus.rebuild_spawned_constructs_menu(construct)
-    --    construct.menus.refresh()
-    --    menu.focus(construct.menus.spawn_focus)
-    --end
 end)
 
 menu.text_input(menus.create_new_construct, "Create from object name", { "constructfromobjectname"}, "Create a new construct from an object name", function(value)
@@ -1243,39 +1232,6 @@ end)
 menus.load_construct = menu.list(menu.my_root(), "Load Construct")
 
 menu.hyperlink(menus.load_construct, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
-
-local function load_construct_plan_from_file(filepath)
-    local file = io.open(filepath, "r")
-    if file then
-        local status, data = pcall(function() return json.decode(file:read("*a")) end)
-        if not status then
-            util.toast("Invalid construct file format. "..filepath, TOAST_ALL)
-            return
-        end
-        if not data.target_version then
-            util.toast("Invalid construct file format. Missing target_version. "..filepath, TOAST_ALL)
-            return
-        end
-        file:close()
-        return data
-    else
-        error("Could not read file '" .. filepath .. "'", TOAST_ALL)
-    end
-end
-
-local function load_construct_plans_from_dir(directory)
-    local construct_plans = {}
-    for _, filepath in ipairs(filesystem.list_files(directory)) do
-        local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
-        if not filesystem.is_dir(filepath) and ext == "json" then
-            local construct_plan = load_construct_plan_from_file(filepath)
-            if construct_plan then
-                table.insert(construct_plans, construct_plan)
-            end
-        end
-    end
-    return construct_plans
-end
 
 menus.construct_plan_menus = {}
 menus.rebuild_load_construct_menu = function()
@@ -1337,6 +1293,7 @@ local function constructor_tick()
     aim_info_tick()
     update_preview_tick()
     sensitivity_modifier_check_tick()
+    frozen_attachment_tick()
     draw_editing_attachment_bounding_box_tick()
 end
 
@@ -1344,3 +1301,4 @@ util.create_tick_handler(function()
     constructor_tick()
     return true
 end)
+
