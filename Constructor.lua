@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.9.2"
+local SCRIPT_VERSION = "0.9.3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -65,8 +65,8 @@ local constructor_lib = auto_updater.require_with_auto_update({
     verify_file_begins_with="--",
 })
 
---local status, inspect = pcall(require, "inspect")
---if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
+local status, inspect = pcall(require, "inspect")
+if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
 
 menu.delete(loading_menu)
 
@@ -570,6 +570,8 @@ end
 ---
 
 local current_preview
+local minVec = v3.new()
+local maxVec = v3.new()
 
 local function rotation_to_direction(rotation)
     local adjusted_rotation =
@@ -600,9 +602,29 @@ local function get_offset_from_camera(distance)
     return destination
 end
 
-local function calculate_model_size(model, minVec, maxVec)
-    MISC.GET_MODEL_DIMENSIONS(model, minVec, maxVec)
-    return (maxVec:getX() - minVec:getX()), (maxVec:getY() - minVec:getY()), (maxVec:getZ() - minVec:getZ())
+local function calculate_construct_size(construct, child_attachment)
+    if construct.dimensions == nil then construct.dimensions = {l=0, w=0, h=0, min_vec={x=0,y=0,z=0}, max_vec={x=0,y=0,z=0}} end
+    if child_attachment == nil then child_attachment = construct end
+    if child_attachment.offset == nil then child_attachment.offset = {x=0,y=0,z=0} end
+    MISC.GET_MODEL_DIMENSIONS(child_attachment.hash, minVec, maxVec)
+
+    construct.dimensions.min_vec.x = math.min(construct.dimensions.min_vec.x, minVec:getX() + child_attachment.offset.x)
+    construct.dimensions.min_vec.y = math.min(construct.dimensions.min_vec.y, minVec:getY() + child_attachment.offset.y)
+    construct.dimensions.min_vec.z = math.min(construct.dimensions.min_vec.z, minVec:getZ() + child_attachment.offset.z)
+
+    construct.dimensions.max_vec.x = math.max(construct.dimensions.max_vec.x, maxVec:getX() + child_attachment.offset.x)
+    construct.dimensions.max_vec.y = math.max(construct.dimensions.max_vec.y, maxVec:getY() + child_attachment.offset.y)
+    construct.dimensions.max_vec.z = math.max(construct.dimensions.max_vec.z, maxVec:getZ() + child_attachment.offset.z)
+
+    if child_attachment.children then
+        for _, child in pairs(child_attachment.children) do
+            calculate_construct_size(construct, child)
+        end
+    end
+
+    construct.dimensions.l = (construct.dimensions.max_vec.x - construct.dimensions.min_vec.x)
+    construct.dimensions.w = (construct.dimensions.max_vec.y - construct.dimensions.min_vec.y)
+    construct.dimensions.h = (construct.dimensions.max_vec.z - construct.dimensions.min_vec.z)
 end
 
 local function remove_preview()
@@ -613,27 +635,24 @@ local function remove_preview()
     end
 end
 
-local minVec = v3.new()
-local maxVec = v3.new()
-
 local function calculate_camera_distance(attachment)
     if attachment.hash == nil then attachment.hash = util.joaat(attachment.model) end
     constructor_lib.load_hash_for_attachment(attachment)
-    local l, w, h = calculate_model_size(attachment.hash, minVec, maxVec)
-    attachment.camera_distance = math.max(l, w, h) + config.preview_camera_distance
+    calculate_construct_size(attachment)
+    attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
 local function add_preview(construct_plan)
-    local attachment = copy_construct_plan(construct_plan)
     if config.show_previews == false then return end
     remove_preview()
+    local attachment = copy_construct_plan(construct_plan)
     attachment.name = attachment.model.." (Preview)"
     attachment.root = attachment
     attachment.parent = attachment
     attachment.is_preview = true
     calculate_camera_distance(attachment)
     attachment.position = get_offset_from_camera(attachment.camera_distance)
-    if config.debug then util.log("Adding preview "..attachment.name) end
+    --if config.debug then util.log("Adding preview "..attachment.name) end
     current_preview = constructor_lib.attach_attachment_with_children(attachment)
 end
 
@@ -649,7 +668,7 @@ local function update_preview_tick()
         current_preview.position = get_offset_from_camera(current_preview.camera_distance)
         current_preview.rotation.z = current_preview.rotation.z + 2
         constructor_lib.update_attachment(current_preview)
-        constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
+        constructor_lib.draw_bounding_box_with_dimensions(current_preview.handle, config.preview_bounding_box_color, current_preview.dimensions.min_vec, current_preview.dimensions.max_vec)
         disable_attachment_collision(current_preview)
     end
 end
@@ -1311,3 +1330,4 @@ util.create_tick_handler(function()
     constructor_tick()
     return true
 end)
+
