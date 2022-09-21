@@ -7,7 +7,7 @@
 --local status, inspect = pcall(require, "inspect")
 --if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
 
-local LIB_VERSION = "3.8"
+local LIB_VERSION = "3.9"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -20,11 +20,20 @@ local constructor_lib = {
 
 local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
 
+local construct_base = {
+    target_version = constructor_lib.LIB_VERSION,
+    children = {},
+    options = {},
+    heading = 0,
+}
+
 ---
 --- Utilities
 ---
 
 util.require_natives(1660775568)
+
+local slaxdom = require("lib/slaxdom")
 
 function table.table_copy(obj)
     if type(obj) ~= 'table' then
@@ -197,8 +206,10 @@ constructor_lib.serialize_vehicle_headlights = function(vehicle, serialized_vehi
 end
 
 constructor_lib.deserialize_vehicle_headlights = function(vehicle, serialized_vehicle)
+    if serialized_vehicle.headlights == nil then return end
     VEHICLE._SET_VEHICLE_XENON_LIGHTS_COLOR(vehicle.handle, serialized_vehicle.headlights.headlights_color)
     VEHICLE.TOGGLE_VEHICLE_MOD(vehicle.handle, 22, serialized_vehicle.headlights.headlights_type or false)
+    VEHICLE.SET_VEHICLE_LIGHT_MULTIPLIER(vehicle.handle, serialized_vehicle.headlights.multiplier or 1)
 end
 
 constructor_lib.serialize_vehicle_paint = function(vehicle, serialized_vehicle)
@@ -256,22 +267,25 @@ constructor_lib.serialize_vehicle_paint = function(vehicle, serialized_vehicle)
 end
 
 constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle)
+    if serialized_vehicle.paint == nil then return end
 
-    VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
+    --VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
     VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle.handle, serialized_vehicle.paint.color_combo or -1)
 
-    VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
-            vehicle.handle,
-            serialized_vehicle.paint.vehicle_custom_color.r,
-            serialized_vehicle.paint.vehicle_custom_color.g,
-            serialized_vehicle.paint.vehicle_custom_color.b
-    )
-    VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(
-            vehicle.handle,
-            serialized_vehicle.paint.vehicle_custom_color.r,
-            serialized_vehicle.paint.vehicle_custom_color.g,
-            serialized_vehicle.paint.vehicle_custom_color.b
-    )
+    if serialized_vehicle.paint.vehicle_custom_color then
+        VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
+                vehicle.handle,
+                serialized_vehicle.paint.vehicle_custom_color.r,
+                serialized_vehicle.paint.vehicle_custom_color.g,
+                serialized_vehicle.paint.vehicle_custom_color.b
+        )
+        VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(
+                vehicle.handle,
+                serialized_vehicle.paint.vehicle_custom_color.r,
+                serialized_vehicle.paint.vehicle_custom_color.g,
+                serialized_vehicle.paint.vehicle_custom_color.b
+        )
+    end
     VEHICLE.SET_VEHICLE_COLOURS(
             vehicle.handle,
             serialized_vehicle.paint.primary.vehicle_standard_color or 0,
@@ -344,6 +358,7 @@ constructor_lib.serialize_vehicle_neon = function(vehicle, serialized_vehicle)
 end
 
 constructor_lib.deserialize_vehicle_neon = function(vehicle, serialized_vehicle)
+    if serialized_vehicle.neon == nil then return end
     VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 0, serialized_vehicle.neon.lights.left or false)
     VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 1, serialized_vehicle.neon.lights.right or false)
     VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 2, serialized_vehicle.neon.lights.front or false)
@@ -368,11 +383,12 @@ constructor_lib.serialize_vehicle_wheels = function(vehicle, serialized_vehicle)
 end
 
 constructor_lib.deserialize_vehicle_wheels = function(vehicle, serialized_vehicle)
-    VEHICLE.SET_VEHICLE_TYRES_CAN_BURST(vehicle.handle, serialized_vehicle.bulletproof_tires or false)
-    VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle.handle, serialized_vehicle.wheel_type or -1)
-    if serialized_vehicle.tire_smoke_color then
-        VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, serialized_vehicle.tire_smoke_color.r or 255,
-                serialized_vehicle.tire_smoke_color.g or 255, serialized_vehicle.tire_smoke_color.b or 255)
+    if serialized_vehicle.wheels == nil then return end
+    VEHICLE.SET_VEHICLE_TYRES_CAN_BURST(vehicle.handle, serialized_vehicle.wheels.bulletproof_tires or false)
+    VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle.handle, serialized_vehicle.wheels.wheel_type or -1)
+    if serialized_vehicle.wheels.tire_smoke_color then
+        VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, serialized_vehicle.wheels.tire_smoke_color.r or 255,
+                serialized_vehicle.wheels.tire_smoke_color.g or 255, serialized_vehicle.wheels.tire_smoke_color.b or 255)
     end
 end
 
@@ -390,6 +406,7 @@ constructor_lib.serialize_vehicle_mods = function(vehicle, serialized_vehicle)
 end
 
 constructor_lib.deserialize_vehicle_mods = function(vehicle, serialized_vehicle)
+    if serialized_vehicle.mods == nil then return end
     for mod_index = 0, 49 do
         if mod_index >= 17 and mod_index <= 22 then
             VEHICLE.TOGGLE_VEHICLE_MOD(vehicle.handle, mod_index, serialized_vehicle.mods["_"..mod_index])
@@ -409,6 +426,7 @@ constructor_lib.serialize_vehicle_extras = function(vehicle, serialized_vehicle)
 end
 
 constructor_lib.deserialize_vehicle_extras = function(vehicle, serialized_vehicle)
+    if serialized_vehicle.extras == nil then return end
     for extra_index = 0, 14 do
         local state = true
         if serialized_vehicle.extras["_"..extra_index] ~= nil then
@@ -433,6 +451,7 @@ constructor_lib.serialize_vehicle_options = function(vehicle, serialized_vehicle
 end
 
 constructor_lib.deserialize_vehicle_options = function(vehicle, serialized_vehicle)
+    if serialized_vehicle.options == nil then return end
     if serialized_vehicle.options.siren then
         AUDIO.SET_SIREN_WITH_NO_DRIVER(vehicle.handle, true)
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(vehicle.handle, false)
@@ -447,6 +466,11 @@ constructor_lib.deserialize_vehicle_options = function(vehicle, serialized_vehic
 
     if serialized_vehicle.options.engine_running then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle.handle, true, true, false)
+    end
+
+    VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle.handle, serialized_vehicle.options.doors_locked or false)
+    if serialized_vehicle.options.engine_health ~= nil then
+        VEHICLE.SET_VEHICLE_ENGINE_HEALTH(vehicle, serialized_vehicle.options.engine_health)
     end
 end
 
@@ -469,8 +493,7 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.offset == nil then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil then attachment.rotation = { x = 0, y = 0, z = 0 } end
     if attachment.heading == nil then
-        attachment.heading = attachment.root.heading
-        if attachment.heading == nil then attachment.heading = 0 end
+        attachment.heading = (attachment.root and attachment.root.heading or 0)
     end
     if attachment.is_visible == nil then attachment.is_visible = true end
     if attachment.has_gravity == nil then attachment.has_gravity = false end
@@ -669,7 +692,7 @@ constructor_lib.reattach_attachment_with_children = function(attachment)
 end
 
 constructor_lib.attach_attachment_with_children = function(new_attachment)
-    if constructor_lib.debug then util.log("Attaching attachment with children "..(new_attachment.name or new_attachment.model)) end
+    if constructor_lib.debug then util.log("Attaching attachment with children "..(new_attachment.name or new_attachment.model or new_attachment.hash)) end
     local attachment = constructor_lib.attach_attachment(new_attachment)
     if attachment.children then
         for _, child_attachment in pairs(attachment.children) do
@@ -742,8 +765,10 @@ end
 constructor_lib.deserialize_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes == nil then return end
     local serialized_vehicle = vehicle.vehicle_attributes
+    --if constructor_lib.debug then util.log("Deserializing vehicle attributes "..vehicle.name.." "..inspect(serialized_vehicle)) end
 
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
+    ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle.handle, true, true)    -- Needed for plate text
 
     constructor_lib.deserialize_vehicle_neon(vehicle, serialized_vehicle)
     constructor_lib.deserialize_vehicle_paint(vehicle, serialized_vehicle)
@@ -781,5 +806,455 @@ constructor_lib.serialize_attachment = function(attachment)
     --util.toast(inspect(serialized_attachment), TOAST_ALL)
     return serialized_attachment
 end
+
+---
+--- XML to Construct Plan Convertor
+---
+
+
+local function strsplit(str, sep)
+    sep = sep or "%s";
+    local tbl = {};
+    local i = 1;
+    for str_part in string.gmatch(str, "([^"..sep.."]+)") do
+        tbl[i] = str_part;
+        i = i + 1;
+    end
+    return tbl;
+end
+
+local function elementText(el)
+    local pieces = {}
+    for _,n in ipairs(el.kids) do
+        if n.type=='element' then pieces[#pieces+1] = elementText(n)
+        elseif n.type=='text' then pieces[#pieces+1] = n.value
+        end
+    end
+    return table.concat(pieces)
+end
+
+local function toboolean(value)
+    return (value == true or value == "true")
+end
+
+local xml_field_to_construct_plan_map = {
+    {
+        xml_path=".ModelHash",
+        construct_plan_path="hash",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".InitialHandle",
+        construct_plan_path="initial_handle",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".Type",
+        construct_plan_path="type",
+        formatter=function(value) return ENTITY_TYPES[value] end
+    },
+    {
+        xml_path=".IsVisible",
+        construct_plan_path="is_visible",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".OpacityLevel",
+        construct_plan_path="alpha",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".HasGravity",
+        construct_plan_path="has_gravity",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".IsInvincible",
+        construct_plan_path="is_invincible",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".FrozenPos",
+        construct_plan_path="is_frozen",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".IsCollisionProof",
+        construct_plan_path="has_collision",
+        formatter=function(value) return not toboolean(value) end,
+    },
+    {
+        xml_path=".Attachment.AttachedTo",
+        construct_plan_path="parents_initial_handle",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".Attachment.X",
+        construct_plan_path="offset.x",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".Attachment.Y",
+        construct_plan_path="offset.y",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".Attachment.Z",
+        construct_plan_path="offset.z",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".Attachment.Pitch",
+        construct_plan_path="rotation.x",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".Attachment.Roll",
+        construct_plan_path="rotation.y",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".Attachment.Yaw",
+        construct_plan_path="rotation.z",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".Attachment.BoneIndex",
+        construct_plan_path="bone_index",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".PositionRotation.X",
+        construct_plan_path="position.x",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".PositionRotation.Y",
+        construct_plan_path="position.y",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".PositionRotation.Z",
+        construct_plan_path="position.z",
+        formatter=tonumber,
+    },
+    -- No concept of offset rotation yet
+    --{
+    --    xml_path=".PositionRotation.Pitch",
+    --    construct_plan_path="rotation.x",
+    --    formatter=tonumber,
+    --},
+    --{
+    --    xml_path=".PositionRotation.Roll",
+    --    construct_plan_path="rotation.y",
+    --    formatter=tonumber,
+    --},
+    --{
+    --    xml_path=".PositionRotation.Yaw",
+    --    construct_plan_path="rotation.z",
+    --    formatter=tonumber,
+    --},
+    {
+        xml_path=".VehicleProperties.Livery",
+        construct_plan_path="vehicle_attributes.paint.livery",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.NumberPlateIndex",
+        construct_plan_path="vehicle_attributes.options.license_plate_type",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.NumberPlateText",
+        construct_plan_path="vehicle_attributes.options.license_plate_text",
+    },
+    {
+        xml_path=".VehicleProperties.WheelType",
+        construct_plan_path="vehicle_attributes.wheels.wheel_type",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.DirtLevel",
+        construct_plan_path="vehicle_attributes.paint.dirt_level",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.PaintFade",
+        construct_plan_path="vehicle_attributes.paint.fade",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.BulletProofTyres",
+        construct_plan_path="vehicle_attributes.wheels.bulletproof_tires",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".VehicleProperties.SirenActive",
+        construct_plan_path="vehicle_attributes.options.siren",
+    },
+    {
+        xml_path=".VehicleProperties.HeadlightIntensity",
+        construct_plan_path="vehicle_attributes.headlights.multiplier",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.WindowTint",
+        construct_plan_path="vehicle_attributes.options.window_tint",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.EngineOn",
+        construct_plan_path="vehicle_attributes.options.engine_running",
+    },
+    {
+        xml_path=".VehicleProperties.IsRadioLoud",
+        construct_plan_path="vehicle_attributes.options.radio_loud",
+    },
+    {
+        xml_path=".VehicleProperties.Colours.Primary",
+        construct_plan_path="vehicle_attributes.paint.primary.vehicle_standard_color",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.IsPrimaryColourCustom",
+        construct_plan_path="vehicle_attributes.paint.primary.is_custom",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.Cust1_R",
+        construct_plan_path="vehicle_attributes.paint.primary.custom_color.r",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.Cust1_G",
+        construct_plan_path="vehicle_attributes.paint.primary.custom_color.g",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.Cust1_B",
+        construct_plan_path="vehicle_attributes.paint.primary.custom_color.b",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.Secondary",
+        construct_plan_path="vehicle_attributes.paint.secondary.vehicle_standard_color",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.IsSecondaryColourCustom",
+        construct_plan_path="vehicle_attributes.paint.secondary.is_custom",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.Cust2_R",
+        construct_plan_path="vehicle_attributes.paint.secondary.custom_color.r",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.Cust2_G",
+        construct_plan_path="vehicle_attributes.paint.secondary.custom_color.g",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.Cust2_B",
+        construct_plan_path="vehicle_attributes.paint.secondary.custom_color.b",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.Pearl",
+        construct_plan_path="vehicle_attributes.paint.extra_colors.pearlescent",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.Rim",
+        construct_plan_path="vehicle_attributes.paint.extra_colors.wheel",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.LrXenonHeadlights",
+        construct_plan_path="vehicle_attributes.headlights.headlights_color",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.LrInterior",
+        construct_plan_path="vehicle_attributes.paint.interior_color",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.LrDashboard",
+        construct_plan_path="vehicle_attributes.paint.dashboard_color",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.tyreSmoke_R",
+        construct_plan_path="vehicle_attributes.wheels.tire_smoke_color.r",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.tyreSmoke_G",
+        construct_plan_path="vehicle_attributes.wheels.tire_smoke_color.g",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Colours.tyreSmoke_B",
+        construct_plan_path="vehicle_attributes.wheels.tire_smoke_color.b",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Neons.Left",
+        construct_plan_path="vehicle_attributes.neon.lights.left",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".VehicleProperties.Neons.Right",
+        construct_plan_path="vehicle_attributes.neon.lights.right",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".VehicleProperties.Neons.Front",
+        construct_plan_path="vehicle_attributes.neon.lights.front",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".VehicleProperties.Neons.Back",
+        construct_plan_path="vehicle_attributes.neon.lights.back",
+        formatter=toboolean,
+    },
+    {
+        xml_path=".VehicleProperties.Neons.R",
+        construct_plan_path="vehicle_attributes.neon.color.r",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Neons.G",
+        construct_plan_path="vehicle_attributes.neon.color.g",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".VehicleProperties.Neons.B",
+        construct_plan_path="vehicle_attributes.neon.color.b",
+        formatter=tonumber,
+    },
+    --[""] = "",
+}
+for mod_index = 0, 49 do
+    local formatter = function(value)
+        if type(value) == "table" then
+            return value[1]
+        end
+        if type(value) == "string" then
+            local split = strsplit(value, ",")
+            return split[1]
+        end
+    end
+    if mod_index >= 17 and mod_index <= 22 then formatter = toboolean end
+    table.insert(xml_field_to_construct_plan_map, {
+        xml_path=".VehicleProperties.Mods._"..(mod_index-1),
+        construct_plan_path="vehicle_attributes.mods._"..mod_index,
+        formatter=formatter
+    })
+end
+for extra_index = 0, 14 do
+    table.insert(xml_field_to_construct_plan_map, {
+        xml_path=".VehicleProperties.ModExtras._"..(extra_index-1),
+        construct_plan_path="vehicle_attributes.extras._"..extra_index,
+        formatter=toboolean
+    })
+end
+
+local function set_with_dot_path(root, dot_path, value)
+    -- Convert a dot notation path into array selector path. Why is this so hard?
+    local path_parts = strsplit(dot_path, ".")
+    local save_path = root
+    while #path_parts > 1 do
+        local path_step = path_parts[1]
+        if #path_parts > 1 and save_path[path_step] == nil then
+            save_path[path_step] = {}
+        end
+        save_path = save_path[path_step]
+        table.remove(path_parts, 1)
+    end
+    save_path[path_parts[1]] = value
+end
+
+local function find_element(el, query, path)
+    if path == nil then path = "" end
+    path = path.."."..el.name
+    --util.log("Checking "..query.."=="..path.." value="..elementText(el))
+    if query == path then
+        --util.log("Found!")
+        if el.kids == nil or (#el.kids == 1 and el.kids[1].type == "text") then
+            return elementText(el)
+        else
+            return el
+        end
+    end
+    for _,field in ipairs(el.kids) do
+        if field.type == "element" then
+            local value = find_element(field, query, path)
+            if value ~= nil then
+                return value
+            end
+        end
+    end
+end
+
+local function process_vehicle_element(el, construct_plan, prefix)
+    for _, mapped_field in pairs(xml_field_to_construct_plan_map) do
+        local query = prefix..mapped_field.xml_path
+        --util.log("Searching "..query)
+        local value = find_element(el, query, "")
+        if value ~= nil then
+            --util.log("Found "..query.." value="..tostring(value))
+            if mapped_field.formatter then
+                value = mapped_field.formatter(value)
+            end
+            set_with_dot_path(construct_plan, mapped_field.construct_plan_path, value)
+        end
+    end
+end
+
+constructor_lib.convert_xml_to_construct_plan = function(xmldata)
+    local dom = slaxdom:dom(xmldata, {stripWhitespace=true})
+
+    local construct_plan = table.table_copy(construct_base)
+
+    if dom.root.name == "Vehicle" then
+        construct_plan.type = "VEHICLE"
+    elseif dom.root.name == "SpoonerPlacements" then
+        construct_plan.type = "OBJECT"
+    end
+
+    process_vehicle_element(dom.root, construct_plan, ".Vehicle")
+    constructor_lib.set_attachment_defaults(construct_plan)
+
+    local spooner_attachments_el = find_element(dom.root, ".Vehicle.SpoonerAttachments")
+    --util.log("Spooner attachments el "..tostring(spooner_attachments_el))
+    if spooner_attachments_el then
+        for _, child_attachment in pairs(spooner_attachments_el.kids) do
+            if child_attachment.type == "element" then
+                local attachment = {}
+                process_vehicle_element(child_attachment, attachment, ".Attachment")
+                constructor_lib.set_attachment_defaults(attachment)
+                table.insert(construct_plan.children, attachment)
+            end
+        end
+    end
+
+    --util.log("Loaded XML construct plan "..inspect(construct_plan))
+
+    --if construct_plan.model == nil then
+    --    construct_plan.model = util.reverse_joaat(construct_plan.hash)
+    --end
+    --if construct_plan.name == nil then
+    --    construct_plan.name = construct_plan.model
+    --end
+
+    return construct_plan
+end
+
+---
+--- Return
+---
 
 return constructor_lib
