@@ -7,7 +7,7 @@
 --local status, inspect = pcall(require, "inspect")
 --if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
 
-local LIB_VERSION = "3.9"
+local LIB_VERSION = "3.9.1"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -269,7 +269,7 @@ end
 constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle)
     if serialized_vehicle.paint == nil then return end
 
-    --VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
+    VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
     VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle.handle, serialized_vehicle.paint.color_combo or -1)
 
     if serialized_vehicle.paint.vehicle_custom_color then
@@ -286,11 +286,15 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle
                 serialized_vehicle.paint.vehicle_custom_color.b
         )
     end
-    VEHICLE.SET_VEHICLE_COLOURS(
+
+    if serialized_vehicle.paint.primary.vehicle_standard_color ~= nil or serialized_vehicle.paint.secondary.vehicle_standard_color ~= nil then
+        util.toast("vehicle  colours " .. serialized_vehicle.paint.primary.vehicle_standard_color, TOAST_ALL)
+        VEHICLE.SET_VEHICLE_COLOURS(
             vehicle.handle,
-            serialized_vehicle.paint.primary.vehicle_standard_color or 0,
-            serialized_vehicle.paint.secondary.vehicle_standard_color or 0
-    )
+            serialized_vehicle.paint.primary.vehicle_standard_color,
+            serialized_vehicle.paint.secondary.vehicle_standard_color
+        )
+    end
 
     if serialized_vehicle.paint.extra_colors then
         VEHICLE.SET_VEHICLE_EXTRA_COLOURS(
@@ -301,13 +305,17 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle
     end
 
     if serialized_vehicle.paint.primary.is_custom then
+        util.toast("custom primary colour", TOAST_ALL)
         VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
                 vehicle.handle,
                 serialized_vehicle.paint.primary.custom_color.r,
                 serialized_vehicle.paint.primary.custom_color.g,
                 serialized_vehicle.paint.primary.custom_color.b
         )
-    else
+    end
+
+    if serialized_vehicle.paint.primary.paint_type then
+        util.toast("mod color 1", TOAST_ALL)
         VEHICLE.SET_VEHICLE_MOD_COLOR_1(
                 vehicle.handle,
                 serialized_vehicle.paint.primary.paint_type,
@@ -323,7 +331,8 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle
                 serialized_vehicle.paint.secondary.custom_color.g,
                 serialized_vehicle.paint.secondary.custom_color.b
         )
-    else
+    end
+    if serialized_vehicle.paint.secondary.paint_type then
         VEHICLE.SET_VEHICLE_MOD_COLOR_2(
                 vehicle.handle,
                 serialized_vehicle.paint.secondary.paint_type,
@@ -613,7 +622,7 @@ constructor_lib.attach_attachment = function(attachment)
     if attachment.alpha ~= nil then ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.alpha) end
     if attachment.root.is_preview == true then
         ENTITY.SET_ENTITY_ALPHA(attachment.handle, 206)
-        ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, false)
+        ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
     end
 
     constructor_lib.update_attachment(attachment)
@@ -841,6 +850,11 @@ local xml_field_to_construct_plan_map = {
     {
         xml_path=".ModelHash",
         construct_plan_path="hash",
+        formatter=tonumber,
+    },
+    {
+        xml_path=".HashName",
+        construct_plan_path="name",
         formatter=tonumber,
     },
     {
