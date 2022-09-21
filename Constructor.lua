@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.8.8"
+local SCRIPT_VERSION = "0.9.0"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -865,7 +865,7 @@ local function read_file(filepath)
     end
 end
 
-local function load_construct_plan_from_xml_file(filepath)
+local function load_construct_plan_from_xml_file(filepath, vehicle_name)
     local data = read_file(filepath)
     if not data then return end
     return constructor_lib.convert_xml_to_construct_plan(data)
@@ -880,13 +880,14 @@ end
 local function load_construct_plans_from_dir(directory)
     local construct_plans = {}
     for _, filepath in ipairs(filesystem.list_files(directory)) do
-        local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?([^%.\\/]*))$")
+        local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
         if not filesystem.is_dir(filepath) then
             local construct_plan
             if ext == "json" then
                 construct_plan = load_construct_plan_from_json_file(filepath)
             elseif ext == "xml" then
                 construct_plan = load_construct_plan_from_xml_file(filepath)
+                construct_plan.name = filename
             end
             if construct_plan then
                 if not construct_plan.target_version then
@@ -1301,4 +1302,3 @@ util.create_tick_handler(function()
     constructor_tick()
     return true
 end)
-
