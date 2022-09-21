@@ -7,7 +7,7 @@
 --local status, inspect = pcall(require, "inspect")
 --if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
 
-local LIB_VERSION = "3.9.2"
+local LIB_VERSION = "3.9.3"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -24,6 +24,10 @@ local construct_base = {
     target_version = constructor_lib.LIB_VERSION,
     children = {},
     options = {},
+    position = {x=0,y=0,z=0},
+    offset = {x=0,y=0,z=0},
+    rotation = {x=0,y=0,z=0},
+    num_bones = 100,
     heading = 0,
 }
 
@@ -708,7 +712,12 @@ constructor_lib.reattach_attachment_with_children = function(attachment)
 end
 
 constructor_lib.attach_attachment_with_children = function(new_attachment)
-    if constructor_lib.debug then util.log("Attaching attachment with children "..(new_attachment.name or new_attachment.model or new_attachment.hash)) end
+    --if constructor_lib.debug then util.log("Attaching attachment with children "..(new_attachment.name or new_attachment.model or new_attachment.hash)) end
+    for key, value in pairs(construct_base) do
+        if new_attachment[key] == nil then
+            new_attachment[key] = value
+        end
+    end
     local attachment = constructor_lib.attach_attachment(new_attachment)
     if not attachment then return end
     if attachment.children then
