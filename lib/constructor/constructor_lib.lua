@@ -7,7 +7,7 @@
 --local status, inspect = pcall(require, "inspect")
 --if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
 
-local LIB_VERSION = "3.9.1"
+local LIB_VERSION = "3.9.2"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -111,16 +111,21 @@ constructor_lib.draw_bounding_box = function(entity, colour)
     if colour == nil then
         colour = {r=255,g=0,b=0,a=255}
     end
-    ENTITY.GET_ENTITY_MATRIX(entity, rightVector_pointer, forwardVector_pointer, upVector_pointer, position_pointer);
-    local forward_vector = v3.new(forwardVector_pointer)
-    local forward_vector = v3.new(forwardVector_pointer)
-    local right_vector = v3.new(rightVector_pointer)
-    local up_vector = v3.new(upVector_pointer)
 
     MISC.GET_MODEL_DIMENSIONS(ENTITY.GET_ENTITY_MODEL(entity), minimum, maximum)
     local minimum_vec = v3.new(minimum)
     local maximum_vec = v3.new(maximum)
+    constructor_lib.draw_bounding_box_with_dimensions(entity, colour, minimum_vec, maximum_vec)
+end
+
+constructor_lib.draw_bounding_box_with_dimensions = function(entity, colour, minimum_vec, maximum_vec)
+
     local dimensions = {x = maximum_vec.y - minimum_vec.y, y = maximum_vec.x - minimum_vec.x, z = maximum_vec.z - minimum_vec.z}
+
+    ENTITY.GET_ENTITY_MATRIX(entity, rightVector_pointer, forwardVector_pointer, upVector_pointer, position_pointer);
+    local forward_vector = v3.new(forwardVector_pointer)
+    local right_vector = v3.new(rightVector_pointer)
+    local up_vector = v3.new(upVector_pointer)
 
     local top_right =           ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(entity,       maximum_vec.x, maximum_vec.y, maximum_vec.z)
     local top_right_back =      {x = forward_vector.x * -dimensions.y + top_right.x,        y = forward_vector.y * -dimensions.y + top_right.y,         z = forward_vector.z * -dimensions.y + top_right.z}
@@ -288,7 +293,6 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle
     end
 
     if serialized_vehicle.paint.primary.vehicle_standard_color ~= nil or serialized_vehicle.paint.secondary.vehicle_standard_color ~= nil then
-        util.toast("vehicle  colours " .. serialized_vehicle.paint.primary.vehicle_standard_color, TOAST_ALL)
         VEHICLE.SET_VEHICLE_COLOURS(
             vehicle.handle,
             serialized_vehicle.paint.primary.vehicle_standard_color,
@@ -305,7 +309,6 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle
     end
 
     if serialized_vehicle.paint.primary.is_custom then
-        util.toast("custom primary colour", TOAST_ALL)
         VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
                 vehicle.handle,
                 serialized_vehicle.paint.primary.custom_color.r,
@@ -315,7 +318,6 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle
     end
 
     if serialized_vehicle.paint.primary.paint_type then
-        util.toast("mod color 1", TOAST_ALL)
         VEHICLE.SET_VEHICLE_MOD_COLOR_1(
                 vehicle.handle,
                 serialized_vehicle.paint.primary.paint_type,
@@ -527,7 +529,7 @@ end
 
 constructor_lib.update_attachment = function(attachment)
 
-    if constructor_lib.debug then util.log("Updating attachment "..attachment.name.." ["..attachment.handle.."]") end
+    --if constructor_lib.debug then util.log("Updating attachment "..attachment.name.." ["..attachment.handle.."]") end
 
     ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.is_visible, 0)
     ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.has_gravity)
@@ -568,10 +570,12 @@ constructor_lib.load_hash_for_attachment = function(attachment)
     if not STREAMING.IS_MODEL_VALID(attachment.hash) then
         if not STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) then
             util.toast("Error attaching: Invalid model: " .. attachment.model, TOAST_ALL)
+            return false
         end
         attachment.type = "VEHICLE"
     end
     constructor_lib.load_hash(attachment.hash)
+    return true
 end
 
 constructor_lib.build_parent_child_relationship = function(parent_attachment, child_attachment)
@@ -582,7 +586,9 @@ end
 constructor_lib.attach_attachment = function(attachment)
     constructor_lib.set_attachment_defaults(attachment)
     if constructor_lib.debug then util.log("Attaching attachment "..attachment.name.." [parent="..attachment.parent.name..",root="..attachment.root.name.."]") end
-    constructor_lib.load_hash_for_attachment(attachment)
+    if (not constructor_lib.load_hash_for_attachment(attachment)) then
+        return
+    end
 
     if attachment.root == nil then
         error("Attachment missing root")
@@ -655,14 +661,15 @@ constructor_lib.move_attachment = function(attachment)
 end
 
 constructor_lib.detach_attachment = function(attachment)
+    if not attachment then return end
     table.array_remove(attachment.children, function(t, i)
         local child_attachment = t[i]
         constructor_lib.detach_attachment(child_attachment)
         return false
     end)
-    --if attachment ~= attachment.root then
+    if attachment.handle then
         entities.delete_by_handle(attachment.handle)
-    --end
+    end
     if attachment.menus then
         for _, attachment_menu in pairs(attachment.menus) do
             -- Sometimes these menu handles are invalid but I don't know why,
@@ -703,6 +710,7 @@ end
 constructor_lib.attach_attachment_with_children = function(new_attachment)
     if constructor_lib.debug then util.log("Attaching attachment with children "..(new_attachment.name or new_attachment.model or new_attachment.hash)) end
     local attachment = constructor_lib.attach_attachment(new_attachment)
+    if not attachment then return end
     if attachment.children then
         for _, child_attachment in pairs(attachment.children) do
             constructor_lib.build_parent_child_relationship(attachment, child_attachment)
@@ -865,7 +873,7 @@ local xml_field_to_construct_plan_map = {
     {
         xml_path=".Type",
         construct_plan_path="type",
-        formatter=function(value) return ENTITY_TYPES[value] end
+        formatter=function(value) return ENTITY_TYPES[tonumber(value)] end
     },
     {
         xml_path=".IsVisible",
@@ -1154,23 +1162,23 @@ local xml_field_to_construct_plan_map = {
 for mod_index = 0, 49 do
     local formatter = function(value)
         if type(value) == "table" then
-            return value[1]
+            return tonumber(value[1])
         end
-        if type(value) == "string" then
-            local split = strsplit(value, ",")
-            return split[1]
-        end
+        --if type(value) == "string" then
+        --    local split = strsplit(value, ",")
+        --    return split[1]
+        --end
     end
     if mod_index >= 17 and mod_index <= 22 then formatter = toboolean end
     table.insert(xml_field_to_construct_plan_map, {
-        xml_path=".VehicleProperties.Mods._"..(mod_index-1),
+        xml_path=".VehicleProperties.Mods._"..(mod_index),
         construct_plan_path="vehicle_attributes.mods._"..mod_index,
         formatter=formatter
     })
 end
 for extra_index = 0, 14 do
     table.insert(xml_field_to_construct_plan_map, {
-        xml_path=".VehicleProperties.ModExtras._"..(extra_index-1),
+        xml_path=".VehicleProperties.ModExtras._"..(extra_index),
         construct_plan_path="vehicle_attributes.extras._"..extra_index,
         formatter=toboolean
     })
