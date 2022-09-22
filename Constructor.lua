@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.9.7"
+local SCRIPT_VERSION = "0.9.8"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -829,6 +829,21 @@ local function draw_editing_attachment_bounding_box_tick()
     end
 end
 
+local function animate_peds(attachment)
+    if attachment.type == "PED" and attachment.ped_animation ~= nil then
+        constructor_lib.animate_peds(attachment)
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        animate_peds(child_attachment)
+    end
+end
+
+local function ped_animation_tick()
+    for _, spawned_construct in pairs(spawned_constructs) do
+        animate_peds(spawned_construct)
+    end
+end
+
 ---
 --- Construct Management
 ---
@@ -895,6 +910,12 @@ local function spawn_construct_from_plan(construct_plan)
     construct.menus.focus()
     if construct.type == "VEHICLE" and config.drive_spawned_vehicles then
         PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -1)
+        local previous_frozen_state = construct.is_frozen
+        construct.is_frozen = true
+        constructor_lib.update_attachment(construct)
+        util.yield(3000)
+        construct.is_frozen = previous_frozen_state
+        constructor_lib.update_attachment(construct)
     end
 end
 
@@ -1582,8 +1603,15 @@ local function constructor_tick()
 end
 util.create_tick_handler(constructor_tick)
 
+util.create_tick_handler(function()
+    ped_animation_tick()
+    util.yield(10000)
+    return true
+end)
+
 util.on_stop(cleanup_constructs_handler)
 
 util.create_tick_handler(function()
     return true
 end)
+
