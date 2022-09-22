@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.9.5"
+local LIB_VERSION = "3.9.6"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -795,6 +795,9 @@ constructor_lib.copy_construct_plan = function(construct_plan)
 end
 
 constructor_lib.clone_attachment = function(attachment)
+    if attachment.type == "VEHICLE" then
+        attachment.heading = ENTITY.GET_ENTITY_HEADING(attachment.handle) or 0
+    end
     local clone = constructor_lib.serialize_attachment(attachment)
     if attachment == attachment.parent then
         clone.root = clone
@@ -875,6 +878,67 @@ end
 --- Jackz Vehicle Builder to Construct Plan Convertor
 ---
 
+local function convert_jackz_savedata_build_vehicle_attribute_mods(jackz_save_data)
+    local MOD_NAMES = table.freeze({
+        [1] = "Spoilers",
+        [2] = "Front Bumper",
+        [3] = "Rear Bumper",
+        [4] = "Side Skirt",
+        [5] = "Exhaust",
+        [6] = "Frame",
+        [7] = "Grille",
+        [8] = "Hood",
+        [9] = "Fender",
+        [10] = "Right Fender",
+        [11] = "Roof",
+        [12] = "Engine",
+        [13] = "Brakes",
+        [14] = "Transmission",
+        [15] = "Horns",
+        [16] = "Suspension",
+        [17] = "Armor",
+        [24] = "Wheels Design",
+        [25] = "Motorcycle Back Wheel Design",
+        [26] = "Plate Holders",
+        [28] = "Trim Design",
+        [29] = "Ornaments",
+        [31] = "Dial Design",
+        [34] = "Steering Wheel",
+        [35] = "Shifter Leavers",
+        [36] = "Plaques",
+        [39] = "Hydraulics",
+        [49] = "Livery"
+    })
+    -- Subtract index by 1 to get modType (ty lua)
+    local TOGGLEABLE_MOD_NAMES = table.freeze({
+        [18] = "UNK17",
+        [19] = "Turbo Turning",
+        [20] = "UNK19",
+        [21] = "Tire Smoke",
+        [22] = "UNK21",
+        [23] = "Xenon Headlights"
+    })
+    local mods = {}
+    for mod_index = 0, 49 do
+        local jackz_key
+        if mod_index >= 17 and mod_index <= 22 then
+            jackz_key = TOGGLEABLE_MOD_NAMES[mod_index+1]
+        else
+            jackz_key = MOD_NAMES[mod_index+1]
+        end
+        mods["_"..mod_index] = jackz_save_data.Mods[jackz_key] or -1
+    end
+    return mods
+end
+
+local function convert_jackz_savedata_build_vehicle_attribute_extras(jackz_save_data)
+    local extras = {}
+    for key, value in pairs(jackz_save_data.Extras) do
+        extras["_"..key] = value
+    end
+    return extras
+end
+
 local function convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, attachment)
     if jackz_save_data == nil then return end
     attachment.vehicle_attributes = {
@@ -951,16 +1015,19 @@ local function convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, att
                 g= jackz_save_data.Lights.Neon.Color.g,
                 b= jackz_save_data.Lights.Neon.Color.b
             }
-        }
+        },
+        mods = convert_jackz_savedata_build_vehicle_attribute_mods(jackz_save_data),
+        extras = convert_jackz_savedata_build_vehicle_attribute_extras(jackz_save_data),
     }
 end
 
-local function convert_jackz_object_to_attachment(jackz_object, jackz_save_data, attachment)
+local function convert_jackz_object_to_attachment(jackz_object, jackz_save_data, attachment, type)
     if attachment == nil then attachment = {} end
     if attachment.children == nil then attachment.children = {} end
     if attachment.options == nil then attachment.options = {} end
     attachment.hash = jackz_object.model
     attachment.name = jackz_object.name
+    attachment.type = jackz_object.type or type
     attachment.options.has_collision = jackz_object.collision
     attachment.options.is_visible = jackz_object.visible
     attachment.options.bone_index = jackz_object.bone_index
@@ -991,17 +1058,17 @@ constructor_lib.convert_jackz_to_construct_plan = function(jackz_build_data)
 
     for _, child_object in pairs(jackz_build_data.objects) do
         local child_attachment = {type="OBJECT"}
-        convert_jackz_object_to_attachment(child_object, nil, child_attachment)
+        convert_jackz_object_to_attachment(child_object, nil, child_attachment, "OBJECT")
         table.insert(construct_plan.children, child_attachment)
     end
     for _, child_object in pairs(jackz_build_data.vehicles) do
         local child_attachment = {type="VEHICLE"}
-        convert_jackz_object_to_attachment(child_object, child_object.savedata, child_attachment)
+        convert_jackz_object_to_attachment(child_object, child_object.savedata, child_attachment, "VEHICLE")
         table.insert(construct_plan.children, child_attachment)
     end
     for _, child_object in pairs(jackz_build_data.peds) do
         local child_attachment = {type="PED"}
-        convert_jackz_object_to_attachment(child_object, nil, child_attachment)
+        convert_jackz_object_to_attachment(child_object, nil, child_attachment, "PED")
         table.insert(construct_plan.children, child_attachment)
     end
 
