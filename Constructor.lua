@@ -997,7 +997,6 @@ local function load_construct_plan_file(construct_plan_file)
         construct_plan = load_construct_plan_from_xml_file(construct_plan_file.filepath)
         if not construct_plan then return end
         construct_plan.name = construct_plan_file.filename
-        util.toast("Loading construct plan "..construct_plan.name)
     end
     if not construct_plan then
         util.toast("Could not load construct plan file "..construct_plan_file.filepath, TOAST_ALL)
@@ -1633,3 +1632,4 @@ util.on_stop(cleanup_constructs_handler)
 util.create_tick_handler(function()
     return true
 end)
+
