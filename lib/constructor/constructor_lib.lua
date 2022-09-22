@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.9.6"
+local LIB_VERSION = "3.9.7"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -501,6 +501,16 @@ end
 --- Attachment Construction
 ---
 
+constructor_lib.animate_peds = function(attachment)
+    if attachment.ped_animation then
+        STREAMING.REQUEST_ANIM_DICT(attachment.ped_animation.dict)
+        while not STREAMING.HAS_ANIM_DICT_LOADED(attachment.ped_animation.dict) do
+            util.yield()
+        end
+        TASK.TASK_PLAY_ANIM(attachment.handle, attachment.ped_animation.dict, attachment.ped_animation.action, 8.0, 8.0, -1, 1, 1.0, false, false, false)
+    end
+end
+
 constructor_lib.set_attachment_internal_collisions = function(attachment, new_attachment)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment.handle, new_attachment.handle)
     if attachment.children ~= nil then
@@ -632,7 +642,7 @@ constructor_lib.attach_attachment = function(attachment)
     elseif attachment.type == "PED" then
         local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
         attachment.handle = entities.create_ped(1, attachment.hash, pos, 0.0)
-        if attachment.parent.type == "VEHICLE" then
+        if attachment.parent.type == "VEHICLE" and attachment.is_ped_seated_in_vehicle then
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, -1)
         end
     else
@@ -664,6 +674,7 @@ constructor_lib.attach_attachment = function(attachment)
 
     constructor_lib.update_attachment(attachment)
     constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
+    constructor_lib.animate_peds(attachment)
 
     return attachment
 end
@@ -1045,6 +1056,12 @@ local function convert_jackz_object_to_attachment(jackz_object, jackz_save_data,
             z=jackz_object.offset.z
         }
     end
+    if jackz_object.animdata then
+        attachment.ped_animation = {
+            dict = jackz_object.animdata[1],
+            action = jackz_object.animdata[2]
+        }
+    end
     convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, attachment)
 end
 
@@ -1416,6 +1433,14 @@ local xml_field_to_construct_plan_map = {
         xml_path="/VehicleProperties/Neons/B",
         construct_plan_path="vehicle_attributes.neon.color.b",
         formatter=tonumber,
+    },
+    {
+        xml_path="/PedProperties/AnimDict",
+        construct_plan_path="ped_animation.dict",
+    },
+    {
+        xml_path="/PedProperties/AnimName",
+        construct_plan_path="ped_animation.action",
     },
     --[""] = "",
 }
