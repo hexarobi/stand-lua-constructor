@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.9.4"
+local LIB_VERSION = "3.9.5"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -519,19 +519,19 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.heading == nil then
         attachment.heading = (attachment.root and attachment.root.heading or 0)
     end
-    if attachment.is_visible == nil then attachment.is_visible = true end
-    if attachment.has_gravity == nil then attachment.has_gravity = true end
-    if attachment.has_collision == nil then attachment.has_collision = true end
+    if attachment.options.is_visible == nil then attachment.options.is_visible = true end
+    if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
+    if attachment.options.has_collision == nil then attachment.options.has_collision = true end
     if attachment.is_preview == nil then attachment.is_preview = false end
-    if attachment.is_networked == nil then attachment.is_networked = not attachment.is_preview end
-    if attachment.is_invincible == nil then attachment.is_invincible = true end
-    if attachment.is_bullet_proof == nil then attachment.is_bullet_proof = true end
-    if attachment.is_fire_proof == nil then attachment.is_fire_proof = true end
-    if attachment.is_explosion_proof == nil then attachment.is_explosion_proof = true end
-    if attachment.is_melee_proof == nil then attachment.is_melee_proof = true end
-    if attachment.is_light_on == nil then attachment.is_light_on = true end
-    if attachment.use_soft_pinning == nil then attachment.use_soft_pinning = true end
-    if attachment.bone_index == nil then attachment.bone_index = 0 end
+    if attachment.options.is_networked == nil then attachment.options.is_networked = not attachment.is_preview end
+    if attachment.options.is_invincible == nil then attachment.options.is_invincible = true end
+    if attachment.options.is_bullet_proof == nil then attachment.options.is_bullet_proof = true end
+    if attachment.options.is_fire_proof == nil then attachment.options.is_fire_proof = true end
+    if attachment.options.is_explosion_proof == nil then attachment.options.is_explosion_proof = true end
+    if attachment.options.is_melee_proof == nil then attachment.options.is_melee_proof = true end
+    if attachment.options.is_light_on == nil then attachment.options.is_light_on = true end
+    if attachment.options.use_soft_pinning == nil then attachment.options.use_soft_pinning = true end
+    if attachment.options.bone_index == nil then attachment.options.bone_index = 0 end
     if attachment.hash == nil and attachment.model ~= nil then
         attachment.hash = util.joaat(attachment.model)
     elseif attachment.model == nil and attachment.hash ~= nil then
@@ -544,18 +544,24 @@ constructor_lib.update_attachment = function(attachment)
 
     --if constructor_lib.debug then util.log("Updating attachment "..attachment.name.." ["..attachment.handle.."]") end
 
-    ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.is_visible, 0)
-    ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.has_gravity)
-    ENTITY.SET_ENTITY_LIGHTS(attachment.handle, not attachment.is_light_on)
+    if attachment.options.alpha ~= nil then
+        ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.options.alpha, false)
+        if attachment.options.alpha == 0 and attachment.options.is_visible == true then
+            attachment.options.is_visible = false
+        end
+    end
+    ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
+    ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity)
+    ENTITY.SET_ENTITY_LIGHTS(attachment.handle, not attachment.options.is_light_on)
     ENTITY.SET_ENTITY_PROOFS(
             attachment.handle,
-            attachment.is_bullet_proof,
-            attachment.is_fire_proof,
-            attachment.is_explosion_proof,
-            attachment.is_melee_proof,
+            attachment.options.is_bullet_proof,
+            attachment.options.is_fire_proof,
+            attachment.options.is_explosion_proof,
+            attachment.options.is_melee_proof,
             false, true, false
     )
-    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.has_collision, true)
+    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
 
     if attachment == attachment.parent then
         ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0)
@@ -580,10 +586,10 @@ constructor_lib.update_attachment = function(attachment)
         end
     else
         ENTITY.ATTACH_ENTITY_TO_ENTITY(
-            attachment.handle, attachment.parent.handle, attachment.bone_index,
+            attachment.handle, attachment.parent.handle, attachment.options.bone_index,
             attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
             attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-            false, attachment.use_soft_pinning, attachment.has_collision, false, 2, true
+            false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
         )
     end
 
@@ -650,10 +656,9 @@ constructor_lib.attach_attachment = function(attachment)
     if attachment.num_bones == nil then attachment.num_bones = ENTITY._GET_ENTITY_BONE_COUNT(attachment.handle) end
     if attachment.type == nil then attachment.type = ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)] end
     if attachment.flash_start_on ~= nil then ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0) end
-    if attachment.is_invincible ~= nil then ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, attachment.is_invincible) end
-    if attachment.alpha ~= nil then ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.alpha) end
+    if attachment.options.is_invincible ~= nil then ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, attachment.options.is_invincible) end
     if attachment.root.is_preview == true then
-        ENTITY.SET_ENTITY_ALPHA(attachment.handle, 206)
+        ENTITY.SET_ENTITY_ALPHA(attachment.handle, 206, false)
         ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
     end
 
@@ -687,10 +692,20 @@ constructor_lib.move_attachment = function(attachment)
 end
 
 constructor_lib.detach_attachment = function(attachment)
+    ENTITY.DETACH_ENTITY(attachment.handle, true, true)
+    table.array_remove(attachment.parent.children, function(t, i)
+        local child_attachment = t[i]
+        return child_attachment ~= attachment
+    end)
+    attachment.root = attachment
+    attachment.parent = attachment
+end
+
+constructor_lib.remove_attachment = function(attachment)
     if not attachment then return end
     table.array_remove(attachment.children, function(t, i)
         local child_attachment = t[i]
-        constructor_lib.detach_attachment(child_attachment)
+        constructor_lib.remove_attachment(child_attachment)
         return false
     end)
     if attachment.handle then
@@ -707,12 +722,12 @@ end
 
 constructor_lib.remove_attachment_from_parent = function(attachment)
     if attachment == attachment.parent then
-        constructor_lib.detach_attachment(attachment)
+        constructor_lib.remove_attachment(attachment)
     else
         table.array_remove(attachment.parent.children, function(t, i)
             local child_attachment = t[i]
             if child_attachment.handle == attachment.handle then
-                constructor_lib.detach_attachment(attachment)
+                constructor_lib.remove_attachment(attachment)
                 return false
             end
             return true
@@ -835,7 +850,8 @@ constructor_lib.copy_serializable = function(attachment)
         children = {}
     }
     for k, v in pairs(attachment) do
-        if not (k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children") then
+        if not (k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children"
+            or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading") then
             serializeable_attachment[k] = v
         end
     end
@@ -856,9 +872,159 @@ constructor_lib.serialize_attachment = function(attachment)
 end
 
 ---
---- XML to Construct Plan Convertor
+--- Jackz Vehicle Builder to Construct Plan Convertor
 ---
 
+local function convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, attachment)
+    if jackz_save_data == nil then return end
+    attachment.vehicle_attributes = {
+        paint = {
+            dirt_level = jackz_save_data["Dirt Level"],
+            interior_color = jackz_save_data["Interior Color"],
+            dashboard_color = jackz_save_data["Dashboard Color"],
+            fade = jackz_save_data.Colors["Paint Fade"],
+            color_combo = jackz_save_data.Colors["Color Combo"],
+            primary = {
+                is_custom = jackz_save_data.Colors.Primary.Custom,
+                custom_color = {
+                    r= jackz_save_data.Colors.Primary["Custom Color"].r,
+                    g= jackz_save_data.Colors.Primary["Custom Color"].g,
+                    b= jackz_save_data.Colors.Primary["Custom Color"].b
+                },
+                vehicle_standard_color = jackz_save_data.Colors.Vehicle.Primary,
+                vehicle_custom_color = {
+                    r= jackz_save_data.Colors.Vehicle.r,
+                    g= jackz_save_data.Colors.Vehicle.g,
+                    b= jackz_save_data.Colors.Vehicle.b
+                }
+            },
+            secondary = {
+                is_custom = jackz_save_data.Colors.Secondary.Custom,
+                custom_color = {
+                    r= jackz_save_data.Colors.Secondary["Custom Color"].r,
+                    g= jackz_save_data.Colors.Secondary["Custom Color"].g,
+                    b= jackz_save_data.Colors.Secondary["Custom Color"].b
+                },
+                vehicle_standard_color = jackz_save_data.Colors.Vehicle.Secondary,
+                vehicle_custom_color = {
+                    r= jackz_save_data.Colors.Vehicle.r,
+                    g= jackz_save_data.Colors.Vehicle.g,
+                    b= jackz_save_data.Colors.Vehicle.b
+                }
+            },
+            extra_colors = {
+                pearlescent_color = jackz_save_data.Colors.Extras.Pearlescent,
+                wheel = jackz_save_data.Colors.Extras.Wheel,
+            },
+            livery = jackz_save_data.Livery.Style,
+        },
+        options = {
+            engine_running = jackz_save_data["Engine Running"],
+            radio_loud = jackz_save_data["RadioLoud"],
+            search_light = jackz_save_data.Lights.SearchLightActive,
+            siren = jackz_save_data.Lights["SirenActive"],
+            license_plate_text = jackz_save_data["License Plate"].Text,
+            license_plate_type = jackz_save_data["License Plate"].Type,
+            window_tint = jackz_save_data["Window Tint"],
+        },
+        wheels = {
+            tire_smoke_color = {
+                r= jackz_save_data["Tire Smoke"].r,
+                g= jackz_save_data["Tire Smoke"].g,
+                b= jackz_save_data["Tire Smoke"].b
+            },
+            bulletproof_tires = jackz_save_data["Bulletproof Tires"],
+            wheel_type = jackz_save_data["Wheel Type"],
+        },
+        headlights = {
+            headlights_color = jackz_save_data.Lights["Xenon Color"],
+        },
+        neon = {
+            lights = {
+                left = jackz_save_data.Lights.Neon.Left,
+                right = jackz_save_data.Lights.Neon.Right,
+                back = jackz_save_data.Lights.Neon.Back,
+                front = jackz_save_data.Lights.Neon.Front,
+            },
+            color = {
+                r= jackz_save_data.Lights.Neon.Color.r,
+                g= jackz_save_data.Lights.Neon.Color.g,
+                b= jackz_save_data.Lights.Neon.Color.b
+            }
+        }
+    }
+end
+
+local function convert_jackz_object_to_attachment(jackz_object, jackz_save_data, attachment)
+    if attachment == nil then attachment = {} end
+    if attachment.children == nil then attachment.children = {} end
+    if attachment.options == nil then attachment.options = {} end
+    attachment.hash = jackz_object.model
+    attachment.name = jackz_object.name
+    attachment.options.has_collision = jackz_object.collision
+    attachment.options.is_visible = jackz_object.visible
+    attachment.options.bone_index = jackz_object.bone_index
+    if jackz_object.offset then
+        attachment.rotation = {
+            x=jackz_object.rotation.x,
+            y=jackz_object.rotation.y,
+            z=jackz_object.rotation.z
+        }
+    end
+    if jackz_object.offset then
+        attachment.offset = {
+            x=jackz_object.offset.x,
+            y=jackz_object.offset.y,
+            z=jackz_object.offset.z
+        }
+    end
+    convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, attachment)
+end
+
+constructor_lib.convert_jackz_to_construct_plan = function(jackz_build_data)
+
+    local construct_plan = table.table_copy(constructor_lib.construct_base)
+    construct_plan.name = jackz_build_data.name
+    construct_plan.author = jackz_build_data.author
+
+    convert_jackz_object_to_attachment(jackz_build_data.base.data, jackz_build_data.base.savedata, construct_plan)
+
+    for _, child_object in pairs(jackz_build_data.objects) do
+        local child_attachment = {type="OBJECT"}
+        convert_jackz_object_to_attachment(child_object, nil, child_attachment)
+        table.insert(construct_plan.children, child_attachment)
+    end
+    for _, child_object in pairs(jackz_build_data.vehicles) do
+        local child_attachment = {type="VEHICLE"}
+        convert_jackz_object_to_attachment(child_object, child_object.savedata, child_attachment)
+        table.insert(construct_plan.children, child_attachment)
+    end
+    for _, child_object in pairs(jackz_build_data.peds) do
+        local child_attachment = {type="PED"}
+        convert_jackz_object_to_attachment(child_object, nil, child_attachment)
+        table.insert(construct_plan.children, child_attachment)
+    end
+
+    if construct_plan.hash == nil and construct_plan.model ~= nil then
+        construct_plan.hash = util.joaat(construct_plan.model)
+    elseif construct_plan.model == nil and construct_plan.hash ~= nil then
+        construct_plan.model = util.reverse_joaat(construct_plan.hash)
+    end
+
+    if construct_plan.hash == nil and construct_plan.model == nil then
+        util.toast("Failed to load Jackz construct. Missing hash or model.", TOAST_ALL)
+        util.log("Attempted construct plan: "..inspect(construct_plan))
+        return
+    end
+
+    util.log("Converted Jackz Vehicle to Construct Plan: "..inspect(construct_plan))
+
+    return construct_plan
+end
+
+---
+--- XML to Construct Plan Convertor
+---
 
 local function strsplit(str, sep)
     sep = sep or "%s";
@@ -883,304 +1049,304 @@ end
 
 local xml_field_to_construct_plan_map = {
     {
-        xml_path=".ModelHash",
+        xml_path="/ModelHash",
         construct_plan_path="hash",
         formatter=tonumber,
     },
     {
-        xml_path=".HashName",
+        xml_path="/HashName",
         construct_plan_path="name",
         formatter=tonumber,
     },
     {
-        xml_path=".InitialHandle",
+        xml_path="/InitialHandle",
         construct_plan_path="initial_handle",
         formatter=tonumber,
     },
     {
-        xml_path=".Type",
+        xml_path="/Type",
         construct_plan_path="type",
         formatter=function(value) return ENTITY_TYPES[tonumber(value)] end
     },
     {
-        xml_path=".IsVisible",
-        construct_plan_path="is_visible",
+        xml_path="/IsVisible",
+        construct_plan_path="options.is_visible",
         formatter=toboolean,
     },
     {
-        xml_path=".OpacityLevel",
-        construct_plan_path="alpha",
+        xml_path="/OpacityLevel",
+        construct_plan_path="options.alpha",
         formatter=tonumber,
     },
     {
-        xml_path=".HasGravity",
-        construct_plan_path="has_gravity",
+        xml_path="/HasGravity",
+        construct_plan_path="options.has_gravity",
         formatter=toboolean,
     },
     {
-        xml_path=".IsInvincible",
-        construct_plan_path="is_invincible",
+        xml_path="/IsInvincible",
+        construct_plan_path="options.is_invincible",
         formatter=toboolean,
     },
     {
-        xml_path=".FrozenPos",
-        construct_plan_path="is_frozen",
+        xml_path="/FrozenPos",
+        construct_plan_path="options.is_frozen",
         formatter=toboolean,
     },
     {
-        xml_path=".IsCollisionProof",
-        construct_plan_path="has_collision",
+        xml_path="/IsCollisionProof",
+        construct_plan_path="options.has_collision",
         formatter=function(value) return not toboolean(value) end,
     },
     {
-        xml_path=".Attachment.AttachedTo",
+        xml_path="/Attachment/AttachedTo",
         construct_plan_path="parents_initial_handle",
         formatter=tonumber,
     },
     {
-        xml_path=".Attachment.X",
+        xml_path="/Attachment/X",
         construct_plan_path="offset.x",
         formatter=tonumber,
     },
     {
-        xml_path=".Attachment.Y",
+        xml_path="/Attachment/Y",
         construct_plan_path="offset.y",
         formatter=tonumber,
     },
     {
-        xml_path=".Attachment.Z",
+        xml_path="/Attachment/Z",
         construct_plan_path="offset.z",
         formatter=tonumber,
     },
     {
-        xml_path=".Attachment.Pitch",
+        xml_path="/Attachment/Pitch",
         construct_plan_path="rotation.x",
         formatter=tonumber,
     },
     {
-        xml_path=".Attachment.Roll",
+        xml_path="/Attachment/Roll",
         construct_plan_path="rotation.y",
         formatter=tonumber,
     },
     {
-        xml_path=".Attachment.Yaw",
+        xml_path="/Attachment/Yaw",
         construct_plan_path="rotation.z",
         formatter=tonumber,
     },
     {
-        xml_path=".Attachment.BoneIndex",
+        xml_path="/Attachment/BoneIndex",
         construct_plan_path="bone_index",
         formatter=tonumber,
     },
     {
-        xml_path=".PositionRotation.X",
+        xml_path="/PositionRotation/X",
         construct_plan_path="position.x",
         formatter=tonumber,
     },
     {
-        xml_path=".PositionRotation.Y",
+        xml_path="/PositionRotation/Y",
         construct_plan_path="position.y",
         formatter=tonumber,
     },
     {
-        xml_path=".PositionRotation.Z",
+        xml_path="/PositionRotation/Z",
         construct_plan_path="position.z",
         formatter=tonumber,
     },
     -- No concept of offset rotation yet
     --{
-    --    xml_path=".PositionRotation.Pitch",
+    --    xml_path="/PositionRotation/Pitch",
     --    construct_plan_path="rotation.x",
     --    formatter=tonumber,
     --},
     --{
-    --    xml_path=".PositionRotation.Roll",
+    --    xml_path="/PositionRotation/Roll",
     --    construct_plan_path="rotation.y",
     --    formatter=tonumber,
     --},
     --{
-    --    xml_path=".PositionRotation.Yaw",
+    --    xml_path="/PositionRotation/Yaw",
     --    construct_plan_path="rotation.z",
     --    formatter=tonumber,
     --},
     {
-        xml_path=".VehicleProperties.Livery",
+        xml_path="/VehicleProperties/Livery",
         construct_plan_path="vehicle_attributes.paint.livery",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.NumberPlateIndex",
+        xml_path="/VehicleProperties/NumberPlateIndex",
         construct_plan_path="vehicle_attributes.options.license_plate_type",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.NumberPlateText",
+        xml_path="/VehicleProperties/NumberPlateText",
         construct_plan_path="vehicle_attributes.options.license_plate_text",
     },
     {
-        xml_path=".VehicleProperties.WheelType",
+        xml_path="/VehicleProperties/WheelType",
         construct_plan_path="vehicle_attributes.wheels.wheel_type",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.DirtLevel",
+        xml_path="/VehicleProperties/DirtLevel",
         construct_plan_path="vehicle_attributes.paint.dirt_level",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.PaintFade",
+        xml_path="/VehicleProperties/PaintFade",
         construct_plan_path="vehicle_attributes.paint.fade",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.BulletProofTyres",
+        xml_path="/VehicleProperties/BulletProofTyres",
         construct_plan_path="vehicle_attributes.wheels.bulletproof_tires",
         formatter=toboolean,
     },
     {
-        xml_path=".VehicleProperties.SirenActive",
+        xml_path="/VehicleProperties/SirenActive",
         construct_plan_path="vehicle_attributes.options.siren",
     },
     {
-        xml_path=".VehicleProperties.HeadlightIntensity",
+        xml_path="/VehicleProperties/HeadlightIntensity",
         construct_plan_path="vehicle_attributes.headlights.multiplier",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.WindowTint",
+        xml_path="/VehicleProperties/WindowTint",
         construct_plan_path="vehicle_attributes.options.window_tint",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.EngineOn",
+        xml_path="/VehicleProperties/EngineOn",
         construct_plan_path="vehicle_attributes.options.engine_running",
     },
     {
-        xml_path=".VehicleProperties.IsRadioLoud",
+        xml_path="/VehicleProperties/IsRadioLoud",
         construct_plan_path="vehicle_attributes.options.radio_loud",
     },
     {
-        xml_path=".VehicleProperties.Colours.Primary",
+        xml_path="/VehicleProperties/Colours/Primary",
         construct_plan_path="vehicle_attributes.paint.primary.vehicle_standard_color",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.IsPrimaryColourCustom",
+        xml_path="/VehicleProperties/Colours/IsPrimaryColourCustom",
         construct_plan_path="vehicle_attributes.paint.primary.is_custom",
         formatter=toboolean,
     },
     {
-        xml_path=".VehicleProperties.Colours.Cust1_R",
+        xml_path="/VehicleProperties/Colours/Cust1_R",
         construct_plan_path="vehicle_attributes.paint.primary.custom_color.r",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.Cust1_G",
+        xml_path="/VehicleProperties/Colours/Cust1_G",
         construct_plan_path="vehicle_attributes.paint.primary.custom_color.g",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.Cust1_B",
+        xml_path="/VehicleProperties/Colours/Cust1_B",
         construct_plan_path="vehicle_attributes.paint.primary.custom_color.b",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.Secondary",
+        xml_path="/VehicleProperties/Colours/Secondary",
         construct_plan_path="vehicle_attributes.paint.secondary.vehicle_standard_color",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.IsSecondaryColourCustom",
+        xml_path="/VehicleProperties/Colours/IsSecondaryColourCustom",
         construct_plan_path="vehicle_attributes.paint.secondary.is_custom",
         formatter=toboolean,
     },
     {
-        xml_path=".VehicleProperties.Colours.Cust2_R",
+        xml_path="/VehicleProperties/Colours/Cust2_R",
         construct_plan_path="vehicle_attributes.paint.secondary.custom_color.r",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.Cust2_G",
+        xml_path="/VehicleProperties/Colours/Cust2_G",
         construct_plan_path="vehicle_attributes.paint.secondary.custom_color.g",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.Cust2_B",
+        xml_path="/VehicleProperties/Colours/Cust2_B",
         construct_plan_path="vehicle_attributes.paint.secondary.custom_color.b",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.Pearl",
+        xml_path="/VehicleProperties/Colours/Pearl",
         construct_plan_path="vehicle_attributes.paint.extra_colors.pearlescent",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.Rim",
+        xml_path="/VehicleProperties/Colours/Rim",
         construct_plan_path="vehicle_attributes.paint.extra_colors.wheel",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.LrXenonHeadlights",
+        xml_path="/VehicleProperties/Colours/LrXenonHeadlights",
         construct_plan_path="vehicle_attributes.headlights.headlights_color",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.LrInterior",
+        xml_path="/VehicleProperties/Colours/LrInterior",
         construct_plan_path="vehicle_attributes.paint.interior_color",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.LrDashboard",
+        xml_path="/VehicleProperties/Colours/LrDashboard",
         construct_plan_path="vehicle_attributes.paint.dashboard_color",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.tyreSmoke_R",
+        xml_path="/VehicleProperties/Colours.tyreSmoke_R",
         construct_plan_path="vehicle_attributes.wheels.tire_smoke_color.r",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.tyreSmoke_G",
+        xml_path="/VehicleProperties/Colours.tyreSmoke_G",
         construct_plan_path="vehicle_attributes.wheels.tire_smoke_color.g",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Colours.tyreSmoke_B",
+        xml_path="/VehicleProperties/Colours.tyreSmoke_B",
         construct_plan_path="vehicle_attributes.wheels.tire_smoke_color.b",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Neons.Left",
+        xml_path="/VehicleProperties/Neons/Left",
         construct_plan_path="vehicle_attributes.neon.lights.left",
         formatter=toboolean,
     },
     {
-        xml_path=".VehicleProperties.Neons.Right",
+        xml_path="/VehicleProperties/Neons/Right",
         construct_plan_path="vehicle_attributes.neon.lights.right",
         formatter=toboolean,
     },
     {
-        xml_path=".VehicleProperties.Neons.Front",
+        xml_path="/VehicleProperties/Neons/Front",
         construct_plan_path="vehicle_attributes.neon.lights.front",
         formatter=toboolean,
     },
     {
-        xml_path=".VehicleProperties.Neons.Back",
+        xml_path="/VehicleProperties/Neons/Back",
         construct_plan_path="vehicle_attributes.neon.lights.back",
         formatter=toboolean,
     },
     {
-        xml_path=".VehicleProperties.Neons.R",
+        xml_path="/VehicleProperties/Neons/R",
         construct_plan_path="vehicle_attributes.neon.color.r",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Neons.G",
+        xml_path="/VehicleProperties/Neons/G",
         construct_plan_path="vehicle_attributes.neon.color.g",
         formatter=tonumber,
     },
     {
-        xml_path=".VehicleProperties.Neons.B",
+        xml_path="/VehicleProperties/Neons/B",
         construct_plan_path="vehicle_attributes.neon.color.b",
         formatter=tonumber,
     },
@@ -1194,14 +1360,14 @@ for mod_index = 0, 49 do
     end
     if mod_index >= 17 and mod_index <= 22 then formatter = toboolean end
     table.insert(xml_field_to_construct_plan_map, {
-        xml_path=".VehicleProperties.Mods._"..(mod_index),
+        xml_path="/VehicleProperties/Mods/_"..(mod_index),
         construct_plan_path="vehicle_attributes.mods._"..mod_index,
         formatter=formatter
     })
 end
 for extra_index = 0, 14 do
     table.insert(xml_field_to_construct_plan_map, {
-        xml_path=".VehicleProperties.ModExtras._"..(extra_index),
+        xml_path="/VehicleProperties/ModExtras/_"..(extra_index),
         construct_plan_path="vehicle_attributes.extras._"..extra_index,
         formatter=toboolean
     })
@@ -1224,7 +1390,7 @@ end
 
 local function find_element(el, query, path)
     if path == nil then path = "" end
-    path = path.."."..el.name
+    path = path.."/"..el.name
     --util.log("Checking "..query.."=="..path.." value="..elementText(el))
     if query == path then
         --util.log("Found!")
@@ -1247,10 +1413,10 @@ end
 local function process_vehicle_element(el, construct_plan, prefix)
     for _, mapped_field in pairs(xml_field_to_construct_plan_map) do
         local query = prefix..mapped_field.xml_path
-        util.log("Searching "..query)
+        --util.log("Searching "..query)
         local value = find_element(el, query, "")
         if value ~= nil then
-            util.log("Found "..query.." value="..tostring(value))
+            --util.log("Found "..query.." value="..tostring(value))
             if mapped_field.formatter then
                 value = mapped_field.formatter(value)
             end
@@ -1271,15 +1437,15 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
     --    construct_plan.type = "OBJECT"
     --end
 
-    process_vehicle_element(dom.root, construct_plan, "."..dom.root.name)
+    process_vehicle_element(dom.root, construct_plan, "/"..dom.root.name)
     constructor_lib.set_attachment_defaults(construct_plan)
 
-    local spooner_attachments_el = find_element(dom.root, ".Vehicle.SpoonerAttachments")
+    local spooner_attachments_el = find_element(dom.root, "/Vehicle/SpoonerAttachments")
     if spooner_attachments_el then
         for _, child_attachment in pairs(spooner_attachments_el.kids) do
             if child_attachment.type == "element" then
                 local attachment = {}
-                process_vehicle_element(child_attachment, attachment, ".Attachment")
+                process_vehicle_element(child_attachment, attachment, "/Attachment")
                 constructor_lib.set_attachment_defaults(attachment)
                 table.insert(construct_plan.children, attachment)
             end
@@ -1300,3 +1466,4 @@ end
 ---
 
 return constructor_lib
+
