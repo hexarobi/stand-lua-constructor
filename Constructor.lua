@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.9.6"
+local SCRIPT_VERSION = "0.9.7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -894,7 +894,7 @@ local function spawn_construct_from_plan(construct_plan)
     construct.menus.refresh()
     construct.menus.focus()
     if construct.type == "VEHICLE" and config.drive_spawned_vehicles then
-        PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -2)
+        PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -1)
     end
 end
 
@@ -1146,9 +1146,12 @@ local function cleanup_constructs_handler()
     end
 end
 
-local function rebuild_reattach_to_menu(attachment, current, path)
+local function rebuild_reattach_to_menu(attachment, current, path, depth)
     if current == nil then current = attachment.root end
     if path == nil then path = {} end
+    if depth == nil then depth = 0 end
+    depth = depth + 1
+    if depth > 100 then return end
     table.insert(path, current.name)
     --util.toast("Rebuilding attachment menu "..attachment.name.." path="..inspect(path), TOAST_ALL)
     menu.action(attachment.menus.option_parent_attachment, table.concat(path, " > "), {}, "", function()
@@ -1363,7 +1366,7 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.teleport = menu.list(attachment.menus.main, "Teleport")
         if attachment.type == "VEHICLE" then
             attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport Into Vehicle", {}, "", function()
-                PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), attachment.handle, -2)
+                PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), attachment.handle, -1)
             end)
         end
         attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport To", {}, "", function()
@@ -1503,7 +1506,7 @@ menus.rebuild_load_construct_menu = function(path, parent_construct_plan_file)
     if parent_construct_plan_file == nil then parent_construct_plan_file = load_constructs_root_menu_file end
     if parent_construct_plan_file.menus == nil then parent_construct_plan_file.menus = {} end
     for _, construct_plan_menu in pairs(parent_construct_plan_file.menus) do
-        menu.delete(construct_plan_menu)
+        pcall(menu.delete, construct_plan_menu)
     end
     for _, construct_plan_file in pairs(load_construct_plans_files_from_dir(CONSTRUCTS_DIR..path)) do
         if construct_plan_file.is_directory then
@@ -1577,10 +1580,10 @@ local function constructor_tick()
     frozen_attachment_tick()
     draw_editing_attachment_bounding_box_tick()
 end
+util.create_tick_handler(constructor_tick)
 
 util.on_stop(cleanup_constructs_handler)
 
 util.create_tick_handler(function()
-    constructor_tick()
     return true
 end)
