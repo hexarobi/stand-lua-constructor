@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.9.4"
+local SCRIPT_VERSION = "0.9.5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -59,14 +59,17 @@ if not status then error("Could not natives lib. Make sure it is selected under 
 local status, json = pcall(require, "json")
 if not status then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
+local inspect = auto_updater.require_with_auto_update({
+    source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
+    script_relpath="lib/inspect.lua",
+    verify_file_begins_with="local",
+})
+
 local constructor_lib = auto_updater.require_with_auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
     script_relpath="lib/constructor/constructor_lib.lua",
     verify_file_begins_with="--",
 })
-
---local status, inspect = pcall(require, "inspect")
---if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
 
 menu.delete(loading_menu)
 
@@ -83,6 +86,7 @@ local config = {
     show_previews = true,
     preview_camera_distance = 3,
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
+    deconstruct_all_spawned_constructs_on_unload = true,
 }
 
 local CONSTRUCTS_DIR = filesystem.store_dir() .. 'Constructor\\constructs\\'
@@ -126,13 +130,6 @@ local menus = {}
 --    has_gravity = true,
 --    is_light_disabled = true,   -- If true this light will always be off, regardless of siren settings
 --}
-
-local construct_base = {
-    target_version = constructor_lib.LIB_VERSION,
-    children = {},
-    options = {},
-    heading = 0,
-}
 
 local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
 
@@ -577,6 +574,7 @@ end
 ---
 
 local current_preview
+local next_preview
 local minVec = v3.new()
 local maxVec = v3.new()
 
@@ -651,16 +649,22 @@ end
 
 local function add_preview(construct_plan)
     if config.show_previews == false then return end
+    if construct_plan == nil then return end
+    next_preview = construct_plan
     remove_preview()
-    local attachment = copy_construct_plan(construct_plan)
-    attachment.name = attachment.model.." (Preview)"
-    attachment.root = attachment
-    attachment.parent = attachment
-    attachment.is_preview = true
-    calculate_camera_distance(attachment)
-    attachment.position = get_offset_from_camera(attachment.camera_distance)
-    --if config.debug then util.log("Adding preview "..attachment.name) end
-    current_preview = constructor_lib.attach_attachment_with_children(attachment)
+    util.yield(250)
+    if next_preview == construct_plan then
+        local attachment = copy_construct_plan(construct_plan)
+        util.log("attachment "..inspect(attachment))
+        attachment.name = attachment.model.." (Preview)"
+        attachment.root = attachment
+        attachment.parent = attachment
+        attachment.is_preview = true
+        calculate_camera_distance(attachment)
+        attachment.position = get_offset_from_camera(attachment.camera_distance)
+        --if config.debug then util.log("Adding preview "..attachment.name) end
+        current_preview = constructor_lib.attach_attachment_with_children(attachment)
+    end
 end
 
 local function disable_attachment_collision(attachment)
@@ -724,6 +728,7 @@ local function get_aim_info()
     return aim_info
 end
 
+local was_key_down = false
 local function aim_info_tick()
     if not config.add_attachment_gun_active then return end
     local info = get_aim_info()
@@ -731,14 +736,19 @@ local function aim_info_tick()
         local text = "Press J to add " .. info.type .. " `" .. info.model .. "` to construct " .. config.add_attachment_gun_recipient.name
         directx.draw_text(0.5, 0.3, text, 5, 0.5, {r=1,g=1,b=1,a=1}, true)
         if util.is_key_down(0x4A) then
-            util.toast("Attaching "..info.model)
-            add_attachment_to_construct({
-                parent=config.add_attachment_gun_recipient,
-                root=config.add_attachment_gun_recipient.root,
-                hash=info.hash,
-                model=info.model,
-            })
-            config.add_attachment_gun_recipient.root.menus.refresh()
+            if was_key_down == false then
+                util.toast("Attaching "..info.model)
+                add_attachment_to_construct({
+                    parent=config.add_attachment_gun_recipient,
+                    root=config.add_attachment_gun_recipient.root,
+                    hash=info.hash,
+                    model=info.model,
+                })
+                config.add_attachment_gun_recipient.root.menus.refresh()
+            end
+            was_key_down = true
+        else
+            was_key_down = false
         end
     end
 end
@@ -806,7 +816,7 @@ local function create_construct_from_vehicle(vehicle_handle)
             return
         end
     end
-    local construct = copy_construct_plan(construct_base)
+    local construct = copy_construct_plan(constructor_lib.construct_base)
     construct.type = "VEHICLE"
     construct.handle = vehicle_handle
     construct.root = construct
@@ -893,10 +903,15 @@ local function read_file(filepath)
     end
 end
 
-local function load_construct_plan_from_xml_file(filepath, vehicle_name)
+local function load_construct_plan_from_xml_file(filepath)
     local data = read_file(filepath)
     if not data then return end
-    return constructor_lib.convert_xml_to_construct_plan(data)
+    local construct_plan = constructor_lib.convert_xml_to_construct_plan(data)
+    if not construct_plan then
+        util.toast("Failed to load XML file: "..filepath, TOAST_ALL)
+        return
+    end
+    return construct_plan
 end
 
 local function load_construct_plan_from_json_file(filepath)
@@ -905,28 +920,50 @@ local function load_construct_plan_from_json_file(filepath)
     return json.decode(data)
 end
 
-local function load_construct_plans_from_dir(directory)
-    local construct_plans = {}
-    for _, filepath in ipairs(filesystem.list_files(directory)) do
-        local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
-        if not filesystem.is_dir(filepath) then
-            local construct_plan
-            if ext == "json" then
-                construct_plan = load_construct_plan_from_json_file(filepath)
-            elseif ext == "xml" then
-                construct_plan = load_construct_plan_from_xml_file(filepath)
-                construct_plan.name = filename
-            end
-            if construct_plan then
-                if not construct_plan.target_version then
-                    util.toast("Invalid construct file format. Missing target_version. "..filepath, TOAST_ALL)
-                    return
-                end
-                table.insert(construct_plans, construct_plan)
-            end
-        end
+local function load_construct_plan_file(construct_plan_file)
+    if construct_plan_file.ext == "json" then
+        construct_plan_file = load_construct_plan_from_json_file(construct_plan_file.filepath)
+    elseif construct_plan_file.ext == "xml" then
+        construct_plan_file = load_construct_plan_from_xml_file(construct_plan_file.filepath)
+        if not construct_plan_file then return end
+        construct_plan_file.name = construct_plan_file.filename
     end
-    return construct_plans
+    if not construct_plan_file then
+        util.toast("Could not load construct plan file "..construct_plan_file.filepath, TOAST_ALL)
+        return
+    end
+    if not construct_plan_file.target_version then
+        util.toast("Invalid construct file format. Missing target_version. "..construct_plan_file.filepath, TOAST_ALL)
+        return
+    end
+    return construct_plan_file
+end
+
+local function load_construct_plans_files_from_dir(directory)
+    local construct_plan_files = {}
+    for _, filepath in ipairs(filesystem.list_files(directory)) do
+        local construct_plan_file
+        if filesystem.is_dir(filepath) then
+            local _, dirname = string.match(filepath, "(.-)([^\\/]-%.?)$")
+            construct_plan_file = {
+                is_directory=true,
+                filepath=filepath,
+                filename=dirname,
+                name=dirname,
+            }
+        else
+            local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
+            construct_plan_file = {
+                is_directory=false,
+                filepath=filepath,
+                filename=filename,
+                name=filename,
+                ext=ext
+            }
+        end
+        table.insert(construct_plan_files, construct_plan_file)
+    end
+    return construct_plan_files
 end
 
 
@@ -1062,6 +1099,14 @@ local function rebuild_attachment_debug_menu(attachment, parent_menu)
     end
 end
 
+local function cleanup_constructs_handler()
+    if config.deconstruct_all_spawned_constructs_on_unload then
+        for _, construct in pairs(spawned_constructs) do
+            delete_construct(construct)
+        end
+    end
+end
+
 menus.rebuild_attachment_menu = function(attachment)
     if attachment.menus == nil then
         attachment.menus = {}
@@ -1080,23 +1125,8 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.name = value
             attachment.menus.refresh()
         end, attachment.name)
-        attachment.menus.reconstruct_vehicle = menu.action(attachment.menus.main, "Reconstruct", {}, "Delete construct (if it still exists), then recreate a new one from scratch.", function()
-            local construct_plan = constructor_lib.clone_attachment(attachment)
-            delete_construct(attachment)
-            construct_from_plan(construct_plan)
-        end)
-        attachment.menus.save = menu.action(attachment.menus.main, "Save", {}, "Save this construct to disk so it can be loaded and shared", function()
-            save_vehicle(attachment)
-        end)
-        attachment.menus.delete = menu.action(attachment.menus.main, "Deconstruct", {}, "Delete construct and all attachments. Cannot be reconstructed unless saved.", function()
-            if #attachment.children > 0 then
-                menu.show_warning(attachment.menus.main, CLICK_COMMAND, "Are you sure you want to delete this attachment? "..#attachment.children.." children will also be deleted.", function()
-                    delete_construct(attachment)
-                end)
-            else
-                delete_construct(attachment)
-            end
-        end)
+
+        --attachment.menus.manage = menu.list(attachment.menus.main, "Manage")
 
         --menu.divider(attachment.menus.main, "Position")
         attachment.menus.position = menu.list(attachment.menus.main, "Position")
@@ -1177,10 +1207,31 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.use_soft_pinning = on
             constructor_lib.update_attachment(attachment)
         end, attachment.use_soft_pinning)
+        attachment.menus.option_is_light_on = menu.toggle(attachment.menus.options, "Light On", {}, "If attachment is a light, it will be on and lit (many lights only work during night time).", function(on)
+            attachment.is_light_on = on
+            constructor_lib.update_attachment(attachment)
+        end, attachment.is_light_on)
         attachment.menus.option_light_disabled = menu.toggle(attachment.menus.options, "Light Disabled", {}, "If attachment is a light, it will be ALWAYS off, regardless of others settings.", function(on)
             attachment.is_light_disabled = on
             constructor_lib.update_attachment(attachment)
         end, attachment.is_light_disabled)
+
+        attachment.menus.option_is_bullet_proof = menu.toggle(attachment.menus.options, "Bullet Proof", {}, "If attachment is impervious to damage from bullets.", function(on)
+            attachment.is_bullet_proof = on
+            constructor_lib.update_attachment(attachment)
+        end, attachment.is_bullet_proof)
+        attachment.menus.option_is_fire_proof = menu.toggle(attachment.menus.options, "Fire Proof", {}, "If attachment is impervious to damage from fire.", function(on)
+            attachment.is_fire_proof = on
+            constructor_lib.update_attachment(attachment)
+        end, attachment.is_fire_proof)
+        attachment.menus.option_is_explosion_proof = menu.toggle(attachment.menus.options, "Explosion Proof", {}, "If attachment is impervious to damage from explosions.", function(on)
+            attachment.is_explosion_proof = on
+            constructor_lib.update_attachment(attachment)
+        end, attachment.is_explosion_proof)
+        attachment.menus.option_is_melee_proof = menu.toggle(attachment.menus.options, "Melee Proof", {}, "If attachment is impervious to damage from melee attacks.", function(on)
+            attachment.is_melee_proof = on
+            constructor_lib.update_attachment(attachment)
+        end, attachment.is_melee_proof)
 
         --menu.divider(attachment.menus.main, "Attachments")
         --attachment.menus.attachments = menu.list(attachment.menus.main, "Attachments")
@@ -1228,6 +1279,24 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.debug = menu.list(attachment.menus.main, "Debug Info")
         rebuild_attachment_debug_menu(attachment)
 
+        attachment.menus.reconstruct_vehicle = menu.action(attachment.menus.main, "Rebuild", {}, "Delete construct (if it still exists), then recreate a new one from scratch.", function()
+            local construct_plan = constructor_lib.clone_attachment(attachment)
+            delete_construct(attachment)
+            construct_from_plan(construct_plan)
+        end)
+        attachment.menus.save = menu.action(attachment.menus.main, "Save", {}, "Save this construct to disk so it can be loaded and shared", function()
+            save_vehicle(attachment)
+        end)
+        attachment.menus.delete = menu.action(attachment.menus.main, "Delete", {}, "Delete construct and all attachments. Cannot be reconstructed unless saved.", function()
+            if #attachment.children > 0 then
+                menu.show_warning(attachment.menus.main, CLICK_COMMAND, "Are you sure you want to delete this construct? "..#attachment.children.." children will also be deleted.", function()
+                    delete_construct(attachment)
+                end)
+            else
+                delete_construct(attachment)
+            end
+        end)
+
 
         for _, menu_handle in pairs(attachment.menus) do
             menu.on_focus(menu_handle, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
@@ -1262,7 +1331,7 @@ end
 
 menus.create_new_construct = menu.list(menu.my_root(), "Create New Construct")
 
-menu.action(menus.create_new_construct, "Create from current vehicle", { "constructfromvehicle" }, "Create a new construct based on current (or last in) vehicle", function()
+menu.action(menus.create_new_construct, "Vehicle From Current", { "constructcreatefromvehicle" }, "Create a new construct based on current (or last in) vehicle", function()
     local vehicle = entities.get_user_vehicle_as_handle()
     if vehicle == 0 then
         util.toast("Error: You must be (or recently been) in a vehicle to create a construct from it")
@@ -1276,7 +1345,7 @@ menu.action(menus.create_new_construct, "Create from current vehicle", { "constr
     end
 end)
 
-menu.text_input(menus.create_new_construct, "Create from vehicle name", { "constructfromvehiclename"}, "Create a new construct from a vehicle name", function(value)
+menu.text_input(menus.create_new_construct, "Vehicle From Name", { "constructcreatefromvehiclename"}, "Create a new construct from a vehicle name", function(value)
     local construct_plan = {
         model = value,
         type="VEHICLE",
@@ -1286,10 +1355,25 @@ menu.text_input(menus.create_new_construct, "Create from vehicle name", { "const
     construct_from_plan(construct_plan)
 end)
 
-menu.text_input(menus.create_new_construct, "Create from object name", { "constructfromobjectname"}, "Create a new construct from an object name", function(value)
-    construct_from_plan({
+menu.action(menus.create_new_construct, "Structure", { "constructcreatestructure"}, "Create a new stationary construct", function()
+    local construct_plan = {
+        model = "prop_air_conelight",
+        is_frozen = true,
+        has_collision = false,
+        alpha = 205,
+    }
+    construct_plan.root = construct_plan
+    construct_plan.parent = construct_plan
+    construct_from_plan(construct_plan)
+end)
+
+menu.text_input(menus.create_new_construct, "Structure From Object", { "constructcreatestructurefromobjectname"}, "Create a new stationary construct from an object name", function(value)
+    local construct_plan = {
         model = value,
-    })
+    }
+    construct_plan.root = construct_plan
+    construct_plan.parent = construct_plan
+    construct_from_plan(construct_plan)
 end)
 
 ---
@@ -1302,22 +1386,32 @@ end)
 
 menu.hyperlink(menus.load_construct, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
 
-menus.construct_plan_menus = {}
-menus.rebuild_load_construct_menu = function()
-    for _, construct_plan_menu in pairs(menus.construct_plan_menus) do
+menus.rebuild_load_construct_menu = function(path, parent_construct_plan_file)
+    if path == nil then path = "" end
+    if parent_construct_plan_file == nil then parent_construct_plan_file = {menu=menus.load_construct} end
+    if parent_construct_plan_file.menus == nil then parent_construct_plan_file.menus = {} end
+    for _, construct_plan_menu in pairs(parent_construct_plan_file.menus) do
         menu.delete(construct_plan_menu)
     end
-    menus.construct_plan_menus = {}
-    for _, construct_plan in pairs(load_construct_plans_from_dir(CONSTRUCTS_DIR)) do
-        local construct_plan_menu = menu.action(menus.load_construct, construct_plan.name, {}, "", function()
-            remove_preview()
-            construct_plan.root = construct_plan
-            construct_plan.parent = construct_plan
-            construct_from_plan(construct_plan)
-        end)
-        menu.on_focus(construct_plan_menu, function(direction) if direction ~= 0 then add_preview(construct_plan) end end)
-        menu.on_blur(construct_plan_menu, function(direction) if direction ~= 0 then remove_preview() end end)
-        table.insert(menus.construct_plan_menus, construct_plan_menu)
+    for _, construct_plan_file in pairs(load_construct_plans_files_from_dir(CONSTRUCTS_DIR..path)) do
+        if construct_plan_file.is_directory then
+            construct_plan_file.menu = menu.list(parent_construct_plan_file.menu, construct_plan_file.name or "unknown", {}, "", function()
+                menus.rebuild_load_construct_menu(path.."/"..construct_plan_file.filename, construct_plan_file)
+            end)
+        else
+            construct_plan_file.menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
+                remove_preview()
+                local construct_plan = load_construct_plan_file(construct_plan_file)
+                if construct_plan then
+                    construct_plan.root = construct_plan
+                    construct_plan.parent = construct_plan
+                    construct_from_plan(construct_plan)
+                end
+            end)
+            menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file)) end end)
+            menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
+        end
+        table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
     end
 end
 
@@ -1340,10 +1434,12 @@ end)
 menu.toggle(options_menu, "Show Previews", {}, "Show previews when adding attachments", function(on)
     config.show_previews = on
 end, config.show_previews)
+menu.toggle(options_menu, "Deconstruct All on Unload", {}, "Deconstruct all spawned constructs when unloading Constructor", function(on)
+    config.deconstruct_all_spawned_constructs_on_unload = on
+end, config.deconstruct_all_spawned_constructs_on_unload)
 
 
 local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
-
 menu.divider(script_meta_menu, "Constructor")
 menu.readonly(script_meta_menu, "Version", SCRIPT_VERSION)
 menu.readonly(script_meta_menu, "Constructor Lib Version", constructor_lib.LIB_VERSION)
@@ -1364,6 +1460,8 @@ local function constructor_tick()
     frozen_attachment_tick()
     draw_editing_attachment_bounding_box_tick()
 end
+
+util.on_stop(cleanup_constructs_handler)
 
 util.create_tick_handler(function()
     constructor_tick()
