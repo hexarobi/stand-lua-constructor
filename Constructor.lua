@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.9.8"
+local SCRIPT_VERSION = "0.9.9"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -88,6 +88,7 @@ local config = {
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
     deconstruct_all_spawned_constructs_on_unload = true,
     drive_spawned_vehicles = true,
+    preview_display_delay = 500,
 }
 
 local CONSTRUCTS_DIR = filesystem.store_dir() .. 'Constructor\\constructs\\'
@@ -556,6 +557,20 @@ local function array_remove(t, fnKeep)
     return t;
 end
 
+local function delete_entities_by_range(my_entities, range)
+    local player_pos = ENTITY.GET_ENTITY_COORDS(PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()), 1)
+    local count = 0
+    for _, entity in ipairs(my_entities) do
+        local entity_pos = ENTITY.GET_ENTITY_COORDS(entity, 1)
+        local dist = SYSTEM.VDIST(player_pos.x, player_pos.y, player_pos.z, entity_pos.x, entity_pos.y, entity_pos.z)
+        if dist <= range then
+            entities.delete_by_handle(entity)
+            count = count + 1
+        end
+    end
+    return count
+end
+
 local function clear_references(attachment)
     attachment.root = nil
     attachment.parent = nil
@@ -667,8 +682,8 @@ local function calculate_camera_distance(attachment)
     constructor_lib.load_hash_for_attachment(attachment)
     local l, w, h = calculate_model_size(attachment.hash, minVec, maxVec)
     attachment.camera_distance = math.max(l, w, h) + config.preview_camera_distance
-    --calculate_construct_size(attachment)
-    --attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
+    calculate_construct_size(attachment)
+    attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
 local function add_preview(construct_plan)
@@ -676,7 +691,7 @@ local function add_preview(construct_plan)
     if construct_plan == nil then return end
     next_preview = construct_plan
     remove_preview()
-    util.yield(250)
+    util.yield(config.preview_display_delay)
     if next_preview == construct_plan then
         local attachment = copy_construct_plan(construct_plan)
         attachment.name = attachment.model.." (Preview)"
@@ -703,6 +718,7 @@ local function update_preview_tick()
         current_preview.rotation.z = current_preview.rotation.z + 2
         constructor_lib.update_attachment(current_preview)
         constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
+        constructor_lib.draw_bounding_box_with_dimensions(current_preview.handle, config.preview_bounding_box_color, current_preview.dimensions.min_vec, current_preview.dimensions.max_vec)
         disable_attachment_collision(current_preview)
     end
 end
@@ -974,29 +990,31 @@ local function load_construct_plan_from_json_file(filepath)
 end
 
 local function load_construct_plan_file(construct_plan_file)
+    local construct_plan
     if construct_plan_file.ext == "json" then
-        construct_plan_file = load_construct_plan_from_json_file(construct_plan_file.filepath)
+        construct_plan = load_construct_plan_from_json_file(construct_plan_file.filepath)
     elseif construct_plan_file.ext == "xml" then
-        construct_plan_file = load_construct_plan_from_xml_file(construct_plan_file.filepath)
-        if not construct_plan_file then return end
-        construct_plan_file.name = construct_plan_file.filename
+        construct_plan = load_construct_plan_from_xml_file(construct_plan_file.filepath)
+        if not construct_plan then return end
+        construct_plan.name = construct_plan_file.filename
+        util.toast("Loading construct plan "..construct_plan.name)
     end
-    if not construct_plan_file then
+    if not construct_plan then
         util.toast("Could not load construct plan file "..construct_plan_file.filepath, TOAST_ALL)
         return
     end
-    if construct_plan_file.version and string.find(construct_plan_file.version, "Jackz") then
-        construct_plan_file = constructor_lib.convert_jackz_to_construct_plan(construct_plan_file)
-        if not construct_plan_file then
+    if construct_plan.version and string.find(construct_plan.version, "Jackz") then
+        construct_plan = constructor_lib.convert_jackz_to_construct_plan(construct_plan)
+        if not construct_plan then
             util.toast("Could not load Jackz Vehicle file "..construct_plan_file.filepath, TOAST_ALL)
             return
         end
     end
-    if not construct_plan_file.target_version then
+    if not construct_plan.target_version then
         util.toast("Invalid construct file format. Missing target_version. "..construct_plan_file.filepath, TOAST_ALL)
         return
     end
-    return construct_plan_file
+    return construct_plan
 end
 
 local function load_construct_plans_files_from_dir(directory)
@@ -1285,9 +1303,9 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.option_frozen = menu.toggle(attachment.menus.options, "Frozen", {}, "Will the attachment be frozen in place, or allowed to move freely", function(on)
             attachment.options.is_frozen = on
         end, attachment.options.is_frozen)
+
         -- Attachment
-
-
+        menu.divider(attachment.menus.options, "Attachment")
         attachment.menus.option_parent_attachment = menu.list(attachment.menus.options, "Reattach To", {}, "", function()
             rebuild_reattach_to_menu(attachment)
             menu.action(attachment.menus.option_parent_attachment, attachment.root.name, {}, "", function()
@@ -1297,8 +1315,6 @@ menus.rebuild_attachment_menu = function(attachment)
                 attachment.root = new_parent.root
                 constructor_lib.update_attachment(attachment)
             end)
-            -- TODO: build attachments list
-
         end)
         attachment.menus.option_bone_index = menu.slider(attachment.menus.options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 100, attachment.options.bone_index or 0, 1, function(value)
             attachment.options.bone_index = value
@@ -1308,7 +1324,20 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.options.use_soft_pinning = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.use_soft_pinning)
+        attachment.menus.detach = menu.action(attachment.menus.options, "Detach", {}, "Detach attachment from construct to create a new construct", function()
+            local original_parent = attachment.parent
+            constructor_lib.detach_attachment(attachment)
+            table.insert(spawned_constructs, attachment)
+            attachment.menus = nil
+            menus.rebuild_attachment_menu(attachment)
+            original_parent.menus.refresh()
+            attachment.menus.refresh()
+            attachment.menus.focus()
+            menus.refresh_loaded_constructs()
+        end)
+
         -- Lights
+        menu.divider(attachment.menus.options, "Lights")
         attachment.menus.option_is_light_on = menu.toggle(attachment.menus.options, "Light On", {}, "If attachment is a light, it will be on and lit (many lights only work during night time).", function(on)
             attachment.options.is_light_on = on
             constructor_lib.update_attachment(attachment)
@@ -1318,6 +1347,7 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_light_disabled)
         -- Proofs
+        menu.divider(attachment.menus.options, "Proofs")
         attachment.menus.option_is_bullet_proof = menu.toggle(attachment.menus.options, "Bullet Proof", {}, "If attachment is impervious to damage from bullets.", function(on)
             attachment.options.is_bullet_proof = on
             constructor_lib.update_attachment(attachment)
@@ -1334,23 +1364,6 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.options.is_melee_proof = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_melee_proof)
-
-        attachment.menus.detach = menu.action(attachment.menus.options, "Detach", {}, "Detach attachment from construct to create a new construct", function()
-            local original_parent = attachment.parent
-            constructor_lib.detach_attachment(attachment)
-            table.insert(spawned_constructs, attachment)
-            --for _, child_menu in pairs(attachment.menus) do
-            --    if type(child_menu) == "number" then
-            --        menu.delete(child_menu)
-            --    end
-            --end
-            attachment.menus = nil
-            menus.rebuild_attachment_menu(attachment)
-            original_parent.menus.refresh()
-            attachment.menus.refresh()
-            attachment.menus.focus()
-            menus.refresh_loaded_constructs()
-        end)
 
         --menu.divider(attachment.menus.main, "Attachments")
         --attachment.menus.attachments = menu.list(attachment.menus.main, "Attachments")
@@ -1578,6 +1591,12 @@ end, config.show_previews)
 menu.toggle(options_menu, "Deconstruct All on Unload", {}, "Deconstruct all spawned constructs when unloading Constructor", function(on)
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
+menu.action(options_menu, "Clean Up", {}, "Remove nearby vehicles, objects and peds. Useful of bugs leave construction debris.", function()
+    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),100)
+    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),100)
+    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),100)
+    util.toast("Removed "..objects.." objects, "..vehicles.." vehicles, and "..peds.." peds", TOAST_ALL)
+end)
 
 
 local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
@@ -1614,4 +1633,3 @@ util.on_stop(cleanup_constructs_handler)
 util.create_tick_handler(function()
     return true
 end)
-
