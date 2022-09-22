@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.9.5"
+local SCRIPT_VERSION = "0.9.6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -87,23 +87,17 @@ local config = {
     preview_camera_distance = 3,
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
     deconstruct_all_spawned_constructs_on_unload = true,
+    drive_spawned_vehicles = true,
 }
 
 local CONSTRUCTS_DIR = filesystem.store_dir() .. 'Constructor\\constructs\\'
-
-local function ensure_directory_exists(path)
-    path = path:gsub("\\", "/")
-    local dirpath = ""
-    for dirname in path:gmatch("[^/]+") do
-        dirpath = dirpath .. dirname .. "/"
-        if not filesystem.exists(dirpath) then filesystem.mkdir(dirpath) end
-    end
-end
-ensure_directory_exists(CONSTRUCTS_DIR)
+filesystem.mkdirs(CONSTRUCTS_DIR)
 
 local spawned_constructs = {}
 local last_spawned_construct
-local menus = {}
+local menus = {
+    children = {}
+}
 
 --local example_construct = {
 --    name="Police",
@@ -128,7 +122,7 @@ local menus = {}
 --    is_visible = true,
 --    has_collision = true,
 --    has_gravity = true,
---    is_light_disabled = true,   -- If true this light will always be off, regardless of siren settings
+--    options = { is_light_disabled = true },   -- If true this light will always be off, regardless of siren settings
 --}
 
 local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
@@ -152,13 +146,15 @@ local available_attachments = {
                 model = "hei_prop_wall_light_10a_cr",
                 offset = { x = 0, y = 0, z = 1 },
                 rotation = { x = 180, y = 0, z = 0 },
-                is_light_disabled = true,
+                options = { options = { is_light_disabled = true } },
                 children = {
                     {
                         model = "prop_wall_light_10a",
                         offset = { x = 0, y = 0.01, z = 0 },
-                        is_light_disabled = false,
-                        bone_index = 1,
+                        options = {
+                            is_light_disabled = false,
+                            bone_index = 1,
+                        },
                     },
                 },
             },
@@ -167,13 +163,15 @@ local available_attachments = {
                 model = "hei_prop_wall_light_10a_cr",
                 offset = { x = 0, y = 0, z = 1 },
                 rotation = { x = 180, y = 0, z = 0 },
-                is_light_disabled = true,
+                options = { options = { is_light_disabled = true } },
                 children = {
                     {
                         model = "prop_wall_light_10b",
                         offset = { x = 0, y = 0.01, z = 0 },
-                        is_light_disabled = false,
-                        bone_index = 1,
+                        options = {
+                            is_light_disabled = false,
+                            bone_index = 1,
+                        },
                     },
                 },
             },
@@ -182,13 +180,15 @@ local available_attachments = {
                 model = "hei_prop_wall_light_10a_cr",
                 offset = { x = 0, y = 0, z = 1 },
                 rotation = { x = 180, y = 0, z = 0 },
-                is_light_disabled = true,
+                options = { is_light_disabled = true },
                 children = {
                     {
                         model = "prop_wall_light_10c",
                         offset = { x = 0, y = 0.01, z = 0 },
-                        is_light_disabled = false,
-                        bone_index = 1,
+                        options = {
+                            is_light_disabled = false,
+                            bone_index = 1,
+                        },
                     },
                 },
             },
@@ -198,32 +198,36 @@ local available_attachments = {
                 model = "hei_prop_wall_light_10a_cr",
                 offset = { x = 0, y = 0, z = 1 },
                 rotation = { x = 180, y = 0, z = 0 },
-                is_light_disabled = true,
+                options = { is_light_disabled = true },
                 children = {
                     {
                         model = "prop_wall_light_10b",
                         offset = { x = 0, y = 0.01, z = 0 },
-                        is_light_disabled = false,
-                        bone_index = 1,
+                        options = {
+                            is_light_disabled = false,
+                            bone_index = 1,
+                        },
                     },
                     {
                         model = "prop_wall_light_10a",
                         offset = { x = 0, y = 0.01, z = 0 },
                         rotation = { x = 0, y = 0, z = 180 },
-                        is_light_disabled = false,
-                        bone_index = 1,
+                        options = {
+                            is_light_disabled = false,
+                            bone_index = 1,
+                        },
                     },
                 },
                 --reflection = {
                 --    model = "hei_prop_wall_light_10a_cr",
                 --    reflection_axis = { x = true, y = false, z = false },
-                --    is_light_disabled = true,
+                --    options = { is_light_disabled = true },
                 --    children = {
                 --        {
                 --            model = "prop_wall_light_10a",
                 --            offset = { x = 0, y = 0.01, z = 0 },
                 --            rotation = { x = 0, y = 0, z = 180 },
-                --            is_light_disabled = false,
+                --            options = { is_light_disabled = false },
                 --            bone_index = 1,
                 --        },
                 --    },
@@ -235,25 +239,29 @@ local available_attachments = {
                 model = "hei_prop_wall_light_10a_cr",
                 offset = { x = 0.3, y = 0, z = 1 },
                 rotation = { x = 180, y = 0, z = 0 },
-                is_light_disabled = true,
+                options = { is_light_disabled = true },
                 children = {
                     {
                         model = "prop_wall_light_10b",
                         offset = { x = 0, y = 0.01, z = 0 },
-                        is_light_disabled = false,
-                        bone_index = 1,
+                        options = {
+                            is_light_disabled = false,
+                            bone_index = 1,
+                        },
                     },
                     {
                         model = "hei_prop_wall_light_10a_cr",
                         reflection_axis = { x = true, y = false, z = false },
-                        is_light_disabled = true,
+                        options = { is_light_disabled = true },
                         children = {
                             {
                                 model = "prop_wall_light_10a",
                                 offset = { x = 0, y = 0.01, z = 0 },
                                 rotation = { x = 0, y = 0, z = 180 },
-                                is_light_disabled = false,
-                                bone_index = 1,
+                                options = {
+                                    is_light_disabled = false,
+                                    bone_index = 1,
+                                },
                             },
                         },
                     }
@@ -548,12 +556,21 @@ local function array_remove(t, fnKeep)
     return t;
 end
 
+local function clear_references(attachment)
+    attachment.root = nil
+    attachment.parent = nil
+    if attachment.children then
+        for _, child_attachment in pairs(attachment.children) do
+            clear_references(child_attachment)
+        end
+    end
+end
+
 local function copy_construct_plan(construct_plan)
     --return constructor_lib.clone_attachment(construct_plan)
     --util.log(inspect(attachment.vehicle_attributes.paint))
     local is_root = construct_plan == construct_plan.parent
-    construct_plan.root = nil
-    construct_plan.parent = nil
+    clear_references(construct_plan)
     local construct = table.table_copy(construct_plan)
     if is_root then
         construct.root = construct
@@ -607,6 +624,11 @@ local function get_offset_from_camera(distance)
     return destination
 end
 
+local function calculate_model_size(model)
+    MISC.GET_MODEL_DIMENSIONS(model, minVec, maxVec)
+    return (maxVec:getX() - minVec:getX()), (maxVec:getY() - minVec:getY()), (maxVec:getZ() - minVec:getZ())
+end
+
 local function calculate_construct_size(construct, child_attachment)
     if construct.dimensions == nil then construct.dimensions = {l=0, w=0, h=0, min_vec={x=0,y=0,z=0}, max_vec={x=0,y=0,z=0}} end
     if child_attachment == nil then child_attachment = construct end
@@ -635,7 +657,7 @@ end
 local function remove_preview()
     if current_preview ~= nil then
         if config.debug then util.log("Removing preview "..current_preview.name) end
-        constructor_lib.detach_attachment(current_preview)
+        constructor_lib.remove_attachment(current_preview)
         current_preview = nil
     end
 end
@@ -643,8 +665,10 @@ end
 local function calculate_camera_distance(attachment)
     if attachment.hash == nil then attachment.hash = util.joaat(attachment.model) end
     constructor_lib.load_hash_for_attachment(attachment)
-    calculate_construct_size(attachment)
-    attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
+    local l, w, h = calculate_model_size(attachment.hash, minVec, maxVec)
+    attachment.camera_distance = math.max(l, w, h) + config.preview_camera_distance
+    --calculate_construct_size(attachment)
+    --attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
 local function add_preview(construct_plan)
@@ -655,7 +679,6 @@ local function add_preview(construct_plan)
     util.yield(250)
     if next_preview == construct_plan then
         local attachment = copy_construct_plan(construct_plan)
-        util.log("attachment "..inspect(attachment))
         attachment.name = attachment.model.." (Preview)"
         attachment.root = attachment
         attachment.parent = attachment
@@ -679,13 +702,13 @@ local function update_preview_tick()
         current_preview.position = get_offset_from_camera(current_preview.camera_distance)
         current_preview.rotation.z = current_preview.rotation.z + 2
         constructor_lib.update_attachment(current_preview)
-        constructor_lib.draw_bounding_box_with_dimensions(current_preview.handle, config.preview_bounding_box_color, current_preview.dimensions.min_vec, current_preview.dimensions.max_vec)
+        constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
         disable_attachment_collision(current_preview)
     end
 end
 
 local function freeze_attachment(attachment)
-    ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.is_frozen)
+    ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
     for _, child_attachment in pairs(attachment.children) do
         freeze_attachment(child_attachment)
     end
@@ -697,7 +720,7 @@ local function frozen_attachment_tick()
     end
 end
 
-    ---
+---
 --- Tick Handler
 ---
 
@@ -758,6 +781,9 @@ local function set_attachment_edit_menu_sensitivity(attachment, offset_step, rot
         menu.set_step_size(attachment.menus.edit_position_x, offset_step)
         menu.set_step_size(attachment.menus.edit_position_y, offset_step)
         menu.set_step_size(attachment.menus.edit_position_z, offset_step)
+        menu.set_step_size(attachment.menus.edit_offset_x, offset_step)
+        menu.set_step_size(attachment.menus.edit_offset_y, offset_step)
+        menu.set_step_size(attachment.menus.edit_offset_z, offset_step)
         menu.set_step_size(attachment.menus.edit_rotation_x, rotation_step)
         menu.set_step_size(attachment.menus.edit_rotation_y, rotation_step)
         menu.set_step_size(attachment.menus.edit_rotation_z, rotation_step)
@@ -789,7 +815,7 @@ local function sensitivity_modifier_check_tick()
 end
 
 local function draw_editing_bounding_box(attachment)
-    if attachment.is_editing then
+    if attachment.is_editing and menu.is_open() then
         constructor_lib.draw_bounding_box(attachment.handle, config.preview_bounding_box_color)
     end
     for _, child_attachment in pairs(attachment.children) do
@@ -830,7 +856,10 @@ local function create_construct_from_vehicle(vehicle_handle)
 end
 
 local function save_vehicle(construct)
-    local filepath = CONSTRUCTS_DIR .. construct.name .. ".construct.json"
+    if construct.author == nil then construct.author = players.get_name(players.user()) end
+    if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
+    if construct.version == nil then construct.version = "Constructor "..SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION end
+    local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local file = io.open(filepath, "wb")
     if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
     local content = json.encode(constructor_lib.serialize_attachment(construct))
@@ -864,6 +893,9 @@ local function spawn_construct_from_plan(construct_plan)
     menus.rebuild_attachment_menu(construct)
     construct.menus.refresh()
     construct.menus.focus()
+    if construct.type == "VEHICLE" and config.drive_spawned_vehicles then
+        PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -2)
+    end
 end
 
 local function construct_from_plan(construct_plan)
@@ -931,6 +963,13 @@ local function load_construct_plan_file(construct_plan_file)
     if not construct_plan_file then
         util.toast("Could not load construct plan file "..construct_plan_file.filepath, TOAST_ALL)
         return
+    end
+    if construct_plan_file.version and string.find(construct_plan_file.version, "Jackz") then
+        construct_plan_file = constructor_lib.convert_jackz_to_construct_plan(construct_plan_file)
+        if not construct_plan_file then
+            util.toast("Could not load Jackz Vehicle file "..construct_plan_file.filepath, TOAST_ALL)
+            return
+        end
     end
     if not construct_plan_file.target_version then
         util.toast("Invalid construct file format. Missing target_version. "..construct_plan_file.filepath, TOAST_ALL)
@@ -1107,6 +1146,26 @@ local function cleanup_constructs_handler()
     end
 end
 
+local function rebuild_reattach_to_menu(attachment, current, path)
+    if current == nil then current = attachment.root end
+    if path == nil then path = {} end
+    table.insert(path, current.name)
+    --util.toast("Rebuilding attachment menu "..attachment.name.." path="..inspect(path), TOAST_ALL)
+    menu.action(attachment.menus.option_parent_attachment, table.concat(path, " > "), {}, "", function()
+        util.toast("Reattaching "..attachment.name.." to "..current.name, TOAST_ALL)
+        constructor_lib.detach_attachment(attachment)
+        attachment.parent = current
+        attachment.root = current.root
+        constructor_lib.update_attachment(attachment)
+        table.insert(current.children, attachment)
+        attachment.root.menus.refresh()
+        attachment.menus.focus()
+    end)
+    for _, child_attachment in pairs(current.children) do
+        rebuild_reattach_to_menu(attachment, child_attachment, table.table_copy(path))
+    end
+end
+
 menus.rebuild_attachment_menu = function(attachment)
     if attachment.menus == nil then
         attachment.menus = {}
@@ -1118,6 +1177,9 @@ menus.rebuild_attachment_menu = function(attachment)
             parent_menu = attachment.parent.menus.edit_attachments
         end
         attachment.menus.main = menu.list(parent_menu, attachment.name)
+        -- TODO: This causes a crash when loading vehicle?!
+        --attachment.menus.children = {}
+        --table.insert(attachment.parent.menus.children, attachment.menus)
 
         --menu.divider(attachment.menus.main, "Info")
 
@@ -1181,57 +1243,90 @@ menus.rebuild_attachment_menu = function(attachment)
         --    OBJECT._SET_OBJECT_LIGHT_COLOR(attachment.handle, 1, light_color.r, 0, 128)
         --end)
         attachment.menus.option_visible = menu.toggle(attachment.menus.options, "Visible", {}, "Will the attachment be visible, or invisible", function(on)
-            attachment.is_visible = on
+            attachment.options.is_visible = on
             constructor_lib.update_attachment(attachment)
-        end, attachment.is_visible)
+        end, attachment.options.is_visible)
         attachment.menus.option_collision = menu.toggle(attachment.menus.options, "Collision", {}, "Will the attachment collide with things, or pass through them", function(on)
-            attachment.has_collision = on
+            attachment.options.has_collision = on
             constructor_lib.update_attachment(attachment)
-        end, attachment.has_collision)
+        end, attachment.options.has_collision)
         attachment.menus.option_invincible = menu.toggle(attachment.menus.options, "Invincible", {}, "Will the attachment be impervious to damage, or be damageable.", function(on)
-            attachment.is_invincible = on
+            attachment.options.is_invincible = on
             constructor_lib.update_attachment(attachment)
-        end, attachment.is_invincible)
-        attachment.menus.option_bone_index = menu.slider(attachment.menus.options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 100, attachment.bone_index or 0, 1, function(value)
-            attachment.bone_index = value
+        end, attachment.options.is_invincible)
+        attachment.menus.option_gravity = menu.toggle(attachment.menus.options, "Gravity", {}, "Will the attachment be effected by gravity, or be weightless", function(on)
+            attachment.options.has_gravity = on
+            constructor_lib.update_attachment(attachment)
+        end, attachment.options.has_gravity)
+        attachment.menus.option_frozen = menu.toggle(attachment.menus.options, "Frozen", {}, "Will the attachment be frozen in place, or allowed to move freely", function(on)
+            attachment.options.is_frozen = on
+        end, attachment.options.is_frozen)
+        -- Attachment
+
+
+        attachment.menus.option_parent_attachment = menu.list(attachment.menus.options, "Reattach To", {}, "", function()
+            rebuild_reattach_to_menu(attachment)
+            menu.action(attachment.menus.option_parent_attachment, attachment.root.name, {}, "", function()
+                local new_parent = attachment.root
+                constructor_lib.detach_attachment(attachment)
+                attachment.parent = new_parent
+                attachment.root = new_parent.root
+                constructor_lib.update_attachment(attachment)
+            end)
+            -- TODO: build attachments list
+
+        end)
+        attachment.menus.option_bone_index = menu.slider(attachment.menus.options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 100, attachment.options.bone_index or 0, 1, function(value)
+            attachment.options.bone_index = value
             constructor_lib.update_attachment(attachment)
         end)
-        attachment.menus.option_gravity = menu.toggle(attachment.menus.options, "Gravity", {}, "Will the attachment be effected by gravity, or be weightless", function(on)
-            attachment.has_gravity = on
-            constructor_lib.update_attachment(attachment)
-        end, attachment.has_gravity)
-        attachment.menus.option_frozen = menu.toggle(attachment.menus.options, "Frozen", {}, "Will the attachment be frozen in place, or allowed to move freely", function(on)
-            attachment.is_frozen = on
-        end, attachment.is_frozen)
         attachment.menus.option_soft_pinning = menu.toggle(attachment.menus.options, "Soft Pinning", {}, "Will the attachment detach when repaired", function(on)
-            attachment.use_soft_pinning = on
+            attachment.options.use_soft_pinning = on
             constructor_lib.update_attachment(attachment)
-        end, attachment.use_soft_pinning)
+        end, attachment.options.use_soft_pinning)
+        -- Lights
         attachment.menus.option_is_light_on = menu.toggle(attachment.menus.options, "Light On", {}, "If attachment is a light, it will be on and lit (many lights only work during night time).", function(on)
-            attachment.is_light_on = on
+            attachment.options.is_light_on = on
             constructor_lib.update_attachment(attachment)
-        end, attachment.is_light_on)
+        end, attachment.options.is_light_on)
         attachment.menus.option_light_disabled = menu.toggle(attachment.menus.options, "Light Disabled", {}, "If attachment is a light, it will be ALWAYS off, regardless of others settings.", function(on)
-            attachment.is_light_disabled = on
+            attachment.options.is_light_disabled = on
             constructor_lib.update_attachment(attachment)
-        end, attachment.is_light_disabled)
-
+        end, attachment.options.is_light_disabled)
+        -- Proofs
         attachment.menus.option_is_bullet_proof = menu.toggle(attachment.menus.options, "Bullet Proof", {}, "If attachment is impervious to damage from bullets.", function(on)
-            attachment.is_bullet_proof = on
+            attachment.options.is_bullet_proof = on
             constructor_lib.update_attachment(attachment)
-        end, attachment.is_bullet_proof)
+        end, attachment.options.is_bullet_proof)
         attachment.menus.option_is_fire_proof = menu.toggle(attachment.menus.options, "Fire Proof", {}, "If attachment is impervious to damage from fire.", function(on)
-            attachment.is_fire_proof = on
+            attachment.options.is_fire_proof = on
             constructor_lib.update_attachment(attachment)
-        end, attachment.is_fire_proof)
+        end, attachment.options.is_fire_proof)
         attachment.menus.option_is_explosion_proof = menu.toggle(attachment.menus.options, "Explosion Proof", {}, "If attachment is impervious to damage from explosions.", function(on)
-            attachment.is_explosion_proof = on
+            attachment.options.is_explosion_proof = on
             constructor_lib.update_attachment(attachment)
-        end, attachment.is_explosion_proof)
+        end, attachment.options.is_explosion_proof)
         attachment.menus.option_is_melee_proof = menu.toggle(attachment.menus.options, "Melee Proof", {}, "If attachment is impervious to damage from melee attacks.", function(on)
-            attachment.is_melee_proof = on
+            attachment.options.is_melee_proof = on
             constructor_lib.update_attachment(attachment)
-        end, attachment.is_melee_proof)
+        end, attachment.options.is_melee_proof)
+
+        attachment.menus.detach = menu.action(attachment.menus.options, "Detach", {}, "Detach attachment from construct to create a new construct", function()
+            local original_parent = attachment.parent
+            constructor_lib.detach_attachment(attachment)
+            table.insert(spawned_constructs, attachment)
+            --for _, child_menu in pairs(attachment.menus) do
+            --    if type(child_menu) == "number" then
+            --        menu.delete(child_menu)
+            --    end
+            --end
+            attachment.menus = nil
+            menus.rebuild_attachment_menu(attachment)
+            original_parent.menus.refresh()
+            attachment.menus.refresh()
+            attachment.menus.focus()
+            menus.refresh_loaded_constructs()
+        end)
 
         --menu.divider(attachment.menus.main, "Attachments")
         --attachment.menus.attachments = menu.list(attachment.menus.main, "Attachments")
@@ -1322,6 +1417,19 @@ menus.rebuild_attachment_menu = function(attachment)
             menus.rebuild_attachment_menu(child_attachment)
         end
 
+    else
+        ---- Validate attachment is still a child
+        --local found = false
+        --for _, child_attachment in pairs(attachment.parent) do
+        --    if child_attachment == attachment then
+        --        found = true
+        --    end
+        --end
+        --if not found then
+        --    -- Delete menus
+        --    for _, child_menu in pairs(attachment.parent)
+        --end
+
     end
 end
 
@@ -1358,9 +1466,11 @@ end)
 menu.action(menus.create_new_construct, "Structure", { "constructcreatestructure"}, "Create a new stationary construct", function()
     local construct_plan = {
         model = "prop_air_conelight",
-        is_frozen = true,
-        has_collision = false,
-        alpha = 205,
+        options = {
+            is_frozen = true,
+            has_collision = false,
+            alpha = 205,
+        },
     }
     construct_plan.root = construct_plan
     construct_plan.parent = construct_plan
@@ -1380,15 +1490,17 @@ end)
 --- Saved Constructs Menu
 ---
 
+local load_constructs_root_menu_file
 menus.load_construct = menu.list(menu.my_root(), "Load Construct", {}, "Load a previously saved or shared construct into the world", function()
     menus.rebuild_load_construct_menu()
 end)
+load_constructs_root_menu_file = {menu=menus.load_construct, name="Loaded Constructs Menu", menus={}}
 
 menu.hyperlink(menus.load_construct, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
 
 menus.rebuild_load_construct_menu = function(path, parent_construct_plan_file)
     if path == nil then path = "" end
-    if parent_construct_plan_file == nil then parent_construct_plan_file = {menu=menus.load_construct} end
+    if parent_construct_plan_file == nil then parent_construct_plan_file = load_constructs_root_menu_file end
     if parent_construct_plan_file.menus == nil then parent_construct_plan_file.menus = {} end
     for _, construct_plan_menu in pairs(parent_construct_plan_file.menus) do
         menu.delete(construct_plan_menu)
@@ -1415,7 +1527,9 @@ menus.rebuild_load_construct_menu = function(path, parent_construct_plan_file)
     end
 end
 
-menus.loaded_constructs = menu.list(menu.my_root(), "Loaded Constructs ("..#spawned_constructs..")")
+menus.loaded_constructs = menu.list(menu.my_root(), "Loaded Constructs ("..#spawned_constructs..")", {}, "", function()
+
+end)
 
 menus.refresh_loaded_constructs = function()
     menu.set_menu_name(menus.loaded_constructs, "Loaded Constructs ("..#spawned_constructs..")")
@@ -1431,6 +1545,9 @@ end)
 menu.slider(options_menu, "Edit Rotation Step", {}, "The amount of change each time you edit an attachment rotation (hold SHIFT or L1 for fine tuning)", 1, 30, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
+menu.toggle(options_menu, "Drive Spawned Vehicles", {}, "When spawning vehicles, automatically place you into the drivers seat.", function(on)
+    config.drive_spawned_vehicles = on
+end, config.drive_spawned_vehicles)
 menu.toggle(options_menu, "Show Previews", {}, "Show previews when adding attachments", function(on)
     config.show_previews = on
 end, config.show_previews)
