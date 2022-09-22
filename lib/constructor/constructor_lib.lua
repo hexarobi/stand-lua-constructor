@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.9.7"
+local LIB_VERSION = "3.9.8"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -554,7 +554,7 @@ constructor_lib.update_attachment = function(attachment)
 
     --if constructor_lib.debug then util.log("Updating attachment "..attachment.name.." ["..attachment.handle.."]") end
 
-    if attachment.options.alpha ~= nil then
+    if attachment.options.alpha ~= nil and attachment.options.alpha < 255 then
         ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.options.alpha, false)
         if attachment.options.alpha == 0 and attachment.options.is_visible == true then
             attachment.options.is_visible = false
@@ -1101,7 +1101,7 @@ constructor_lib.convert_jackz_to_construct_plan = function(jackz_build_data)
         return
     end
 
-    util.log("Converted Jackz Vehicle to Construct Plan: "..inspect(construct_plan))
+    if constructor_lib.debug then util.log("Loaded Jackz construct plan: "..inspect(construct_plan)) end
 
     return construct_plan
 end
@@ -1517,6 +1517,33 @@ local function process_vehicle_element(el, construct_plan, prefix)
     end
 end
 
+local function find_attachment_by_initial_handle(attachment, initial_handle)
+    if attachment.initial_handle == initial_handle then return attachment end
+    for _, child_attachment in pairs(attachment.children) do
+        local new_parent = find_attachment_by_initial_handle(child_attachment, initial_handle)
+        if new_parent then return new_parent end
+    end
+end
+
+local function rearrange_by_initial_attachment(attachment, parent_attachment, root_attachment)
+    if parent_attachment == nil then root_attachment = attachment end
+    if parent_attachment ~= nil and attachment.parents_initial_handle ~= parent_attachment.initial_handle then
+        local new_parent = find_attachment_by_initial_handle(root_attachment, attachment.parents_initial_handle)
+        if new_parent then
+            table.array_remove(parent_attachment.children, function(t, i)
+                local child_attachment = t[i]
+                return child_attachment ~= attachment
+            end)
+            table.insert(new_parent.children, attachment)
+        else
+            util.toast("Could not rearrange attachment "..attachment.name, TOAST_ALL)
+        end
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        rearrange_by_initial_attachment(child_attachment, attachment, root_attachment)
+    end
+end
+
 constructor_lib.convert_xml_to_construct_plan = function(xmldata)
     local dom = slaxdom:dom(xmldata, {stripWhitespace=true})
 
@@ -1544,6 +1571,10 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
         end
     end
 
+    rearrange_by_initial_attachment(construct_plan)
+
+    if constructor_lib.debug then util.log("Loaded XML construct plan: "..inspect(construct_plan)) end
+
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load XML construct. Missing hash or model.", TOAST_ALL)
         util.log("Attempted construct plan: "..inspect(construct_plan))
@@ -1558,4 +1589,3 @@ end
 ---
 
 return constructor_lib
-
