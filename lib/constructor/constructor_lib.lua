@@ -4,10 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
---local status, inspect = pcall(require, "inspect")
---if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
-
-local LIB_VERSION = "3.9.3"
+local LIB_VERSION = "3.9.4"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -15,12 +12,19 @@ local constructor_lib = {
 }
 
 ---
+--- Dependencies
+---
+
+local status, inspect = pcall(require, "inspect")
+if not status then error("Could not load inspect lib. This is probably an accidental bug.") end
+
+---
 --- Data
 ---
 
 local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
 
-local construct_base = {
+constructor_lib.construct_base = {
     target_version = constructor_lib.LIB_VERSION,
     children = {},
     options = {},
@@ -72,6 +76,10 @@ function table.array_remove(t, fnKeep)
     end
 
     return t;
+end
+
+local function toboolean(value)
+    return (value == true or value == "true")
 end
 
 constructor_lib.load_hash = function(hash)
@@ -507,26 +515,27 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options == nil then attachment.options = {} end
     if attachment.offset == nil then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil then attachment.rotation = { x = 0, y = 0, z = 0 } end
+    if attachment.position == nil then attachment.position = { x = 0, y = 0, z = 0 } end
     if attachment.heading == nil then
         attachment.heading = (attachment.root and attachment.root.heading or 0)
     end
     if attachment.is_visible == nil then attachment.is_visible = true end
-    if attachment.has_gravity == nil then attachment.has_gravity = false end
-    if attachment.has_collision == nil then attachment.has_collision = false end
+    if attachment.has_gravity == nil then attachment.has_gravity = true end
+    if attachment.has_collision == nil then attachment.has_collision = true end
     if attachment.is_preview == nil then attachment.is_preview = false end
     if attachment.is_networked == nil then attachment.is_networked = not attachment.is_preview end
     if attachment.is_invincible == nil then attachment.is_invincible = true end
+    if attachment.is_bullet_proof == nil then attachment.is_bullet_proof = true end
+    if attachment.is_fire_proof == nil then attachment.is_fire_proof = true end
+    if attachment.is_explosion_proof == nil then attachment.is_explosion_proof = true end
+    if attachment.is_melee_proof == nil then attachment.is_melee_proof = true end
+    if attachment.is_light_on == nil then attachment.is_light_on = true end
     if attachment.use_soft_pinning == nil then attachment.use_soft_pinning = true end
     if attachment.bone_index == nil then attachment.bone_index = 0 end
-    if attachment.hash == nil and attachment.model == nil then
-        error("Cannot create attachment: Requires either a hash or a model")
-    end
-    if attachment.hash == nil then
+    if attachment.hash == nil and attachment.model ~= nil then
         attachment.hash = util.joaat(attachment.model)
-    else
-        if attachment.model == nil then
-            attachment.model = util.reverse_joaat(attachment.hash)
-        end
+    elseif attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
     end
     if attachment.name == nil then attachment.name = attachment.model end
 end
@@ -537,6 +546,16 @@ constructor_lib.update_attachment = function(attachment)
 
     ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.is_visible, 0)
     ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.has_gravity)
+    ENTITY.SET_ENTITY_LIGHTS(attachment.handle, not attachment.is_light_on)
+    ENTITY.SET_ENTITY_PROOFS(
+            attachment.handle,
+            attachment.is_bullet_proof,
+            attachment.is_fire_proof,
+            attachment.is_explosion_proof,
+            attachment.is_melee_proof,
+            false, true, false
+    )
+    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.has_collision, true)
 
     if attachment == attachment.parent then
         ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0)
@@ -589,6 +608,9 @@ end
 
 constructor_lib.attach_attachment = function(attachment)
     constructor_lib.set_attachment_defaults(attachment)
+    if attachment.hash == nil and attachment.model == nil then
+        error("Cannot create attachment: Requires either a hash or a model")
+    end
     if constructor_lib.debug then util.log("Attaching attachment "..attachment.name.." [parent="..attachment.parent.name..",root="..attachment.root.name.."]") end
     if (not constructor_lib.load_hash_for_attachment(attachment)) then
         return
@@ -713,7 +735,7 @@ end
 
 constructor_lib.attach_attachment_with_children = function(new_attachment)
     --if constructor_lib.debug then util.log("Attaching attachment with children "..(new_attachment.name or new_attachment.model or new_attachment.hash)) end
-    for key, value in pairs(construct_base) do
+    for key, value in pairs(constructor_lib.construct_base) do
         if new_attachment[key] == nil then
             new_attachment[key] = value
         end
@@ -857,10 +879,6 @@ local function elementText(el)
         end
     end
     return table.concat(pieces)
-end
-
-local function toboolean(value)
-    return (value == true or value == "true")
 end
 
 local xml_field_to_construct_plan_map = {
@@ -1173,10 +1191,6 @@ for mod_index = 0, 49 do
         if type(value) == "table" then
             return tonumber(value[1])
         end
-        --if type(value) == "string" then
-        --    local split = strsplit(value, ",")
-        --    return split[1]
-        --end
     end
     if mod_index >= 17 and mod_index <= 22 then formatter = toboolean end
     table.insert(xml_field_to_construct_plan_map, {
@@ -1233,10 +1247,10 @@ end
 local function process_vehicle_element(el, construct_plan, prefix)
     for _, mapped_field in pairs(xml_field_to_construct_plan_map) do
         local query = prefix..mapped_field.xml_path
-        --util.log("Searching "..query)
+        util.log("Searching "..query)
         local value = find_element(el, query, "")
         if value ~= nil then
-            --util.log("Found "..query.." value="..tostring(value))
+            util.log("Found "..query.." value="..tostring(value))
             if mapped_field.formatter then
                 value = mapped_field.formatter(value)
             end
@@ -1248,19 +1262,19 @@ end
 constructor_lib.convert_xml_to_construct_plan = function(xmldata)
     local dom = slaxdom:dom(xmldata, {stripWhitespace=true})
 
-    local construct_plan = table.table_copy(construct_base)
+    local construct_plan = table.table_copy(constructor_lib.construct_base)
 
     if dom.root.name == "Vehicle" then
         construct_plan.type = "VEHICLE"
-    elseif dom.root.name == "SpoonerPlacements" then
-        construct_plan.type = "OBJECT"
     end
+        --if dom.root.name == "SpoonerPlacements" then
+    --    construct_plan.type = "OBJECT"
+    --end
 
-    process_vehicle_element(dom.root, construct_plan, ".Vehicle")
+    process_vehicle_element(dom.root, construct_plan, "."..dom.root.name)
     constructor_lib.set_attachment_defaults(construct_plan)
 
     local spooner_attachments_el = find_element(dom.root, ".Vehicle.SpoonerAttachments")
-    --util.log("Spooner attachments el "..tostring(spooner_attachments_el))
     if spooner_attachments_el then
         for _, child_attachment in pairs(spooner_attachments_el.kids) do
             if child_attachment.type == "element" then
@@ -1272,14 +1286,11 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
         end
     end
 
-    --util.log("Loaded XML construct plan "..inspect(construct_plan))
-
-    --if construct_plan.model == nil then
-    --    construct_plan.model = util.reverse_joaat(construct_plan.hash)
-    --end
-    --if construct_plan.name == nil then
-    --    construct_plan.name = construct_plan.model
-    --end
+    if construct_plan.hash == nil and construct_plan.model == nil then
+        util.toast("Failed to load XML construct. Missing hash or model.", TOAST_ALL)
+        util.log("Attempted construct plan: "..inspect(construct_plan))
+        return
+    end
 
     return construct_plan
 end
