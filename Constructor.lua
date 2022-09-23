@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.11"
+local SCRIPT_VERSION = "0.12"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -670,10 +670,12 @@ local function calculate_construct_size(construct, child_attachment)
     construct.dimensions.h = (construct.dimensions.max_vec.z - construct.dimensions.min_vec.z)
 end
 
-local function remove_preview()
-    if current_preview ~= nil then
-        if config.debug then util.log("Removing preview "..current_preview.name) end
-        constructor_lib.remove_attachment(current_preview)
+local function remove_preview(construct_plan)
+    next_preview = nil
+    if construct_plan == nil then construct_plan = current_preview end
+    if construct_plan ~= nil then
+        --if config.debug then util.log("Removing preview "..current_preview.name) end
+        constructor_lib.remove_attachment(construct_plan)
         current_preview = nil
     end
 end
@@ -689,12 +691,11 @@ end
 
 local function add_preview(construct_plan)
     if config.show_previews == false then return end
+    remove_preview()
     if construct_plan == nil then return end
     next_preview = construct_plan
-    remove_preview()
     util.yield(config.preview_display_delay)
     if next_preview == construct_plan then
-        remove_preview()
         local attachment = copy_construct_plan(construct_plan)
         attachment.name = attachment.model.." (Preview)"
         attachment.root = attachment
@@ -704,6 +705,9 @@ local function add_preview(construct_plan)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
         --if config.debug then util.log("Adding preview "..attachment.name) end
         current_preview = constructor_lib.attach_attachment_with_children(attachment)
+        if next_preview ~= construct_plan then
+            remove_preview(construct_plan)
+        end
     end
 end
 
@@ -910,7 +914,9 @@ local function spawn_construct_from_plan(construct_plan)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
     construct.menus.refresh()
-    construct.menus.focus()
+    if construct_plan.menu_auto_focus ~= false then
+        construct.menus.focus()
+    end
     if construct.type == "VEHICLE" and config.drive_spawned_vehicles then
         PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -1)
     end
@@ -1053,11 +1059,15 @@ local function clear_menu_list(t)
 end
 
 local function animate_peds(attachment)
-    if attachment.type == "PED" and attachment.ped_animation ~= nil then
+    if attachment.type == "PED" and attachment.ped_attributes ~= nil then
         if attachment.ped_attributes.animation_dict then
+            util.toast("Rebuilding ped "..attachment.name)
+            local menu_auto_focus = attachment.menu_auto_focus
             local construct_plan = constructor_lib.clone_attachment(attachment)
             delete_construct(attachment)
+            construct_plan.menu_auto_focus = false
             construct_from_plan(construct_plan)
+            construct_plan.menu_auto_focus = menu_auto_focus
         end
     end
     for _, child_attachment in pairs(attachment.children) do
@@ -1160,6 +1170,7 @@ end
 
 local function rebuild_attachment_debug_menu(attachment, parent_menu)
     if parent_menu == nil then parent_menu = attachment.root.menus.debug end
+    --menu.readonly(parent_menu, "Copy Full Inspection", "foo")
     for key, value in pairs(attachment) do
         local field_type = type(value)
         local field_value = tostring(value)
@@ -1492,11 +1503,15 @@ menus.rebuild_attachment_menu = function(attachment)
             menus.refresh_loaded_constructs()
             if updated_attachment ~= nil and updated_attachment.menus ~= nil then
                 util.toast("Refreshing menu. updated attachment "..updated_attachment.name, TOAST_ALL)
-                menu.focus(updated_attachment.menus.name)
+                if updated_attachment.menu_auto_focus ~= false then
+                    menu.focus(updated_attachment.menus.name)
+                end
             end
         end
         attachment.menus.focus = function()
-            pcall(menu.focus, attachment.menus.name)
+            if attachment.menu_auto_focus ~= false then
+                pcall(menu.focus, attachment.menus.name)
+            end
         end
 
         for _, child_attachment in pairs(attachment.children) do
@@ -1678,7 +1693,7 @@ util.create_tick_handler(constructor_tick)
 
 util.create_tick_handler(function()
     ped_animation_tick()
-    util.yield(10000)
+    util.yield(60000)
     return true
 end)
 
@@ -1687,5 +1702,3 @@ util.on_stop(cleanup_constructs_handler)
 util.create_tick_handler(function()
     return true
 end)
-
-
