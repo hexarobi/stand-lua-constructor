@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.9.9"
+local SCRIPT_VERSION = "0.10"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -693,6 +693,7 @@ local function add_preview(construct_plan)
     remove_preview()
     util.yield(config.preview_display_delay)
     if next_preview == construct_plan then
+        remove_preview()
         local attachment = copy_construct_plan(construct_plan)
         attachment.name = attachment.model.." (Preview)"
         attachment.root = attachment
@@ -1364,6 +1365,28 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_melee_proof)
 
+        if attachment.type == "VEHICLE" then
+            menu.divider(attachment.menus.options, "Doors")
+            attachment.menus.option_doors_broken_frontleft = menu.action(attachment.menus.options, "Break Door: Front Left", {}, "Remove door.", function()
+                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 0, on)
+            end)
+            attachment.menus.option_doors_broken_backleft = menu.action(attachment.menus.options, "Break Door: Back Left", {}, "Remove door.", function()
+                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 1, on)
+            end)
+            attachment.menus.option_doors_broken_frontright = menu.action(attachment.menus.options, "Break Door: Front Right", {}, "Remove door.", function()
+                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 2, on)
+            end)
+            attachment.menus.option_doors_broken_backright = menu.action(attachment.menus.options, "Break Door: Back Right", {}, "Remove door.", function()
+                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 3, on)
+            end)
+            attachment.menus.option_doors_broken_hood = menu.action(attachment.menus.options, "Break Door: Hood", {}, "Remove door.", function()
+                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 4, on)
+            end)
+            attachment.menus.option_doors_broken_trunk = menu.action(attachment.menus.options, "Break Door: Trunk", {}, "Remove door.", function()
+                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 5, on)
+            end)
+        end
+
         --menu.divider(attachment.menus.main, "Attachments")
         --attachment.menus.attachments = menu.list(attachment.menus.main, "Attachments")
         attachment.menus.add_attachment = menu.list(attachment.menus.main, "Add Attachment", {}, "", function()
@@ -1632,4 +1655,5 @@ util.on_stop(cleanup_constructs_handler)
 util.create_tick_handler(function()
     return true
 end)
+
 
