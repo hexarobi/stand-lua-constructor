@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.9.8"
+local LIB_VERSION = "3.10"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -280,7 +280,7 @@ constructor_lib.serialize_vehicle_paint = function(vehicle, serialized_vehicle)
     -- Livery is also part of mods, but capture it here as well for when just saving paint
     serialized_vehicle.paint.livery = VEHICLE.GET_VEHICLE_MOD(vehicle.handle, 48)
 
-    --memory.free(color.r) memory.free(color.g) memory.free(color.b)
+    memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
 constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle)
@@ -377,7 +377,7 @@ constructor_lib.serialize_vehicle_neon = function(vehicle, serialized_vehicle)
         VEHICLE._GET_VEHICLE_NEON_LIGHTS_COLOUR(vehicle.handle, color.r, color.g, color.b)
         serialized_vehicle.neon.color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     end
-    --memory.free(color.r) memory.free(color.g) memory.free(color.b)
+    memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
 constructor_lib.deserialize_vehicle_neon = function(vehicle, serialized_vehicle)
@@ -402,7 +402,7 @@ constructor_lib.serialize_vehicle_wheels = function(vehicle, serialized_vehicle)
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, color.r, color.g, color.b)
     serialized_vehicle.wheels.tire_smoke_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
-    --memory.free(color.r) memory.free(color.g) memory.free(color.b)
+    memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
 constructor_lib.deserialize_vehicle_wheels = function(vehicle, serialized_vehicle)
@@ -413,6 +413,35 @@ constructor_lib.deserialize_vehicle_wheels = function(vehicle, serialized_vehicl
         VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, serialized_vehicle.wheels.tire_smoke_color.r or 255,
                 serialized_vehicle.wheels.tire_smoke_color.g or 255, serialized_vehicle.wheels.tire_smoke_color.b or 255)
     end
+end
+
+constructor_lib.serialize_vehicle_doors = function(vehicle, serialized_vehicle)
+    if serialized_vehicle.doors == nil then
+        serialized_vehicle.doors = { broken = {}, open = {}, }
+    end
+    serialized_vehicle.doors.open.frontleft = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 0)
+    serialized_vehicle.doors.open.backleft = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 1)
+    serialized_vehicle.doors.open.frontright = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 2)
+    serialized_vehicle.doors.open.backright = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 3)
+    serialized_vehicle.doors.open.hood = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 4)
+    serialized_vehicle.doors.open.trunk = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 5)
+end
+
+constructor_lib.deserialize_vehicle_doors = function(vehicle, serialized_vehicle)
+    if serialized_vehicle.doors == nil then return end
+    if serialized_vehicle.doors.broken.frontleft then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 0, true) end
+    if serialized_vehicle.doors.broken.backleft then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 1, true) end
+    if serialized_vehicle.doors.broken.frontright then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 2, true) end
+    if serialized_vehicle.doors.broken.backright then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 3, true) end
+    if serialized_vehicle.doors.broken.hood then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 4, true) end
+    if serialized_vehicle.doors.broken.trunk then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 5, true) end
+
+    if serialized_vehicle.doors.open.frontleft then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 0, true, true) end
+    if serialized_vehicle.doors.open.backleft then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 1, true, true) end
+    if serialized_vehicle.doors.open.frontright then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 2, true, true) end
+    if serialized_vehicle.doors.open.backright then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 3, true, true) end
+    if serialized_vehicle.doors.open.hood then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 4, true, true) end
+    if serialized_vehicle.doors.open.trunk then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 5, true, true) end
 end
 
 constructor_lib.serialize_vehicle_mods = function(vehicle, serialized_vehicle)
@@ -636,7 +665,9 @@ constructor_lib.attach_attachment = function(attachment)
         error("Attachment missing root")
     end
 
-    if attachment.type == "VEHICLE" then
+    local invis_wheels = (attachment.vehicle_attributes and attachment.vehicle_attributes.wheels and attachment.vehicle_attributes.wheels.invisible_wheels)
+
+    if attachment.type == "VEHICLE" and not invis_wheels then
         attachment.handle = entities.create_vehicle(attachment.hash, attachment.offset, attachment.heading)
         constructor_lib.deserialize_vehicle_attributes(attachment)
     elseif attachment.type == "PED" then
@@ -655,6 +686,10 @@ constructor_lib.attach_attachment = function(attachment)
         -- TODO: CFX for networking maps?
         attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(attachment.hash, pos.x, pos.y, pos.z, attachment.is_networked, true, false)
         --args.handle = entities.create_object(hash, ENTITY.GET_ENTITY_COORDS(args.root.handle))
+        if invis_wheels then
+            util.toast("Applying ivis wheels to "..attachment.name, TOAST_ALL)
+            constructor_lib.deserialize_vehicle_attributes(attachment)
+        end
     end
 
     if not attachment.handle then
@@ -1435,6 +1470,71 @@ local xml_field_to_construct_plan_map = {
         formatter=tonumber,
     },
     {
+        xml_path="/VehicleProperties/WheelsInvisible",
+        construct_plan_path="vehicle_attributes.wheels.invisible_wheels",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsOpen/BackLeftDoor",
+        construct_plan_path="vehicle_attributes.doors.open.backleft",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsOpen/BackRightDoor",
+        construct_plan_path="vehicle_attributes.doors.open.backright",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsOpen/FrontLeftDoor",
+        construct_plan_path="vehicle_attributes.doors.open.frontleft",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsOpen/FrontRightDoor",
+        construct_plan_path="vehicle_attributes.doors.open.frontright",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsOpen/Hood",
+        construct_plan_path="vehicle_attributes.doors.open.hood",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsOpen/Trunk",
+        construct_plan_path="vehicle_attributes.doors.open.trunk",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsBroken/BackLeftDoor",
+        construct_plan_path="vehicle_attributes.doors.broken.backleft",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsBroken/BackRightDoor",
+        construct_plan_path="vehicle_attributes.doors.broken.backright",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsBroken/FrontLeftDoor",
+        construct_plan_path="vehicle_attributes.doors.broken.frontleft",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsBroken/FrontRightDoor",
+        construct_plan_path="vehicle_attributes.doors.broken.frontright",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsBroken/Hood",
+        construct_plan_path="vehicle_attributes.doors.broken.hood",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/VehicleProperties/DoorsBroken/Trunk",
+        construct_plan_path="vehicle_attributes.doors.broken.trunk",
+        formatter=toboolean,
+    },
+    {
         xml_path="/PedProperties/AnimDict",
         construct_plan_path="ped_animation.dict",
     },
@@ -1589,3 +1689,4 @@ end
 ---
 
 return constructor_lib
+
