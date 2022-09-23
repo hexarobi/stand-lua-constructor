@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.10"
+local SCRIPT_VERSION = "0.11"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -91,8 +91,10 @@ local config = {
     preview_display_delay = 500,
 }
 
-local CONSTRUCTS_DIR = filesystem.store_dir() .. 'Constructor\\constructs\\'
+local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
 filesystem.mkdirs(CONSTRUCTS_DIR)
+
+local JACKZ_BUILD_DIR = filesystem.stand_dir() .. 'Builds\\'
 
 local spawned_constructs = {}
 local last_spawned_construct
@@ -105,25 +107,24 @@ local menus = {
 --    model="police",
 --    handle=1234,
 --    options = {},
---    attachments = {},
+--    children = {},
 --}
 --
---local example_attachment = {
---    name="Child #1",            -- Name for this attachment
---    handle=5678,                -- Handle for this attachment
---    root=example_policified_vehicle,
---    parent=1234,                -- Parent Handle
---    bone_index = 0,             -- Which bone of the parent should this attach to
+--local example_construct = {
+--    name="My Construct",        -- Name for this attachment
+--    handle=5678,                -- Handle for this attachment (Nonserializable)
+--    root={},                  -- Pointer to root construct. Root will point to itself. (Nonserializable)
+--    parent={},                -- Pointer to parent construct. Root will point to itself. (Nonserializable)
 --    offset = { x=0, y=0, z=0 },  -- Offset coords from parent
 --    rotation = { x=0, y=0, z=0 },-- Rotation from parent
 --    children = {
---        -- Other attachments
---        reflection_axis = { x = true, y = false, z = false },   -- Which axis should be reflected about
+--        -- Other constructs / attachments
 --    },
---    is_visible = true,
---    has_collision = true,
---    has_gravity = true,
---    options = { is_light_disabled = true },   -- If true this light will always be off, regardless of siren settings
+--    options = {
+--        is_visible = true,
+--        has_collision = true,
+--        has_gravity = true,
+--    },
 --}
 
 local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
@@ -846,21 +847,6 @@ local function draw_editing_attachment_bounding_box_tick()
     end
 end
 
-local function animate_peds(attachment)
-    if attachment.type == "PED" and attachment.ped_animation ~= nil then
-        constructor_lib.animate_peds(attachment)
-    end
-    for _, child_attachment in pairs(attachment.children) do
-        animate_peds(child_attachment)
-    end
-end
-
-local function ped_animation_tick()
-    for _, spawned_construct in pairs(spawned_constructs) do
-        animate_peds(spawned_construct)
-    end
-end
-
 ---
 --- Construct Management
 ---
@@ -927,12 +913,6 @@ local function spawn_construct_from_plan(construct_plan)
     construct.menus.focus()
     if construct.type == "VEHICLE" and config.drive_spawned_vehicles then
         PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -1)
-        local previous_frozen_state = construct.is_frozen
-        construct.is_frozen = true
-        constructor_lib.update_attachment(construct)
-        util.yield(3000)
-        construct.is_frozen = previous_frozen_state
-        constructor_lib.update_attachment(construct)
     end
 end
 
@@ -1069,6 +1049,25 @@ local function clear_menu_list(t)
     for k, h in pairs(t) do
         pcall(menu.delete, h)
         t[k] = nil
+    end
+end
+
+local function animate_peds(attachment)
+    if attachment.type == "PED" and attachment.ped_animation ~= nil then
+        if attachment.ped_attributes.animation_dict then
+            local construct_plan = constructor_lib.clone_attachment(attachment)
+            delete_construct(attachment)
+            construct_from_plan(construct_plan)
+        end
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        animate_peds(child_attachment)
+    end
+end
+
+local function ped_animation_tick()
+    for _, spawned_construct in pairs(spawned_constructs) do
+        animate_peds(spawned_construct)
     end
 end
 
@@ -1209,6 +1208,7 @@ local function rebuild_reattach_to_menu(attachment, current, path, depth)
 end
 
 menus.rebuild_attachment_menu = function(attachment)
+    if not attachment.handle then error("Attachment missing handle") end
     if attachment.menus == nil then
         attachment.menus = {}
 
@@ -1277,6 +1277,21 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.move_attachment(attachment)
         end)
 
+        -- TODO: Apply world rotation? Rudolph nose is off in BIGHEAD Xmas
+        --menu.divider(attachment.menus.position, "World Rotation")
+        --attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, "X: Pitch", {"constructorrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
+        --    attachment.world_rotation.x = value
+        --    constructor_lib.move_attachment(attachment)
+        --end)
+        --attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, "Y: Roll", {"constructorrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
+        --    attachment.world_rotation.y = value
+        --    constructor_lib.move_attachment(attachment)
+        --end)
+        --attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, "Z: Yaw", {"constructorrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
+        --    attachment.world_rotation.z = value
+        --    constructor_lib.move_attachment(attachment)
+        --end)
+
         --menu.divider(attachment.menus.main, "Options")
         attachment.menus.options = menu.list(attachment.menus.main, "Options")
         --local light_color = {r=0}
@@ -1303,6 +1318,18 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.option_frozen = menu.toggle(attachment.menus.options, "Frozen", {}, "Will the attachment be frozen in place, or allowed to move freely", function(on)
             attachment.options.is_frozen = on
         end, attachment.options.is_frozen)
+
+        if attachment.type == "VEHICLE" then
+            menu.divider(attachment.menus.options, "Vehicle")
+            menu.toggle_loop(attachment.menus.options, "Engine Always On", {}, "If enabled, vehicle will stay running even when unoccupied", function()
+                attachment.options.engine_running = true
+                VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
+            end, function() attachment.options.engine_running = false end)
+            menu.toggle(attachment.menus.options, "Radio Loud", {}, "If enabled, vehicle radio will play loud enough to be heard outside the vehicle.", function(toggle)
+                attachment.options.radio_loud = toggle
+                constructor_lib.update_attachment(attachment)
+            end, attachment.options.radio_loud)
+        end
 
         -- Attachment
         menu.divider(attachment.menus.options, "Attachment")
@@ -1557,7 +1584,7 @@ load_constructs_root_menu_file = {menu=menus.load_construct, name="Loaded Constr
 
 menu.hyperlink(menus.load_construct, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
 
-menus.rebuild_load_construct_menu = function(path, parent_construct_plan_file)
+local function add_directory_to_load_constructs(path, parent_construct_plan_file)
     if path == nil then path = "" end
     if parent_construct_plan_file == nil then parent_construct_plan_file = load_constructs_root_menu_file end
     if parent_construct_plan_file.menus == nil then parent_construct_plan_file.menus = {} end
@@ -1567,7 +1594,7 @@ menus.rebuild_load_construct_menu = function(path, parent_construct_plan_file)
     for _, construct_plan_file in pairs(load_construct_plans_files_from_dir(CONSTRUCTS_DIR..path)) do
         if construct_plan_file.is_directory then
             construct_plan_file.menu = menu.list(parent_construct_plan_file.menu, construct_plan_file.name or "unknown", {}, "", function()
-                menus.rebuild_load_construct_menu(path.."/"..construct_plan_file.filename, construct_plan_file)
+                add_directory_to_load_constructs(path.."/"..construct_plan_file.filename, construct_plan_file)
             end)
         else
             construct_plan_file.menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
@@ -1584,6 +1611,11 @@ menus.rebuild_load_construct_menu = function(path, parent_construct_plan_file)
         end
         table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
     end
+end
+
+menus.rebuild_load_construct_menu = function()
+    add_directory_to_load_constructs()
+    --add_directory_to_load_constructs(load_constructs_root_menu_file, CONSTRUCTS_DIR)
 end
 
 menus.loaded_constructs = menu.list(menu.my_root(), "Loaded Constructs ("..#spawned_constructs..")", {}, "", function()
@@ -1613,7 +1645,7 @@ end, config.show_previews)
 menu.toggle(options_menu, "Deconstruct All on Unload", {}, "Deconstruct all spawned constructs when unloading Constructor", function(on)
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
-menu.action(options_menu, "Clean Up", {}, "Remove nearby vehicles, objects and peds. Useful of bugs leave construction debris.", function()
+menu.action(options_menu, "Clean Up", {}, "Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris.", function()
     local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),100)
     local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),100)
     local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),100)
