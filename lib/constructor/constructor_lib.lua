@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.11"
+local LIB_VERSION = "3.12"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -516,13 +516,15 @@ constructor_lib.deserialize_vehicle_options = function(vehicle, serialized_vehic
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle, serialized_vehicle.options.license_plate_text or "UNKNOWN")
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle, serialized_vehicle.options.license_plate_type or -1)
 
-    if serialized_vehicle.options.engine_running then
+    if serialized_vehicle.options.engine_running == true then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle.handle, true, true, false)
+        VEHICLE.SET_VEHICLE_KEEP_ENGINE_ON_WHEN_ABANDONED(vehicle.handle, true)
     end
-
-    VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle.handle, serialized_vehicle.options.doors_locked or false)
+    if serialized_vehicle.options.doors_locked ~= nil then
+        VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle.handle, serialized_vehicle.options.doors_locked or false)
+    end
     if serialized_vehicle.options.engine_health ~= nil then
-        VEHICLE.SET_VEHICLE_ENGINE_HEALTH(vehicle, serialized_vehicle.options.engine_health)
+        VEHICLE.SET_VEHICLE_ENGINE_HEALTH(vehicle.handle, serialized_vehicle.options.engine_health)
     end
 end
 
@@ -531,7 +533,7 @@ end
 ---
 
 constructor_lib.animate_peds = function(attachment)
-    if attachment.ped_attributes.animation_dict then
+    if attachment.ped_attributes and attachment.ped_attributes.animation_dict then
         STREAMING.REQUEST_ANIM_DICT(attachment.ped_attributes.animation_dict)
         while not STREAMING.HAS_ANIM_DICT_LOADED(attachment.ped_attributes.animation_dict) do
             util.yield()
@@ -563,8 +565,8 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
     if attachment.options.has_collision == nil then attachment.options.has_collision = true end
     if attachment.is_preview == nil then attachment.is_preview = false end
-    if attachment.options.is_networked == nil and attachment.root and attachment.root.is_preview then
-        attachment.options.is_networked = false
+    if attachment.options.is_networked == nil and (attachment.root ~= nil and not attachment.root.is_preview) then
+        attachment.options.is_networked = true
     end
     if attachment.options.is_mission_entity == nil then attachment.options.is_mission_entity = true end
     if attachment.options.is_invincible == nil then attachment.options.is_invincible = true end
@@ -593,7 +595,6 @@ constructor_lib.update_attachment = function(attachment)
         --    attachment.options.is_visible = false
         --end
     end
-    util.log("Setting "..attachment.name.." visible "..tostring(attachment.options.is_visible))
     ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
     ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity)
     ENTITY.SET_ENTITY_LIGHTS(attachment.handle, not attachment.options.is_light_on)
@@ -610,10 +611,10 @@ constructor_lib.update_attachment = function(attachment)
 
     if attachment == attachment.parent then
         ENTITY.SET_ENTITY_ROTATION(
-            attachment.handle,
-            attachment.rotation.x,
-            attachment.rotation.y,
-            attachment.rotation.z
+                attachment.handle,
+                attachment.rotation.x,
+                attachment.rotation.y,
+                attachment.rotation.z
         )
         if attachment.position ~= nil then
             if attachment.is_preview then
@@ -626,23 +627,22 @@ constructor_lib.update_attachment = function(attachment)
                 )
             else
                 ENTITY.SET_ENTITY_COORDS(
-                    attachment.handle,
-                    attachment.position.x + attachment.offset.x,
-                    attachment.position.y + attachment.offset.y,
-                    attachment.position.z + attachment.offset.z,
-                    true, false, false
+                        attachment.handle,
+                        attachment.position.x + attachment.offset.x,
+                        attachment.position.y + attachment.offset.y,
+                        attachment.position.z + attachment.offset.z,
+                        true, false, false
                 )
             end
         end
     else
         ENTITY.ATTACH_ENTITY_TO_ENTITY(
-            attachment.handle, attachment.parent.handle, attachment.options.bone_index,
-            attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
-            attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-            false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
+                attachment.handle, attachment.parent.handle, attachment.options.bone_index,
+                attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
+                attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
+                false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
         )
     end
-
 end
 
 constructor_lib.load_hash_for_attachment = function(attachment)
@@ -665,7 +665,7 @@ end
 constructor_lib.attach_attachment = function(attachment)
     constructor_lib.set_attachment_defaults(attachment)
     if attachment.hash == nil and attachment.model == nil then
-        error("Cannot create attachment: Requires either a hash or a model")
+        error("Cannot create attachment "..tostring(attachment.name)..": Requires either a hash or a model")
     end
     --if constructor_lib.debug then util.log("Attaching attachment "..attachment.name.." [parent="..attachment.parent.name..",root="..attachment.root.name.."]") end
     if (not constructor_lib.load_hash_for_attachment(attachment)) then
@@ -679,24 +679,32 @@ constructor_lib.attach_attachment = function(attachment)
     local invis_wheels = (attachment.vehicle_attributes and attachment.vehicle_attributes.wheels and attachment.vehicle_attributes.wheels.invisible_wheels)
 
     if attachment.type == "VEHICLE" and not invis_wheels then
-        attachment.handle = VEHICLE.CREATE_VEHICLE(
-            attachment.hash,
-            attachment.offset.x, attachment.offset.y, attachment.offset.z,
-            attachment.heading,
-            attachment.options.is_networked,
-            attachment.options.is_mission_entity,
-            false
-        )
+        if attachment.options.is_networked then
+            attachment.handle = entities.create_vehicle(attachment.hash, attachment.offset, attachment.heading)
+        else
+            attachment.handle = VEHICLE.CREATE_VEHICLE(
+                    attachment.hash,
+                    attachment.offset.x, attachment.offset.y, attachment.offset.z,
+                    attachment.heading,
+                    attachment.options.is_networked,
+                    attachment.options.is_mission_entity,
+                    false
+            )
+        end
         constructor_lib.deserialize_vehicle_attributes(attachment)
     elseif attachment.type == "PED" then
         local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
-        attachment.handle = PED.CREATE_PED(
-            1, attachment.hash,
-            pos.x, pos.y, pos.z,
-            attachment.heading,
-            attachment.options.is_networked,
-            attachment.options.is_mission_entity
-        )
+        if attachment.options.is_networked then
+            attachment.handle = entities.create_ped(1, attachment.hash, pos, attachment.heading)
+        else
+            attachment.handle = PED.CREATE_PED(
+                    1, attachment.hash,
+                    pos.x, pos.y, pos.z,
+                    attachment.heading,
+                    attachment.options.is_networked,
+                    attachment.options.is_mission_entity
+            )
+        end
         if attachment.parent.type == "VEHICLE" and attachment.is_ped_seated_in_vehicle then
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, -1)
         end
@@ -708,14 +716,18 @@ constructor_lib.attach_attachment = function(attachment)
         else
             pos = ENTITY.GET_ENTITY_COORDS(attachment.root.handle)
         end
-        -- TODO: CFX for networking maps?
-        attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(
-            attachment.hash,
-            pos.x, pos.y, pos.z,
-            attachment.options.is_networked,
-            attachment.options.is_mission_entity,
-            false
-        )
+        if attachment.options.is_networked then
+            attachment.handle = entities.create_object(attachment.hash, pos)
+        else
+            attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(
+                    attachment.hash,
+                    pos.x, pos.y, pos.z,
+                    attachment.options.is_networked,
+                    attachment.options.is_mission_entity,
+                    false
+            )
+
+        end
         if invis_wheels then
             util.toast("Applying ivis wheels to "..attachment.name, TOAST_ALL)
             constructor_lib.deserialize_vehicle_attributes(attachment)
@@ -1755,22 +1767,31 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
 
     local construct_plan = table.table_copy(constructor_lib.construct_base)
 
+    local children_path, child_path
     if dom.root.name == "Vehicle" then
         construct_plan.type = "VEHICLE"
+        children_path = "/Vehicle/SpoonerAttachments"
+        child_path = "Attachment"
+        process_vehicle_element(dom.root, construct_plan, "/"..dom.root.name)
+    elseif dom.root.name == "SpoonerPlacements" then
+        construct_plan.type = "OBJECT"
+        construct_plan.model = "prop_air_conelight"
+        construct_plan.position = {
+            x = find_element(dom.root, "/ReferenceCoords/X"),
+            y = find_element(dom.root, "/ReferenceCoords/Y"),
+            z = find_element(dom.root, "/ReferenceCoords/Z"),
+        }
+        children_path = "/SpoonerPlacements"
+        child_path = "Placement"
     end
-        --if dom.root.name == "SpoonerPlacements" then
-    --    construct_plan.type = "OBJECT"
-    --end
-
-    process_vehicle_element(dom.root, construct_plan, "/"..dom.root.name)
     constructor_lib.set_attachment_defaults(construct_plan)
 
-    local spooner_attachments_el = find_element(dom.root, "/Vehicle/SpoonerAttachments")
+    local spooner_attachments_el = find_element(dom.root, children_path)
     if spooner_attachments_el then
         for _, child_attachment in pairs(spooner_attachments_el.kids) do
-            if child_attachment.type == "element" then
+            if child_attachment.type == "element" and child_attachment.name == child_path then
                 local attachment = {}
-                process_vehicle_element(child_attachment, attachment, "/Attachment")
+                process_vehicle_element(child_attachment, attachment, "/"..child_path)
                 constructor_lib.set_attachment_defaults(attachment)
                 table.insert(construct_plan.children, attachment)
             end
@@ -1779,7 +1800,7 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
 
     rearrange_by_initial_attachment(construct_plan)
 
-    if constructor_lib.debug then util.log("Loaded XML construct plan: "..inspect(construct_plan)) end
+    --if constructor_lib.debug then util.log("Loaded XML construct plan: "..inspect(construct_plan)) end
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load XML construct. Missing hash or model.", TOAST_ALL)
@@ -1795,4 +1816,3 @@ end
 ---
 
 return constructor_lib
-
