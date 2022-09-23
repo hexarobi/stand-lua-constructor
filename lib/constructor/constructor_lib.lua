@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.10"
+local LIB_VERSION = "3.11"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -531,12 +531,12 @@ end
 ---
 
 constructor_lib.animate_peds = function(attachment)
-    if attachment.ped_animation then
-        STREAMING.REQUEST_ANIM_DICT(attachment.ped_animation.dict)
-        while not STREAMING.HAS_ANIM_DICT_LOADED(attachment.ped_animation.dict) do
+    if attachment.ped_attributes.animation_dict then
+        STREAMING.REQUEST_ANIM_DICT(attachment.ped_attributes.animation_dict)
+        while not STREAMING.HAS_ANIM_DICT_LOADED(attachment.ped_attributes.animation_dict) do
             util.yield()
         end
-        TASK.TASK_PLAY_ANIM(attachment.handle, attachment.ped_animation.dict, attachment.ped_animation.action, 8.0, 8.0, -1, 1, 1.0, false, false, false)
+        TASK.TASK_PLAY_ANIM(attachment.handle, attachment.ped_attributes.animation_dict, attachment.ped_attributes.animation_name, 8.0, 8.0, -1, 1, 1.0, false, false, false)
     end
 end
 
@@ -555,6 +555,7 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.offset == nil then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil then attachment.rotation = { x = 0, y = 0, z = 0 } end
     if attachment.position == nil then attachment.position = { x = 0, y = 0, z = 0 } end
+    if attachment.world_rotation == nil then attachment.world_rotation = { x = 0, y = 0, z = 0 } end
     if attachment.heading == nil then
         attachment.heading = (attachment.root and attachment.root.heading or 0)
     end
@@ -562,7 +563,10 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
     if attachment.options.has_collision == nil then attachment.options.has_collision = true end
     if attachment.is_preview == nil then attachment.is_preview = false end
-    if attachment.options.is_networked == nil then attachment.options.is_networked = not attachment.is_preview end
+    if attachment.options.is_networked == nil and attachment.root and attachment.root.is_preview then
+        attachment.options.is_networked = false
+    end
+    if attachment.options.is_mission_entity == nil then attachment.options.is_mission_entity = true end
     if attachment.options.is_invincible == nil then attachment.options.is_invincible = true end
     if attachment.options.is_bullet_proof == nil then attachment.options.is_bullet_proof = true end
     if attachment.options.is_fire_proof == nil then attachment.options.is_fire_proof = true end
@@ -585,10 +589,11 @@ constructor_lib.update_attachment = function(attachment)
 
     if attachment.options.alpha ~= nil and attachment.options.alpha < 255 then
         ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.options.alpha, false)
-        if attachment.options.alpha == 0 and attachment.options.is_visible == true then
-            attachment.options.is_visible = false
-        end
+        --if attachment.options.alpha == 0 and attachment.options.is_visible == true then
+        --    attachment.options.is_visible = false
+        --end
     end
+    util.log("Setting "..attachment.name.." visible "..tostring(attachment.options.is_visible))
     ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
     ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity)
     ENTITY.SET_ENTITY_LIGHTS(attachment.handle, not attachment.options.is_light_on)
@@ -601,9 +606,15 @@ constructor_lib.update_attachment = function(attachment)
             false, true, false
     )
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
+    AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud or false)
 
     if attachment == attachment.parent then
-        ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0)
+        ENTITY.SET_ENTITY_ROTATION(
+            attachment.handle,
+            attachment.rotation.x,
+            attachment.rotation.y,
+            attachment.rotation.z
+        )
         if attachment.position ~= nil then
             if attachment.is_preview then
                 ENTITY.SET_ENTITY_COORDS_NO_OFFSET(
@@ -656,7 +667,7 @@ constructor_lib.attach_attachment = function(attachment)
     if attachment.hash == nil and attachment.model == nil then
         error("Cannot create attachment: Requires either a hash or a model")
     end
-    if constructor_lib.debug then util.log("Attaching attachment "..attachment.name.." [parent="..attachment.parent.name..",root="..attachment.root.name.."]") end
+    --if constructor_lib.debug then util.log("Attaching attachment "..attachment.name.." [parent="..attachment.parent.name..",root="..attachment.root.name.."]") end
     if (not constructor_lib.load_hash_for_attachment(attachment)) then
         return
     end
@@ -668,14 +679,28 @@ constructor_lib.attach_attachment = function(attachment)
     local invis_wheels = (attachment.vehicle_attributes and attachment.vehicle_attributes.wheels and attachment.vehicle_attributes.wheels.invisible_wheels)
 
     if attachment.type == "VEHICLE" and not invis_wheels then
-        attachment.handle = entities.create_vehicle(attachment.hash, attachment.offset, attachment.heading)
+        attachment.handle = VEHICLE.CREATE_VEHICLE(
+            attachment.hash,
+            attachment.offset.x, attachment.offset.y, attachment.offset.z,
+            attachment.heading,
+            attachment.options.is_networked,
+            attachment.options.is_mission_entity,
+            false
+        )
         constructor_lib.deserialize_vehicle_attributes(attachment)
     elseif attachment.type == "PED" then
         local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
-        attachment.handle = entities.create_ped(1, attachment.hash, pos, 0.0)
+        attachment.handle = PED.CREATE_PED(
+            1, attachment.hash,
+            pos.x, pos.y, pos.z,
+            attachment.heading,
+            attachment.options.is_networked,
+            attachment.options.is_mission_entity
+        )
         if attachment.parent.type == "VEHICLE" and attachment.is_ped_seated_in_vehicle then
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, -1)
         end
+        constructor_lib.deserialize_ped_attributes(attachment)
     else
         local pos
         if attachment.position ~= nil then
@@ -684,8 +709,13 @@ constructor_lib.attach_attachment = function(attachment)
             pos = ENTITY.GET_ENTITY_COORDS(attachment.root.handle)
         end
         -- TODO: CFX for networking maps?
-        attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(attachment.hash, pos.x, pos.y, pos.z, attachment.is_networked, true, false)
-        --args.handle = entities.create_object(hash, ENTITY.GET_ENTITY_COORDS(args.root.handle))
+        attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(
+            attachment.hash,
+            pos.x, pos.y, pos.z,
+            attachment.options.is_networked,
+            attachment.options.is_mission_entity,
+            false
+        )
         if invis_wheels then
             util.toast("Applying ivis wheels to "..attachment.name, TOAST_ALL)
             constructor_lib.deserialize_vehicle_attributes(attachment)
@@ -709,7 +739,9 @@ constructor_lib.attach_attachment = function(attachment)
 
     constructor_lib.update_attachment(attachment)
     constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
-    constructor_lib.animate_peds(attachment)
+
+    -- Pause for a tick between each model load to avoid loading too many at once
+    util.yield()
 
     return attachment
 end
@@ -891,7 +923,40 @@ constructor_lib.deserialize_vehicle_attributes = function(vehicle)
     constructor_lib.deserialize_vehicle_extras(vehicle, serialized_vehicle)
 
     --ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle.handle, true, true)
+end
 
+constructor_lib.deserialize_ped_attributes = function(attachment)
+    if attachment.ped_attributes == nil then return end
+    PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
+    if attachment.ped_attributes.armour then
+        PED.SET_PED_ARMOUR(attachment.handle, attachment.ped_attributes.armour)
+    end
+    if attachment.ped_attributes.weapon then
+        WEAPON.GIVE_WEAPON_TO_PED(attachment.handle, attachment.ped_attributes.weapon, 999, false, true)
+    end
+    if attachment.ped_attributes.props then
+        for prop_index = 0, 9 do
+            PED.SET_PED_PROP_INDEX(
+                    attachment.handle,
+                    prop_index,
+                    tonumber(attachment.ped_attributes.props["_"..prop_index][1]),
+                    tonumber(attachment.ped_attributes.props["_"..prop_index][2]),
+                    true
+            )
+        end
+    end
+    if attachment.ped_attributes.components then
+        for component_index = 0, 11 do
+            PED.SET_PED_COMPONENT_VARIATION(
+                    attachment.handle,
+                    component_index,
+                    tonumber(attachment.ped_attributes.components["_"..component_index][1]),
+                    tonumber(attachment.ped_attributes.components["_"..component_index][2]),
+                    tonumber(attachment.ped_attributes.components["_"..component_index][2])
+            )
+        end
+    end
+    constructor_lib.animate_peds(attachment)
 end
 
 constructor_lib.copy_serializable = function(attachment)
@@ -996,11 +1061,6 @@ local function convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, att
             color_combo = jackz_save_data.Colors["Color Combo"],
             primary = {
                 is_custom = jackz_save_data.Colors.Primary.Custom,
-                custom_color = {
-                    r= jackz_save_data.Colors.Primary["Custom Color"].r,
-                    g= jackz_save_data.Colors.Primary["Custom Color"].g,
-                    b= jackz_save_data.Colors.Primary["Custom Color"].b
-                },
                 vehicle_standard_color = jackz_save_data.Colors.Vehicle.Primary,
                 vehicle_custom_color = {
                     r= jackz_save_data.Colors.Vehicle.r,
@@ -1010,11 +1070,6 @@ local function convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, att
             },
             secondary = {
                 is_custom = jackz_save_data.Colors.Secondary.Custom,
-                custom_color = {
-                    r= jackz_save_data.Colors.Secondary["Custom Color"].r,
-                    g= jackz_save_data.Colors.Secondary["Custom Color"].g,
-                    b= jackz_save_data.Colors.Secondary["Custom Color"].b
-                },
                 vehicle_standard_color = jackz_save_data.Colors.Vehicle.Secondary,
                 vehicle_custom_color = {
                     r= jackz_save_data.Colors.Vehicle.r,
@@ -1065,6 +1120,22 @@ local function convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, att
         mods = convert_jackz_savedata_build_vehicle_attribute_mods(jackz_save_data),
         extras = convert_jackz_savedata_build_vehicle_attribute_extras(jackz_save_data),
     }
+
+    if jackz_save_data.Colors.Primary["Custom Color"] then
+        attachment.vehicle_attributes.paint.primary.custom_color = {
+            r=jackz_save_data.Colors.Primary["Custom Color"].r,
+            g=jackz_save_data.Colors.Primary["Custom Color"].g,
+            b=jackz_save_data.Colors.Primary["Custom Color"].b
+        }
+    end
+    if jackz_save_data.Colors.Secondary["Custom Color"] then
+        attachment.vehicle_attributes.paint.secondary.custom_color = {
+            r=jackz_save_data.Colors.Secondary["Custom Color"].r,
+            g=jackz_save_data.Colors.Secondary["Custom Color"].g,
+            b=jackz_save_data.Colors.Secondary["Custom Color"].b
+        }
+    end
+
 end
 
 local function convert_jackz_object_to_attachment(jackz_object, jackz_save_data, attachment, type)
@@ -1092,9 +1163,9 @@ local function convert_jackz_object_to_attachment(jackz_object, jackz_save_data,
         }
     end
     if jackz_object.animdata then
-        attachment.ped_animation = {
-            dict = jackz_object.animdata[1],
-            action = jackz_object.animdata[2]
+        attachment.ped_attributes = {
+            animation_dict = jackz_object.animdata[1],
+            animation_name = jackz_object.animdata[2]
         }
     end
     convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, attachment)
@@ -1136,7 +1207,7 @@ constructor_lib.convert_jackz_to_construct_plan = function(jackz_build_data)
         return
     end
 
-    if constructor_lib.debug then util.log("Loaded Jackz construct plan: "..inspect(construct_plan)) end
+    --if constructor_lib.debug then util.log("Loaded Jackz construct plan: "..inspect(construct_plan)) end
 
     return construct_plan
 end
@@ -1273,21 +1344,21 @@ local xml_field_to_construct_plan_map = {
         formatter=tonumber,
     },
     -- No concept of offset rotation yet
-    --{
-    --    xml_path="/PositionRotation/Pitch",
-    --    construct_plan_path="rotation.x",
-    --    formatter=tonumber,
-    --},
-    --{
-    --    xml_path="/PositionRotation/Roll",
-    --    construct_plan_path="rotation.y",
-    --    formatter=tonumber,
-    --},
-    --{
-    --    xml_path="/PositionRotation/Yaw",
-    --    construct_plan_path="rotation.z",
-    --    formatter=tonumber,
-    --},
+    {
+        xml_path="/PositionRotation/Pitch",
+        construct_plan_path="world_rotation.x",
+        formatter=tonumber,
+    },
+    {
+        xml_path="/PositionRotation/Roll",
+        construct_plan_path="world_rotation.y",
+        formatter=tonumber,
+    },
+    {
+        xml_path="/PositionRotation/Yaw",
+        construct_plan_path="world_rotation.z",
+        formatter=tonumber,
+    },
     {
         xml_path="/VehicleProperties/Livery",
         construct_plan_path="vehicle_attributes.paint.livery",
@@ -1535,12 +1606,27 @@ local xml_field_to_construct_plan_map = {
         formatter=toboolean,
     },
     {
+        xml_path="/PedProperties/CanRagDoll",
+        construct_plan_path="ped_attributes.can_rag_doll",
+        formatter=toboolean,
+    },
+    {
+        xml_path="/PedProperties/Armour",
+        construct_plan_path="ped_attributes.armour",
+        formatter=tonumber,
+    },
+    {
+        xml_path="/PedProperties/CurrentWeapon",
+        construct_plan_path="ped_attributes.current_weapon",
+        formatter=tonumber,
+    },
+    {
         xml_path="/PedProperties/AnimDict",
-        construct_plan_path="ped_animation.dict",
+        construct_plan_path="ped_attributes.animation_dict",
     },
     {
         xml_path="/PedProperties/AnimName",
-        construct_plan_path="ped_animation.action",
+        construct_plan_path="ped_attributes.animation_name",
     },
     --[""] = "",
 }
@@ -1562,6 +1648,26 @@ for extra_index = 0, 14 do
         xml_path="/VehicleProperties/ModExtras/_"..(extra_index),
         construct_plan_path="vehicle_attributes.extras._"..extra_index,
         formatter=toboolean
+    })
+end
+for extra_index = 0, 9 do
+    table.insert(xml_field_to_construct_plan_map, {
+        xml_path="/PedProperties/PedProps/_"..(extra_index),
+        construct_plan_path="ped_attributes.props._"..extra_index,
+        formatter=function(value)
+            local split_value = strsplit(value, ",")
+            return {tonumber(split_value[1]), tonumber(split_value[2])}
+        end
+    })
+end
+for extra_index = 0, 11 do
+    table.insert(xml_field_to_construct_plan_map, {
+        xml_path="/PedProperties/PedComps/_"..(extra_index),
+        construct_plan_path="ped_attributes.components._"..extra_index,
+        formatter=function(value)
+            local split_value = strsplit(value, ",")
+            return {tonumber(split_value[1]), tonumber(split_value[2])}
+        end
     })
 end
 
