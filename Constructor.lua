@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.15b1"
+local SCRIPT_VERSION = "0.15b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -41,12 +41,15 @@ if not status then
 end
 if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
 
-auto_updater.run_auto_update({
-    source_url=auto_update_source_url,
-    script_relpath=SCRIPT_RELPATH,
-    switch_to_branch=selected_branch,
-    verify_file_begins_with="--",
-})
+local function auto_update_script()
+    auto_updater.run_auto_update({
+        source_url=auto_update_source_url,
+        script_relpath=SCRIPT_RELPATH,
+        switch_to_branch=selected_branch,
+        verify_file_begins_with="--",
+    })
+end
+auto_update_script()
 
 ---
 --- Dependencies
@@ -451,7 +454,7 @@ end
 local is_fine_tune_sensitivity_active = false
 local function sensitivity_modifier_check_tick()
     if util.is_key_down(0x10) then
-            -- or PAD.IS_CONTROL_JUST_PRESSED(0, 37) then
+        -- or PAD.IS_CONTROL_JUST_PRESSED(0, 37) then
         --PAD.DISABLE_CONTROL_ACTION(0, 37)
         if is_fine_tune_sensitivity_active == false then
             for _, construct in pairs(spawned_constructs) do
@@ -828,8 +831,8 @@ end
 
 local function rebuild_reattach_to_menu(attachment, current, path, depth)
     debug_log(
-        "Rebuilding reattach to menu "..tostring(attachment.name),
-        {attachment=attachment, current=current, path=path, depth=depth}
+            "Rebuilding reattach to menu "..tostring(attachment.name),
+            {attachment=attachment, current=current, path=path, depth=depth}
     )
     if current == nil then current = attachment.root end
     if path == nil then path = {} end
@@ -1308,13 +1311,13 @@ end)
 ---
 --- Script Meta Menu
 ---
-
 local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
 menu.divider(script_meta_menu, "Constructor")
 menu.readonly(script_meta_menu, "Version", VERSION_STRING)
 menu.list_select(script_meta_menu, "Release Branch", {}, "Switch from main to dev to get cutting edge updates, but also potentially more bugs.", AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
     if click_type ~= 0 then return end
-    auto_update_branch(AUTO_UPDATE_BRANCHES[index][1])
+    selected_branch = AUTO_UPDATE_BRANCHES[index][1]
+    auto_update_script()
 end)
 menu.hyperlink(script_meta_menu, "Github Source", "https://github.com/hexarobi/stand-lua-constructor", "View source files on Github")
 menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open Discord Server")
