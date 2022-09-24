@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.12"
+local SCRIPT_VERSION = "0.13"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -598,7 +598,7 @@ end
 local function add_attachment_to_construct(attachment)
     constructor_lib.add_attachment_to_construct(attachment)
     menus.rebuild_attachment_menu(attachment)
-    attachment.menus.refresh()
+    attachment.parent.menus.refresh()
     attachment.menus.focus()
 end
 
@@ -674,7 +674,6 @@ local function remove_preview(construct_plan)
     next_preview = nil
     if construct_plan == nil then construct_plan = current_preview end
     if construct_plan ~= nil then
-        --if config.debug then util.log("Removing preview "..current_preview.name) end
         constructor_lib.remove_attachment(construct_plan)
         current_preview = nil
     end
@@ -703,10 +702,9 @@ local function add_preview(construct_plan)
         attachment.is_preview = true
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
-        --if config.debug then util.log("Adding preview "..attachment.name) end
         current_preview = constructor_lib.attach_attachment_with_children(attachment)
         if next_preview ~= construct_plan then
-            remove_preview(construct_plan)
+            remove_preview(current_preview)
         end
     end
 end
@@ -723,6 +721,7 @@ local function update_preview_tick()
         current_preview.position = get_offset_from_camera(current_preview.camera_distance)
         current_preview.rotation.z = current_preview.rotation.z + 2
         constructor_lib.update_attachment(current_preview)
+        constructor_lib.update_attachment_position(current_preview)
         constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
         constructor_lib.draw_bounding_box_with_dimensions(current_preview.handle, config.preview_bounding_box_color, current_preview.dimensions.min_vec, current_preview.dimensions.max_vec)
         disable_attachment_collision(current_preview)
@@ -778,9 +777,10 @@ local function aim_info_tick()
     if not config.add_attachment_gun_active then return end
     local info = get_aim_info()
     if info.handle ~= 0 then
-        local text = "Press J to add " .. info.type .. " `" .. info.model .. "` to construct " .. config.add_attachment_gun_recipient.name
+        local text = "Shoot (or press J) to add " .. info.type .. " `" .. info.model .. "` to construct " .. config.add_attachment_gun_recipient.name
         directx.draw_text(0.5, 0.3, text, 5, 0.5, {r=1,g=1,b=1,a=1}, true)
-        if util.is_key_down(0x4A) then
+        constructor_lib.draw_bounding_box(info.handle, config.preview_bounding_box_color)
+        if util.is_key_down(0x4A) or PED.IS_PED_SHOOTING(players.user_ped()) then
             if was_key_down == false then
                 util.toast("Attaching "..info.model)
                 add_attachment_to_construct({
@@ -1108,7 +1108,7 @@ menus.rebuild_add_attachments_menu = function(attachment)
 
     attachment.menus.search_results = {}
     attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search Props", {}, "Search for a prop by name")
-    menu.text_input(attachment.menus.search_add_prop, "Search for Object", {"constructorsearchobject"}, "", function (query)
+    menu.text_input(attachment.menus.search_add_prop, "Search for Object", {"constructorsearchobject"..attachment.handle}, "", function (query)
         clear_menu_list(attachment.menus.search_results)
         local results = search_props(query)
         for i = 1,30 do
@@ -1249,14 +1249,17 @@ menus.rebuild_attachment_menu = function(attachment)
         menu.divider(attachment.menus.position, "Offset")
         attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, "X: Left / Right", { "constructoroffset"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
             attachment.offset.x = value / 100
+            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
         attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, "Y: Forward / Back", {"constructoroffset"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
             attachment.offset.y = value / -100
+            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
         attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, "Z: Up / Down", {"constructoroffset"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
             attachment.offset.z = value / -100
+            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
 
@@ -1277,14 +1280,17 @@ menus.rebuild_attachment_menu = function(attachment)
         menu.divider(attachment.menus.position, "World Position")
         attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, "X: Left / Right", { "constructorposition"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
             attachment.position.x = value / 100
+            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
         attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, "Y: Forward / Back", {"constructorposition"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
             attachment.position.y = value / -100
+            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
         attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, "Z: Up / Down", {"constructorposition"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
             attachment.position.z = value / -100
+            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
 
@@ -1691,11 +1697,11 @@ local function constructor_tick()
 end
 util.create_tick_handler(constructor_tick)
 
-util.create_tick_handler(function()
-    ped_animation_tick()
-    util.yield(60000)
-    return true
-end)
+--util.create_tick_handler(function()
+--    ped_animation_tick()
+--    util.yield(60000)
+--    return true
+--end)
 
 util.on_stop(cleanup_constructs_handler)
 
