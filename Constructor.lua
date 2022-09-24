@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.13"
+local SCRIPT_VERSION = "0.14"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -52,10 +52,12 @@ auto_update_branch(AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1])
 
 local loading_menu = menu.divider(menu.my_root(), "Please wait...", {}, "Loading dependencies...")
 
+util.ensure_package_is_installed('lua/natives-1660775568')
 util.require_natives(1660775568)
 local status, natives = pcall(require, "natives-1660775568")
 if not status then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1660775568") end
 
+util.ensure_package_is_installed('lua/json')
 local status, json = pcall(require, "json")
 if not status then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
@@ -71,7 +73,15 @@ local constructor_lib = auto_updater.require_with_auto_update({
     verify_file_begins_with="--",
 })
 
+local curated_attachments = auto_updater.require_with_auto_update({
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
+    script_relpath="lib/constructor/curated_attachments.lua",
+    verify_file_begins_with="--",
+})
+
 menu.delete(loading_menu)
+
+local VERSION_STRING = "Constructor "..SCRIPT_VERSION.." / Lib "..constructor_lib.LIB_VERSION
 
 ---
 --- Data
@@ -139,382 +149,6 @@ local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
 -- prop_wall_light_10c
 -- hei_prop_wall_light_10a_cr
 
-local available_attachments = {
-    {
-        name = "Lights",
-        objects = {
-            {
-                name = "Red Spinning Light",
-                model = "hei_prop_wall_light_10a_cr",
-                offset = { x = 0, y = 0, z = 1 },
-                rotation = { x = 180, y = 0, z = 0 },
-                options = { options = { is_light_disabled = true } },
-                children = {
-                    {
-                        model = "prop_wall_light_10a",
-                        offset = { x = 0, y = 0.01, z = 0 },
-                        options = {
-                            is_light_disabled = false,
-                            bone_index = 1,
-                        },
-                    },
-                },
-            },
-            {
-                name = "Blue Spinning Light",
-                model = "hei_prop_wall_light_10a_cr",
-                offset = { x = 0, y = 0, z = 1 },
-                rotation = { x = 180, y = 0, z = 0 },
-                options = { options = { is_light_disabled = true } },
-                children = {
-                    {
-                        model = "prop_wall_light_10b",
-                        offset = { x = 0, y = 0.01, z = 0 },
-                        options = {
-                            is_light_disabled = false,
-                            bone_index = 1,
-                        },
-                    },
-                },
-            },
-            {
-                name = "Yellow Spinning Light",
-                model = "hei_prop_wall_light_10a_cr",
-                offset = { x = 0, y = 0, z = 1 },
-                rotation = { x = 180, y = 0, z = 0 },
-                options = { is_light_disabled = true },
-                children = {
-                    {
-                        model = "prop_wall_light_10c",
-                        offset = { x = 0, y = 0.01, z = 0 },
-                        options = {
-                            is_light_disabled = false,
-                            bone_index = 1,
-                        },
-                    },
-                },
-            },
-
-            {
-                name = "Combo Red+Blue Spinning Light",
-                model = "hei_prop_wall_light_10a_cr",
-                offset = { x = 0, y = 0, z = 1 },
-                rotation = { x = 180, y = 0, z = 0 },
-                options = { is_light_disabled = true },
-                children = {
-                    {
-                        model = "prop_wall_light_10b",
-                        offset = { x = 0, y = 0.01, z = 0 },
-                        options = {
-                            is_light_disabled = false,
-                            bone_index = 1,
-                        },
-                    },
-                    {
-                        model = "prop_wall_light_10a",
-                        offset = { x = 0, y = 0.01, z = 0 },
-                        rotation = { x = 0, y = 0, z = 180 },
-                        options = {
-                            is_light_disabled = false,
-                            bone_index = 1,
-                        },
-                    },
-                },
-                --reflection = {
-                --    model = "hei_prop_wall_light_10a_cr",
-                --    reflection_axis = { x = true, y = false, z = false },
-                --    options = { is_light_disabled = true },
-                --    children = {
-                --        {
-                --            model = "prop_wall_light_10a",
-                --            offset = { x = 0, y = 0.01, z = 0 },
-                --            rotation = { x = 0, y = 0, z = 180 },
-                --            options = { is_light_disabled = false },
-                --            bone_index = 1,
-                --        },
-                --    },
-                --}
-            },
-
-            {
-                name = "Pair of Spinning Lights",
-                model = "hei_prop_wall_light_10a_cr",
-                offset = { x = 0.3, y = 0, z = 1 },
-                rotation = { x = 180, y = 0, z = 0 },
-                options = { is_light_disabled = true },
-                children = {
-                    {
-                        model = "prop_wall_light_10b",
-                        offset = { x = 0, y = 0.01, z = 0 },
-                        options = {
-                            is_light_disabled = false,
-                            bone_index = 1,
-                        },
-                    },
-                    {
-                        model = "hei_prop_wall_light_10a_cr",
-                        reflection_axis = { x = true, y = false, z = false },
-                        options = { is_light_disabled = true },
-                        children = {
-                            {
-                                model = "prop_wall_light_10a",
-                                offset = { x = 0, y = 0.01, z = 0 },
-                                rotation = { x = 0, y = 0, z = 180 },
-                                options = {
-                                    is_light_disabled = false,
-                                    bone_index = 1,
-                                },
-                            },
-                        },
-                    }
-                },
-            },
-
-            {
-                name = "Short Spinning Red Light",
-                model = "hei_prop_wall_alarm_on",
-                offset = { x = 0, y = 0, z = 1 },
-                rotation = { x = -90, y = 0, z = 0 },
-            },
-            {
-                name = "Small Red Warning Light",
-                model = "prop_warninglight_01",
-                offset = { x = 0, y = 0, z = 1 },
-            },
-
-            {
-                name = "Blue Recessed Light",
-                model = "h4_prop_battle_lights_floorblue",
-                offset = { x = 0, y = 0, z = 0.75 },
-            },
-            {
-                name = "Red Recessed Light",
-                model = "h4_prop_battle_lights_floorred",
-                offset = { x = 0, y = 0, z = 0.75 },
-            },
-            {
-                name = "Red/Blue Pair of Recessed Lights",
-                model = "h4_prop_battle_lights_floorred",
-                offset = { x = 0.3, y = 0, z = 1 },
-                children = {
-                    {
-                        model = "h4_prop_battle_lights_floorblue",
-                        reflection_axis = { x = true, y = false, z = false },
-                    }
-                }
-            },
-            {
-                name = "Blue/Red Pair of Recessed Lights",
-                model = "h4_prop_battle_lights_floorblue",
-                offset = { x = 0.3, y = 0, z = 1 },
-                children = {
-                    {
-                        model = "h4_prop_battle_lights_floorred",
-                        reflection_axis = { x = true, y = false, z = false },
-                    }
-                }
-            },
-
-            -- Flashing is still kinda wonky for networking
-            {
-                name = "Flashing Recessed Lights",
-                model = "h4_prop_battle_lights_floorred",
-                offset = { x = 0.3, y = 0, z = 1 },
-                flash_start_on = false,
-                children = {
-                    {
-                        model = "h4_prop_battle_lights_floorblue",
-                        reflection_axis = { x = true, y = false, z = false },
-                        flash_start_on = true,
-                    }
-                }
-            },
-            {
-                name = "Alternating Pair of Recessed Lights",
-                model = "h4_prop_battle_lights_floorred",
-                offset = { x = 0.3, y = 0, z = 1 },
-                flash_start_on = true,
-                children = {
-                    {
-                        model = "h4_prop_battle_lights_floorred",
-                        reflection_axis = { x = true, y = false, z = false },
-                        flash_start_on = false,
-                        children = {
-                            {
-                                model = "h4_prop_battle_lights_floorblue",
-                                flash_start_on = true,
-                            }
-                        }
-                    },
-                    {
-                        model = "h4_prop_battle_lights_floorblue",
-                        flash_start_on = true,
-                    }
-                }
-            },
-
-            {
-                name = "Red Disc Light",
-                model = "prop_runlight_r",
-                offset = { x = 0, y = 0, z = 1 },
-            },
-            {
-                name = "Blue Disc Light",
-                model = "prop_runlight_b",
-                offset = { x = 0, y = 0, z = 1 },
-            },
-
-            {
-                name = "Blue Pole Light",
-                model = "prop_air_lights_02a",
-                offset = { x = 0, y = 0, z = 1 },
-            },
-            {
-                name = "Red Pole Light",
-                model = "prop_air_lights_02b",
-                offset = { x = 0, y = 0, z = 1 },
-            },
-
-            {
-                name = "Red Angled Light",
-                model = "prop_air_lights_04a",
-                offset = { x = 0, y = 0, z = 1 },
-            },
-            {
-                name = "Blue Angled Light",
-                model = "prop_air_lights_05a",
-                offset = { x = 0, y = 0, z = 1 },
-            },
-
-            {
-                name = "Cone Light",
-                model = "prop_air_conelight",
-                offset = { x = 0, y = 0, z = 1 },
-                rotation = { x = 0, y = 0, z = 0 },
-            },
-
-            -- This is actually 2 lights, spaced 20 feet apart.
-            --{
-            --    name="Blinking Red Light",
-            --    model="hei_prop_carrier_docklight_01",
-            --}
-        },
-    },
-    {
-        name = "Props",
-        objects = {
-            {
-                name = "Riot Shield",
-                model = "prop_riot_shield",
-                rotation = { x = 180, y = 180, z = 0 },
-            },
-            {
-                name = "Ballistic Shield",
-                model = "prop_ballistic_shield",
-                rotation = { x = 180, y = 180, z = 0 },
-            },
-            {
-                name = "Minigun",
-                model = "prop_minigun_01",
-                rotation = { x = 0, y = 0, z = 90 },
-            },
-            {
-                name = "Monitor Screen",
-                model = "hei_prop_hei_monitor_police_01",
-            },
-            {
-                name = "Bomb",
-                model = "prop_ld_bomb_anim",
-            },
-            {
-                name = "Bomb (open)",
-                model = "prop_ld_bomb_01_open",
-            },
-
-
-        },
-    },
-    {
-        name = "Vehicles",
-        objects = {
-            {
-                name = "Police Cruiser",
-                model = "police",
-                type = "VEHICLE",
-            },
-            {
-                name = "Police Buffalo",
-                model = "police2",
-                type = "VEHICLE",
-            },
-            {
-                name = "Police Sports",
-                model = "police3",
-                type = "VEHICLE",
-            },
-            {
-                name = "Police Van",
-                model = "policet",
-                type = "VEHICLE",
-            },
-            {
-                name = "Police Bike",
-                model = "policeb",
-                type = "VEHICLE",
-            },
-            {
-                name = "FIB Cruiser",
-                model = "fbi",
-                type = "VEHICLE",
-            },
-            {
-                name = "FIB SUV",
-                model = "fbi2",
-                type = "VEHICLE",
-            },
-            {
-                name = "Sheriff Cruiser",
-                model = "sheriff",
-                type = "VEHICLE",
-            },
-            {
-                name = "Sheriff SUV",
-                model = "sheriff2",
-                type = "VEHICLE",
-            },
-            {
-                name = "Unmarked Cruiser",
-                model = "police3",
-                type = "VEHICLE",
-            },
-            {
-                name = "Snowy Rancher",
-                model = "policeold1",
-                type = "VEHICLE",
-            },
-            {
-                name = "Snowy Cruiser",
-                model = "policeold2",
-                type = "VEHICLE",
-            },
-            {
-                name = "Park Ranger",
-                model = "pranger",
-                type = "VEHICLE",
-            },
-            {
-                name = "Riot Van",
-                model = "riot",
-                type = "VEHICLE",
-            },
-            {
-                name = "Riot Control Vehicle (RCV)",
-                model = "riot2",
-                type = "VEHICLE",
-            },
-        },
-    },
-}
 
 ---
 --- Utilities
@@ -583,8 +217,6 @@ local function clear_references(attachment)
 end
 
 local function copy_construct_plan(construct_plan)
-    --return constructor_lib.clone_attachment(construct_plan)
-    --util.log(inspect(attachment.vehicle_attributes.paint))
     local is_root = construct_plan == construct_plan.parent
     clear_references(construct_plan)
     local construct = table.table_copy(construct_plan)
@@ -880,7 +512,7 @@ end
 local function save_vehicle(construct)
     if construct.author == nil then construct.author = players.get_name(players.user()) end
     if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
-    if construct.version == nil then construct.version = "Constructor "..SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION end
+    if construct.version == nil then construct.version = VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local file = io.open(filepath, "wb")
     if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
@@ -908,6 +540,7 @@ local function spawn_construct_from_plan(construct_plan)
     construct.heading = ENTITY.GET_ENTITY_HEADING(target_ped)
     construct.root = construct
     construct.parent = construct
+    construct.options.is_invincible = true
     constructor_lib.reattach_attachment_with_children(construct)
     table.insert(spawned_constructs, construct)
     last_spawned_construct = construct
@@ -1086,13 +719,13 @@ end
 ---
 
 menus.rebuild_add_attachments_menu = function(attachment)
-    if attachment.menus.add_attachment_categories ~= nil then
-        return
-    end
-    attachment.menus.add_attachment_categories = {}
 
-    for _, category in pairs(available_attachments) do
-        local category_menu = menu.list(attachment.menus.add_attachment, category.name)
+    attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, "Curated", {}, "Browse a curated collection of attachments")
+
+    if attachment.menus.add_attachment_categories ~= nil then return end
+    attachment.menus.add_attachment_categories = {}
+    for _, category in pairs(curated_attachments) do
+        local category_menu = menu.list(attachment.menus.curated_attachments, category.name)
         for _, available_attachment in pairs(category.objects) do
             local menu_item = menu.action(category_menu, available_attachment.name, {}, "", function()
                 local child_attachment = copy_construct_plan(available_attachment)
@@ -1107,7 +740,7 @@ menus.rebuild_add_attachments_menu = function(attachment)
     end
 
     attachment.menus.search_results = {}
-    attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search Props", {}, "Search for a prop by name")
+    attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search", {}, "Search for a prop by name")
     menu.text_input(attachment.menus.search_add_prop, "Search for Object", {"constructorsearchobject"..attachment.handle}, "", function (query)
         clear_menu_list(attachment.menus.search_results)
         local results = search_props(query)
@@ -1129,37 +762,26 @@ menus.rebuild_add_attachments_menu = function(attachment)
         end
     end)
 
-    menu.text_input(attachment.menus.add_attachment, "Object by Name", {"constructorattachobject"},
+    attachment.menus.exact_name = menu.list(attachment.menus.add_attachment, "Add by Name", {}, "Add an object, vehicle, or ped by exact name.")
+    menu.text_input(attachment.menus.exact_name, "Object by Name", {"constructorattachobject"..attachment.handle},
             "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
                 construct_from_plan({
-                    root = attachment.root,
-                    parent = attachment,
-                    name = value,
-                    model = value,
+                    root = attachment.root, parent = attachment, name = value, model = value,
                 })
             end)
-
-    menu.text_input(attachment.menus.add_attachment, "Vehicle by Name", {"constructorattachvehicle"},
+    menu.text_input(attachment.menus.exact_name, "Vehicle by Name", {"constructorattachvehicle"..attachment.handle},
             "Add a vehicle by exact name.", function (value)
                 construct_from_plan({
-                    root = attachment.root,
-                    parent = attachment,
-                    name = value,
-                    model = value,
-                    type = "VEHICLE",
+                    root = attachment.root, parent = attachment, name = value, model = value, type = "VEHICLE",
                 })
             end)
-
-    menu.text_input(attachment.menus.add_attachment, "Ped by Name", {"constructorattachvehicle"},
+    menu.text_input(attachment.menus.exact_name, "Ped by Name", {"constructorattachped"..attachment.handle},
             "Add a vehicle by exact name.", function (value)
                 construct_from_plan({
-                    root = attachment.root,
-                    parent = attachment,
-                    name = value,
-                    model = value,
-                    type = "PED",
+                    root = attachment.root, parent = attachment, name = value, model = value, type = "PED",
                 })
             end)
+    menu.hyperlink(attachment.menus.exact_name, "Open gta-objects.xyz", "https://gta-objects.xyz/", "Website for browsing and searching for props")
 
     menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
         config.add_attachment_gun_active = on
@@ -1324,7 +946,7 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.options.has_collision = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.has_collision)
-        attachment.menus.option_invincible = menu.toggle(attachment.menus.options, "Invincible", {}, "Will the attachment be impervious to damage, or be damageable.", function(on)
+        attachment.menus.option_invincible = menu.toggle(attachment.menus.options, "Invincible", {}, "Will the attachment be impervious to damage, or be damageable. AKA Godmode.", function(on)
             attachment.options.is_invincible = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_invincible)
@@ -1482,9 +1104,11 @@ menus.rebuild_attachment_menu = function(attachment)
             delete_construct(attachment)
             construct_from_plan(construct_plan)
         end)
-        attachment.menus.save = menu.action(attachment.menus.main, "Save", {}, "Save this construct to disk so it can be loaded and shared", function()
+        attachment.menus.save = menu.text_input(attachment.menus.main, "Save As", { "constructorsaveas"..attachment.handle}, "Save construct to disk", function(value)
+            attachment.name = value
             save_vehicle(attachment)
-        end)
+            attachment.menus.refresh()
+        end, attachment.name)
         attachment.menus.delete = menu.action(attachment.menus.main, "Delete", {}, "Delete construct and all attachments. Cannot be reconstructed unless saved.", function()
             if #attachment.children > 0 then
                 menu.show_warning(attachment.menus.main, CLICK_COMMAND, "Are you sure you want to delete this construct? "..#attachment.children.." children will also be deleted.", function()
@@ -1663,10 +1287,13 @@ end, config.drive_spawned_vehicles)
 menu.toggle(options_menu, "Show Previews", {}, "Show previews when adding attachments", function(on)
     config.show_previews = on
 end, config.show_previews)
+menu.slider(options_menu, "Preview Display Delay", {}, "After browsing to a construct or attachment, wait this long before showing the preview.", 100, 1000, config.preview_display_delay, 50, function(value)
+    config.preview_display_delay = value
+end)
 menu.toggle(options_menu, "Deconstruct All on Unload", {}, "Deconstruct all spawned constructs when unloading Constructor", function(on)
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
-menu.action(options_menu, "Clean Up", {}, "Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris.", function()
+menu.action(options_menu, "Clean Up", {"cleanup"}, "Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris.", function()
     local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),100)
     local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),100)
     local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),100)
@@ -1676,8 +1303,7 @@ end)
 
 local script_meta_menu = menu.list(menu.my_root(), "Script Meta")
 menu.divider(script_meta_menu, "Constructor")
-menu.readonly(script_meta_menu, "Version", SCRIPT_VERSION)
-menu.readonly(script_meta_menu, "Constructor Lib Version", constructor_lib.LIB_VERSION)
+menu.readonly(script_meta_menu, "Version", VERSION_STRING)
 menu.list_select(script_meta_menu, "Release Branch", {}, "Switch from main to dev to get cutting edge updates, but also potentially more bugs.", AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
     if click_type ~= 0 then return end
     auto_update_branch(AUTO_UPDATE_BRANCHES[index][1])
