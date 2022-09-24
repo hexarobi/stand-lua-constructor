@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.12"
+local LIB_VERSION = "3.13"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -564,7 +564,7 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options.is_visible == nil then attachment.options.is_visible = true end
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
     if attachment.options.has_collision == nil then attachment.options.has_collision = true end
-    if attachment.is_preview == nil then attachment.is_preview = false end
+    if attachment.root ~= nil and attachment.root.is_preview then attachment.is_preview = true end
     if attachment.options.is_networked == nil and (attachment.root ~= nil and not attachment.root.is_preview) then
         attachment.options.is_networked = true
     end
@@ -610,6 +610,19 @@ constructor_lib.update_attachment = function(attachment)
     AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud or false)
 
     if attachment == attachment.parent then
+
+    else
+        ENTITY.ATTACH_ENTITY_TO_ENTITY(
+                attachment.handle, attachment.parent.handle, attachment.options.bone_index,
+                attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
+                attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
+                false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
+        )
+    end
+end
+
+constructor_lib.update_attachment_position = function(attachment)
+    if attachment == attachment.parent then
         ENTITY.SET_ENTITY_ROTATION(
                 attachment.handle,
                 attachment.rotation.x,
@@ -635,13 +648,6 @@ constructor_lib.update_attachment = function(attachment)
                 )
             end
         end
-    else
-        ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                attachment.handle, attachment.parent.handle, attachment.options.bone_index,
-                attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
-                attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
-        )
     end
 end
 
@@ -678,15 +684,16 @@ constructor_lib.attach_attachment = function(attachment)
 
     local invis_wheels = (attachment.vehicle_attributes and attachment.vehicle_attributes.wheels and attachment.vehicle_attributes.wheels.invisible_wheels)
 
+    local is_networked = attachment.options.is_networked and not attachment.is_preview
     if attachment.type == "VEHICLE" and not invis_wheels then
-        if attachment.options.is_networked then
+        if is_networked then
             attachment.handle = entities.create_vehicle(attachment.hash, attachment.offset, attachment.heading)
         else
             attachment.handle = VEHICLE.CREATE_VEHICLE(
                     attachment.hash,
                     attachment.offset.x, attachment.offset.y, attachment.offset.z,
                     attachment.heading,
-                    attachment.options.is_networked,
+                    is_networked,
                     attachment.options.is_mission_entity,
                     false
             )
@@ -694,14 +701,14 @@ constructor_lib.attach_attachment = function(attachment)
         constructor_lib.deserialize_vehicle_attributes(attachment)
     elseif attachment.type == "PED" then
         local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
-        if attachment.options.is_networked then
+        if is_networked then
             attachment.handle = entities.create_ped(1, attachment.hash, pos, attachment.heading)
         else
             attachment.handle = PED.CREATE_PED(
                     1, attachment.hash,
                     pos.x, pos.y, pos.z,
                     attachment.heading,
-                    attachment.options.is_networked,
+                    is_networked,
                     attachment.options.is_mission_entity
             )
         end
@@ -716,13 +723,13 @@ constructor_lib.attach_attachment = function(attachment)
         else
             pos = ENTITY.GET_ENTITY_COORDS(attachment.root.handle)
         end
-        if attachment.options.is_networked then
+        if is_networked then
             attachment.handle = entities.create_object(attachment.hash, pos)
         else
             attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(
                     attachment.hash,
                     pos.x, pos.y, pos.z,
-                    attachment.options.is_networked,
+                    is_networked,
                     attachment.options.is_mission_entity,
                     false
             )
@@ -738,6 +745,8 @@ constructor_lib.attach_attachment = function(attachment)
         error("Error attaching attachment. Could not create handle.")
     end
 
+    --util.log("Created attachment "..attachment.name.." "..attachment.handle)
+
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
 
     if attachment.num_bones == nil then attachment.num_bones = ENTITY._GET_ENTITY_BONE_COUNT(attachment.handle) end
@@ -750,6 +759,7 @@ constructor_lib.attach_attachment = function(attachment)
     end
 
     constructor_lib.update_attachment(attachment)
+    constructor_lib.update_attachment_position(attachment)
     constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
 
     -- Pause for a tick between each model load to avoid loading too many at once
@@ -779,6 +789,7 @@ constructor_lib.move_attachment = function(attachment)
         constructor_lib.update_attachment(attachment.reflection)
     end
     constructor_lib.update_attachment(attachment)
+    constructor_lib.update_attachment_position(attachment)
 end
 
 constructor_lib.detach_attachment = function(attachment)
@@ -793,14 +804,18 @@ end
 
 constructor_lib.remove_attachment = function(attachment)
     if not attachment then return end
-    table.array_remove(attachment.children, function(t, i)
-        local child_attachment = t[i]
-        constructor_lib.remove_attachment(child_attachment)
-        return false
-    end)
-    if attachment.handle then
-        entities.delete_by_handle(attachment.handle)
+    if attachment.children then
+        table.array_remove(attachment.children, function(t, i)
+            local child_attachment = t[i]
+            constructor_lib.remove_attachment(child_attachment)
+            return false
+        end)
     end
+    if not attachment.handle then
+        error("Cannot remove attachment. No valid handle found. "..tostring(attachment.name))
+    end
+    entities.delete_by_handle(attachment.handle)
+    util.log("Removed attachment. "..tostring(attachment.name))
     if attachment.menus then
         for _, attachment_menu in pairs(attachment.menus) do
             -- Sometimes these menu handles are invalid but I don't know why,
@@ -842,7 +857,7 @@ constructor_lib.attach_attachment_with_children = function(new_attachment)
     --if constructor_lib.debug then util.log("Attaching attachment with children "..(new_attachment.name or new_attachment.model or new_attachment.hash)) end
     for key, value in pairs(constructor_lib.construct_base) do
         if new_attachment[key] == nil then
-            new_attachment[key] = value
+            new_attachment[key] = table.table_copy(value)
         end
     end
     local attachment = constructor_lib.attach_attachment(new_attachment)
