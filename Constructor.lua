@@ -9,7 +9,8 @@ local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
+local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
 --- Auto-Updater
@@ -40,11 +41,12 @@ if not status then
 end
 if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
 
-local function auto_update_branch(selected_branch)
-    local branch_source_url = auto_update_source_url:gsub("/main/", "/"..selected_branch.."/")
-    auto_updater.run_auto_update({source_url=branch_source_url, script_relpath=SCRIPT_RELPATH, verify_file_begins_with="--"})
-end
-auto_update_branch(AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1])
+auto_updater.run_auto_update({
+    source_url=auto_update_source_url,
+    script_relpath=SCRIPT_RELPATH,
+    switch_to_branch=selected_branch,
+    verify_file_begins_with="--",
+})
 
 ---
 --- Dependencies
@@ -70,6 +72,7 @@ local inspect = auto_updater.require_with_auto_update({
 local constructor_lib = auto_updater.require_with_auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
     script_relpath="lib/constructor/constructor_lib.lua",
+    switch_to_branch=selected_branch,
     verify_file_begins_with="--",
 })
 
