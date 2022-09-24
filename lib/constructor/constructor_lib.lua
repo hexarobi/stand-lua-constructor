@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.14"
+local LIB_VERSION = "3.15b1"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -549,6 +549,13 @@ constructor_lib.set_attachment_internal_collisions = function(attachment, new_at
         for _, child_attachment in pairs(attachment.children) do
             constructor_lib.set_attachment_internal_collisions(child_attachment, new_attachment)
         end
+    end
+end
+
+constructor_lib.completely_disable_attachment_collision = function(attachment)
+    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
+    for _, child_attachment in pairs(attachment.children) do
+        constructor_lib.completely_disable_attachment_collision(child_attachment)
     end
 end
 
@@ -1833,3 +1840,4 @@ end
 ---
 
 return constructor_lib
+
