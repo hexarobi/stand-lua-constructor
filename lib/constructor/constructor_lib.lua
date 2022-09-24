@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.13"
+local LIB_VERSION = "3.14"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -41,6 +41,7 @@ constructor_lib.construct_base = {
 
 util.require_natives(1660775568)
 
+util.ensure_package_is_installed('lua/SLAXML')
 local slaxdom = require("lib/slaxdom")
 
 function table.table_copy(obj)
@@ -398,7 +399,7 @@ end
 
 constructor_lib.serialize_vehicle_wheels = function(vehicle, serialized_vehicle)
     if serialized_vehicle.wheels == nil then serialized_vehicle.wheels = {} end
-    serialized_vehicle.wheels.type = VEHICLE.GET_VEHICLE_WHEEL_TYPE(vehicle.handle)
+    serialized_vehicle.wheels.wheel_type = VEHICLE.GET_VEHICLE_WHEEL_TYPE(vehicle.handle)
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, color.r, color.g, color.b)
     serialized_vehicle.wheels.tire_smoke_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
@@ -568,7 +569,7 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options.is_networked == nil and (attachment.root ~= nil and not attachment.root.is_preview) then
         attachment.options.is_networked = true
     end
-    if attachment.options.is_mission_entity == nil then attachment.options.is_mission_entity = true end
+    if attachment.options.is_mission_entity == nil then attachment.options.is_mission_entity = false end
     if attachment.options.is_invincible == nil then attachment.options.is_invincible = true end
     if attachment.options.is_bullet_proof == nil then attachment.options.is_bullet_proof = true end
     if attachment.options.is_fire_proof == nil then attachment.options.is_fire_proof = true end
@@ -741,11 +742,16 @@ constructor_lib.attach_attachment = function(attachment)
         end
     end
 
+    --util.log("Created attachment "..attachment.name.." "..attachment.handle)
+
     if not attachment.handle then
         error("Error attaching attachment. Could not create handle.")
     end
 
-    --util.log("Created attachment "..attachment.name.." "..attachment.handle)
+    if attachment.root.is_preview == true then
+        ENTITY.SET_ENTITY_ALPHA(attachment.handle, 206, false)
+        ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
+    end
 
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
 
@@ -753,10 +759,6 @@ constructor_lib.attach_attachment = function(attachment)
     if attachment.type == nil then attachment.type = ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)] end
     if attachment.flash_start_on ~= nil then ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0) end
     if attachment.options.is_invincible ~= nil then ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, attachment.options.is_invincible) end
-    if attachment.root.is_preview == true then
-        ENTITY.SET_ENTITY_ALPHA(attachment.handle, 206, false)
-        ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
-    end
 
     constructor_lib.update_attachment(attachment)
     constructor_lib.update_attachment_position(attachment)
