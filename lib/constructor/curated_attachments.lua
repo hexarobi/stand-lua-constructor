@@ -9,7 +9,10 @@ return {
                 model = "hei_prop_wall_light_10a_cr",
                 offset = { x = 0, y = 0, z = 1 },
                 rotation = { x = 180, y = 0, z = 0 },
-                options = { options = { is_light_disabled = true } },
+                options = {
+                    is_light_disabled = true,
+                    has_collision = false,
+                },
                 children = {
                     {
                         model = "prop_wall_light_10a",
@@ -17,6 +20,7 @@ return {
                         options = {
                             is_light_disabled = false,
                             bone_index = 1,
+                            has_collision = false,
                         },
                     },
                 },
@@ -26,7 +30,10 @@ return {
                 model = "hei_prop_wall_light_10a_cr",
                 offset = { x = 0, y = 0, z = 1 },
                 rotation = { x = 180, y = 0, z = 0 },
-                options = { options = { is_light_disabled = true } },
+                options = {
+                    is_light_disabled = true,
+                    has_collision = false,
+                },
                 children = {
                     {
                         model = "prop_wall_light_10b",
@@ -34,6 +41,7 @@ return {
                         options = {
                             is_light_disabled = false,
                             bone_index = 1,
+                            has_collision = false,
                         },
                     },
                 },
@@ -43,7 +51,10 @@ return {
                 model = "hei_prop_wall_light_10a_cr",
                 offset = { x = 0, y = 0, z = 1 },
                 rotation = { x = 180, y = 0, z = 0 },
-                options = { is_light_disabled = true },
+                options = {
+                    is_light_disabled = true,
+                    has_collision = false,
+                },
                 children = {
                     {
                         model = "prop_wall_light_10c",
@@ -51,6 +62,7 @@ return {
                         options = {
                             is_light_disabled = false,
                             bone_index = 1,
+                            has_collision = false,
                         },
                     },
                 },
@@ -61,7 +73,10 @@ return {
                 model = "hei_prop_wall_light_10a_cr",
                 offset = { x = 0, y = 0, z = 1 },
                 rotation = { x = 180, y = 0, z = 0 },
-                options = { is_light_disabled = true },
+                options = {
+                    is_light_disabled = true,
+                    has_collision = false,
+                },
                 children = {
                     {
                         model = "prop_wall_light_10b",
@@ -69,6 +84,7 @@ return {
                         options = {
                             is_light_disabled = false,
                             bone_index = 1,
+                            has_collision = false,
                         },
                     },
                     {
@@ -78,6 +94,7 @@ return {
                         options = {
                             is_light_disabled = false,
                             bone_index = 1,
+                            has_collision = false,
                         },
                     },
                 },
@@ -102,7 +119,10 @@ return {
                 model = "hei_prop_wall_light_10a_cr",
                 offset = { x = 0.3, y = 0, z = 1 },
                 rotation = { x = 180, y = 0, z = 0 },
-                options = { is_light_disabled = true },
+                options = {
+                    is_light_disabled = true,
+                    has_collision = false,
+                },
                 children = {
                     {
                         model = "prop_wall_light_10b",
@@ -110,12 +130,16 @@ return {
                         options = {
                             is_light_disabled = false,
                             bone_index = 1,
+                            has_collision = false,
                         },
                     },
                     {
                         model = "hei_prop_wall_light_10a_cr",
                         reflection_axis = { x = true, y = false, z = false },
-                        options = { is_light_disabled = true },
+                        options = {
+                            is_light_disabled = true,
+                            has_collision = false,
+                        },
                         children = {
                             {
                                 model = "prop_wall_light_10a",
@@ -124,6 +148,7 @@ return {
                                 options = {
                                     is_light_disabled = false,
                                     bone_index = 1,
+                                    has_collision = false,
                                 },
                             },
                         },
