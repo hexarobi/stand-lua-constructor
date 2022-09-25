@@ -4,19 +4,17 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.17b1"
+local SCRIPT_VERSION = "0.17b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
---- Auto-Updater
+--- Auto-Updater Lib Install
 ---
-
-local auto_update_source_url = "https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua"
 
 -- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
 local status, auto_updater = pcall(require, "auto-updater")
@@ -41,17 +39,17 @@ if not status then
 end
 if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
 
+---
+--- Auto-Update
+---
+
 local auto_update_config = {
-    source_url=auto_update_source_url,
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua",
     script_relpath=SCRIPT_RELPATH,
     switch_to_branch=selected_branch,
     verify_file_begins_with="--",
 }
-
-local function auto_update_script()
-    auto_updater.run_auto_update(auto_update_config)
-end
-auto_update_script()
+auto_updater.run_auto_update(auto_update_config)
 
 ---
 --- Dependencies
@@ -1439,12 +1437,14 @@ menu.divider(script_meta_menu, "Constructor")
 menu.readonly(script_meta_menu, "Version", VERSION_STRING)
 menu.list_select(script_meta_menu, "Release Branch", {}, "Switch from main to dev to get cutting edge updates, but also potentially more bugs.", AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
     if click_type ~= 0 then return end
-    selected_branch = AUTO_UPDATE_BRANCHES[index][1]
-    auto_update_script()
+    auto_update_config.switch_to_branch = AUTO_UPDATE_BRANCHES[index][1]
+    auto_updater.run_auto_update(auto_update_config)
 end)
 menu.action(script_meta_menu, "Check for Update", {}, "The script will automatically check for updates at most daily, but you can manually check using this option anytime.", function()
     auto_update_config.check_interval = 0
-    auto_updater.run_auto_update(auto_update_config)
+    if auto_updater.run_auto_update(auto_update_config) then
+        util.toast("No updates found")
+    end
 end)
 menu.hyperlink(script_meta_menu, "Github Source", "https://github.com/hexarobi/stand-lua-constructor", "View source files on Github")
 menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open Discord Server")
