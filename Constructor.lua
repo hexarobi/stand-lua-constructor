@@ -1439,28 +1439,12 @@ menu.readonly(script_meta_menu, "BigTuna", "Testing, Suggestions and Support")
 --- Run
 ---
 
-local function silent_peds(attachment)
-    if attachment.type == "PED" and attachment.ped_attributes.is_silent then
-        AUDIO.STOP_CURRENT_PLAYING_SPEECH(attachment.handle)
-    end
-    for _, child_attachment in pairs(attachment) do
-        silent_peds(child_attachment)
-    end
-end
-
-local function silent_peds_tick()
-    for _, spawned_construct in pairs(spawned_constructs) do
-        silent_peds(spawned_construct)
-    end
-end
-
 local function constructor_tick()
     aim_info_tick()
     update_preview_tick()
     sensitivity_modifier_check_tick()
     frozen_attachment_tick()
     draw_editing_attachment_bounding_box_tick()
-    silent_peds_tick()
 end
 util.create_tick_handler(constructor_tick)
 
@@ -1475,4 +1459,3 @@ util.on_stop(cleanup_constructs_handler)
 util.create_tick_handler(function()
     return true
 end)
-
