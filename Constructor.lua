@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.16"
+local SCRIPT_VERSION = "0.17"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -13,10 +13,8 @@ local SELECTED_BRANCH_INDEX = 1
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
---- Auto-Updater
+--- Auto-Updater Lib Install
 ---
-
-local auto_update_source_url = "https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua"
 
 -- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
 local status, auto_updater = pcall(require, "auto-updater")
@@ -41,15 +39,17 @@ if not status then
 end
 if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
 
-local function auto_update_script()
-    auto_updater.run_auto_update({
-        source_url=auto_update_source_url,
-        script_relpath=SCRIPT_RELPATH,
-        switch_to_branch=selected_branch,
-        verify_file_begins_with="--",
-    })
-end
-auto_update_script()
+---
+--- Auto-Update
+---
+
+local auto_update_config = {
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua",
+    script_relpath=SCRIPT_RELPATH,
+    switch_to_branch=selected_branch,
+    verify_file_begins_with="--",
+}
+auto_updater.run_auto_update(auto_update_config)
 
 ---
 --- Dependencies
@@ -557,7 +557,6 @@ local function spawn_construct_from_plan(construct_plan)
     construct.heading = ENTITY.GET_ENTITY_HEADING(target_ped)
     construct.root = construct
     construct.parent = construct
-    construct.options.is_invincible = true
     constructor_lib.reattach_attachment_with_children(construct)
     table.insert(spawned_constructs, construct)
     last_spawned_construct = construct
@@ -573,7 +572,7 @@ local function spawn_construct_from_plan(construct_plan)
 end
 
 local function build_construct_from_plan(construct_plan)
-    debug_log("Building construct from plan "..tostring(construct_plan.name), construct_plan)
+    debug_log("Building construct from plan name="..tostring(construct_plan.name).." model="..tostring(construct_plan.model).." "..debug.traceback(), construct_plan)
     if construct_plan == construct_plan.parent then
         spawn_construct_from_plan(construct_plan)
     else
@@ -939,21 +938,22 @@ local function rebuild_reattach_to_menu(attachment, current, path, depth)
     if path == nil then path = {} end
     if depth == nil then depth = 0 end
     depth = depth + 1
-    if depth > 100 then return end
+    if depth > 100 then error("Max depth reached while reattaching") return end
     table.insert(path, current.name)
-    --util.toast("Rebuilding attachment menu "..attachment.name.." path="..inspect(path), TOAST_ALL)
-    menu.action(attachment.menus.option_parent_attachment, table.concat(path, " > "), {}, "", function()
-        util.toast("Reattaching "..attachment.name.." to "..current.name, TOAST_ALL)
-        constructor_lib.detach_attachment(attachment)
-        attachment.parent = current
-        attachment.root = current.root
-        constructor_lib.update_attachment(attachment)
-        table.insert(current.children, attachment)
-        attachment.root.menus.refresh()
-        attachment.menus.focus()
-    end)
-    for _, child_attachment in pairs(current.children) do
-        rebuild_reattach_to_menu(attachment, child_attachment, table.table_copy(path))
+    if attachment ~= current then   -- cant reattach to yourself or your children
+        menu.action(attachment.menus.option_parent_attachment, table.concat(path, " > "), {}, "", function()
+            util.toast("Reattaching "..attachment.name.." to "..current.name, TOAST_ALL)
+            local previous_parent = attachment.parent
+            constructor_lib.detach_attachment(attachment)
+            attachment.parent = current
+            attachment.root = current.root
+            constructor_lib.update_attachment(attachment)
+            table.insert(current.children, attachment)
+            rebuild_attachment(attachment.root)
+        end)
+        for _, child_attachment in pairs(current.children) do
+            rebuild_reattach_to_menu(attachment, child_attachment, table.table_copy(path), depth)
+        end
     end
 end
 
@@ -1264,6 +1264,16 @@ menus.rebuild_attachment_menu = function(attachment)
                 end
             end
         end
+        attachment.menus.rebuild = function()
+            for _, menu_handle in pairs(attachment.menus) do
+                if type(menu_handle) == "number" then pcall(menu.delete, menu_handle) end
+            end
+            attachment.menus = nil
+            menus.rebuild_attachment_menu(attachment)
+            --for _, child_attachment in pairs(attachment.children) do
+            --    child_attachment.menus.rebuild()
+            --end
+        end
         attachment.menus.focus = function()
             if attachment.root.menu_auto_focus ~= false then
                 --util.toast("Auto focusing on "..attachment.name, TOAST_ALL)
@@ -1298,6 +1308,7 @@ menu.action(menus.create_new_construct, "Vehicle From Current", { "constructcrea
 end)
 
 menu.text_input(menus.create_new_construct, "Vehicle From Name", { "constructcreatefromvehiclename"}, "Create a new construct from a vehicle name", function(value)
+    util.toast("creating vehicle from name "..value, TOAST_ALL)
     local construct_plan = {
         model = value,
         type="VEHICLE",
@@ -1426,8 +1437,15 @@ menu.divider(script_meta_menu, "Constructor")
 menu.readonly(script_meta_menu, "Version", VERSION_STRING)
 menu.list_select(script_meta_menu, "Release Branch", {}, "Switch from main to dev to get cutting edge updates, but also potentially more bugs.", AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
     if click_type ~= 0 then return end
-    selected_branch = AUTO_UPDATE_BRANCHES[index][1]
-    auto_update_script()
+    auto_update_config.switch_to_branch = AUTO_UPDATE_BRANCHES[index][1]
+    auto_update_config.check_interval = 0
+    auto_updater.run_auto_update(auto_update_config)
+end)
+menu.action(script_meta_menu, "Check for Update", {}, "The script will automatically check for updates at most daily, but you can manually check using this option anytime.", function()
+    auto_update_config.check_interval = 0
+    if auto_updater.run_auto_update(auto_update_config) then
+        util.toast("No updates found")
+    end
 end)
 menu.hyperlink(script_meta_menu, "Github Source", "https://github.com/hexarobi/stand-lua-constructor", "View source files on Github")
 menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open Discord Server")
@@ -1459,3 +1477,4 @@ util.on_stop(cleanup_constructs_handler)
 util.create_tick_handler(function()
     return true
 end)
+
