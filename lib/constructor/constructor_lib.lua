@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.15b1"
+local LIB_VERSION = "3.15b3"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -720,7 +720,7 @@ constructor_lib.attach_attachment = function(attachment)
                     attachment.options.is_mission_entity
             )
         end
-        if attachment.parent.type == "VEHICLE" and attachment.is_ped_seated_in_vehicle then
+        if attachment.parent.type == "VEHICLE" and attachment.ped_attributes.is_seated then
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, -1)
         end
         constructor_lib.deserialize_ped_attributes(attachment)
@@ -756,7 +756,7 @@ constructor_lib.attach_attachment = function(attachment)
     end
 
     if attachment.root.is_preview == true then
-        ENTITY.SET_ENTITY_ALPHA(attachment.handle, 206, false)
+        if attachment.alpha == nil then ENTITY.SET_ENTITY_ALPHA(attachment.handle, 206, false) end
         ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
     end
 
@@ -852,9 +852,7 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
 end
 
 constructor_lib.reattach_attachment_with_children = function(attachment)
-    --if attachment.root ~= attachment then
-        constructor_lib.attach_attachment(attachment)
-    --end
+    constructor_lib.attach_attachment(attachment)
     for _, child_attachment in pairs(attachment.children) do
         child_attachment.root = attachment.root
         child_attachment.parent = attachment
@@ -1840,4 +1838,3 @@ end
 ---
 
 return constructor_lib
-
