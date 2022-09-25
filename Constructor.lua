@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.15b2"
+local SCRIPT_VERSION = "0.15b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -85,6 +85,13 @@ local curated_attachments = auto_updater.require_with_auto_update({
     verify_file_begins_with="--",
 })
 
+auto_updater.run_auto_update({
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
+    script_relpath="lib/constructor/objects_complete.txt",
+    verify_file_begins_with="ba_prop_glass_garage_opaque",
+})
+local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
+
 menu.delete(loading_menu)
 
 local VERSION_STRING = "Constructor "..SCRIPT_VERSION.." / Lib "..constructor_lib.LIB_VERSION
@@ -149,6 +156,10 @@ local menus = {
 --}
 
 local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
+
+local SIRENS_OFF = 1
+local SIRENS_LIGHTS_ONLY = 2
+local SIRENS_ALL_ON = 3
 
 ---
 --- Utilities
@@ -327,7 +338,7 @@ local function calculate_camera_distance(attachment)
     local l, w, h = calculate_model_size(attachment.hash, minVec, maxVec)
     attachment.camera_distance = math.max(l, w, h) + config.preview_camera_distance
     calculate_construct_size(attachment)
-    attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
+    --attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
 local function add_preview(construct_plan)
@@ -553,7 +564,7 @@ local function spawn_construct_from_plan(construct_plan)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
     construct.menus.refresh()
-    if construct_plan.menu_auto_focus ~= false then
+    if construct.root.menu_auto_focus ~= false then
         construct.menus.focus()
     end
     if construct.type == "VEHICLE" and config.drive_spawned_vehicles then
@@ -587,6 +598,101 @@ local function cleanup_constructs_handler()
             delete_construct(construct)
         end
     end
+end
+
+local function rebuild_attachment(attachment)
+    local construct_plan = constructor_lib.clone_attachment(attachment)
+    delete_construct(attachment)
+    build_construct_from_plan(construct_plan)
+end
+
+---
+--- Siren Controls
+---
+
+local function activate_attachment_lights(attachment)
+    if attachment.is_light_disabled then
+        ENTITY.SET_ENTITY_LIGHTS(attachment.handle, true)
+    else
+        VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
+        VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(attachment.handle, true)
+        ENTITY.SET_ENTITY_LIGHTS(attachment.handle, false)
+        AUDIO._TRIGGER_SIREN(attachment.handle, true)
+        AUDIO._SET_SIREN_KEEP_ON(attachment.handle, true)
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        activate_attachment_lights(child_attachment)
+    end
+end
+
+local function deactivate_attachment_lights(attachment)
+    ENTITY.SET_ENTITY_LIGHTS(attachment.handle, true)
+    AUDIO._SET_SIREN_KEEP_ON(attachment.handle, false)
+    VEHICLE.SET_VEHICLE_SIREN(attachment.handle, false)
+    for _, child_attachment in pairs(attachment.children) do
+        deactivate_attachment_lights(child_attachment)
+    end
+end
+
+local function activate_attachment_sirens(attachment)
+    if attachment.type == "VEHICLE" and attachment.options.has_siren then
+        VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(attachment.handle, false)
+        VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
+        AUDIO._TRIGGER_SIREN(attachment.handle, true)
+        AUDIO._SET_SIREN_KEEP_ON(attachment.handle, true)
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        activate_attachment_sirens(child_attachment)
+    end
+end
+
+local function activate_vehicle_sirens(parent_attachment)
+    -- Vehicle sirens are networked silent without a ped, but adding a ped makes them audible to others
+    for _, attachment in pairs(parent_attachment.children) do
+        if attachment.type == "VEHICLE" and attachment.options.has_siren then
+            local child_attachment = constructor_lib.attach_attachment({
+                root=parent_attachment,
+                parent=attachment,
+                name=parent_attachment.name .. " Driver",
+                model="s_m_m_pilot_01",
+                type="PED",
+                options={is_visible=false},
+                ped_attributes={is_seated=true},
+            })
+            table.insert(attachment.children, child_attachment)
+        end
+    end
+    activate_attachment_sirens(parent_attachment)
+end
+
+local function refresh_vehicle_sirens(attachment)
+    if attachment.options.has_siren then
+        rebuild_attachment(attachment)
+    else
+        for _, child_attachment in attachment.children do
+            refresh_vehicle_sirens(child_attachment)
+        end
+    end
+end
+
+local function deactivate_vehicle_sirens(attachment)
+    -- Once a vehicle has a ped in it with sirens on they cant be turned back off, so despawn and respawn fresh vehicle
+    refresh_vehicle_sirens(attachment)
+end
+
+local function refresh_siren_status(attachment)
+    attachment.root.menu_auto_focus = false
+    if attachment.options.siren_status == SIRENS_OFF then
+        deactivate_attachment_lights(attachment)
+        deactivate_vehicle_sirens(attachment)
+    elseif attachment.options.siren_status == SIRENS_LIGHTS_ONLY then
+        deactivate_vehicle_sirens(attachment)
+        activate_attachment_lights(attachment)
+    elseif attachment.options.siren_status == SIRENS_ALL_ON then
+        activate_attachment_lights(attachment)
+        activate_vehicle_sirens(attachment)
+    end
+    attachment.root.menu_auto_focus = true
 end
 
 ---
@@ -686,10 +792,6 @@ end
 --- Prop Search
 ---
 
-local PROPS_PATH = filesystem.resources_dir().."objects.txt"
---local PEDS_PATH = filesystem.resources_dir().."peds.txt"
---local VEHICLES_PATH = filesystem.resources_dir().."vehicles.txt"
-
 local function search_props(query)
     local results = {}
     for prop in io.lines(PROPS_PATH) do
@@ -714,12 +816,11 @@ local function animate_peds(attachment)
     if attachment.type == "PED" and attachment.ped_attributes ~= nil then
         if attachment.ped_attributes.animation_dict then
             util.toast("Rebuilding ped "..attachment.name)
-            local menu_auto_focus = attachment.menu_auto_focus
             local construct_plan = constructor_lib.clone_attachment(attachment)
             delete_construct(attachment)
-            construct_plan.menu_auto_focus = false
+            construct_plan.root.menu_auto_focus = false
             build_construct_from_plan(construct_plan)
-            construct_plan.menu_auto_focus = menu_auto_focus
+            construct_plan.root.menu_auto_focus = true
         end
     end
     for _, child_attachment in pairs(attachment.children) do
@@ -985,19 +1086,29 @@ menus.rebuild_attachment_menu = function(attachment)
                 attachment.options.radio_loud = toggle
                 constructor_lib.update_attachment(attachment)
             end, attachment.options.radio_loud)
+
+            menu.list_select(attachment.menus.options, "Sirens", {}, "", { "Off", "Lights Only", "Sirens and Lights" }, 1, function(value)
+                local previous_siren_status = attachment.options.siren_status
+                attachment.options.siren_status = value
+                refresh_siren_status(attachment, previous_siren_status)
+            end)
+            menu.toggle(attachment.menus.options, "Has Siren", {}, "If enabled, siren controls will effect this vehicle.", function(value)
+                attachment.options.has_siren = value
+            end, attachment.options.has_siren)
         end
 
         -- Attachment
         menu.divider(attachment.menus.options, "Attachment")
         attachment.menus.option_parent_attachment = menu.list(attachment.menus.options, "Reattach To", {}, "", function()
             rebuild_reattach_to_menu(attachment)
-            menu.action(attachment.menus.option_parent_attachment, attachment.root.name, {}, "", function()
-                local new_parent = attachment.root
-                constructor_lib.detach_attachment(attachment)
-                attachment.parent = new_parent
-                attachment.root = new_parent.root
-                constructor_lib.update_attachment(attachment)
-            end)
+            --menu.action(attachment.menus.option_parent_attachment, attachment.root.name, {}, "", function()
+            --    --constructor_lib.rebuild_attachment(attachment)
+            --    local new_parent = attachment.root
+            --    constructor_lib.detach_attachment(attachment)
+            --    attachment.parent = new_parent
+            --    attachment.root = new_parent.root
+            --    constructor_lib.update_attachment(attachment)
+            --end)
         end)
         attachment.menus.option_bone_index = menu.slider(attachment.menus.options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 100, attachment.options.bone_index or 0, 1, function(value)
             attachment.options.bone_index = value
@@ -1117,9 +1228,7 @@ menus.rebuild_attachment_menu = function(attachment)
         rebuild_attachment_debug_menu(attachment)
 
         attachment.menus.reconstruct_vehicle = menu.action(attachment.menus.main, "Rebuild", {}, "Delete construct (if it still exists), then recreate a new one from scratch.", function()
-            local construct_plan = constructor_lib.clone_attachment(attachment)
-            delete_construct(attachment)
-            build_construct_from_plan(construct_plan)
+            rebuild_attachment(attachment)
         end)
         attachment.menus.save = menu.text_input(attachment.menus.main, "Save As", { "constructorsaveas"..attachment.handle}, "Save construct to disk", function(value)
             attachment.name = value
@@ -1149,14 +1258,15 @@ menus.rebuild_attachment_menu = function(attachment)
             menus.rebuild_attachment_menu(attachment)
             menus.refresh_loaded_constructs()
             if updated_attachment ~= nil and updated_attachment.menus ~= nil then
-                util.toast("Refreshing menu. updated attachment "..updated_attachment.name, TOAST_ALL)
-                if updated_attachment.menu_auto_focus ~= false then
+                --util.toast("Refreshing menu. updated attachment "..updated_attachment.name, TOAST_ALL)
+                if updated_attachment.root.menu_auto_focus ~= false then
                     menu.focus(updated_attachment.menus.name)
                 end
             end
         end
         attachment.menus.focus = function()
-            if attachment.menu_auto_focus ~= false then
+            if attachment.root.menu_auto_focus ~= false then
+                --util.toast("Auto focusing on "..attachment.name, TOAST_ALL)
                 pcall(menu.focus, attachment.menus.name)
             end
         end
