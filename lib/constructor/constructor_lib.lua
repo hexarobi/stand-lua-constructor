@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.15b3"
+local LIB_VERSION = "3.16"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -1014,7 +1014,9 @@ constructor_lib.serialize_attachment = function(attachment)
     serialized_attachment.vehicle_attributes = constructor_lib.serialize_vehicle_attributes(attachment)
     if attachment.children then
         for _, child_attachment in pairs(attachment.children) do
-            table.insert(serialized_attachment.children, constructor_lib.serialize_attachment(child_attachment))
+            if not child_attachment.options.is_temporary then
+                table.insert(serialized_attachment.children, constructor_lib.serialize_attachment(child_attachment))
+            end
         end
     end
     --util.toast(inspect(serialized_attachment), TOAST_ALL)
