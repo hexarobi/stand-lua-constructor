@@ -4,11 +4,11 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.16"
+local LIB_VERSION = "3.16.1"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
-    debug = true
+    debug = false
 }
 
 ---
@@ -617,15 +617,17 @@ constructor_lib.update_attachment = function(attachment)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
     AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud or false)
 
-    if attachment == attachment.parent then
-
-    else
-        ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                attachment.handle, attachment.parent.handle, attachment.options.bone_index,
-                attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
-                attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
-        )
+    if attachment ~= attachment.parent then -- Don't update root object locations
+        if attachment.root.always_spawn_at_position then
+            ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.world_rotation.x, attachment.world_rotation.y, attachment.world_rotation.z)
+        else
+            ENTITY.ATTACH_ENTITY_TO_ENTITY(
+                    attachment.handle, attachment.parent.handle, attachment.options.bone_index,
+                    attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
+                    attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
+                    false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
+            )
+        end
     end
 end
 
@@ -690,10 +692,8 @@ constructor_lib.attach_attachment = function(attachment)
         error("Attachment missing root")
     end
 
-    local invis_wheels = (attachment.vehicle_attributes and attachment.vehicle_attributes.wheels and attachment.vehicle_attributes.wheels.invisible_wheels)
-
     local is_networked = attachment.options.is_networked and not attachment.is_preview
-    if attachment.type == "VEHICLE" and not invis_wheels then
+    if attachment.type == "VEHICLE" then
         if is_networked then
             attachment.handle = entities.create_vehicle(attachment.hash, attachment.offset, attachment.heading)
         else
@@ -720,7 +720,7 @@ constructor_lib.attach_attachment = function(attachment)
                     attachment.options.is_mission_entity
             )
         end
-        if attachment.parent.type == "VEHICLE" and attachment.ped_attributes.is_seated then
+        if attachment.parent.type == "VEHICLE" and attachment.ped_attributes and attachment.ped_attributes.is_seated then
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, -1)
         end
         constructor_lib.deserialize_ped_attributes(attachment)
@@ -741,11 +741,6 @@ constructor_lib.attach_attachment = function(attachment)
                     attachment.options.is_mission_entity,
                     false
             )
-
-        end
-        if invis_wheels then
-            util.toast("Applying ivis wheels to "..attachment.name, TOAST_ALL)
-            constructor_lib.deserialize_vehicle_attributes(attachment)
         end
     end
 
@@ -1802,10 +1797,11 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
     elseif dom.root.name == "SpoonerPlacements" then
         construct_plan.type = "OBJECT"
         construct_plan.model = "prop_air_conelight"
+        construct_plan.always_spawn_at_position = true
         construct_plan.position = {
-            x = find_element(dom.root, "/ReferenceCoords/X"),
-            y = find_element(dom.root, "/ReferenceCoords/Y"),
-            z = find_element(dom.root, "/ReferenceCoords/Z"),
+            x = tonumber(find_element(dom.root, "/SpoonerPlacements/ReferenceCoords/X")),
+            y = tonumber(find_element(dom.root, "/SpoonerPlacements/ReferenceCoords/Y")),
+            z = tonumber(find_element(dom.root, "/SpoonerPlacements/ReferenceCoords/Z")),
         }
         children_path = "/SpoonerPlacements"
         child_path = "Placement"
@@ -1842,4 +1838,3 @@ end
 ---
 
 return constructor_lib
-
