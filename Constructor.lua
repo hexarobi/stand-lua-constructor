@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.17"
+local SCRIPT_VERSION = "0.17.1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -105,7 +105,7 @@ local config = {
     edit_offset_step = 10,
     edit_rotation_step = 15,
     add_attachment_gun_active = false,
-    debug = true,
+    debug = false,
     show_previews = true,
     preview_camera_distance = 3,
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
@@ -342,6 +342,7 @@ local function calculate_camera_distance(attachment)
 end
 
 local function add_preview(construct_plan)
+    if construct_plan.always_spawn_at_position then return end
     debug_log("Adding preview for construct plan "..tostring(construct_plan.name), construct_plan)
     if config.show_previews == false then return end
     remove_preview()
@@ -552,9 +553,11 @@ local function spawn_construct_from_plan(construct_plan)
     debug_log("Spawning construct from plan "..tostring(construct_plan.name), construct_plan)
     local construct = copy_construct_plan(construct_plan)
     calculate_camera_distance(construct)
-    construct.position = get_offset_from_camera(construct.camera_distance)
-    local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
-    construct.heading = ENTITY.GET_ENTITY_HEADING(target_ped)
+    if not construct_plan.always_spawn_at_position then
+        construct.position = get_offset_from_camera(construct.camera_distance)
+        local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+        construct.heading = ENTITY.GET_ENTITY_HEADING(target_ped)
+    end
     construct.root = construct
     construct.parent = construct
     constructor_lib.reattach_attachment_with_children(construct)
@@ -728,6 +731,10 @@ local function load_construct_plan_from_json_file(filepath)
     local data = read_file(filepath)
     if not data then return end
     return json.decode(data)
+end
+
+local function is_file_type_supported(file_extension)
+    return (file_extension == "json" or file_extension == "xml")
 end
 
 local function load_construct_plan_file(construct_plan_file)
@@ -957,6 +964,46 @@ local function rebuild_reattach_to_menu(attachment, current, path, depth)
     end
 end
 
+local function make_wheels_invis(attachment)
+
+    local DBL_MAX = 9999999999
+    local QUAD_MAX = DBL_MAX*DBL_MAX
+
+    VEHICLE.SET_VEHICLE_FORWARD_SPEED(attachment.handle, QUAD_MAX)
+    util.yield(100)
+    VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, QUAD_MAX)
+    VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, QUAD_MAX)
+    ENTITY.APPLY_FORCE_TO_ENTITY(attachment)
+
+    --if (g_vehWheelsInvisForRussian.find(vehicle.Handle()) == g_vehWheelsInvisForRussian.end())
+    --g_vehWheelsInvisForRussian.insert(vehicle.Handle());
+    --
+    --vehicle.RequestControl(800);
+    --vehicle.SetForwardSpeed(DBL_MAX*DBL_MAX);
+    --WAIT(100);
+    --_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(vehicle.Handle(), DBL_MAX*DBL_MAX);
+    --_SET_VEHICLE_ENGINE_POWER_MULTIPLIER(vehicle.Handle(), DBL_MAX*DBL_MAX);
+    --vehicle.ApplyForceRelative(Vector3(0, 0, -DBL_MAX*DBL_MAX));
+    --WAIT(100);
+    --if (g_multList_rpm.count(vehicle.Handle()))
+    --{
+    --_SET_VEHICLE_ENGINE_POWER_MULTIPLIER(vehicle.Handle(), g_multList_rpm[vehicle.Handle()]);
+    --}
+    --else
+    --{
+    --_SET_VEHICLE_ENGINE_POWER_MULTIPLIER(vehicle.Handle(), 1.0f);
+    --}
+    --if (g_multList_torque.count(vehicle.Handle()))
+    --{
+    --_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(vehicle.Handle(), g_multList_torque[vehicle.Handle()]);
+    --}
+    --else
+    --{
+    --_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(vehicle.Handle(), 1.0f);
+    --}
+
+end
+
 menus.rebuild_attachment_menu = function(attachment)
     debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
     if not attachment.handle then error("Attachment missing handle") end
@@ -1076,6 +1123,12 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.options.is_frozen = on
         end, attachment.options.is_frozen)
 
+
+        attachment.menus.option_lod_distance = menu.slider(attachment.menus.options, "LOD Distance", {}, "", 1, 9999999, 500, 100, function(value)
+            attachment.options.lod_distance = value
+            ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance);
+        end)
+
         if attachment.type == "VEHICLE" then
             menu.divider(attachment.menus.options, "Vehicle")
             menu.toggle_loop(attachment.menus.options, "Engine Always On", {}, "If enabled, vehicle will stay running even when unoccupied", function()
@@ -1101,14 +1154,6 @@ menus.rebuild_attachment_menu = function(attachment)
         menu.divider(attachment.menus.options, "Attachment")
         attachment.menus.option_parent_attachment = menu.list(attachment.menus.options, "Reattach To", {}, "", function()
             rebuild_reattach_to_menu(attachment)
-            --menu.action(attachment.menus.option_parent_attachment, attachment.root.name, {}, "", function()
-            --    --constructor_lib.rebuild_attachment(attachment)
-            --    local new_parent = attachment.root
-            --    constructor_lib.detach_attachment(attachment)
-            --    attachment.parent = new_parent
-            --    attachment.root = new_parent.root
-            --    constructor_lib.update_attachment(attachment)
-            --end)
         end)
         attachment.menus.option_bone_index = menu.slider(attachment.menus.options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 100, attachment.options.bone_index or 0, 1, function(value)
             attachment.options.bone_index = value
@@ -1366,17 +1411,19 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
                 add_directory_to_load_constructs(path.."/"..construct_plan_file.filename, construct_plan_file)
             end)
         else
-            construct_plan_file.menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
-                remove_preview()
-                local construct_plan = load_construct_plan_file(construct_plan_file)
-                if construct_plan then
-                    construct_plan.root = construct_plan
-                    construct_plan.parent = construct_plan
-                    build_construct_from_plan(construct_plan)
-                end
-            end)
-            menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file)) end end)
-            menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
+            if is_file_type_supported(construct_plan_file.ext) then
+                construct_plan_file.menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
+                    remove_preview()
+                    local construct_plan = load_construct_plan_file(construct_plan_file)
+                    if construct_plan then
+                        construct_plan.root = construct_plan
+                        construct_plan.parent = construct_plan
+                        build_construct_from_plan(construct_plan)
+                    end
+                end)
+                menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file)) end end)
+                menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
+            end
         end
         table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
     end
@@ -1477,4 +1524,3 @@ util.on_stop(cleanup_constructs_handler)
 util.create_tick_handler(function()
     return true
 end)
-
