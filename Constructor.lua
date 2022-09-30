@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.17.1"
+local SCRIPT_VERSION = "0.18"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -33,7 +33,7 @@ if not status then
                 end
                 auto_update_complete = parse_auto_update_result(result, headers, status_code)
             end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
-    async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 20) do util.yield(250) i = i + 1 end
+    async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 40) do util.yield(250) i = i + 1 end
     if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
     auto_updater = require("auto-updater")
 end
@@ -72,6 +72,12 @@ local inspect = auto_updater.require_with_auto_update({
     verify_file_begins_with="local",
 })
 
+auto_updater.require_with_auto_update({
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
+    script_relpath="lib/constructor/xml2lua.lua",
+    verify_file_begins_with="--",
+})
+
 local constructor_lib = auto_updater.require_with_auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
     script_relpath="lib/constructor/constructor_lib.lua",
@@ -105,7 +111,7 @@ local config = {
     edit_offset_step = 10,
     edit_rotation_step = 15,
     add_attachment_gun_active = false,
-    debug = false,
+    debug = true,
     show_previews = true,
     preview_camera_distance = 3,
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
@@ -338,7 +344,7 @@ local function calculate_camera_distance(attachment)
     local l, w, h = calculate_model_size(attachment.hash, minVec, maxVec)
     attachment.camera_distance = math.max(l, w, h) + config.preview_camera_distance
     calculate_construct_size(attachment)
-    --attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
+    attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
 local function add_preview(construct_plan)
@@ -371,7 +377,7 @@ end
 local function update_preview_tick()
     if current_preview ~= nil then
         current_preview.position = get_offset_from_camera(current_preview.camera_distance)
-        current_preview.rotation.z = current_preview.rotation.z + 2
+        current_preview.world_rotation.z = current_preview.world_rotation.z + 2
         constructor_lib.update_attachment(current_preview)
         constructor_lib.update_attachment_position(current_preview)
         constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
@@ -1016,6 +1022,8 @@ menus.rebuild_attachment_menu = function(attachment)
         else
             parent_menu = attachment.parent.menus.edit_attachments
         end
+        local attachment_label = attachment.name
+        if #attachment.children > 0 then attachment_label = attachment_label .. " (" .. #attachment.children .. ")" end
         attachment.menus.main = menu.list(parent_menu, attachment.name)
         -- TODO: This causes a crash when loading vehicle?!
         --attachment.menus.children = {}
@@ -1081,20 +1089,19 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.move_attachment(attachment)
         end)
 
-        -- TODO: Apply world rotation? Rudolph nose is off in BIGHEAD Xmas
-        --menu.divider(attachment.menus.position, "World Rotation")
-        --attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, "X: Pitch", {"constructorrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
-        --    attachment.world_rotation.x = value
-        --    constructor_lib.move_attachment(attachment)
-        --end)
-        --attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, "Y: Roll", {"constructorrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
-        --    attachment.world_rotation.y = value
-        --    constructor_lib.move_attachment(attachment)
-        --end)
-        --attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, "Z: Yaw", {"constructorrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
-        --    attachment.world_rotation.z = value
-        --    constructor_lib.move_attachment(attachment)
-        --end)
+        menu.divider(attachment.menus.position, "World Rotation")
+        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, "X: Pitch", {"constructorrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
+            attachment.world_rotation.x = value
+            constructor_lib.move_attachment(attachment)
+        end)
+        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, "Y: Roll", {"constructorrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
+            attachment.world_rotation.y = value
+            constructor_lib.move_attachment(attachment)
+        end)
+        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, "Z: Yaw", {"constructorrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
+            attachment.world_rotation.z = value
+            constructor_lib.move_attachment(attachment)
+        end)
 
         --menu.divider(attachment.menus.main, "Options")
         attachment.menus.options = menu.list(attachment.menus.main, "Options")
@@ -1122,11 +1129,9 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.option_frozen = menu.toggle(attachment.menus.options, "Frozen", {}, "Will the attachment be frozen in place, or allowed to move freely", function(on)
             attachment.options.is_frozen = on
         end, attachment.options.is_frozen)
-
-
-        attachment.menus.option_lod_distance = menu.slider(attachment.menus.options, "LOD Distance", {}, "", 1, 9999999, 500, 100, function(value)
+        attachment.menus.option_lod_distance = menu.slider(attachment.menus.options, "LoD Distance", {}, "Level of Detail draw distance", 1, 9999999, attachment.options.lod_distance, 100, function(value)
             attachment.options.lod_distance = value
-            ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance);
+            constructor_lib.update_attachment(attachment)
         end)
 
         if attachment.type == "VEHICLE" then
