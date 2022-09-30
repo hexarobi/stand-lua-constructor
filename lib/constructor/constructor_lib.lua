@@ -8,7 +8,7 @@ local LIB_VERSION = "3.18"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
-    debug = true
+    debug = false
 }
 
 ---
