@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.18"
+local LIB_VERSION = "3.19"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -673,9 +673,9 @@ constructor_lib.update_attachment_position = function(attachment)
             else
                 ENTITY.SET_ENTITY_COORDS(
                         attachment.handle,
-                        attachment.position.x + attachment.offset.x,
-                        attachment.position.y + attachment.offset.y,
-                        attachment.position.z + attachment.offset.z,
+                        attachment.position.x,
+                        attachment.position.y,
+                        attachment.position.z,
                         true, false, false
                 )
             end
@@ -1311,14 +1311,6 @@ local function value_splitter(value)
     return {tonumber(split_value[1]), tonumber(split_value[2])}
 end
 
-local function map_spooner_placement(construct_plan, spooner_placement)
-    construct_plan.position = {
-        x = tonumber(spooner_placement.ReferenceCoords.X),
-        y = tonumber(spooner_placement.ReferenceCoords.Y),
-        z = tonumber(spooner_placement.ReferenceCoords.Z)
-    }
-end
-
 local function map_vehicle_attributes(attachment, placement)
     if not placement.VehicleProperties then return end
 
@@ -1413,40 +1405,44 @@ local function map_ped_placement(attachment, placement)
     if not placement.PedProperties then return end
 
     if attachment.ped_attributes == nil then attachment.ped_attributes = {} end
-    attachment.ped_attributes.can_rag_doll = toboolean(placement.PedProperties.CanRagDoll)
-    attachment.ped_attributes.armour = tonumber(placement.PedProperties.Armour)
-    attachment.ped_attributes.current_weapon = tonumber(placement.PedProperties.CurrentWeapon)
-    attachment.ped_attributes.animation_dict = placement.PedProperties.AnimDict
-    attachment.ped_attributes.animation_name = placement.PedProperties.AnimName
+    if placement.PedProperties.CanRagDoll ~= nil then attachment.ped_attributes.can_rag_doll = toboolean(placement.PedProperties.CanRagDoll) end
+    if placement.PedProperties.Armour ~= nil then attachment.ped_attributes.armour = tonumber(placement.PedProperties.Armour) end
+    if placement.PedProperties.CurrentWeapon ~= nil then attachment.ped_attributes.current_weapon = tonumber(placement.PedProperties.CurrentWeapon) end
+    if placement.PedProperties.AnimDict ~= nil then attachment.ped_attributes.animation_dict = placement.PedProperties.AnimDict end
+    if placement.PedProperties.AnimName ~= nil then attachment.ped_attributes.animation_name = placement.PedProperties.AnimName end
 
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
-    for index = 0, 9 do
-        attachment.ped_attributes.props["_"..index] = value_splitter(placement.PedProperties.PedProps["_"..index])
+    if placement.PedProperties.PedProps ~= nil then
+        for index = 0, 9 do
+            attachment.ped_attributes.props["_"..index] = value_splitter(placement.PedProperties.PedProps["_"..index])
+        end
     end
     if attachment.ped_attributes.components == nil then attachment.ped_attributes.components = {} end
-    for index = 0, 11 do
-        attachment.ped_attributes.components["_"..index] = value_splitter(placement.PedProperties.PedComps["_"..index])
+    if placement.PedProperties.PedComps ~= nil then
+        for index = 0, 11 do
+            attachment.ped_attributes.components["_"..index] = value_splitter(placement.PedProperties.PedComps["_"..index])
+        end
     end
 
 end
 
 local function map_placement_options(attachment, placement)
     if attachment.options == nil then attachment.options = {} end
-    attachment.options.is_frozen = placement.FrozenPos
-    attachment.options.alpha = tonumber(placement.OpacityLevel)
-    attachment.options.lod_distance = tonumber(placement.LodDistance)
-    attachment.options.is_visible = toboolean(placement.IsVisible)
+    if placement.FrozenPos ~= nil then attachment.options.is_frozen = placement.FrozenPos end
+    if placement.OpacityLevel ~= nil then attachment.options.alpha = tonumber(placement.OpacityLevel) end
+    if placement.LodDistance ~= nil then attachment.options.lod_distance = tonumber(placement.LodDistance) end
+    if placement.IsVisible ~= nil then attachment.options.is_visible = toboolean(placement.IsVisible) end
     -- max health
     -- health
-    attachment.options.has_gravity = toboolean(placement.HasGravity)
+    if placement.HasGravity ~= nil then attachment.options.has_gravity = toboolean(placement.HasGravity) end
     -- on fire
-    attachment.options.is_invincible = toboolean(placement.IsInvincible)
-    attachment.options.is_bullet_proof = toboolean(placement.IsBulletProof)
-    attachment.options.is_fire_proof = toboolean(placement.IsFireProof)
-    attachment.options.is_explosion_proof = toboolean(placement.IsExplosionProof)
-    attachment.options.is_melee_proof = toboolean(placement.IsMeleeProof)
+    if placement.IsInvincible ~= nil then attachment.options.is_invincible = toboolean(placement.IsInvincible) end
+    if placement.IsBulletProof ~= nil then attachment.options.is_bullet_proof = toboolean(placement.IsBulletProof) end
+    if placement.IsFireProof ~= nil then attachment.options.is_fire_proof = toboolean(placement.IsFireProof) end
+    if placement.IsExplosionProof ~= nil then attachment.options.is_explosion_proof = toboolean(placement.IsExplosionProof) end
+    if placement.IsMeleeProof ~= nil then attachment.options.is_melee_proof = toboolean(placement.IsMeleeProof) end
     --IsOnlyDamagedByPlayer = placement.IsOnlyDamagedByPlayer
-    attachment.options.has_collision = not toboolean(placement.IsCollisionProof)
+    if placement.IsCollisionProof ~= nil then attachment.options.has_collision = not toboolean(placement.IsCollisionProof) end
 end
 
 local function map_placement_position(attachment, placement)
@@ -1466,21 +1462,21 @@ local function map_placement_position(attachment, placement)
             z = tonumber(placement.PositionRotation.Yaw)
         }
     end
-    if placement.Attachment ~= nil then
-        if placement.Attachment.X ~= nil then
-            attachment.offset = {
-                x = tonumber(placement.Attachment.X),
-                y = tonumber(placement.Attachment.Y),
-                z = tonumber(placement.Attachment.Z)
-            }
-            attachment.rotation = {
-                x = tonumber(placement.Attachment.Pitch),
-                y = tonumber(placement.Attachment.Roll),
-                z = tonumber(placement.Attachment.Yaw)
-            }
-            attachment.options.bone_index = tonumber(placement.Attachment.BoneIndex)
-            attachment.parents_initial_handle = tonumber(placement.Attachment.AttachedTo)
-        end
+    if placement.Attachment ~= nil and placement.Attachment.X ~= nil then
+        attachment.offset = {
+            x = tonumber(placement.Attachment.X),
+            y = tonumber(placement.Attachment.Y),
+            z = tonumber(placement.Attachment.Z)
+        }
+        attachment.rotation = {
+            x = tonumber(placement.Attachment.Pitch),
+            y = tonumber(placement.Attachment.Roll),
+            z = tonumber(placement.Attachment.Yaw)
+        }
+        if placement.Attachment.BoneIndex ~= nil then attachment.options.bone_index = tonumber(placement.Attachment.BoneIndex) end
+        if placement.Attachment.AttachedTo ~= nil then attachment.parents_initial_handle = tonumber(placement.Attachment.AttachedTo) end
+    end
+    if placement.Attachment ~= nil and placement.Attachment._attr ~= nil then
         attachment.options.is_attached = toboolean(placement.Attachment._attr.isAttached)
     end
 end
@@ -1529,13 +1525,12 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
     elseif vehicle_handler.root.SpoonerPlacements ~= nil then
         for _, placement in pairs(vehicle_handler.root.SpoonerPlacements.Placement) do
             if construct_plan.model == nil then
-                util.log("Old root "..inspect(construct_plan))
                 map_placement(construct_plan, placement)
-                util.log("New root "..inspect(construct_plan))
                 if construct_plan.type == "OBJECT" then construct_plan.always_spawn_at_position = true end
             else
                 local attachment = {}
                 map_placement(attachment, placement)
+                if construct_plan.always_spawn_at_position == true then attachment.options.is_attached = false end
                 table.insert(construct_plan.children, attachment)
             end
         end
@@ -1543,7 +1538,7 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
 
     rearrange_by_initial_attachment(construct_plan)
 
-    --if constructor_lib.debug then util.log("Loaded XML construct plan: "..inspect(construct_plan)) end
+    if constructor_lib.debug then util.log("Loaded XML construct plan: "..inspect(construct_plan)) end
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load XML construct. Missing hash or model.", TOAST_ALL)
