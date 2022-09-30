@@ -1,4 +1,4 @@
---- @module Module providing a non-validating XML stream parser in Lua. 
+-- @module Module providing a non-validating XML stream parser in Lua.
 --  
 --  Features:
 --  =========
@@ -690,7 +690,7 @@ function xml2lua.toXml(tb, tableName, level)
   return table.concat(xmltb, '\n')
 end
 
-local functon load_TreeHandler()
+local function load_TreeHandler()
 
     local function init()
         local obj = {
@@ -702,7 +702,7 @@ local functon load_TreeHandler()
         return obj  
     end
 
-    --- @module XML Tree Handler.
+    -- @module XML Tree Handler.
     -- Generates a lua table from an XML content string.
     -- It is a simplified handler which attempts
     -- to generate a more 'natural' table based structure which
