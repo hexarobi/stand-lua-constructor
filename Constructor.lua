@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.18"
+local SCRIPT_VERSION = "0.19"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1157,7 +1157,11 @@ menus.rebuild_attachment_menu = function(attachment)
 
         -- Attachment
         menu.divider(attachment.menus.options, "Attachment")
-        attachment.menus.option_parent_attachment = menu.list(attachment.menus.options, "Reattach To", {}, "", function()
+        attachment.menus.option_attached = menu.toggle(attachment.menus.options, "Attached", {}, "Is this child physically attached to the parent, or does it move freely on its own.", function(on)
+            attachment.options.is_attached = on
+            constructor_lib.update_attachment(attachment)
+        end, attachment.options.is_attached)
+        attachment.menus.option_parent_attachment = menu.list(attachment.menus.options, "Change Parent", {}, "Select a new parent for this child. Construct will be rebuilt to accommodate changes.", function()
             rebuild_reattach_to_menu(attachment)
         end)
         attachment.menus.option_bone_index = menu.slider(attachment.menus.options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 100, attachment.options.bone_index or 0, 1, function(value)
@@ -1168,7 +1172,7 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.options.use_soft_pinning = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.use_soft_pinning)
-        attachment.menus.detach = menu.action(attachment.menus.options, "Detach", {}, "Detach attachment from construct to create a new construct", function()
+        attachment.menus.detach = menu.action(attachment.menus.options, "Separate", {}, "Detach attachment from construct to create a new construct", function()
             local original_parent = attachment.parent
             constructor_lib.detach_attachment(attachment)
             table.insert(spawned_constructs, attachment)
@@ -1294,7 +1298,6 @@ menus.rebuild_attachment_menu = function(attachment)
                 delete_construct(attachment)
             end
         end)
-
 
         for _, menu_handle in pairs(attachment.menus) do
             menu.on_focus(menu_handle, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
