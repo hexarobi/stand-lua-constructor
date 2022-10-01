@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.19"
+local LIB_VERSION = "3.20"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -425,28 +425,31 @@ constructor_lib.serialize_vehicle_doors = function(vehicle, serialized_vehicle)
         serialized_vehicle.doors = { broken = {}, open = {}, }
     end
     serialized_vehicle.doors.open.frontleft = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 0)
-    serialized_vehicle.doors.open.backleft = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 1)
-    serialized_vehicle.doors.open.frontright = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 2)
+    serialized_vehicle.doors.open.frontright = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 1)
+    serialized_vehicle.doors.open.backleft = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 2)
     serialized_vehicle.doors.open.backright = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 3)
     serialized_vehicle.doors.open.hood = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 4)
     serialized_vehicle.doors.open.trunk = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 5)
+    serialized_vehicle.doors.open.trunk2 = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 6)
 end
 
 constructor_lib.deserialize_vehicle_doors = function(vehicle, serialized_vehicle)
     if serialized_vehicle.doors == nil then return end
     if serialized_vehicle.doors.broken.frontleft then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 0, true) end
-    if serialized_vehicle.doors.broken.backleft then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 1, true) end
-    if serialized_vehicle.doors.broken.frontright then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 2, true) end
+    if serialized_vehicle.doors.broken.frontright then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 1, true) end
+    if serialized_vehicle.doors.broken.backleft then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 2, true) end
     if serialized_vehicle.doors.broken.backright then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 3, true) end
     if serialized_vehicle.doors.broken.hood then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 4, true) end
     if serialized_vehicle.doors.broken.trunk then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 5, true) end
+    if serialized_vehicle.doors.broken.trunk2 then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 6, true) end
 
     if serialized_vehicle.doors.open.frontleft then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 0, true, true) end
-    if serialized_vehicle.doors.open.backleft then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 1, true, true) end
-    if serialized_vehicle.doors.open.frontright then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 2, true, true) end
+    if serialized_vehicle.doors.open.frontright then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 1, true, true) end
+    if serialized_vehicle.doors.open.backleft then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 2, true, true) end
     if serialized_vehicle.doors.open.backright then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 3, true, true) end
     if serialized_vehicle.doors.open.hood then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 4, true, true) end
     if serialized_vehicle.doors.open.trunk then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 5, true, true) end
+    if serialized_vehicle.doors.open.trunk2 then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 6, true, true) end
 end
 
 constructor_lib.serialize_vehicle_mods = function(vehicle, serialized_vehicle)
@@ -624,7 +627,15 @@ constructor_lib.update_attachment = function(attachment)
     end
 
     ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity)
-    ENTITY.SET_ENTITY_LIGHTS(attachment.handle, not attachment.options.is_light_on)
+    if attachment.options.is_light_on == true then
+        util.toast("lights on")
+
+        VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
+        VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(attachment.handle, true)
+        ENTITY.SET_ENTITY_LIGHTS(attachment.handle, false)
+        AUDIO._TRIGGER_SIREN(attachment.handle, true)
+        AUDIO._SET_SIREN_KEEP_ON(attachment.handle, true)
+    end
     ENTITY.SET_ENTITY_PROOFS(
             attachment.handle,
             attachment.options.is_bullet_proof,
@@ -639,7 +650,7 @@ constructor_lib.update_attachment = function(attachment)
 
     ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.world_rotation.x, attachment.world_rotation.y, attachment.world_rotation.z, 2, true)
 
-    if attachment.options.is_attached then -- Don't update root object attachments
+    if attachment.options.is_attached then
         ENTITY.ATTACH_ENTITY_TO_ENTITY(
             attachment.handle, attachment.parent.handle, attachment.options.bone_index,
             attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
@@ -669,6 +680,13 @@ constructor_lib.update_attachment_position = function(attachment)
                         attachment.position.y,
                         attachment.position.z,
                         true, false, false
+                )
+                ENTITY.SET_ENTITY_ROTATION(
+                        attachment.handle,
+                        attachment.rotation.x,
+                        attachment.rotation.y,
+                        attachment.rotation.z,
+                        2, true
                 )
             else
                 ENTITY.SET_ENTITY_COORDS(
@@ -754,8 +772,6 @@ constructor_lib.attach_attachment = function(attachment)
             pos = ENTITY.GET_ENTITY_COORDS(attachment.root.handle)
         end
         if is_networked then
-            --ENTITY.SET_ENTITY_COORDS(players.user_ped(), pos.x, pos.y, pos.z + 20)
-            --util.yield(100)
             attachment.handle = entities.create_object(attachment.hash, pos)
         else
             attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(
@@ -967,6 +983,7 @@ constructor_lib.deserialize_vehicle_attributes = function(vehicle)
     constructor_lib.deserialize_vehicle_neon(vehicle, serialized_vehicle)
     constructor_lib.deserialize_vehicle_paint(vehicle, serialized_vehicle)
     constructor_lib.deserialize_vehicle_wheels(vehicle, serialized_vehicle)
+    constructor_lib.deserialize_vehicle_doors(vehicle, serialized_vehicle)
     constructor_lib.deserialize_vehicle_headlights(vehicle, serialized_vehicle)
     constructor_lib.deserialize_vehicle_options(vehicle, serialized_vehicle)
     constructor_lib.deserialize_vehicle_mods(vehicle, serialized_vehicle)
@@ -1372,6 +1389,7 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.doors.open.frontright = toboolean(placement.VehicleProperties.DoorsOpen.FrontRightDoor)
     attachment.vehicle_attributes.doors.open.hood = toboolean(placement.VehicleProperties.DoorsOpen.Hood)
     attachment.vehicle_attributes.doors.open.trunk = toboolean(placement.VehicleProperties.DoorsOpen.Trunk)
+    attachment.vehicle_attributes.doors.open.trunk2 = toboolean(placement.VehicleProperties.DoorsOpen.Trunk2)
     if attachment.vehicle_attributes.doors.broken == nil then attachment.vehicle_attributes.doors.broken = {} end
     attachment.vehicle_attributes.doors.broken.backleft = toboolean(placement.VehicleProperties.DoorsBroken.BackLeftDoor)
     attachment.vehicle_attributes.doors.broken.backright = toboolean(placement.VehicleProperties.DoorsBroken.BackRightDoor)
@@ -1379,6 +1397,7 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.doors.broken.frontright = toboolean(placement.VehicleProperties.DoorsBroken.FrontRightDoor)
     attachment.vehicle_attributes.doors.broken.hood = toboolean(placement.VehicleProperties.DoorsBroken.Hood)
     attachment.vehicle_attributes.doors.broken.trunk = toboolean(placement.VehicleProperties.DoorsBroken.Trunk)
+    attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(placement.VehicleProperties.DoorsBroken.Trunk2)
 
     if attachment.vehicle_attributes.options == nil then attachment.vehicle_attributes.options = {} end
     attachment.vehicle_attributes.options.siren = (placement.VehicleProperties.SirenActive)
