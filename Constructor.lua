@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.19"
+local SCRIPT_VERSION = "0.20"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -377,7 +377,7 @@ end
 local function update_preview_tick()
     if current_preview ~= nil then
         current_preview.position = get_offset_from_camera(current_preview.camera_distance)
-        current_preview.world_rotation.z = current_preview.world_rotation.z + 2
+        current_preview.rotation.z = current_preview.rotation.z + 2
         constructor_lib.update_attachment(current_preview)
         constructor_lib.update_attachment_position(current_preview)
         constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
@@ -1216,22 +1216,32 @@ menus.rebuild_attachment_menu = function(attachment)
         if attachment.type == "VEHICLE" then
             menu.divider(attachment.menus.options, "Doors")
             attachment.menus.option_doors_broken_frontleft = menu.action(attachment.menus.options, "Break Door: Front Left", {}, "Remove door.", function()
-                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 0, on)
+                attachment.doors.broken.frontleft = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
             end)
             attachment.menus.option_doors_broken_backleft = menu.action(attachment.menus.options, "Break Door: Back Left", {}, "Remove door.", function()
-                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 1, on)
+                attachment.doors.broken.backleft = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
             end)
             attachment.menus.option_doors_broken_frontright = menu.action(attachment.menus.options, "Break Door: Front Right", {}, "Remove door.", function()
-                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 2, on)
+                attachment.doors.broken.frontright = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
             end)
             attachment.menus.option_doors_broken_backright = menu.action(attachment.menus.options, "Break Door: Back Right", {}, "Remove door.", function()
-                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 3, on)
+                attachment.doors.broken.backright = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
             end)
             attachment.menus.option_doors_broken_hood = menu.action(attachment.menus.options, "Break Door: Hood", {}, "Remove door.", function()
-                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 4, on)
+                attachment.doors.broken.hood = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
             end)
             attachment.menus.option_doors_broken_trunk = menu.action(attachment.menus.options, "Break Door: Trunk", {}, "Remove door.", function()
-                VEHICLE.SET_VEHICLE_DOOR_BROKEN(attachment.handle, 5, on)
+                attachment.doors.broken.trunk = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
+            end)
+            attachment.menus.option_doors_broken_trunk = menu.action(attachment.menus.options, "Break Door: Trunk2", {}, "Remove door.", function()
+                attachment.doors.broken.trunk2 = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
             end)
         end
 
@@ -1360,8 +1370,8 @@ menu.action(menus.create_new_construct, "Vehicle From Current", { "constructcrea
     end
 end)
 
-menu.text_input(menus.create_new_construct, "Vehicle From Name", { "constructcreatefromvehiclename"}, "Create a new construct from a vehicle name", function(value)
-    util.toast("creating vehicle from name "..value, TOAST_ALL)
+menu.text_input(menus.create_new_construct, "Vehicle From Name", { "constructcreatefromvehiclename"}, "Create a new construct from a vehicle name", function(value, click_type)
+    if click_type ~= 1 then return end
     local construct_plan = {
         model = value,
         type="VEHICLE",
