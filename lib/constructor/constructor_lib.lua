@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.20"
+local LIB_VERSION = "3.20.1"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -628,8 +628,6 @@ constructor_lib.update_attachment = function(attachment)
 
     ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity)
     if attachment.options.is_light_on == true then
-        util.toast("lights on")
-
         VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(attachment.handle, true)
         ENTITY.SET_ENTITY_LIGHTS(attachment.handle, false)
