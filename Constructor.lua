@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20"
+local SCRIPT_VERSION = "0.20.1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -567,6 +567,7 @@ local function spawn_construct_from_plan(construct_plan)
     construct.root = construct
     construct.parent = construct
     constructor_lib.reattach_attachment_with_children(construct)
+    if not construct.handle then error("Failed to spawn construct from plan "..tostring(construct_plan.name)) end
     table.insert(spawned_constructs, construct)
     last_spawned_construct = construct
     menus.refresh_loaded_constructs()
@@ -619,7 +620,7 @@ end
 ---
 
 local function activate_attachment_lights(attachment)
-    if attachment.is_light_disabled then
+    if attachment.options.is_light_disabled then
         ENTITY.SET_ENTITY_LIGHTS(attachment.handle, true)
     else
         VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
@@ -872,12 +873,11 @@ menus.rebuild_add_attachments_menu = function(attachment)
         table.insert(attachment.menus.add_attachment_categories, category_menu)
     end
 
-    attachment.menus.search_results = {}
-    attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search", {}, "Search for a prop by name")
-    menu.text_input(attachment.menus.search_add_prop, "Search for Object", {"constructorsearchobject"..attachment.handle}, "", function (query)
-        clear_menu_list(attachment.menus.search_results)
+    local function add_search_results(attachment, query, page_size, page_number)
+        if page_size == nil then page_size = 30 end
+        if page_number == nil then page_number = 0 end
         local results = search_props(query)
-        for i = 1,30 do
+        for i = (page_size*page_number)+1, page_size*(page_number+1) do
             if results[i] then
                 local model = results[i].prop
                 local search_result_menu_item = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
@@ -893,6 +893,17 @@ menus.rebuild_add_attachments_menu = function(attachment)
                 table.insert(attachment.menus.search_results, search_result_menu_item)
             end
         end
+        if attachment.menus.search_add_more ~= nil then menu.delete(attachment.menus.search_add_more) end
+        attachment.menus.search_add_more = menu.action(attachment.menus.search_add_prop, "Load More", {}, "", function()
+            add_search_results(attachment, query, page_size, page_number+1)
+        end)
+    end
+
+    attachment.menus.search_results = {}
+    attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search", {}, "Search for a prop by name")
+    menu.text_input(attachment.menus.search_add_prop, "Search for Object", {"constructorsearchobject"..attachment.handle}, "", function (query)
+        clear_menu_list(attachment.menus.search_results)
+        add_search_results(attachment, query)
     end)
 
     attachment.menus.exact_name = menu.list(attachment.menus.add_attachment, "Add by Name", {}, "Add an object, vehicle, or ped by exact name.")
@@ -972,14 +983,17 @@ end
 
 local function make_wheels_invis(attachment)
 
-    local DBL_MAX = 9999999999
-    local QUAD_MAX = DBL_MAX*DBL_MAX
+    local DBL_MAX = 1.79769e+308
 
-    VEHICLE.SET_VEHICLE_FORWARD_SPEED(attachment.handle, QUAD_MAX)
+    VEHICLE.SET_VEHICLE_FORWARD_SPEED(attachment.handle, DBL_MAX*DBL_MAX)
     util.yield(100)
-    VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, QUAD_MAX)
-    VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, QUAD_MAX)
-    ENTITY.APPLY_FORCE_TO_ENTITY(attachment)
+    VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, DBL_MAX*DBL_MAX)
+    VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, DBL_MAX*DBL_MAX)
+    --iLocal_176, 2, 0f, 0f, -0.1f, 0f, 0f, 0f, 0, 1, 1, 0, 0, 1
+    ENTITY.APPLY_FORCE_TO_ENTITY(attachment.handle, 2, 0.0, 0.0, -DBL_MAX*DBL_MAX, 0.0, 0.0, 0.0, 0, true, true, true, false, true)
+    util.yield(100)
+    VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, 1)
+    VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, 1)
 
     --if (g_vehWheelsInvisForRussian.find(vehicle.Handle()) == g_vehWheelsInvisForRussian.end())
     --g_vehWheelsInvisForRussian.insert(vehicle.Handle());
@@ -1044,17 +1058,14 @@ menus.rebuild_attachment_menu = function(attachment)
         menu.divider(attachment.menus.position, "Offset")
         attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, "X: Left / Right", { "constructoroffset"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
             attachment.offset.x = value / 100
-            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
         attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, "Y: Forward / Back", {"constructoroffset"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
             attachment.offset.y = value / -100
-            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
         attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, "Z: Up / Down", {"constructoroffset"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
             attachment.offset.z = value / -100
-            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
 
@@ -1075,17 +1086,14 @@ menus.rebuild_attachment_menu = function(attachment)
         menu.divider(attachment.menus.position, "World Position")
         attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, "X: Left / Right", { "constructorposition"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
             attachment.position.x = value / 100
-            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
         attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, "Y: Forward / Back", {"constructorposition"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
             attachment.position.y = value / -100
-            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
         attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, "Z: Up / Down", {"constructorposition"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -500000, 500000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
             attachment.position.z = value / -100
-            attachment.update_position = true
             constructor_lib.move_attachment(attachment)
         end)
 
@@ -1153,6 +1161,11 @@ menus.rebuild_attachment_menu = function(attachment)
             menu.toggle(attachment.menus.options, "Has Siren", {}, "If enabled, siren controls will effect this vehicle.", function(value)
                 attachment.options.has_siren = value
             end, attachment.options.has_siren)
+
+            menu.action(attachment.menus.options, "Invis Wheels", {}, "", function()
+                make_wheels_invis(attachment)
+            end)
+
         end
 
         -- Attachment
@@ -1213,35 +1226,68 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_melee_proof)
 
+        local function break_door(attachment, door)
+            if attachment.doors == nil then attachment.doors = {} end
+            if attachment.doors.broken == nil then attachment.doors.broken = {} end
+            door = true
+            constructor_lib.deserialize_vehicle_doors(attachment, attachment)
+        end
+
+        local DOOR_LOCK_STATUS = {
+           "None",
+           "Unlocked",
+           "Locked",
+           "Lockout Player Only",
+           "Locked Player Inside",
+           "Locked Initially",
+           "Force Shut Doors",
+           "Locked by can be damaged",
+           "Locked but trunk unlocked",
+           "Locked, no passengers",
+           "Cannot enter",
+        }
+
         if attachment.type == "VEHICLE" then
             menu.divider(attachment.menus.options, "Doors")
+            menu.list_select(attachment.menus.options, "Door Lock Status", {}, "", DOOR_LOCK_STATUS, 1, function(value)
+                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
+                attachment.vehicle_attributes.doors.lock_status = value
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
+            end)
             attachment.menus.option_doors_broken_frontleft = menu.action(attachment.menus.options, "Break Door: Front Left", {}, "Remove door.", function()
-                attachment.doors.broken.frontleft = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
+                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
+                attachment.vehicle_attributes.doors.broken.frontleft = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
             end)
             attachment.menus.option_doors_broken_backleft = menu.action(attachment.menus.options, "Break Door: Back Left", {}, "Remove door.", function()
-                attachment.doors.broken.backleft = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
+                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
+                attachment.vehicle_attributes.doors.broken.backleft = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
             end)
             attachment.menus.option_doors_broken_frontright = menu.action(attachment.menus.options, "Break Door: Front Right", {}, "Remove door.", function()
-                attachment.doors.broken.frontright = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
+                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
+                attachment.vehicle_attributes.doors.broken.frontright = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
             end)
             attachment.menus.option_doors_broken_backright = menu.action(attachment.menus.options, "Break Door: Back Right", {}, "Remove door.", function()
-                attachment.doors.broken.backright = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
+                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
+                attachment.vehicle_attributes.doors.broken.backright = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
             end)
             attachment.menus.option_doors_broken_hood = menu.action(attachment.menus.options, "Break Door: Hood", {}, "Remove door.", function()
-                attachment.doors.broken.hood = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
+                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
+                attachment.vehicle_attributes.doors.broken.hood = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
             end)
             attachment.menus.option_doors_broken_trunk = menu.action(attachment.menus.options, "Break Door: Trunk", {}, "Remove door.", function()
-                attachment.doors.broken.trunk = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
+                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
+                attachment.vehicle_attributes.doors.broken.trunk = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
             end)
-            attachment.menus.option_doors_broken_trunk = menu.action(attachment.menus.options, "Break Door: Trunk2", {}, "Remove door.", function()
-                attachment.doors.broken.trunk2 = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment)
+            attachment.menus.option_doors_broken_trunk2 = menu.action(attachment.menus.options, "Break Door: Trunk2", {}, "Remove door.", function()
+                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
+                attachment.vehicle_attributes.doors.broken.trunk2 = true
+                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
             end)
         end
 
