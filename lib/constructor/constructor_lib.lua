@@ -1405,7 +1405,7 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.options.engine_running = (placement.VehicleProperties.EngineOn)
     attachment.vehicle_attributes.options.radio_loud = (placement.VehicleProperties.IsRadioLoud)
     attachment.vehicle_attributes.options.license_plate_type = tonumber(placement.VehicleProperties.NumberPlateIndex)
-    attachment.vehicle_attributes.options.license_plate_text = (placement.VehicleProperties.NumberPlateText)
+    attachment.vehicle_attributes.options.license_plate_text = tostring(placement.VehicleProperties.NumberPlateText)
 
     if attachment.vehicle_attributes.mods == nil then attachment.vehicle_attributes.mods = {} end
     for index = 0, 49 do
@@ -1536,10 +1536,13 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
         map_placement(construct_plan, root[1])
         local attachments = root[1].SpoonerAttachments.Attachment
         if attachments[1] == nil then attachments = {attachments} end
-        for _, placement in pairs(attachments) do
-            local attachment = {}
-            map_placement(attachment, placement)
-            table.insert(construct_plan.children, attachment)
+        if attachments then
+            if attachments[1] == nil then attachments = {attachments} end
+            for _, placement in pairs(attachments) do
+                local attachment = {}
+                map_placement(attachment, placement)
+                table.insert(construct_plan.children, attachment)
+            end
         end
     elseif vehicle_handler.root.SpoonerPlacements ~= nil then
         for _, placement in pairs(vehicle_handler.root.SpoonerPlacements.Placement) do
