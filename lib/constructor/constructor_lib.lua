@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.1"
+local LIB_VERSION = "3.21.2"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -733,6 +733,11 @@ end
 constructor_lib.attach_attachment = function(attachment)
     constructor_lib.set_attachment_defaults(attachment)
     if attachment.is_player and not attachment.is_preview then
+        debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
+        constructor_lib.load_hash(attachment.hash)
+        PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
+        util.yield(100)
+        attachment.handle = players.user_ped()
         constructor_lib.deserialize_ped_attributes(attachment)
         return
     else
@@ -1615,3 +1620,4 @@ end
 ---
 
 return constructor_lib
+
