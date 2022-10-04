@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21"
+local LIB_VERSION = "3.21.2"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -43,10 +43,16 @@ constructor_lib.construct_base = {
 --- Utilities
 ---
 
-util.require_natives(1660775568)
+local function debug_log(message, additional_details)
+    if constructor_lib.debug then
+        if constructor_lib.debug == 2 and additional_details ~= nil then
+            message = message .. "\n" .. inspect(additional_details)
+        end
+        util.log(message)
+    end
+end
 
-util.ensure_package_is_installed('lua/SLAXML')
-local slaxdom = require("lib/slaxdom")
+util.require_natives(1663599433)
 
 function table.table_copy(obj)
     if type(obj) ~= 'table' then
@@ -222,14 +228,14 @@ end
 
 constructor_lib.serialize_vehicle_headlights = function(vehicle, serialized_vehicle)
     if serialized_vehicle.headlights == nil then serialized_vehicle.headlights = {} end
-    serialized_vehicle.headlights.headlights_color = VEHICLE._GET_VEHICLE_XENON_LIGHTS_COLOR(vehicle.handle)
+    serialized_vehicle.headlights.headlights_color = VEHICLE.GET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle)
     serialized_vehicle.headlights.headlights_type = VEHICLE.IS_TOGGLE_MOD_ON(vehicle.handle, 22)
     return serialized_vehicle
 end
 
 constructor_lib.deserialize_vehicle_headlights = function(vehicle, serialized_vehicle)
     if serialized_vehicle.headlights == nil then return end
-    VEHICLE._SET_VEHICLE_XENON_LIGHTS_COLOR(vehicle.handle, serialized_vehicle.headlights.headlights_color)
+    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, serialized_vehicle.headlights.headlights_color)
     VEHICLE.TOGGLE_VEHICLE_MOD(vehicle.handle, 22, serialized_vehicle.headlights.headlights_type or false)
     VEHICLE.SET_VEHICLE_LIGHT_MULTIPLIER(vehicle.handle, serialized_vehicle.headlights.multiplier or 1)
 end
@@ -274,9 +280,9 @@ constructor_lib.serialize_vehicle_paint = function(vehicle, serialized_vehicle)
 
     VEHICLE.GET_VEHICLE_EXTRA_COLOURS(vehicle.handle, color.r, color.g)
     serialized_vehicle.paint.extra_colors = { pearlescent = memory.read_int(color.r), wheel = memory.read_int(color.g) }
-    VEHICLE._GET_VEHICLE_DASHBOARD_COLOR(vehicle.handle, color.r)
+    VEHICLE.GET_VEHICLE_EXTRA_COLOUR_6(vehicle.handle, color.r)
     serialized_vehicle.paint.dashboard_color = memory.read_int(color.r)
-    VEHICLE._GET_VEHICLE_INTERIOR_COLOR(vehicle.handle, color.r)
+    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, color.r)
     serialized_vehicle.paint.interior_color = memory.read_int(color.r)
     serialized_vehicle.paint.fade = VEHICLE.GET_VEHICLE_ENVEFF_SCALE(vehicle.handle)
     serialized_vehicle.paint.dirt_level = VEHICLE.GET_VEHICLE_DIRT_LEVEL(vehicle.handle)
@@ -284,6 +290,8 @@ constructor_lib.serialize_vehicle_paint = function(vehicle, serialized_vehicle)
 
     -- Livery is also part of mods, but capture it here as well for when just saving paint
     serialized_vehicle.paint.livery = VEHICLE.GET_VEHICLE_MOD(vehicle.handle, 48)
+    serialized_vehicle.paint.livery_legacy = VEHICLE.GET_VEHICLE_LIVERY(vehicle.handle)
+    serialized_vehicle.paint.livery2_legacy = VEHICLE.GET_VEHICLE_LIVERY2(vehicle.handle)
 
     memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
@@ -359,27 +367,31 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle
         )
     end
 
-    VEHICLE._SET_VEHICLE_XENON_LIGHTS_COLOR(vehicle.handle, serialized_vehicle.headlights_color)
-    VEHICLE._SET_VEHICLE_DASHBOARD_COLOR(vehicle.handle, serialized_vehicle.paint.dashboard_color or -1)
-    VEHICLE._SET_VEHICLE_INTERIOR_COLOR(vehicle.handle, serialized_vehicle.paint.interior_color or -1)
+    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, serialized_vehicle.headlights_color)
+    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_6(vehicle.handle, serialized_vehicle.paint.dashboard_color or -1)
+    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, serialized_vehicle.paint.interior_color or -1)
 
     VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle.handle, serialized_vehicle.paint.fade or 0)
     VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle.handle, serialized_vehicle.paint.dirt_level or 0.0)
     VEHICLE.SET_VEHICLE_MOD(vehicle.handle, 48, serialized_vehicle.paint.livery or -1)
+
+    VEHICLE.SET_VEHICLE_MOD(vehicle.handle, serialized_vehicle.paint.livery or -1)
+    VEHICLE.SET_VEHICLE_LIVERY(vehicle.handle, serialized_vehicle.paint.livery_legacy or -1)
+    VEHICLE.SET_VEHICLE_LIVERY2(vehicle.handle, serialized_vehicle.paint.livery2_legacy or -1)
 end
 
 constructor_lib.serialize_vehicle_neon = function(vehicle, serialized_vehicle)
     if serialized_vehicle.neon == nil then serialized_vehicle.neon = {} end
     serialized_vehicle.neon.lights = {
-        left = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 0),
-        right = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 1),
-        front = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 2),
-        back = VEHICLE._IS_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 3),
+        left = VEHICLE.GET_VEHICLE_NEON_ENABLED(vehicle.handle, 0),
+        right = VEHICLE.GET_VEHICLE_NEON_ENABLED(vehicle.handle, 1),
+        front = VEHICLE.GET_VEHICLE_NEON_ENABLED(vehicle.handle, 2),
+        back = VEHICLE.GET_VEHICLE_NEON_ENABLED(vehicle.handle, 3),
     }
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     if (serialized_vehicle.neon.lights.left or serialized_vehicle.neon.lights.right
             or serialized_vehicle.neon.lights.front or serialized_vehicle.neon.lights.back) then
-        VEHICLE._GET_VEHICLE_NEON_LIGHTS_COLOUR(vehicle.handle, color.r, color.g, color.b)
+        VEHICLE.GET_VEHICLE_NEON_COLOUR(vehicle.handle, color.r, color.g, color.b)
         serialized_vehicle.neon.color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     end
     memory.free(color.r) memory.free(color.g) memory.free(color.b)
@@ -387,12 +399,12 @@ end
 
 constructor_lib.deserialize_vehicle_neon = function(vehicle, serialized_vehicle)
     if serialized_vehicle.neon == nil then return end
-    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 0, serialized_vehicle.neon.lights.left or false)
-    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 1, serialized_vehicle.neon.lights.right or false)
-    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 2, serialized_vehicle.neon.lights.front or false)
-    VEHICLE._SET_VEHICLE_NEON_LIGHT_ENABLED(vehicle.handle, 3, serialized_vehicle.neon.lights.back or false)
+    VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 0, serialized_vehicle.neon.lights.left or false)
+    VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 1, serialized_vehicle.neon.lights.right or false)
+    VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 2, serialized_vehicle.neon.lights.front or false)
+    VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 3, serialized_vehicle.neon.lights.back or false)
     if serialized_vehicle.neon.color then
-        VEHICLE._SET_VEHICLE_NEON_LIGHTS_COLOUR(
+        VEHICLE.SET_VEHICLE_NEON_COLOUR(
                 vehicle.handle,
                 serialized_vehicle.neon.color.r,
                 serialized_vehicle.neon.color.g,
@@ -498,7 +510,6 @@ end
 
 constructor_lib.serialize_vehicle_options = function(vehicle, serialized_vehicle)
     if serialized_vehicle.options == nil then serialized_vehicle.options = {} end
-    serialized_vehicle.options.headlights_color = VEHICLE._GET_VEHICLE_XENON_LIGHTS_COLOR(vehicle.handle)
     serialized_vehicle.options.bulletproof_tires = VEHICLE.GET_VEHICLE_TYRES_CAN_BURST(vehicle.handle)
     serialized_vehicle.options.window_tint = VEHICLE.GET_VEHICLE_WINDOW_TINT(vehicle.handle)
     serialized_vehicle.options.radio_loud = AUDIO.CAN_VEHICLE_RECEIVE_CB_RADIO(vehicle.handle)
@@ -515,8 +526,8 @@ constructor_lib.deserialize_vehicle_options = function(vehicle, serialized_vehic
     if serialized_vehicle.options.siren then
         AUDIO.SET_SIREN_WITH_NO_DRIVER(vehicle.handle, true)
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(vehicle.handle, false)
-        AUDIO._SET_SIREN_KEEP_ON(vehicle.handle, true)
-        AUDIO._TRIGGER_SIREN(vehicle.handle, true)
+        AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(vehicle.handle, true)
+        AUDIO.TRIGGER_SIREN_AUDIO(vehicle.handle, true)
     end
     VEHICLE.SET_VEHICLE_SIREN(vehicle.handle, serialized_vehicle.options.emergency_lights or false)
     VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle.handle, serialized_vehicle.options.search_light or false, true)
@@ -631,8 +642,8 @@ constructor_lib.update_attachment = function(attachment)
         VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(attachment.handle, true)
         ENTITY.SET_ENTITY_LIGHTS(attachment.handle, false)
-        AUDIO._TRIGGER_SIREN(attachment.handle, true)
-        AUDIO._SET_SIREN_KEEP_ON(attachment.handle, true)
+        AUDIO.TRIGGER_SIREN_AUDIO(attachment.handle, true)
+        AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(attachment.handle, true)
     end
     ENTITY.SET_ENTITY_PROOFS(
             attachment.handle,
@@ -721,7 +732,17 @@ end
 
 constructor_lib.attach_attachment = function(attachment)
     constructor_lib.set_attachment_defaults(attachment)
-    if attachment.is_player then return end
+    if attachment.is_player and not attachment.is_preview then
+        debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
+        constructor_lib.load_hash(attachment.hash)
+        PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
+        util.yield(100)
+        attachment.handle = players.user_ped()
+        constructor_lib.deserialize_ped_attributes(attachment)
+        return
+    else
+        debug_log("Attaching "..attachment.name.." to "..attachment.parent.name)
+    end
     if attachment.hash == nil and attachment.model == nil then
         error("Cannot create attachment "..tostring(attachment.name)..": Requires either a hash or a model")
     end
@@ -796,7 +817,7 @@ constructor_lib.attach_attachment = function(attachment)
 
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
 
-    if attachment.num_bones == nil then attachment.num_bones = ENTITY._GET_ENTITY_BONE_COUNT(attachment.handle) end
+    if attachment.num_bones == nil then attachment.num_bones = ENTITY.GET_ENTITY_BONE_COUNT(attachment.handle) end
     if attachment.type == nil then attachment.type = ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)] end
     if attachment.flash_start_on ~= nil then ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0) end
     if attachment.options.is_invincible ~= nil then ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, attachment.options.is_invincible) end
@@ -805,8 +826,10 @@ constructor_lib.attach_attachment = function(attachment)
     constructor_lib.update_attachment_position(attachment)
     constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
 
-    -- Pause for a tick between each model load to avoid loading too many at once
-    util.yield(5)
+    if not attachment.is_preview then
+        -- Pause for a tick between each model load to avoid loading too many at once
+        util.yield(5)
+    end
 
     return attachment
 end
@@ -854,13 +877,13 @@ constructor_lib.remove_attachment = function(attachment)
             return false
         end)
     end
-    if not attachment.handle then
-        util.log("Cannot remove attachment. No valid handle found. "..tostring(attachment.name))
-        return
-    end
-    if not attachment.is_player then
+    if not attachment.is_player or attachment.is_preview then
+        if not attachment.handle then
+            util.log("Cannot remove attachment. No valid handle found. "..tostring(attachment.name))
+            return
+        end
         entities.delete_by_handle(attachment.handle)
-        util.log("Removed attachment. "..tostring(attachment.name))
+        debug_log("Removed attachment. "..tostring(attachment.name))
     end
     if attachment.menus then
         for _, attachment_menu in pairs(attachment.menus) do
@@ -1407,12 +1430,12 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(placement.VehicleProperties.DoorsBroken.Trunk2)
 
     if attachment.vehicle_attributes.options == nil then attachment.vehicle_attributes.options = {} end
-    attachment.vehicle_attributes.options.siren = (placement.VehicleProperties.SirenActive)
+    attachment.vehicle_attributes.options.siren = toboolean(placement.VehicleProperties.SirenActive)
     attachment.vehicle_attributes.options.window_tint = tonumber(placement.VehicleProperties.WindowTint)
-    attachment.vehicle_attributes.options.engine_running = (placement.VehicleProperties.EngineOn)
-    attachment.vehicle_attributes.options.radio_loud = (placement.VehicleProperties.IsRadioLoud)
+    attachment.vehicle_attributes.options.engine_running = toboolean(placement.VehicleProperties.EngineOn)
+    attachment.vehicle_attributes.options.radio_loud = toboolean(placement.VehicleProperties.IsRadioLoud)
     attachment.vehicle_attributes.options.license_plate_type = tonumber(placement.VehicleProperties.NumberPlateIndex)
-    attachment.vehicle_attributes.options.license_plate_text = (placement.VehicleProperties.NumberPlateText)
+    attachment.vehicle_attributes.options.license_plate_text = tostring(placement.VehicleProperties.NumberPlateText)
 
     if attachment.vehicle_attributes.mods == nil then attachment.vehicle_attributes.mods = {} end
     for index = 0, 49 do
@@ -1434,8 +1457,8 @@ local function map_ped_placement(attachment, placement)
     if placement.PedProperties.CanRagDoll ~= nil then attachment.ped_attributes.can_rag_doll = toboolean(placement.PedProperties.CanRagDoll) end
     if placement.PedProperties.Armour ~= nil then attachment.ped_attributes.armour = tonumber(placement.PedProperties.Armour) end
     if placement.PedProperties.CurrentWeapon ~= nil then attachment.ped_attributes.current_weapon = tonumber(placement.PedProperties.CurrentWeapon) end
-    if placement.PedProperties.AnimDict ~= nil then attachment.ped_attributes.animation_dict = placement.PedProperties.AnimDict end
-    if placement.PedProperties.AnimName ~= nil then attachment.ped_attributes.animation_name = placement.PedProperties.AnimName end
+    if placement.PedProperties.AnimDict ~= nil then attachment.ped_attributes.animation_dict = tostring(placement.PedProperties.AnimDict) end
+    if placement.PedProperties.AnimName ~= nil then attachment.ped_attributes.animation_name = tostring(placement.PedProperties.AnimName) end
 
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
     if placement.PedProperties.PedProps ~= nil then
@@ -1454,7 +1477,7 @@ end
 
 local function map_placement_options(attachment, placement)
     if attachment.options == nil then attachment.options = {} end
-    if placement.FrozenPos ~= nil then attachment.options.is_frozen = placement.FrozenPos end
+    if placement.FrozenPos ~= nil then attachment.options.is_frozen = toboolean(placement.FrozenPos) end
     if placement.OpacityLevel ~= nil then attachment.options.alpha = tonumber(placement.OpacityLevel) end
     if placement.LodDistance ~= nil then attachment.options.lod_distance = tonumber(placement.LodDistance) end
     if placement.IsVisible ~= nil then attachment.options.is_visible = toboolean(placement.IsVisible) end
@@ -1542,11 +1565,13 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
         if root[1] == nil then root = {root} end
         map_placement(construct_plan, root[1])
         local attachments = root[1].SpoonerAttachments.Attachment
-        if attachments[1] == nil then attachments = {attachments} end
-        for _, placement in pairs(attachments) do
-            local attachment = {}
-            map_placement(attachment, placement)
-            table.insert(construct_plan.children, attachment)
+        if attachments then
+            if attachments[1] == nil then attachments = {attachments} end
+            for _, placement in pairs(attachments) do
+                local attachment = {}
+                map_placement(attachment, placement)
+                table.insert(construct_plan.children, attachment)
+            end
         end
     elseif vehicle_handler.root.SpoonerPlacements ~= nil then
         for _, placement in pairs(vehicle_handler.root.SpoonerPlacements.Placement) do
@@ -1560,11 +1585,26 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
                 table.insert(construct_plan.children, attachment)
             end
         end
+    elseif vehicle_handler.root.OutfitPedData then
+        construct_plan.type = "PED"
+        construct_plan.is_player = true
+        local root = vehicle_handler.root.OutfitPedData
+        if root[1] == nil then root = {root} end
+        map_placement(construct_plan, root[1])
+        local attachments = root[1].SpoonerAttachments.Attachment
+        if attachments then
+            if attachments[1] == nil then attachments = {attachments} end
+            for _, placement in pairs(attachments) do
+                local attachment = {}
+                map_placement(attachment, placement)
+                table.insert(construct_plan.children, attachment)
+            end
+        end
     end
 
     rearrange_by_initial_attachment(construct_plan)
 
-    if constructor_lib.debug then util.log("Loaded XML construct plan: "..inspect(construct_plan)) end
+    debug_log("Loaded XML construct plan: "..inspect(construct_plan))
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load XML construct. Missing hash or model.", TOAST_ALL)
