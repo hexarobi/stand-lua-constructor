@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.2b1"
+local SCRIPT_VERSION = "0.20.2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 2
+local SELECTED_BRANCH_INDEX = 1
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
@@ -57,10 +57,10 @@ auto_updater.run_auto_update(auto_update_config)
 
 local loading_menu = menu.divider(menu.my_root(), "Please wait...", {}, "Loading dependencies...")
 
-util.ensure_package_is_installed('lua/natives-1660775568')
-util.require_natives(1660775568)
-local status, natives = pcall(require, "natives-1660775568")
-if not status then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1660775568") end
+util.ensure_package_is_installed('lua/natives-1663599433')
+util.require_natives(1663599433)
+local status, natives = pcall(require, "natives-1663599433")
+if not status then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
 
 util.ensure_package_is_installed('lua/json')
 local status, json = pcall(require, "json")
@@ -111,7 +111,7 @@ local config = {
     edit_offset_step = 10,
     edit_rotation_step = 15,
     add_attachment_gun_active = false,
-    debug = false,
+    debug = true,
     show_previews = true,
     preview_camera_distance = 3,
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
@@ -597,8 +597,8 @@ end
 
 local function delete_construct(construct)
     debug_log("Deleting construct "..tostring(construct.name), construct)
+    constructor_lib.remove_attachment_from_parent(construct)
     if not construct.is_player then
-        constructor_lib.remove_attachment_from_parent(construct)
         entities.delete_by_handle(construct.handle)
     end
     array_remove(spawned_constructs, function(t, i)
@@ -633,8 +633,8 @@ local function activate_attachment_lights(attachment)
         VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(attachment.handle, true)
         ENTITY.SET_ENTITY_LIGHTS(attachment.handle, false)
-        AUDIO._TRIGGER_SIREN(attachment.handle, true)
-        AUDIO._SET_SIREN_KEEP_ON(attachment.handle, true)
+        AUDIO.TRIGGER_SIREN_AUDIO(attachment.handle, true)
+        AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(attachment.handle, true)
     end
     for _, child_attachment in pairs(attachment.children) do
         activate_attachment_lights(child_attachment)
@@ -643,7 +643,7 @@ end
 
 local function deactivate_attachment_lights(attachment)
     ENTITY.SET_ENTITY_LIGHTS(attachment.handle, true)
-    AUDIO._SET_SIREN_KEEP_ON(attachment.handle, false)
+    AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(attachment.handle, false)
     VEHICLE.SET_VEHICLE_SIREN(attachment.handle, false)
     for _, child_attachment in pairs(attachment.children) do
         deactivate_attachment_lights(child_attachment)
@@ -654,8 +654,8 @@ local function activate_attachment_sirens(attachment)
     if attachment.type == "VEHICLE" and attachment.options.has_siren then
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(attachment.handle, false)
         VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
-        AUDIO._TRIGGER_SIREN(attachment.handle, true)
-        AUDIO._SET_SIREN_KEEP_ON(attachment.handle, true)
+        AUDIO.TRIGGER_SIREN_AUDIO(attachment.handle, true)
+        AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(attachment.handle, true)
     end
     for _, child_attachment in pairs(attachment.children) do
         activate_attachment_sirens(child_attachment)
@@ -811,7 +811,7 @@ end
 --- Player Construct
 ---
 
-local function create_player_construct()
+local function get_player_construct()
     if player_construct == nil then
         player_construct = table.table_copy(constructor_lib.construct_base)
         player_construct.handle=players.user_ped()
@@ -821,6 +821,7 @@ local function create_player_construct()
         player_construct.root = player_construct
         player_construct.parent = player_construct
     end
+    return player_construct
 end
 
 ---
@@ -1200,13 +1201,25 @@ menus.rebuild_attachment_menu = function(attachment)
             rebuild_reattach_to_menu(attachment)
         end)
         menu.action(attachment.menus.options, "Copy to Me", {}, "Attach a copy of this object to your Ped.", function()
+            local player_construct = get_player_construct()
             local attachment_copy = constructor_lib.serialize_attachment(attachment)
-            create_player_construct()
-            attachment_copy.parent = player_construct
-            attachment_copy.root = player_construct
-            constructor_lib.update_attachment(attachment_copy)
-            table.insert(player_construct.children, attachment_copy)
-            rebuild_attachment(player_construct)
+            util.log("Copying attachment "..attachment_copy.name)
+            if attachment == attachment.parent and attachment.type == "PED" then
+                util.log("Making ped into "..attachment_copy.name)
+                -- Transform into root model
+                attachment_copy.handle=players.user_ped()
+                attachment_copy.type="PED"
+                attachment_copy.name=attachment_copy.name.." (Player Skin)"
+                attachment_copy.is_player=true
+                attachment_copy.parent = attachment_copy
+                attachment_copy.root = attachment_copy
+            else
+                attachment_copy.parent = player_construct
+                attachment_copy.root = player_construct
+                constructor_lib.update_attachment(attachment_copy)
+                table.insert(player_construct.children, attachment_copy)
+            end
+            rebuild_attachment(attachment_copy)
         end)
         attachment.menus.option_bone_index = menu.slider(attachment.menus.options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 100, attachment.options.bone_index or 0, 1, function(value)
             attachment.options.bone_index = value
@@ -1486,7 +1499,7 @@ menu.action(menus.create_new_construct, "Create from Me", { "constructcreatefrom
         util.toast("Player is already a construct")
         return
     end
-    create_player_construct()
+    get_player_construct()
 end)
 
 menu.text_input(menus.create_new_construct, "Ped from Name", {"constructorcreatepedfromname"}, "Create a new Ped construct", function(value)
