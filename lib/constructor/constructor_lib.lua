@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.2"
+local LIB_VERSION = "3.21.3b1"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -37,6 +37,20 @@ constructor_lib.construct_base = {
     world_rotation = {x=0,y=0,z=0},
     num_bones = 100,
     heading = 0,
+}
+
+local default_vehicle_attributes = {
+    paint = {
+        dirt_level = 0,
+    },
+    neon = {},
+    wheels = {
+        tires_burst = {},
+    },
+    headlights = {},
+    options = {},
+    mods = {},
+    extras = {},
 }
 
 ---
@@ -226,246 +240,259 @@ end
 --- Specific Serializers
 ---
 
-constructor_lib.serialize_vehicle_headlights = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.headlights == nil then serialized_vehicle.headlights = {} end
-    serialized_vehicle.headlights.headlights_color = VEHICLE.GET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle)
-    serialized_vehicle.headlights.headlights_type = VEHICLE.IS_TOGGLE_MOD_ON(vehicle.handle, 22)
-    return serialized_vehicle
+constructor_lib.serialize_vehicle_headlights = function(vehicle)
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.headlights == nil then vehicle.vehicle_attributes.headlights = {} end
+    vehicle.vehicle_attributes.headlights.headlights_color = VEHICLE.GET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle)
+    vehicle.vehicle_attributes.headlights.headlights_type = VEHICLE.IS_TOGGLE_MOD_ON(vehicle.handle, 22)
 end
 
-constructor_lib.deserialize_vehicle_headlights = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.headlights == nil then return end
-    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, serialized_vehicle.headlights.headlights_color)
-    VEHICLE.TOGGLE_VEHICLE_MOD(vehicle.handle, 22, serialized_vehicle.headlights.headlights_type or false)
-    VEHICLE.SET_VEHICLE_LIGHT_MULTIPLIER(vehicle.handle, serialized_vehicle.headlights.multiplier or 1)
+constructor_lib.deserialize_vehicle_headlights = function(vehicle)
+    if vehicle.vehicle_attributes.headlights == nil then return end
+    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, vehicle.vehicle_attributes.headlights.headlights_color)
+    VEHICLE.TOGGLE_VEHICLE_MOD(vehicle.handle, 22, vehicle.vehicle_attributes.headlights.headlights_type or false)
+    VEHICLE.SET_VEHICLE_LIGHT_MULTIPLIER(vehicle.handle, vehicle.vehicle_attributes.headlights.multiplier or 1)
 end
 
-constructor_lib.serialize_vehicle_paint = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.paint == nil then
-        serialized_vehicle.paint = {
-            primary = {},
-            secondary = {},
-        }
-    end
+constructor_lib.serialize_vehicle_paint = function(vehicle)
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.paint == nil then vehicle.vehicle_attributes.paint = {} end
+    if vehicle.vehicle_attributes.paint.primary == nil then vehicle.vehicle_attributes.paint.primary = {} end
+    if vehicle.vehicle_attributes.paint.secondary == nil then vehicle.vehicle_attributes.paint.secondary = {} end
 
     -- Create pointers to hold color values
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
 
     VEHICLE.GET_VEHICLE_COLOR(vehicle.handle, color.r, color.g, color.b)
-    serialized_vehicle.paint.vehicle_custom_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
+    vehicle.vehicle_attributes.paint.vehicle_custom_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     VEHICLE.GET_VEHICLE_COLOURS(vehicle.handle, color.r, color.g)
-    serialized_vehicle.paint.primary.vehicle_standard_color = memory.read_int(color.r)
-    serialized_vehicle.paint.secondary.vehicle_standard_color = memory.read_int(color.g)
+    vehicle.vehicle_attributes.paint.primary.vehicle_standard_color = memory.read_int(color.r)
+    vehicle.vehicle_attributes.paint.secondary.vehicle_standard_color = memory.read_int(color.g)
 
-    serialized_vehicle.paint.primary.is_custom = VEHICLE.GET_IS_VEHICLE_PRIMARY_COLOUR_CUSTOM(vehicle.handle)
-    if serialized_vehicle.paint.primary.is_custom then
+    vehicle.vehicle_attributes.paint.primary.is_custom = VEHICLE.GET_IS_VEHICLE_PRIMARY_COLOUR_CUSTOM(vehicle.handle)
+    if vehicle.vehicle_attributes.paint.primary.is_custom then
         VEHICLE.GET_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle.handle, color.r, color.g, color.b)
-        serialized_vehicle.paint.primary.custom_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
+        vehicle.vehicle_attributes.paint.primary.custom_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     else
         VEHICLE.GET_VEHICLE_MOD_COLOR_1(vehicle.handle, color.r, color.g, color.b)
-        serialized_vehicle.paint.primary.paint_type = memory.read_int(color.r)
-        serialized_vehicle.paint.primary.color = memory.read_int(color.g)
-        serialized_vehicle.paint.primary.pearlescent_color = memory.read_int(color.b)
+        vehicle.vehicle_attributes.paint.primary.paint_type = memory.read_int(color.r)
+        vehicle.vehicle_attributes.paint.primary.color = memory.read_int(color.g)
+        vehicle.vehicle_attributes.paint.primary.pearlescent_color = memory.read_int(color.b)
     end
 
-    serialized_vehicle.paint.secondary.is_custom = VEHICLE.GET_IS_VEHICLE_SECONDARY_COLOUR_CUSTOM(vehicle.handle)
-    if serialized_vehicle.paint.secondary.is_custom then
+    vehicle.vehicle_attributes.paint.secondary.is_custom = VEHICLE.GET_IS_VEHICLE_SECONDARY_COLOUR_CUSTOM(vehicle.handle)
+    if vehicle.vehicle_attributes.paint.secondary.is_custom then
         VEHICLE.GET_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle.handle, color.r, color.g, color.b)
-        serialized_vehicle.paint.secondary.custom_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
+        vehicle.vehicle_attributes.paint.secondary.custom_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     else
         VEHICLE.GET_VEHICLE_MOD_COLOR_2(vehicle.handle, color.r, color.g)
-        serialized_vehicle.paint.secondary.paint_type = memory.read_int(color.r)
-        serialized_vehicle.paint.secondary.color = memory.read_int(color.g)
+        vehicle.vehicle_attributes.paint.secondary.paint_type = memory.read_int(color.r)
+        vehicle.vehicle_attributes.paint.secondary.color = memory.read_int(color.g)
     end
 
     VEHICLE.GET_VEHICLE_EXTRA_COLOURS(vehicle.handle, color.r, color.g)
-    serialized_vehicle.paint.extra_colors = { pearlescent = memory.read_int(color.r), wheel = memory.read_int(color.g) }
+    vehicle.vehicle_attributes.paint.extra_colors = { pearlescent = memory.read_int(color.r), wheel = memory.read_int(color.g) }
     VEHICLE.GET_VEHICLE_EXTRA_COLOUR_6(vehicle.handle, color.r)
-    serialized_vehicle.paint.dashboard_color = memory.read_int(color.r)
+    vehicle.vehicle_attributes.paint.dashboard_color = memory.read_int(color.r)
     VEHICLE.SET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, color.r)
-    serialized_vehicle.paint.interior_color = memory.read_int(color.r)
-    serialized_vehicle.paint.fade = VEHICLE.GET_VEHICLE_ENVEFF_SCALE(vehicle.handle)
-    serialized_vehicle.paint.dirt_level = VEHICLE.GET_VEHICLE_DIRT_LEVEL(vehicle.handle)
-    serialized_vehicle.paint.color_combo = VEHICLE.GET_VEHICLE_COLOUR_COMBINATION(vehicle.handle)
+    vehicle.vehicle_attributes.paint.interior_color = memory.read_int(color.r)
+    vehicle.vehicle_attributes.paint.fade = VEHICLE.GET_VEHICLE_ENVEFF_SCALE(vehicle.handle)
+    vehicle.vehicle_attributes.paint.dirt_level = VEHICLE.GET_VEHICLE_DIRT_LEVEL(vehicle.handle)
+    vehicle.vehicle_attributes.paint.color_combo = VEHICLE.GET_VEHICLE_COLOUR_COMBINATION(vehicle.handle)
 
     -- Livery is also part of mods, but capture it here as well for when just saving paint
-    serialized_vehicle.paint.livery = VEHICLE.GET_VEHICLE_MOD(vehicle.handle, 48)
-    serialized_vehicle.paint.livery_legacy = VEHICLE.GET_VEHICLE_LIVERY(vehicle.handle)
-    serialized_vehicle.paint.livery2_legacy = VEHICLE.GET_VEHICLE_LIVERY2(vehicle.handle)
+    vehicle.vehicle_attributes.paint.livery = VEHICLE.GET_VEHICLE_MOD(vehicle.handle, 48)
+    vehicle.vehicle_attributes.paint.livery_legacy = VEHICLE.GET_VEHICLE_LIVERY(vehicle.handle)
+    vehicle.vehicle_attributes.paint.livery2_legacy = VEHICLE.GET_VEHICLE_LIVERY2(vehicle.handle)
 
     memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
-constructor_lib.deserialize_vehicle_paint = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.paint == nil then return end
+constructor_lib.deserialize_vehicle_paint = function(vehicle)
+    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.paint == nil then return end
 
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
-    VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle.handle, serialized_vehicle.paint.color_combo or -1)
+    VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle.handle, vehicle.vehicle_attributes.paint.color_combo or -1)
 
-    if serialized_vehicle.paint.vehicle_custom_color then
+    if vehicle.vehicle_attributes.paint.vehicle_custom_color then
         VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
                 vehicle.handle,
-                serialized_vehicle.paint.vehicle_custom_color.r,
-                serialized_vehicle.paint.vehicle_custom_color.g,
-                serialized_vehicle.paint.vehicle_custom_color.b
+                vehicle.vehicle_attributes.paint.vehicle_custom_color.r,
+                vehicle.vehicle_attributes.paint.vehicle_custom_color.g,
+                vehicle.vehicle_attributes.paint.vehicle_custom_color.b
         )
         VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(
                 vehicle.handle,
-                serialized_vehicle.paint.vehicle_custom_color.r,
-                serialized_vehicle.paint.vehicle_custom_color.g,
-                serialized_vehicle.paint.vehicle_custom_color.b
+                vehicle.vehicle_attributes.paint.vehicle_custom_color.r,
+                vehicle.vehicle_attributes.paint.vehicle_custom_color.g,
+                vehicle.vehicle_attributes.paint.vehicle_custom_color.b
         )
     end
 
-    if serialized_vehicle.paint.primary.vehicle_standard_color ~= nil or serialized_vehicle.paint.secondary.vehicle_standard_color ~= nil then
-        VEHICLE.SET_VEHICLE_COLOURS(
-            vehicle.handle,
-            serialized_vehicle.paint.primary.vehicle_standard_color,
-            serialized_vehicle.paint.secondary.vehicle_standard_color
-        )
+    if vehicle.vehicle_attributes.paint.primary then
+        if vehicle.vehicle_attributes.paint.primary.vehicle_standard_color ~= nil or vehicle.vehicle_attributes.paint.secondary.vehicle_standard_color ~= nil then
+            VEHICLE.SET_VEHICLE_COLOURS(
+                    vehicle.handle,
+                    vehicle.vehicle_attributes.paint.primary.vehicle_standard_color,
+                    vehicle.vehicle_attributes.paint.secondary.vehicle_standard_color
+            )
+        end
+        if vehicle.vehicle_attributes.paint.primary.is_custom then
+            VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
+                    vehicle.handle,
+                    vehicle.vehicle_attributes.paint.primary.custom_color.r,
+                    vehicle.vehicle_attributes.paint.primary.custom_color.g,
+                    vehicle.vehicle_attributes.paint.primary.custom_color.b
+            )
+        end
+        if vehicle.vehicle_attributes.paint.primary.paint_type then
+            VEHICLE.SET_VEHICLE_MOD_COLOR_1(
+                    vehicle.handle,
+                    vehicle.vehicle_attributes.paint.primary.paint_type,
+                    vehicle.vehicle_attributes.paint.primary.color,
+                    vehicle.vehicle_attributes.paint.primary.pearlescent_color
+            )
+        end
+        if vehicle.vehicle_attributes.paint.secondary.is_custom then
+            VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(
+                    vehicle.handle,
+                    vehicle.vehicle_attributes.paint.secondary.custom_color.r,
+                    vehicle.vehicle_attributes.paint.secondary.custom_color.g,
+                    vehicle.vehicle_attributes.paint.secondary.custom_color.b
+            )
+        end
+        if vehicle.vehicle_attributes.paint.secondary.paint_type then
+            VEHICLE.SET_VEHICLE_MOD_COLOR_2(
+                    vehicle.handle,
+                    vehicle.vehicle_attributes.paint.secondary.paint_type,
+                    vehicle.vehicle_attributes.paint.secondary.color
+            )
+        end
     end
 
-    if serialized_vehicle.paint.extra_colors then
+    if vehicle.vehicle_attributes.paint.extra_colors then
         VEHICLE.SET_VEHICLE_EXTRA_COLOURS(
                 vehicle.handle,
-                serialized_vehicle.paint.extra_colors.pearlescent,
-                serialized_vehicle.paint.extra_colors.wheel
+                vehicle.vehicle_attributes.paint.extra_colors.pearlescent,
+                vehicle.vehicle_attributes.paint.extra_colors.wheel
         )
     end
 
-    if serialized_vehicle.paint.primary.is_custom then
-        VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
-                vehicle.handle,
-                serialized_vehicle.paint.primary.custom_color.r,
-                serialized_vehicle.paint.primary.custom_color.g,
-                serialized_vehicle.paint.primary.custom_color.b
-        )
-    end
+    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, vehicle.vehicle_attributes.headlights_color)
+    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_6(vehicle.handle, vehicle.vehicle_attributes.paint.dashboard_color or -1)
+    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, vehicle.vehicle_attributes.paint.interior_color or -1)
 
-    if serialized_vehicle.paint.primary.paint_type then
-        VEHICLE.SET_VEHICLE_MOD_COLOR_1(
-                vehicle.handle,
-                serialized_vehicle.paint.primary.paint_type,
-                serialized_vehicle.paint.primary.color,
-                serialized_vehicle.paint.primary.pearlescent_color
-        )
-    end
+    VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle.handle, vehicle.vehicle_attributes.paint.fade or 0)
+    VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle.handle, vehicle.vehicle_attributes.paint.dirt_level or 0.0)
+    VEHICLE.SET_VEHICLE_MOD(vehicle.handle, 48, vehicle.vehicle_attributes.paint.livery or -1)
 
-    if serialized_vehicle.paint.secondary.is_custom then
-        VEHICLE.SET_VEHICLE_CUSTOM_SECONDARY_COLOUR(
-                vehicle.handle,
-                serialized_vehicle.paint.secondary.custom_color.r,
-                serialized_vehicle.paint.secondary.custom_color.g,
-                serialized_vehicle.paint.secondary.custom_color.b
-        )
-    end
-    if serialized_vehicle.paint.secondary.paint_type then
-        VEHICLE.SET_VEHICLE_MOD_COLOR_2(
-                vehicle.handle,
-                serialized_vehicle.paint.secondary.paint_type,
-                serialized_vehicle.paint.secondary.color
-        )
-    end
-
-    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, serialized_vehicle.headlights_color)
-    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_6(vehicle.handle, serialized_vehicle.paint.dashboard_color or -1)
-    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, serialized_vehicle.paint.interior_color or -1)
-
-    VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle.handle, serialized_vehicle.paint.fade or 0)
-    VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle.handle, serialized_vehicle.paint.dirt_level or 0.0)
-    VEHICLE.SET_VEHICLE_MOD(vehicle.handle, 48, serialized_vehicle.paint.livery or -1)
-
-    VEHICLE.SET_VEHICLE_MOD(vehicle.handle, serialized_vehicle.paint.livery or -1)
-    VEHICLE.SET_VEHICLE_LIVERY(vehicle.handle, serialized_vehicle.paint.livery_legacy or -1)
-    VEHICLE.SET_VEHICLE_LIVERY2(vehicle.handle, serialized_vehicle.paint.livery2_legacy or -1)
+    VEHICLE.SET_VEHICLE_MOD(vehicle.handle, vehicle.vehicle_attributes.paint.livery or -1)
+    VEHICLE.SET_VEHICLE_LIVERY(vehicle.handle, vehicle.vehicle_attributes.paint.livery_legacy or -1)
+    VEHICLE.SET_VEHICLE_LIVERY2(vehicle.handle, vehicle.vehicle_attributes.paint.livery2_legacy or -1)
 end
 
-constructor_lib.serialize_vehicle_neon = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.neon == nil then serialized_vehicle.neon = {} end
-    serialized_vehicle.neon.lights = {
+constructor_lib.serialize_vehicle_neon = function(vehicle)
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.neon == nil then vehicle.vehicle_attributes.neon = {} end
+    vehicle.vehicle_attributes.neon.lights = {
         left = VEHICLE.GET_VEHICLE_NEON_ENABLED(vehicle.handle, 0),
         right = VEHICLE.GET_VEHICLE_NEON_ENABLED(vehicle.handle, 1),
         front = VEHICLE.GET_VEHICLE_NEON_ENABLED(vehicle.handle, 2),
         back = VEHICLE.GET_VEHICLE_NEON_ENABLED(vehicle.handle, 3),
     }
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
-    if (serialized_vehicle.neon.lights.left or serialized_vehicle.neon.lights.right
-            or serialized_vehicle.neon.lights.front or serialized_vehicle.neon.lights.back) then
+    if (vehicle.vehicle_attributes.neon.lights.left or vehicle.vehicle_attributes.neon.lights.right
+            or vehicle.vehicle_attributes.neon.lights.front or vehicle.vehicle_attributes.neon.lights.back) then
         VEHICLE.GET_VEHICLE_NEON_COLOUR(vehicle.handle, color.r, color.g, color.b)
-        serialized_vehicle.neon.color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
+        vehicle.vehicle_attributes.neon.color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     end
     memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
-constructor_lib.deserialize_vehicle_neon = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.neon == nil then return end
-    VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 0, serialized_vehicle.neon.lights.left or false)
-    VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 1, serialized_vehicle.neon.lights.right or false)
-    VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 2, serialized_vehicle.neon.lights.front or false)
-    VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 3, serialized_vehicle.neon.lights.back or false)
-    if serialized_vehicle.neon.color then
+constructor_lib.deserialize_vehicle_neon = function(vehicle)
+    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.neon == nil then return end
+    if vehicle.vehicle_attributes.neon.lights then
+        VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 0, vehicle.vehicle_attributes.neon.lights.left or false)
+        VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 1, vehicle.vehicle_attributes.neon.lights.right or false)
+        VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 2, vehicle.vehicle_attributes.neon.lights.front or false)
+        VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 3, vehicle.vehicle_attributes.neon.lights.back or false)
+    end
+    if vehicle.vehicle_attributes.neon.color then
         VEHICLE.SET_VEHICLE_NEON_COLOUR(
                 vehicle.handle,
-                serialized_vehicle.neon.color.r,
-                serialized_vehicle.neon.color.g,
-                serialized_vehicle.neon.color.b
+                vehicle.vehicle_attributes.neon.color.r,
+                vehicle.vehicle_attributes.neon.color.g,
+                vehicle.vehicle_attributes.neon.color.b
         )
     end
 end
 
-constructor_lib.serialize_vehicle_wheels = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.wheels == nil then serialized_vehicle.wheels = {} end
-    serialized_vehicle.wheels.wheel_type = VEHICLE.GET_VEHICLE_WHEEL_TYPE(vehicle.handle)
+constructor_lib.serialize_vehicle_wheels = function(vehicle)
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.wheels == nil then vehicle.vehicle_attributes.wheels = {} end
+    if vehicle.vehicle_attributes.wheels.tires_burst == nil then vehicle.vehicle_attributes.wheels.tires_burst = {} end
+    vehicle.vehicle_attributes.wheels.wheel_type = VEHICLE.GET_VEHICLE_WHEEL_TYPE(vehicle.handle)
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, color.r, color.g, color.b)
-    serialized_vehicle.wheels.tire_smoke_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
+    vehicle.vehicle_attributes.wheels.tire_smoke_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
-constructor_lib.deserialize_vehicle_wheels = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.wheels == nil then return end
-    VEHICLE.SET_VEHICLE_TYRES_CAN_BURST(vehicle.handle, serialized_vehicle.wheels.bulletproof_tires or false)
-    VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle.handle, serialized_vehicle.wheels.wheel_type or -1)
-    if serialized_vehicle.wheels.tire_smoke_color then
-        VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, serialized_vehicle.wheels.tire_smoke_color.r or 255,
-                serialized_vehicle.wheels.tire_smoke_color.g or 255, serialized_vehicle.wheels.tire_smoke_color.b or 255)
+constructor_lib.deserialize_vehicle_wheels = function(vehicle)
+    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.wheels == nil then return end
+    if vehicle.vehicle_attributes.wheels.bulletproof_tires ~= nil then
+        VEHICLE.SET_VEHICLE_TYRES_CAN_BURST(vehicle.handle, not vehicle.vehicle_attributes.wheels.bulletproof_tires)
+    end
+    VEHICLE.SET_VEHICLE_WHEEL_TYPE(vehicle.handle, vehicle.vehicle_attributes.wheels.wheel_type or -1)
+    if vehicle.vehicle_attributes.wheels.tire_smoke_color then
+        VEHICLE.SET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, vehicle.vehicle_attributes.wheels.tire_smoke_color.r or 255,
+                vehicle.vehicle_attributes.wheels.tire_smoke_color.g or 255, vehicle.vehicle_attributes.wheels.tire_smoke_color.b or 255)
+    end
+    if vehicle.vehicle_attributes.wheels.tires_burst then
+        for index = 0, 7 do
+            if vehicle.vehicle_attributes.wheels.tires_burst["_"..index] then
+                VEHICLE.SET_VEHICLE_TYRE_BURST(vehicle.handle, index, true, 1.0)
+            end
+        end
     end
 end
 
-constructor_lib.serialize_vehicle_doors = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.doors == nil then
-        serialized_vehicle.doors = { broken = {}, open = {}, }
+constructor_lib.serialize_vehicle_doors = function(vehicle)
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.doors == nil then
+        vehicle.vehicle_attributes.doors = { broken = {}, open = {}, }
     end
-    serialized_vehicle.doors.open.frontleft = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 0)
-    serialized_vehicle.doors.open.frontright = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 1)
-    serialized_vehicle.doors.open.backleft = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 2)
-    serialized_vehicle.doors.open.backright = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 3)
-    serialized_vehicle.doors.open.hood = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 4)
-    serialized_vehicle.doors.open.trunk = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 5)
-    serialized_vehicle.doors.open.trunk2 = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 6)
+    vehicle.vehicle_attributes.doors.open.frontleft = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 0)
+    vehicle.vehicle_attributes.doors.open.frontright = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 1)
+    vehicle.vehicle_attributes.doors.open.backleft = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 2)
+    vehicle.vehicle_attributes.doors.open.backright = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 3)
+    vehicle.vehicle_attributes.doors.open.hood = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 4)
+    vehicle.vehicle_attributes.doors.open.trunk = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 5)
+    vehicle.vehicle_attributes.doors.open.trunk2 = VEHICLE.IS_VEHICLE_DOOR_FULLY_OPEN(vehicle.handle, 6)
 end
 
-constructor_lib.deserialize_vehicle_doors = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.doors == nil then return end
-    if serialized_vehicle.doors.broken.frontleft then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 0, true) end
-    if serialized_vehicle.doors.broken.frontright then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 1, true) end
-    if serialized_vehicle.doors.broken.backleft then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 2, true) end
-    if serialized_vehicle.doors.broken.backright then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 3, true) end
-    if serialized_vehicle.doors.broken.hood then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 4, true) end
-    if serialized_vehicle.doors.broken.trunk then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 5, true) end
-    if serialized_vehicle.doors.broken.trunk2 then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 6, true) end
+constructor_lib.deserialize_vehicle_doors = function(vehicle)
+    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.doors == nil then return end
+    if vehicle.vehicle_attributes.doors.broken.frontleft then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 0, true) end
+    if vehicle.vehicle_attributes.doors.broken.frontright then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 1, true) end
+    if vehicle.vehicle_attributes.doors.broken.backleft then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 2, true) end
+    if vehicle.vehicle_attributes.doors.broken.backright then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 3, true) end
+    if vehicle.vehicle_attributes.doors.broken.hood then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 4, true) end
+    if vehicle.vehicle_attributes.doors.broken.trunk then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 5, true) end
+    if vehicle.vehicle_attributes.doors.broken.trunk2 then VEHICLE.SET_VEHICLE_DOOR_BROKEN(vehicle.handle, 6, true) end
 
-    if serialized_vehicle.doors.open.frontleft then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 0, true, true) end
-    if serialized_vehicle.doors.open.frontright then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 1, true, true) end
-    if serialized_vehicle.doors.open.backleft then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 2, true, true) end
-    if serialized_vehicle.doors.open.backright then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 3, true, true) end
-    if serialized_vehicle.doors.open.hood then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 4, true, true) end
-    if serialized_vehicle.doors.open.trunk then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 5, true, true) end
-    if serialized_vehicle.doors.open.trunk2 then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 6, true, true) end
+    if vehicle.vehicle_attributes.doors.open.frontleft then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 0, true, true) end
+    if vehicle.vehicle_attributes.doors.open.frontright then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 1, true, true) end
+    if vehicle.vehicle_attributes.doors.open.backleft then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 2, true, true) end
+    if vehicle.vehicle_attributes.doors.open.backright then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 3, true, true) end
+    if vehicle.vehicle_attributes.doors.open.hood then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 4, true, true) end
+    if vehicle.vehicle_attributes.doors.open.trunk then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 5, true, true) end
+    if vehicle.vehicle_attributes.doors.open.trunk2 then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 6, true, true) end
 end
 
-constructor_lib.serialize_vehicle_mods = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.mods == nil then serialized_vehicle.mods = {} end
+constructor_lib.serialize_vehicle_mods = function(vehicle)
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.mods == nil then vehicle.vehicle_attributes.mods = {} end
     for mod_index = 0, 49 do
         local mod_value
         if mod_index >= 17 and mod_index <= 22 then
@@ -473,77 +500,79 @@ constructor_lib.serialize_vehicle_mods = function(vehicle, serialized_vehicle)
         else
             mod_value = VEHICLE.GET_VEHICLE_MOD(vehicle.handle, mod_index)
         end
-        serialized_vehicle.mods["_"..mod_index] = mod_value
+        vehicle.vehicle_attributes.mods["_"..mod_index] = mod_value
     end
 end
 
-constructor_lib.deserialize_vehicle_mods = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.mods == nil then return end
+constructor_lib.deserialize_vehicle_mods = function(vehicle)
+    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.mods == nil then return end
     for mod_index = 0, 49 do
         if mod_index >= 17 and mod_index <= 22 then
-            VEHICLE.TOGGLE_VEHICLE_MOD(vehicle.handle, mod_index, serialized_vehicle.mods["_"..mod_index])
+            VEHICLE.TOGGLE_VEHICLE_MOD(vehicle.handle, mod_index, vehicle.vehicle_attributes.mods["_"..mod_index])
         else
-            VEHICLE.SET_VEHICLE_MOD(vehicle.handle, mod_index, serialized_vehicle.mods["_"..mod_index] or -1)
+            VEHICLE.SET_VEHICLE_MOD(vehicle.handle, mod_index, vehicle.vehicle_attributes.mods["_"..mod_index] or -1)
         end
     end
 end
 
-constructor_lib.serialize_vehicle_extras = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.extras == nil then serialized_vehicle.extras = {} end
+constructor_lib.serialize_vehicle_extras = function(vehicle)
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.extras == nil then vehicle.vehicle_attributes.extras = {} end
     for extra_index = 0, 14 do
         if VEHICLE.DOES_EXTRA_EXIST(vehicle.handle, extra_index) then
-            serialized_vehicle.extras["_"..extra_index] = VEHICLE.IS_VEHICLE_EXTRA_TURNED_ON(vehicle.handle, extra_index)
+            vehicle.vehicle_attributes.extras["_"..extra_index] = VEHICLE.IS_VEHICLE_EXTRA_TURNED_ON(vehicle.handle, extra_index)
         end
     end
 end
 
-constructor_lib.deserialize_vehicle_extras = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.extras == nil then return end
+constructor_lib.deserialize_vehicle_extras = function(vehicle)
+    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.extras == nil then return end
     for extra_index = 0, 14 do
         local state = true
-        if serialized_vehicle.extras["_"..extra_index] ~= nil then
-            state = serialized_vehicle.extras["_"..extra_index]
+        if vehicle.vehicle_attributes.extras["_"..extra_index] ~= nil then
+            state = vehicle.vehicle_attributes.extras["_"..extra_index]
         end
         VEHICLE.SET_VEHICLE_EXTRA(vehicle.handle, extra_index, not state)
     end
 end
 
-constructor_lib.serialize_vehicle_options = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.options == nil then serialized_vehicle.options = {} end
-    serialized_vehicle.options.bulletproof_tires = VEHICLE.GET_VEHICLE_TYRES_CAN_BURST(vehicle.handle)
-    serialized_vehicle.options.window_tint = VEHICLE.GET_VEHICLE_WINDOW_TINT(vehicle.handle)
-    serialized_vehicle.options.radio_loud = AUDIO.CAN_VEHICLE_RECEIVE_CB_RADIO(vehicle.handle)
-    serialized_vehicle.options.engine_running = VEHICLE.GET_IS_VEHICLE_ENGINE_RUNNING(vehicle.handle)
-    serialized_vehicle.options.siren = VEHICLE.IS_VEHICLE_SIREN_AUDIO_ON(vehicle.handle)
-    serialized_vehicle.options.emergency_lights = VEHICLE.IS_VEHICLE_SIREN_ON(vehicle.handle)
-    serialized_vehicle.options.search_light = VEHICLE.IS_VEHICLE_SEARCHLIGHT_ON(vehicle.handle)
-    serialized_vehicle.options.license_plate_text = VEHICLE.GET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle)
-    serialized_vehicle.options.license_plate_type = VEHICLE.GET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle)
+constructor_lib.serialize_vehicle_options = function(vehicle)
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.options == nil then vehicle.vehicle_attributes.options = {} end
+    vehicle.vehicle_attributes.options.bulletproof_tires = VEHICLE.GET_VEHICLE_TYRES_CAN_BURST(vehicle.handle)
+    vehicle.vehicle_attributes.options.window_tint = VEHICLE.GET_VEHICLE_WINDOW_TINT(vehicle.handle)
+    vehicle.vehicle_attributes.options.radio_loud = AUDIO.CAN_VEHICLE_RECEIVE_CB_RADIO(vehicle.handle)
+    vehicle.vehicle_attributes.options.engine_running = VEHICLE.GET_IS_VEHICLE_ENGINE_RUNNING(vehicle.handle)
+    vehicle.vehicle_attributes.options.siren = VEHICLE.IS_VEHICLE_SIREN_AUDIO_ON(vehicle.handle)
+    vehicle.vehicle_attributes.options.emergency_lights = VEHICLE.IS_VEHICLE_SIREN_ON(vehicle.handle)
+    vehicle.vehicle_attributes.options.search_light = VEHICLE.IS_VEHICLE_SEARCHLIGHT_ON(vehicle.handle)
+    vehicle.vehicle_attributes.options.license_plate_text = VEHICLE.GET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle)
+    vehicle.vehicle_attributes.options.license_plate_type = VEHICLE.GET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle)
 end
 
-constructor_lib.deserialize_vehicle_options = function(vehicle, serialized_vehicle)
-    if serialized_vehicle.options == nil then return end
-    if serialized_vehicle.options.siren then
+constructor_lib.deserialize_vehicle_options = function(vehicle)
+    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.options == nil then return end
+    if vehicle.vehicle_attributes.options.siren then
         AUDIO.SET_SIREN_WITH_NO_DRIVER(vehicle.handle, true)
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(vehicle.handle, false)
         AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(vehicle.handle, true)
         AUDIO.TRIGGER_SIREN_AUDIO(vehicle.handle, true)
     end
-    VEHICLE.SET_VEHICLE_SIREN(vehicle.handle, serialized_vehicle.options.emergency_lights or false)
-    VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle.handle, serialized_vehicle.options.search_light or false, true)
-    AUDIO.SET_VEHICLE_RADIO_LOUD(vehicle.handle, serialized_vehicle.options.radio_loud or false)
-    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle, serialized_vehicle.options.license_plate_text or "UNKNOWN")
-    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle, serialized_vehicle.options.license_plate_type or -1)
+    VEHICLE.SET_VEHICLE_SIREN(vehicle.handle, vehicle.vehicle_attributes.options.emergency_lights or false)
+    VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle.handle, vehicle.vehicle_attributes.options.search_light or false, true)
+    AUDIO.SET_VEHICLE_RADIO_LOUD(vehicle.handle, vehicle.vehicle_attributes.options.radio_loud or false)
+    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_text or "UNKNOWN")
+    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_type or -1)
 
-    if serialized_vehicle.options.engine_running == true then
+    if vehicle.vehicle_attributes.options.engine_running == true then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle.handle, true, true, false)
         VEHICLE.SET_VEHICLE_KEEP_ENGINE_ON_WHEN_ABANDONED(vehicle.handle, true)
     end
-    if serialized_vehicle.options.doors_locked ~= nil then
-        VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle.handle, serialized_vehicle.options.doors_locked or false)
+    if vehicle.vehicle_attributes.options.doors_locked ~= nil then
+        VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle.handle, vehicle.vehicle_attributes.options.doors_locked or false)
     end
-    if serialized_vehicle.options.engine_health ~= nil then
-        VEHICLE.SET_VEHICLE_ENGINE_HEALTH(vehicle.handle, serialized_vehicle.options.engine_health)
+    if vehicle.vehicle_attributes.options.engine_health ~= nil then
+        VEHICLE.SET_VEHICLE_ENGINE_HEALTH(vehicle.handle, vehicle.vehicle_attributes.options.engine_health)
     end
 end
 
@@ -826,10 +855,10 @@ constructor_lib.attach_attachment = function(attachment)
     constructor_lib.update_attachment_position(attachment)
     constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
 
-    if not attachment.is_preview then
-        -- Pause for a tick between each model load to avoid loading too many at once
-        util.yield(5)
-    end
+    --if not attachment.is_preview then
+    --    -- Pause for a tick between each model load to avoid loading too many at once
+    --    --util.yield(2000)
+    --end
 
     return attachment
 end
@@ -987,37 +1016,39 @@ end
 
 constructor_lib.serialize_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
-    local serialized_vehicle = {}
-
-    constructor_lib.serialize_vehicle_paint(vehicle, serialized_vehicle)
-    constructor_lib.serialize_vehicle_neon(vehicle, serialized_vehicle)
-    constructor_lib.serialize_vehicle_wheels(vehicle, serialized_vehicle)
-    constructor_lib.serialize_vehicle_headlights(vehicle, serialized_vehicle)
-    constructor_lib.serialize_vehicle_options(vehicle, serialized_vehicle)
-    constructor_lib.serialize_vehicle_mods(vehicle, serialized_vehicle)
-    constructor_lib.serialize_vehicle_extras(vehicle, serialized_vehicle)
-
-    return serialized_vehicle
+    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes == {} then
+        vehicle.vehicle_attributes = default_vehicle_attributes
+    end
+    if not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
+    constructor_lib.serialize_vehicle_paint(vehicle)
+    constructor_lib.serialize_vehicle_neon(vehicle)
+    constructor_lib.serialize_vehicle_wheels(vehicle)
+    constructor_lib.serialize_vehicle_headlights(vehicle)
+    constructor_lib.serialize_vehicle_options(vehicle)
+    constructor_lib.serialize_vehicle_mods(vehicle)
+    constructor_lib.serialize_vehicle_extras(vehicle)
 end
 
 constructor_lib.deserialize_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes == nil then return end
-    local serialized_vehicle = vehicle.vehicle_attributes
     --if constructor_lib.debug then util.log("Deserializing vehicle attributes "..vehicle.name.." "..inspect(serialized_vehicle)) end
 
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
     ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle.handle, true, true)    -- Needed for plate text
 
-    constructor_lib.deserialize_vehicle_neon(vehicle, serialized_vehicle)
-    constructor_lib.deserialize_vehicle_paint(vehicle, serialized_vehicle)
-    constructor_lib.deserialize_vehicle_wheels(vehicle, serialized_vehicle)
-    constructor_lib.deserialize_vehicle_doors(vehicle, serialized_vehicle)
-    constructor_lib.deserialize_vehicle_headlights(vehicle, serialized_vehicle)
-    constructor_lib.deserialize_vehicle_options(vehicle, serialized_vehicle)
-    constructor_lib.deserialize_vehicle_mods(vehicle, serialized_vehicle)
-    constructor_lib.deserialize_vehicle_extras(vehicle, serialized_vehicle)
+    constructor_lib.deserialize_vehicle_neon(vehicle)
+    constructor_lib.deserialize_vehicle_paint(vehicle)
+    constructor_lib.deserialize_vehicle_wheels(vehicle)
+    constructor_lib.deserialize_vehicle_doors(vehicle)
+    constructor_lib.deserialize_vehicle_headlights(vehicle)
+    constructor_lib.deserialize_vehicle_options(vehicle)
+    constructor_lib.deserialize_vehicle_mods(vehicle)
+    constructor_lib.deserialize_vehicle_extras(vehicle)
+end
 
-    --ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle.handle, true, true)
+constructor_lib.serialize_ped_attributes = function(attachment)
+    if attachment.ped_attributes == nil then attachment.ped_attributes = {} end
+    -- TODO: Serialize ped attributes?
 end
 
 constructor_lib.deserialize_ped_attributes = function(attachment)
@@ -1620,4 +1651,3 @@ end
 ---
 
 return constructor_lib
-
