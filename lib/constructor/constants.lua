@@ -1,6 +1,6 @@
 -- GTA5 Constants
 
-local constants
+local constants = {}
 
 constants.bone_index_names = {
     {
