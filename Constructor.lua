@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.2"
+local SCRIPT_VERSION = "0.20.3b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -526,6 +526,7 @@ local function create_construct_from_vehicle(vehicle_handle)
     construct.parent = construct
     construct.hash = ENTITY.GET_ENTITY_MODEL(vehicle_handle)
     construct.model = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(construct.hash)
+    constructor_lib.serialize_vehicle_attributes(construct)
     constructor_lib.set_attachment_defaults(construct)
     table.insert(spawned_constructs, construct)
     last_spawned_construct = construct
@@ -571,6 +572,7 @@ local function spawn_construct_from_plan(construct_plan)
     end
     construct.root = construct
     construct.parent = construct
+    constructor_lib.serialize_vehicle_attributes(construct)
     constructor_lib.reattach_attachment_with_children(construct)
     if not construct.handle then error("Failed to spawn construct from plan "..tostring(construct_plan.name)) end
     table.insert(spawned_constructs, construct)
@@ -1189,6 +1191,32 @@ menus.rebuild_attachment_menu = function(attachment)
                 make_wheels_invis(attachment)
             end)
 
+            menu.slider(attachment.menus.options, "Dirt Level", {"constructordirtlevel"..attachment.handle.."z"}, "How dirty is the vehicle", 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
+                attachment.vehicle_attributes.paint.dirt_level = value
+                constructor_lib.deserialize_vehicle_paint(attachment)
+            end)
+
+            menu.toggle(attachment.menus.options, "Bullet Proof Tires", {}, "", function(value)
+                attachment.vehicle_attributes.wheels.bulletproof_tires = value
+                constructor_lib.deserialize_vehicle_wheels(attachment)
+            end, attachment.vehicle_attributes.wheels.bulletproof_tires)
+
+            attachment.menus.tires_burst = menu.list(attachment.menus.options, "Burst Tires", {}, "Are tires burst")
+            if attachment.vehicle_attributes.wheels.tires_burst == nil then attachment.vehicle_attributes.wheels.tires_burst = {} end
+            for index = 0, 7 do
+                menu.toggle(attachment.menus.tires_burst, "Tire "..index, {}, "", function(value)
+                    attachment.vehicle_attributes.wheels.tires_burst["_"..index] = value
+                    constructor_lib.deserialize_vehicle_wheels(attachment)
+                end, attachment.vehicle_attributes.wheels.tires_burst["_"..index])
+            end
+
+        end
+
+        if attachment.type == "PED" then
+            menu.divider(attachment.menus.options, "Ped")
+            menu.toggle(attachment.menus.options, "Is Player Skin", {}, "If enabled, spawning this ped will act as a player skin.", function(value)
+                attachment.is_player = value
+            end, attachment.is_player)
         end
 
         -- Attachment
@@ -1524,6 +1552,18 @@ load_constructs_root_menu_file = {menu=menus.load_construct, name="Loaded Constr
 
 menu.hyperlink(menus.load_construct, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
 
+--menu.action(menus.load_construct, "Search", {"constructorsearch"}, "", function()
+--    menu.show_command_box("constructorsearch ")
+--end, function(on_command)
+--    local results = search_vehicle(on_command)
+--    if #results == 0 then
+--        util.toast("No files found")
+--    else
+--        menu.set_list_action_options(v_search_results_action, results)
+--        menu.trigger_commands("constructorsearchresults")
+--    end
+--end)
+
 local function add_directory_to_load_constructs(path, parent_construct_plan_file)
     if path == nil then path = "" end
     if parent_construct_plan_file == nil then parent_construct_plan_file = load_constructs_root_menu_file end
@@ -1531,12 +1571,19 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     for _, construct_plan_menu in pairs(parent_construct_plan_file.menus) do
         pcall(menu.delete, construct_plan_menu)
     end
-    for _, construct_plan_file in pairs(load_construct_plans_files_from_dir(CONSTRUCTS_DIR..path)) do
+
+    menu.divider(parent_construct_plan_file.menu, "Browse")
+    local construct_plan_files = load_construct_plans_files_from_dir(CONSTRUCTS_DIR..path)
+    for _, construct_plan_file in pairs(construct_plan_files) do
         if construct_plan_file.is_directory then
             construct_plan_file.menu = menu.list(parent_construct_plan_file.menu, construct_plan_file.name or "unknown", {}, "", function()
                 add_directory_to_load_constructs(path.."/"..construct_plan_file.filename, construct_plan_file)
             end)
-        else
+            table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
+        end
+    end
+    for _, construct_plan_file in pairs(construct_plan_files) do
+        if not construct_plan_file.is_directory then
             if is_file_type_supported(construct_plan_file.ext) then
                 construct_plan_file.menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
                     remove_preview()
@@ -1550,8 +1597,8 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
                 menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file)) end end)
                 menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
             end
+            table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
         end
-        table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
     end
 end
 
@@ -1650,3 +1697,4 @@ util.on_stop(cleanup_constructs_handler)
 util.create_tick_handler(function()
     return true
 end)
+
