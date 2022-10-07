@@ -4,11 +4,11 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.3b1"
+local LIB_VERSION = "3.21.3b2"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
-    debug = false
+    debug = true
 }
 
 ---
@@ -20,6 +20,9 @@ if not status_inspect then error("Could not load inspect lib. This should have b
 
 local status_xml2lua, xml2lua = pcall(require, "constructor/xml2lua")
 if not status_xml2lua then error("Could not load xml2lua lib. This should have been auto-installed.") end
+
+local status_constants, constants = pcall(require, "constructor/constants")
+if not status_inspect then error("Could not load constants lib. This should have been auto-installed.") end
 
 ---
 --- Data
@@ -35,7 +38,7 @@ constructor_lib.construct_base = {
     offset = {x=0,y=0,z=0},
     rotation = {x=0,y=0,z=0},
     world_rotation = {x=0,y=0,z=0},
-    num_bones = 100,
+    num_bones = 200,
     heading = 0,
 }
 
@@ -51,6 +54,10 @@ local default_vehicle_attributes = {
     options = {},
     mods = {},
     extras = {},
+    doors = {
+        broken = {},
+        open = {},
+    },
 }
 
 ---
@@ -385,8 +392,6 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
     VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle.handle, vehicle.vehicle_attributes.paint.fade or 0)
     VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle.handle, vehicle.vehicle_attributes.paint.dirt_level or 0.0)
     VEHICLE.SET_VEHICLE_MOD(vehicle.handle, 48, vehicle.vehicle_attributes.paint.livery or -1)
-
-    VEHICLE.SET_VEHICLE_MOD(vehicle.handle, vehicle.vehicle_attributes.paint.livery or -1)
     VEHICLE.SET_VEHICLE_LIVERY(vehicle.handle, vehicle.vehicle_attributes.paint.livery_legacy or -1)
     VEHICLE.SET_VEHICLE_LIVERY2(vehicle.handle, vehicle.vehicle_attributes.paint.livery2_legacy or -1)
 end
@@ -449,9 +454,11 @@ constructor_lib.deserialize_vehicle_wheels = function(vehicle)
                 vehicle.vehicle_attributes.wheels.tire_smoke_color.g or 255, vehicle.vehicle_attributes.wheels.tire_smoke_color.b or 255)
     end
     if vehicle.vehicle_attributes.wheels.tires_burst then
-        for index = 0, 7 do
-            if vehicle.vehicle_attributes.wheels.tires_burst["_"..index] then
-                VEHICLE.SET_VEHICLE_TYRE_BURST(vehicle.handle, index, true, 1.0)
+        for _, tire_position in pairs(constants.tire_position_names) do
+            if vehicle.vehicle_attributes.wheels.tires_burst["_"..tire_position.index] then
+                VEHICLE.SET_VEHICLE_TYRE_BURST(vehicle.handle, tire_position.index, true, 1.0)
+            else
+                VEHICLE.SET_VEHICLE_TYRE_FIXED(vehicle.handle, tire_position.index)
             end
         end
     end
@@ -488,6 +495,10 @@ constructor_lib.deserialize_vehicle_doors = function(vehicle)
     if vehicle.vehicle_attributes.doors.open.hood then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 4, true, true) end
     if vehicle.vehicle_attributes.doors.open.trunk then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 5, true, true) end
     if vehicle.vehicle_attributes.doors.open.trunk2 then VEHICLE.SET_VEHICLE_DOOR_OPEN(vehicle.handle, 6, true, true) end
+
+    if vehicle.vehicle_attributes.doors.lock_status ~= nil then
+        VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle.handle, vehicle.vehicle_attributes.doors.lock_status)
+    end
 end
 
 constructor_lib.serialize_vehicle_mods = function(vehicle)
@@ -696,7 +707,8 @@ constructor_lib.update_attachment = function(attachment)
             attachment.handle, attachment.parent.handle, attachment.options.bone_index,
             attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
             attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-            false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
+            false, attachment.options.use_soft_pinning, attachment.options.has_collision, false
+            -- , 2, true -- These alter the positioning commands, are they needed for spawning maps?
         )
     else
         constructor_lib.update_attachment_position(attachment)
@@ -762,11 +774,16 @@ end
 constructor_lib.attach_attachment = function(attachment)
     constructor_lib.set_attachment_defaults(attachment)
     if attachment.is_player and not attachment.is_preview then
-        debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
-        constructor_lib.load_hash(attachment.hash)
-        PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
-        util.yield(100)
-        attachment.handle = players.user_ped()
+        if attachment.model then
+            debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
+            constructor_lib.load_hash(attachment.hash)
+            PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
+            util.yield(100)
+            attachment.handle = players.user_ped()
+        else
+            attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
+            attachment.model = util.reverse_joaat(attachment.hash)
+        end
         constructor_lib.deserialize_ped_attributes(attachment)
         return
     else
@@ -846,7 +863,7 @@ constructor_lib.attach_attachment = function(attachment)
 
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
 
-    if attachment.num_bones == nil then attachment.num_bones = ENTITY.GET_ENTITY_BONE_COUNT(attachment.handle) end
+    if attachment.num_bones == nil or attachment.num_bones == 200 then attachment.num_bones = ENTITY.GET_ENTITY_BONE_COUNT(attachment.handle) end
     if attachment.type == nil then attachment.type = ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)] end
     if attachment.flash_start_on ~= nil then ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0) end
     if attachment.options.is_invincible ~= nil then ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, attachment.options.is_invincible) end
