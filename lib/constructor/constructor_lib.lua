@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.3b3"
+local LIB_VERSION = "3.21.3b4"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -40,6 +40,8 @@ constructor_lib.construct_base = {
     world_rotation = {x=0,y=0,z=0},
     num_bones = 200,
     heading = 0,
+    blip_icon = 1,
+    blip_color = 2,
 }
 
 ---
@@ -627,12 +629,15 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options.bone_index == nil then attachment.options.bone_index = 0 end
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
     if attachment.options.is_attached == nil then attachment.options.is_attached = (attachment ~= attachment.parent) end
+    if attachment.blip_sprite == nil then attachment.blip_sprite = 1 end
+    if attachment.blip_color == nil then attachment.blip_color = 2 end
     if attachment.hash == nil and attachment.model ~= nil then
         attachment.hash = util.joaat(attachment.model)
     elseif attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
     if attachment.name == nil then attachment.name = attachment.model end
+    constructor_lib.default_vehicle_attributes(attachment)
 end
 
 constructor_lib.set_preview_visibility = function(attachment)
@@ -641,6 +646,14 @@ constructor_lib.set_preview_visibility = function(attachment)
     ENTITY.SET_ENTITY_ALPHA(attachment.handle, preview_alpha, false)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
     ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, true)
+end
+
+constructor_lib.refresh_blip = function(attachment)
+    if attachment ~= attachment.parent or attachment.is_preview then return end
+    if attachment.blip_handle then util.remove_blip(attachment.blip_handle) end
+    attachment.blip_handle = HUD.ADD_BLIP_FOR_ENTITY(attachment.handle)
+    HUD.SET_BLIP_SPRITE(attachment.blip_handle, attachment.blip_sprite)
+    HUD.SET_BLIP_COLOUR(attachment.blip_handle, attachment.blip_color)
 end
 
 constructor_lib.update_attachment = function(attachment)
@@ -675,7 +688,7 @@ constructor_lib.update_attachment = function(attachment)
             attachment.options.is_melee_proof,
             false, true, false
     )
-    ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
+    --ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
     AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud or false)
     if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
 
@@ -689,8 +702,7 @@ constructor_lib.update_attachment = function(attachment)
             attachment.handle, attachment.parent.handle, attachment.options.bone_index,
             attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
             attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-            false, attachment.options.use_soft_pinning, attachment.options.has_collision, false
-            -- , 2, true -- These alter the positioning commands, are they needed for spawning maps?
+            false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
         )
     else
         constructor_lib.update_attachment_position(attachment)
@@ -853,6 +865,7 @@ constructor_lib.attach_attachment = function(attachment)
     constructor_lib.update_attachment(attachment)
     constructor_lib.update_attachment_position(attachment)
     constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
+    constructor_lib.refresh_blip(attachment)
 
     --if not attachment.is_preview then
     --    -- Pause for a tick between each model load to avoid loading too many at once
@@ -906,6 +919,7 @@ constructor_lib.remove_attachment = function(attachment)
         end)
     end
     if not attachment.is_player or attachment.is_preview then
+        if attachment == attachment.parent and attachment.blip_handle then util.remove_blip(attachment.blip_handle) end
         if not attachment.handle then
             util.log("Cannot remove attachment. No valid handle found. "..tostring(attachment.name))
             return
@@ -1006,6 +1020,7 @@ constructor_lib.clone_attachment = function(attachment)
         clone.root = attachment.root
         clone.parent = attachment.parent
     end
+    debug_log("Cloned "..tostring(attachment.name), clone)
     return clone
 end
 
@@ -1014,6 +1029,7 @@ end
 ---
 
 constructor_lib.default_vehicle_attributes = function(vehicle)
+    if vehicle.type ~= "VEHICLE" then return end
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.paint == nil then vehicle.vehicle_attributes.paint = {} end
     if vehicle.vehicle_attributes.paint.dirt_level == nil then vehicle.vehicle_attributes.paint.dirt_level = 0 end
@@ -1029,6 +1045,7 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
 end
 
 constructor_lib.serialize_vehicle_attributes = function(vehicle)
+    debug_log("Serializing vehicle attributes "..tostring(vehicle.name).." "..debug.traceback())
     if vehicle.type ~= "VEHICLE" then return end
     constructor_lib.default_vehicle_attributes(vehicle)
     if not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
@@ -1663,4 +1680,3 @@ end
 ---
 
 return constructor_lib
-
