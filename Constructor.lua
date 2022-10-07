@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.3b2"
+local SCRIPT_VERSION = "0.20.3b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -78,6 +78,12 @@ auto_updater.require_with_auto_update({
     verify_file_begins_with="--",
 })
 
+local constants = auto_updater.require_with_auto_update({
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
+    script_relpath="lib/constructor/constants.lua",
+    verify_file_begins_with="--",
+})
+
 local constructor_lib = auto_updater.require_with_auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
     script_relpath="lib/constructor/constructor_lib.lua",
@@ -88,13 +94,6 @@ local constructor_lib = auto_updater.require_with_auto_update({
 local curated_attachments = auto_updater.require_with_auto_update({
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
     script_relpath="lib/constructor/curated_attachments.lua",
-    verify_file_begins_with="--",
-})
-
-local constants = auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
-    script_relpath="lib/constructor/constants.lua",
-    switch_to_branch=selected_branch,
     verify_file_begins_with="--",
 })
 
@@ -518,6 +517,12 @@ end
 --- Construct Management
 ---
 
+local function add_spawned_construct(construct)
+    constructor_lib.set_attachment_defaults(construct)
+    table.insert(spawned_constructs, construct)
+    last_spawned_construct = construct
+end
+
 local function create_construct_from_vehicle(vehicle_handle)
     debug_log("Creating construct from vehicle handle "..tostring(vehicle_handle))
     for _, construct in pairs(spawned_constructs) do
@@ -534,10 +539,7 @@ local function create_construct_from_vehicle(vehicle_handle)
     construct.parent = construct
     construct.hash = ENTITY.GET_ENTITY_MODEL(vehicle_handle)
     construct.model = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(construct.hash)
-    constructor_lib.serialize_vehicle_attributes(construct)
-    constructor_lib.set_attachment_defaults(construct)
-    table.insert(spawned_constructs, construct)
-    last_spawned_construct = construct
+    add_spawned_construct(construct)
     return construct
 end
 
@@ -580,11 +582,9 @@ local function spawn_construct_from_plan(construct_plan)
     end
     construct.root = construct
     construct.parent = construct
-    constructor_lib.serialize_vehicle_attributes(construct)
     constructor_lib.reattach_attachment_with_children(construct)
     if not construct.handle then error("Failed to spawn construct from plan "..tostring(construct_plan.name)) end
-    table.insert(spawned_constructs, construct)
-    last_spawned_construct = construct
+    add_spawned_construct(construct)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
     construct.menus.refresh()
@@ -1319,10 +1319,23 @@ menus.rebuild_attachment_menu = function(attachment)
         end)
 
         attachment.menus.more_options = menu.list(attachment.menus.options, "More Options")
-        attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, "LoD Distance", {}, "Level of Detail draw distance", 1, 9999999, attachment.options.lod_distance, 100, function(value)
+        attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, "LoD Distance", {"constructorsetloddistance"..attachment.handle}, "Level of Detail draw distance", 1, 9999999, attachment.options.lod_distance, 100, function(value)
             attachment.options.lod_distance = value
             constructor_lib.update_attachment(attachment)
         end)
+
+        -- Blip
+        menu.divider(attachment.menus.more_options, "Blip")
+        attachment.menus.option_blip_sprite = menu.slider(attachment.menus.more_options, "Blip Sprite", {"constructorsetblipsprite"..attachment.handle}, "Icon to show on mini map for this construct", 1, 826, attachment.blip_sprite, 1, function(value)
+            attachment.blip_sprite = value
+            constructor_lib.refresh_blip(attachment)
+        end)
+        attachment.menus.option_blip_color = menu.slider(attachment.menus.more_options, "Blip Color", {"constructorsetblipcolor"..attachment.handle}, "Mini map icon color", 1, 85, attachment.blip_color, 1, function(value)
+            attachment.blip_color = value
+            constructor_lib.refresh_blip(attachment)
+        end)
+        menu.hyperlink(attachment.menus.more_options, "Blip Reference", "https://docs.fivem.net/docs/game-references/blips/", "Reference website for blip details")
+
         -- Lights
         menu.divider(attachment.menus.more_options, "Lights")
         attachment.menus.option_is_light_on = menu.toggle(attachment.menus.more_options, "Light On", {}, "If attachment is a light, it will be on and lit (many lights only work during night time).", function(on)
@@ -1390,9 +1403,17 @@ menus.rebuild_attachment_menu = function(attachment)
                 PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), attachment.handle, -1)
             end)
         end
-        attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport To", {}, "", function()
+        attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport Me to Construct", {}, "", function()
             local pos = ENTITY.GET_ENTITY_COORDS(attachment.handle)
             ENTITY.SET_ENTITY_COORDS(PLAYER.PLAYER_PED_ID(), pos.x, pos.y, pos.z + 2)
+        end)
+        attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport Construct to Me", {}, "", function()
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.0, 2.0, -2.5)
+            local heading = ENTITY.GET_ENTITY_HEADING(players.user_ped())
+            util.toast("Setting pos "..inspect(pos), TOAST_ALL)
+            ENTITY.SET_ENTITY_COORDS(attachment.handle, pos.x, pos.y, pos.z)
+            ENTITY.SET_ENTITY_ROTATION(attachment.handle, 0, 0, heading)
+            VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(attachment.handle, 5)
         end)
 
         attachment.menus.debug = menu.list(attachment.menus.main, "Debug Info")
@@ -1668,6 +1689,29 @@ menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open
 menu.divider(script_meta_menu, "Credits")
 menu.readonly(script_meta_menu, "Jackz", "Much of Constructor is based on code from Jackz Vehicle Builder and wouldn't have been possible without this foundation")
 menu.readonly(script_meta_menu, "BigTuna", "Testing, Suggestions and Support")
+
+---
+--- Startup Logo
+---
+
+if SCRIPT_MANUAL_START then
+    local logo = directx.create_texture(filesystem.scripts_dir() .. '/lib/constructor/constructor_logo.png')
+    local fade_steps = 50
+    -- Fade In
+    for i = 0,fade_steps do
+        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
+        util.yield()
+    end
+    for i = 0,100 do
+        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
+        util.yield()
+    end
+    -- Fade Out
+    for i = fade_steps,0,-1 do
+        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
+        util.yield()
+    end
+end
 
 ---
 --- Run
