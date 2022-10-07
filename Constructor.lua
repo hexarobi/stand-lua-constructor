@@ -1694,24 +1694,24 @@ menu.readonly(script_meta_menu, "BigTuna", "Testing, Suggestions and Support")
 --- Startup Logo
 ---
 
-if SCRIPT_MANUAL_START then
-    local logo = directx.create_texture(filesystem.scripts_dir() .. '/lib/constructor/constructor_logo.png')
-    local fade_steps = 50
-    -- Fade In
-    for i = 0,fade_steps do
-        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
-        util.yield()
-    end
-    for i = 0,100 do
-        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
-        util.yield()
-    end
-    -- Fade Out
-    for i = fade_steps,0,-1 do
-        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
-        util.yield()
-    end
-end
+--if SCRIPT_MANUAL_START then
+--    local logo = directx.create_texture(filesystem.scripts_dir() .. '/lib/constructor/constructor_logo.png')
+--    local fade_steps = 50
+--    -- Fade In
+--    for i = 0,fade_steps do
+--        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
+--        util.yield()
+--    end
+--    for i = 0,100 do
+--        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
+--        util.yield()
+--    end
+--    -- Fade Out
+--    for i = fade_steps,0,-1 do
+--        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
+--        util.yield()
+--    end
+--end
 
 ---
 --- Run
