@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.3b2"
+local LIB_VERSION = "3.21.3b3"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -22,7 +22,7 @@ local status_xml2lua, xml2lua = pcall(require, "constructor/xml2lua")
 if not status_xml2lua then error("Could not load xml2lua lib. This should have been auto-installed.") end
 
 local status_constants, constants = pcall(require, "constructor/constants")
-if not status_inspect then error("Could not load constants lib. This should have been auto-installed.") end
+if not status_constants then error("Could not load constants lib. This should have been auto-installed.") end
 
 ---
 --- Data
@@ -40,24 +40,6 @@ constructor_lib.construct_base = {
     world_rotation = {x=0,y=0,z=0},
     num_bones = 200,
     heading = 0,
-}
-
-local default_vehicle_attributes = {
-    paint = {
-        dirt_level = 0,
-    },
-    neon = {},
-    wheels = {
-        tires_burst = {},
-    },
-    headlights = {},
-    options = {},
-    mods = {},
-    extras = {},
-    doors = {
-        broken = {},
-        open = {},
-    },
 }
 
 ---
@@ -1031,11 +1013,24 @@ end
 --- Serializers
 ---
 
+constructor_lib.default_vehicle_attributes = function(vehicle)
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.paint == nil then vehicle.vehicle_attributes.paint = {} end
+    if vehicle.vehicle_attributes.paint.dirt_level == nil then vehicle.vehicle_attributes.paint.dirt_level = 0 end
+    if vehicle.vehicle_attributes.neon == nil then vehicle.vehicle_attributes.neon = {} end
+    if vehicle.vehicle_attributes.wheels == nil then vehicle.vehicle_attributes.wheels = {} end
+    if vehicle.vehicle_attributes.wheels.tires_burst == nil then vehicle.vehicle_attributes.wheels.tires_burst = {} end
+    if vehicle.vehicle_attributes.headlights == nil then vehicle.vehicle_attributes.headlights = {} end
+    if vehicle.vehicle_attributes.options == nil then vehicle.vehicle_attributes.options = {} end
+    if vehicle.vehicle_attributes.extras == nil then vehicle.vehicle_attributes.extras = {} end
+    if vehicle.vehicle_attributes.doors == nil then vehicle.vehicle_attributes.doors = {} end
+    if vehicle.vehicle_attributes.doors.broken == nil then vehicle.vehicle_attributes.doors.broken = {} end
+    if vehicle.vehicle_attributes.doors.open == nil then vehicle.vehicle_attributes.doors.open = {} end
+end
+
 constructor_lib.serialize_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
-    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes == {} then
-        vehicle.vehicle_attributes = default_vehicle_attributes
-    end
+    constructor_lib.default_vehicle_attributes(vehicle)
     if not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
     constructor_lib.serialize_vehicle_paint(vehicle)
     constructor_lib.serialize_vehicle_neon(vehicle)
@@ -1668,3 +1663,4 @@ end
 ---
 
 return constructor_lib
+
