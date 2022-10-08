@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.3b4"
+local LIB_VERSION = "3.21.3b5"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -1060,7 +1060,7 @@ end
 
 constructor_lib.deserialize_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes == nil then return end
-    --if constructor_lib.debug then util.log("Deserializing vehicle attributes "..vehicle.name.." "..inspect(serialized_vehicle)) end
+    --debug_log("Deserializing vehicle attributes "..inspect(vehicle.vehicle_attributes))
 
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
     ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle.handle, true, true)    -- Needed for plate text
@@ -1132,7 +1132,7 @@ end
 constructor_lib.serialize_attachment = function(attachment)
     if attachment.target_version == nil then attachment.target_version = LIB_VERSION end
     local serialized_attachment = constructor_lib.copy_serializable(attachment)
-    serialized_attachment.vehicle_attributes = constructor_lib.serialize_vehicle_attributes(attachment)
+    constructor_lib.serialize_vehicle_attributes(attachment)
     if attachment.children then
         for _, child_attachment in pairs(attachment.children) do
             if not child_attachment.options.is_temporary then
