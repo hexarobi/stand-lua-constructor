@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b2"
+local SCRIPT_VERSION = "0.20.4b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -98,6 +98,7 @@ end
 local inspect = libs.inspect
 local constructor_lib = libs.constructor_lib
 local constants = libs.constants
+local curated_attachments = libs.curated_attachments
 
 ---
 --- Dependencies
@@ -1577,7 +1578,13 @@ menus.load_construct = menu.list(menu.my_root(), "Load Construct", {}, "Load a p
 end)
 load_constructs_root_menu_file = {menu=menus.load_construct, name="Loaded Constructs Menu", menus={}}
 
-menu.hyperlink(menus.load_construct, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
+menus.load_construct_options = menu.list(menus.load_construct, "Options")
+menu.hyperlink(menus.load_construct_options, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
+menu.hyperlink(menus.load_construct_options, "Download Constructs", "file:///"..CONSTRUCTS_DIR, "Download a curated collection of constructs.")
+menu.toggle(menus.load_construct_options, "Drive Spawned Vehicles", {}, "When spawning vehicles, automatically place you into the drivers seat.", function(on)
+    config.drive_spawned_vehicles = on
+end, config.drive_spawned_vehicles)
+
 menu.divider(menus.load_construct, "Browse")
 
 --menu.action(menus.load_construct, "Search", {"constructorsearch"}, "", function()
