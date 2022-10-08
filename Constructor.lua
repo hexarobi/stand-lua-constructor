@@ -12,7 +12,7 @@ local AUTO_UPDATE_BRANCHES = {
 local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
-local loading_menu = menu.divider(menu.my_root(), "Please wait...", {}, "Loading dependencies...")
+local loading_menu = menu.divider(menu.my_root(), "Loading...")
 
 ---
 --- Auto-Updater Lib Install
