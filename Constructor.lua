@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.3"
+local SCRIPT_VERSION = "0.20.4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -96,6 +96,7 @@ end
 local inspect = libs.inspect
 local constructor_lib = libs.constructor_lib
 local constants = libs.constants
+local curated_attachments = libs.curated_attachments
 
 ---
 --- Dependencies
