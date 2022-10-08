@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.3b3"
+local SCRIPT_VERSION = "0.20.3b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1500,7 +1500,7 @@ menu.action(menus.create_new_construct, "From Current", { "constructcreatefromve
     end
 end)
 
-menu.text_input(menus.create_new_construct, "From Name", { "constructcreatefromvehiclename"}, "Create a new construct from an exact vehicle name", function(value, click_type)
+menu.text_input(menus.create_new_construct, "From Vehicle Name", { "constructcreatefromvehiclename"}, "Create a new construct from an exact vehicle name", function(value, click_type)
     if click_type ~= 1 then return end
     local construct_plan = {
         model = value,
@@ -1527,7 +1527,7 @@ menu.action(menus.create_new_construct, "From New Construction Cone", { "constru
     build_construct_from_plan(construct_plan)
 end)
 
-menu.text_input(menus.create_new_construct, "From Name", { "constructcreatestructurefromobjectname"}, "Create a new stationary construct from an exact object name", function(value)
+menu.text_input(menus.create_new_construct, "From Object Name", { "constructcreatestructurefromobjectname"}, "Create a new stationary construct from an exact object name", function(value)
     local construct_plan = {
         model = value,
     }
@@ -1547,7 +1547,7 @@ menu.action(menus.create_new_construct, "From Me", { "constructcreatefromme"}, "
     build_construct_from_plan(player_construct)
 end)
 
-menu.text_input(menus.create_new_construct, "From Name", {"constructorcreatepedfromname"}, "Create a new Ped construct from exact name", function(value)
+menu.text_input(menus.create_new_construct, "From Ped Name", {"constructorcreatepedfromname"}, "Create a new Ped construct from exact name", function(value)
     local construct_plan = {
         model = value,
         type = "PED",
