@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.3b4"
+local SCRIPT_VERSION = "0.20.4b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -48,8 +48,54 @@ local auto_update_config = {
     script_relpath=SCRIPT_RELPATH,
     switch_to_branch=selected_branch,
     verify_file_begins_with="--",
+    dependencies={
+        {
+            name="inspect",
+            source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
+            script_relpath="lib/inspect.lua",
+            verify_file_begins_with="local",
+        },
+        {
+            name="xml2lua",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
+            script_relpath="lib/constructor/xml2lua.lua",
+            verify_file_begins_with="--",
+        },
+        {
+            name="constants",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
+            script_relpath="lib/constructor/constants.lua",
+            verify_file_begins_with="--",
+        },
+        {
+            name="constructor_lib",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
+            script_relpath="lib/constructor/constructor_lib.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+        },
+        {
+            name="curated_attachments",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
+            script_relpath="lib/constructor/curated_attachments.lua",
+            verify_file_begins_with="--",
+        },
+        {
+            name="objects_complete",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
+            script_relpath="lib/constructor/objects_complete.txt",
+            verify_file_begins_with="ba_prop_glass_garage_opaque",
+        }
+    }
 }
 auto_updater.run_auto_update(auto_update_config)
+local libs = {}
+for _, dependency in pairs(auto_update_config.dependencies) do
+    libs[dependency.name] = dependency.loaded_lib
+end
+local inspect = libs.inspect
+local constructor_lib = libs.constructor_lib
+local constants = libs.constants
 
 ---
 --- Dependencies
@@ -59,49 +105,13 @@ local loading_menu = menu.divider(menu.my_root(), "Please wait...", {}, "Loading
 
 util.ensure_package_is_installed('lua/natives-1663599433')
 util.require_natives(1663599433)
-local status, natives = pcall(require, "natives-1663599433")
-if not status then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
+local status_natives, natives = pcall(require, "natives-1663599433")
+if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
 
 util.ensure_package_is_installed('lua/json')
-local status, json = pcall(require, "json")
-if not status then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+local status_json, json = pcall(require, "json")
+if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
-local inspect = auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
-    script_relpath="lib/inspect.lua",
-    verify_file_begins_with="local",
-})
-
-auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
-    script_relpath="lib/constructor/xml2lua.lua",
-    verify_file_begins_with="--",
-})
-
-local constants = auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
-    script_relpath="lib/constructor/constants.lua",
-    verify_file_begins_with="--",
-})
-
-local constructor_lib = auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
-    script_relpath="lib/constructor/constructor_lib.lua",
-    switch_to_branch=selected_branch,
-    verify_file_begins_with="--",
-})
-
-local curated_attachments = auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
-    script_relpath="lib/constructor/curated_attachments.lua",
-    verify_file_begins_with="--",
-})
-
-auto_updater.run_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
-    script_relpath="lib/constructor/objects_complete.txt",
-    verify_file_begins_with="ba_prop_glass_garage_opaque",
-})
 local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
 
 menu.delete(loading_menu)
