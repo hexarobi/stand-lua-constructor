@@ -4,13 +4,15 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b1"
+local SCRIPT_VERSION = "0.20.4b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
 local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
+
+local loading_menu = menu.divider(menu.my_root(), "Please wait...", {}, "Loading dependencies...")
 
 ---
 --- Auto-Updater Lib Install
@@ -101,8 +103,6 @@ local constants = libs.constants
 --- Dependencies
 ---
 
-local loading_menu = menu.divider(menu.my_root(), "Please wait...", {}, "Loading dependencies...")
-
 util.ensure_package_is_installed('lua/natives-1663599433')
 util.require_natives(1663599433)
 local status_natives, natives = pcall(require, "natives-1663599433")
@@ -114,7 +114,7 @@ if not status_json then error("Could not load json lib. Make sure it is selected
 
 local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
 
-menu.delete(loading_menu)
+pcall(menu.delete, loading_menu)
 
 local VERSION_STRING = "Constructor "..SCRIPT_VERSION.." / Lib "..constructor_lib.LIB_VERSION
 
