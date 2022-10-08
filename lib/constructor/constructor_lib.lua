@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.3b5"
+local LIB_VERSION = "3.21.4b1"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -1443,6 +1443,9 @@ local function map_vehicle_attributes(attachment, placement)
     if attachment.vehicle_attributes.paint.primary == nil then attachment.vehicle_attributes.paint.primary = {} end
     attachment.vehicle_attributes.paint.primary.vehicle_standard_color = tonumber(placement.VehicleProperties.Colours.Primary)
     attachment.vehicle_attributes.paint.primary.is_custom = toboolean(placement.VehicleProperties.Colours.IsPrimaryColourCustom)
+    attachment.vehicle_attributes.paint.primary.paint_type = tonumber(placement.VehicleProperties.Colours.Mod1_a)
+    attachment.vehicle_attributes.paint.primary.color = tonumber(placement.VehicleProperties.Colours.Mod1_b)
+    attachment.vehicle_attributes.paint.primary.pearlescent_color = tonumber(placement.VehicleProperties.Colours.Mod1_c)
     if attachment.vehicle_attributes.paint.primary.custom_color == nil then attachment.vehicle_attributes.paint.primary.custom_color = {} end
     attachment.vehicle_attributes.paint.primary.custom_color.r = tonumber(placement.VehicleProperties.Colours.Cust1_R)
     attachment.vehicle_attributes.paint.primary.custom_color.g = tonumber(placement.VehicleProperties.Colours.Cust1_G)
@@ -1450,6 +1453,8 @@ local function map_vehicle_attributes(attachment, placement)
     if attachment.vehicle_attributes.paint.secondary == nil then attachment.vehicle_attributes.paint.secondary = {} end
     attachment.vehicle_attributes.paint.secondary.vehicle_standard_color = tonumber(placement.VehicleProperties.Colours.Secondary)
     attachment.vehicle_attributes.paint.secondary.is_custom = toboolean(placement.VehicleProperties.Colours.IsSecondaryColourCustom)
+    attachment.vehicle_attributes.paint.secondary.paint_type = tonumber(placement.VehicleProperties.Colours.Mod2_a)
+    attachment.vehicle_attributes.paint.secondary.color = tonumber(placement.VehicleProperties.Colours.Mod2_b)
     if attachment.vehicle_attributes.paint.secondary.custom_color == nil then attachment.vehicle_attributes.paint.secondary.custom_color = {} end
     attachment.vehicle_attributes.paint.secondary.custom_color.r = tonumber(placement.VehicleProperties.Colours.Cust2_R)
     attachment.vehicle_attributes.paint.secondary.custom_color.g = tonumber(placement.VehicleProperties.Colours.Cust2_G)
