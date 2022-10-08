@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.2"
+local SCRIPT_VERSION = "0.20.3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -48,8 +48,54 @@ local auto_update_config = {
     script_relpath=SCRIPT_RELPATH,
     switch_to_branch=selected_branch,
     verify_file_begins_with="--",
+    dependencies={
+        {
+            name="inspect",
+            source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
+            script_relpath="lib/inspect.lua",
+            verify_file_begins_with="local",
+        },
+        {
+            name="xml2lua",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
+            script_relpath="lib/constructor/xml2lua.lua",
+            verify_file_begins_with="--",
+        },
+        {
+            name="constants",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
+            script_relpath="lib/constructor/constants.lua",
+            verify_file_begins_with="--",
+        },
+        {
+            name="constructor_lib",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
+            script_relpath="lib/constructor/constructor_lib.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+        },
+        {
+            name="curated_attachments",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
+            script_relpath="lib/constructor/curated_attachments.lua",
+            verify_file_begins_with="--",
+        },
+        {
+            name="objects_complete",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
+            script_relpath="lib/constructor/objects_complete.txt",
+            verify_file_begins_with="ba_prop_glass_garage_opaque",
+        }
+    }
 }
 auto_updater.run_auto_update(auto_update_config)
+local libs = {}
+for _, dependency in pairs(auto_update_config.dependencies) do
+    libs[dependency.name] = dependency.loaded_lib
+end
+local inspect = libs.inspect
+local constructor_lib = libs.constructor_lib
+local constants = libs.constants
 
 ---
 --- Dependencies
@@ -59,43 +105,13 @@ local loading_menu = menu.divider(menu.my_root(), "Please wait...", {}, "Loading
 
 util.ensure_package_is_installed('lua/natives-1663599433')
 util.require_natives(1663599433)
-local status, natives = pcall(require, "natives-1663599433")
-if not status then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
+local status_natives, natives = pcall(require, "natives-1663599433")
+if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
 
 util.ensure_package_is_installed('lua/json')
-local status, json = pcall(require, "json")
-if not status then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+local status_json, json = pcall(require, "json")
+if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
-local inspect = auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
-    script_relpath="lib/inspect.lua",
-    verify_file_begins_with="local",
-})
-
-auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
-    script_relpath="lib/constructor/xml2lua.lua",
-    verify_file_begins_with="--",
-})
-
-local constructor_lib = auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
-    script_relpath="lib/constructor/constructor_lib.lua",
-    switch_to_branch=selected_branch,
-    verify_file_begins_with="--",
-})
-
-local curated_attachments = auto_updater.require_with_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
-    script_relpath="lib/constructor/curated_attachments.lua",
-    verify_file_begins_with="--",
-})
-
-auto_updater.run_auto_update({
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
-    script_relpath="lib/constructor/objects_complete.txt",
-    verify_file_begins_with="ba_prop_glass_garage_opaque",
-})
 local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
 
 menu.delete(loading_menu)
@@ -111,7 +127,7 @@ local config = {
     edit_offset_step = 10,
     edit_rotation_step = 15,
     add_attachment_gun_active = false,
-    debug = true,
+    debug = false,
     show_previews = true,
     preview_camera_distance = 3,
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
@@ -256,6 +272,7 @@ end
 
 local function add_attachment_to_construct(attachment)
     debug_log("Adding attachment to construct "..tostring(attachment.name), attachment)
+    constructor_lib.serialize_vehicle_attributes(attachment)
     constructor_lib.add_attachment_to_construct(attachment)
     menus.rebuild_attachment_menu(attachment)
     attachment.parent.menus.refresh()
@@ -510,6 +527,12 @@ end
 --- Construct Management
 ---
 
+local function add_spawned_construct(construct)
+    constructor_lib.set_attachment_defaults(construct)
+    table.insert(spawned_constructs, construct)
+    last_spawned_construct = construct
+end
+
 local function create_construct_from_vehicle(vehicle_handle)
     debug_log("Creating construct from vehicle handle "..tostring(vehicle_handle))
     for _, construct in pairs(spawned_constructs) do
@@ -526,9 +549,7 @@ local function create_construct_from_vehicle(vehicle_handle)
     construct.parent = construct
     construct.hash = ENTITY.GET_ENTITY_MODEL(vehicle_handle)
     construct.model = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(construct.hash)
-    constructor_lib.set_attachment_defaults(construct)
-    table.insert(spawned_constructs, construct)
-    last_spawned_construct = construct
+    add_spawned_construct(construct)
     return construct
 end
 
@@ -573,8 +594,7 @@ local function spawn_construct_from_plan(construct_plan)
     construct.parent = construct
     constructor_lib.reattach_attachment_with_children(construct)
     if not construct.handle then error("Failed to spawn construct from plan "..tostring(construct_plan.name)) end
-    table.insert(spawned_constructs, construct)
-    last_spawned_construct = construct
+    add_spawned_construct(construct)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
     construct.menus.refresh()
@@ -1066,16 +1086,12 @@ menus.rebuild_attachment_menu = function(attachment)
         --attachment.menus.children = {}
         --table.insert(attachment.parent.menus.children, attachment.menus)
 
-        --menu.divider(attachment.menus.main, "Info")
 
         attachment.menus.name = menu.text_input(attachment.menus.main, "Name", { "constructorsetattachmentname"..attachment.handle}, "Set name of the attachment", function(value)
             attachment.name = value
             attachment.menus.refresh()
         end, attachment.name)
 
-        --attachment.menus.manage = menu.list(attachment.menus.main, "Manage")
-
-        --menu.divider(attachment.menus.main, "Position")
         attachment.menus.position = menu.list(attachment.menus.main, "Position")
 
         menu.divider(attachment.menus.position, "Offset")
@@ -1134,7 +1150,6 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.move_attachment(attachment)
         end)
 
-        --menu.divider(attachment.menus.main, "Options")
         attachment.menus.options = menu.list(attachment.menus.main, "Options")
         --local light_color = {r=0}
         --menu.slider(attachment.menu, "Color: Red", {}, "", 0, 255, light_color.r, 1, function(value)
@@ -1160,47 +1175,105 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.option_frozen = menu.toggle(attachment.menus.options, "Frozen", {}, "Will the attachment be frozen in place, or allowed to move freely", function(on)
             attachment.options.is_frozen = on
         end, attachment.options.is_frozen)
-        attachment.menus.option_lod_distance = menu.slider(attachment.menus.options, "LoD Distance", {}, "Level of Detail draw distance", 1, 9999999, attachment.options.lod_distance, 100, function(value)
-            attachment.options.lod_distance = value
-            constructor_lib.update_attachment(attachment)
-        end)
 
         if attachment.type == "VEHICLE" then
-            menu.divider(attachment.menus.options, "Vehicle")
-            menu.toggle_loop(attachment.menus.options, "Engine Always On", {}, "If enabled, vehicle will stay running even when unoccupied", function()
+            attachment.menus.vehicle_options = menu.list(attachment.menus.options, "Vehicle Options")
+            menu.toggle_loop(attachment.menus.vehicle_options, "Engine Always On", {}, "If enabled, vehicle will stay running even when unoccupied", function()
                 attachment.options.engine_running = true
                 VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
             end, function() attachment.options.engine_running = false end)
-            menu.toggle(attachment.menus.options, "Radio Loud", {}, "If enabled, vehicle radio will play loud enough to be heard outside the vehicle.", function(toggle)
+            menu.toggle(attachment.menus.vehicle_options, "Radio Loud", {}, "If enabled, vehicle radio will play loud enough to be heard outside the vehicle.", function(toggle)
                 attachment.options.radio_loud = toggle
                 constructor_lib.update_attachment(attachment)
             end, attachment.options.radio_loud)
 
-            menu.list_select(attachment.menus.options, "Sirens", {}, "", { "Off", "Lights Only", "Sirens and Lights" }, 1, function(value)
+            menu.list_select(attachment.menus.vehicle_options, "Sirens", {}, "", { "Off", "Lights Only", "Sirens and Lights" }, 1, function(value)
                 local previous_siren_status = attachment.options.siren_status
                 attachment.options.siren_status = value
                 refresh_siren_status(attachment, previous_siren_status)
             end)
-            menu.toggle(attachment.menus.options, "Has Siren", {}, "If enabled, siren controls will effect this vehicle.", function(value)
+            menu.toggle(attachment.menus.vehicle_options, "Has Siren", {}, "If enabled, siren controls will effect this vehicle.", function(value)
                 attachment.options.has_siren = value
             end, attachment.options.has_siren)
 
-            menu.action(attachment.menus.options, "Invis Wheels", {}, "", function()
-                make_wheels_invis(attachment)
+            --menu.action(attachment.menus.options, "Invis Wheels", {}, "", function()
+            --    make_wheels_invis(attachment)
+            --end)
+
+            menu.list_select(attachment.menus.vehicle_options, "Door Lock Status", {}, "Vehicle door locks", constants.door_lock_status, attachment.vehicle_attributes.doors.lock_status or 1, function(value)
+                attachment.vehicle_attributes.doors.lock_status = value
+                constructor_lib.deserialize_vehicle_doors(attachment)
+            end)
+
+            menu.slider(attachment.menus.vehicle_options, "Dirt Level", {"constructordirtlevel"..attachment.handle.."z"}, "How dirty is the vehicle", 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
+                attachment.vehicle_attributes.paint.dirt_level = value
+                constructor_lib.deserialize_vehicle_paint(attachment)
+            end)
+
+            menu.toggle(attachment.menus.vehicle_options, "Bullet Proof Tires", {}, "", function(value)
+                attachment.vehicle_attributes.wheels.bulletproof_tires = value
+                constructor_lib.deserialize_vehicle_wheels(attachment)
+            end, attachment.vehicle_attributes.wheels.bulletproof_tires)
+
+            attachment.menus.tires_burst = menu.list(attachment.menus.vehicle_options, "Burst Tires", {}, "Are tires burst")
+            if attachment.vehicle_attributes.wheels.tires_burst == nil then attachment.vehicle_attributes.wheels.tires_burst = {} end
+            for _, tire_position in pairs(constants.tire_position_names) do
+                menu.toggle(attachment.menus.tires_burst, tire_position.name, {}, "", function(value)
+                    if value then attachment.vehicle_attributes.wheels.bulletproof_tires = false end
+                    attachment.vehicle_attributes.wheels.tires_burst["_"..tire_position.index] = value
+                    constructor_lib.deserialize_vehicle_wheels(attachment)
+                end, attachment.vehicle_attributes.wheels.tires_burst["_"..tire_position.index])
+            end
+
+            attachment.menus.broken_doors = menu.list(attachment.menus.vehicle_options, "Broken Doors", {}, "Remove doors and trunks")
+            attachment.menus.option_doors_broken_frontleft = menu.action(attachment.menus.broken_doors, "Break Door: Front Left", {}, "Remove door.", function()
+                attachment.vehicle_attributes.doors.broken.frontleft = true
+                constructor_lib.deserialize_vehicle_doors(attachment)
+            end)
+            attachment.menus.option_doors_broken_backleft = menu.action(attachment.menus.broken_doors, "Break Door: Back Left", {}, "Remove door.", function()
+                attachment.vehicle_attributes.doors.broken.backleft = true
+                constructor_lib.deserialize_vehicle_doors(attachment)
+            end)
+            attachment.menus.option_doors_broken_frontright = menu.action(attachment.menus.broken_doors, "Break Door: Front Right", {}, "Remove door.", function()
+                attachment.vehicle_attributes.doors.broken.frontright = true
+                constructor_lib.deserialize_vehicle_doors(attachment)
+            end)
+            attachment.menus.option_doors_broken_backright = menu.action(attachment.menus.broken_doors, "Break Door: Back Right", {}, "Remove door.", function()
+                attachment.vehicle_attributes.doors.broken.backright = true
+                constructor_lib.deserialize_vehicle_doors(attachment)
+            end)
+            attachment.menus.option_doors_broken_hood = menu.action(attachment.menus.broken_doors, "Break Door: Hood", {}, "Remove door.", function()
+                attachment.vehicle_attributes.doors.broken.hood = true
+                constructor_lib.deserialize_vehicle_doors(attachment)
+            end)
+            attachment.menus.option_doors_broken_trunk = menu.action(attachment.menus.broken_doors, "Break Door: Trunk", {}, "Remove door.", function()
+                attachment.vehicle_attributes.doors.broken.trunk = true
+                constructor_lib.deserialize_vehicle_doors(attachment)
+            end)
+            attachment.menus.option_doors_broken_trunk2 = menu.action(attachment.menus.broken_doors, "Break Door: Trunk2", {}, "Remove door.", function()
+                attachment.vehicle_attributes.doors.broken.trunk2 = true
+                constructor_lib.deserialize_vehicle_doors(attachment)
             end)
 
         end
 
+        if attachment.type == "PED" then
+            attachment.menus.ped_options = menu.list(attachment.menus.options, "Ped Options")
+            menu.toggle(attachment.menus.ped_options, "Is Player Skin", {}, "If enabled, spawning this ped will act as a player skin.", function(value)
+                attachment.is_player = value
+            end, attachment.is_player)
+        end
+
         -- Attachment
-        menu.divider(attachment.menus.options, "Attachment")
-        attachment.menus.option_attached = menu.toggle(attachment.menus.options, "Attached", {}, "Is this child physically attached to the parent, or does it move freely on its own.", function(on)
+        attachment.menus.attachment_options = menu.list(attachment.menus.options, "Attachment Options")
+        attachment.menus.option_attached = menu.toggle(attachment.menus.attachment_options, "Attached", {}, "Is this child physically attached to the parent, or does it move freely on its own.", function(on)
             attachment.options.is_attached = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_attached)
-        attachment.menus.option_parent_attachment = menu.list(attachment.menus.options, "Change Parent", {}, "Select a new parent for this child. Construct will be rebuilt to accommodate changes.", function()
+        attachment.menus.option_parent_attachment = menu.list(attachment.menus.attachment_options, "Change Parent", {}, "Select a new parent for this child. Construct will be rebuilt to accommodate changes.", function()
             rebuild_reattach_to_menu(attachment)
         end)
-        menu.action(attachment.menus.options, "Copy to Me", {}, "Attach a copy of this object to your Ped.", function()
+        menu.action(attachment.menus.attachment_options, "Copy to Me", {}, "Attach a copy of this object to your Ped.", function()
             local player_construct = get_player_construct()
             local attachment_copy = constructor_lib.serialize_attachment(attachment)
             util.log("Copying attachment "..attachment_copy.name)
@@ -1221,15 +1294,29 @@ menus.rebuild_attachment_menu = function(attachment)
             end
             rebuild_attachment(attachment_copy)
         end)
-        attachment.menus.option_bone_index = menu.slider(attachment.menus.options, "Bone Index", {}, "", -1, attachment.parent.num_bones or 100, attachment.options.bone_index or 0, 1, function(value)
+        attachment.menus.option_bone_index = menu.slider(attachment.menus.attachment_options, "Bone Index", {}, "Which bone of the parent should this entity be attached to", -1, attachment.parent.num_bones or 200, attachment.options.bone_index or -1, 1, function(value)
             attachment.options.bone_index = value
             constructor_lib.update_attachment(attachment)
         end)
-        attachment.menus.option_soft_pinning = menu.toggle(attachment.menus.options, "Soft Pinning", {}, "Will the attachment detach when repaired", function(on)
+
+        attachment.menus.option_bone_index_picker = menu.list(attachment.menus.attachment_options, "Bone Index Picker", {}, "Some common bones can be selected by name")
+        for _, bone_index_category in pairs(constants.bone_index_names) do
+            local category_menu = menu.list(attachment.menus.option_bone_index_picker, bone_index_category.name)
+            for _, bone_name in pairs(bone_index_category.bone_names) do
+                menu.action(category_menu, bone_name, {}, "", function()
+                    attachment.options.bone_index = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(attachment.parent.handle, bone_name)
+                    constructor_lib.update_attachment(attachment)
+                    menu.set_value(attachment.menus.option_bone_index, attachment.options.bone_index)
+                    menu.focus(attachment.menus.option_bone_index)
+                end)
+            end
+        end
+
+        attachment.menus.option_soft_pinning = menu.toggle(attachment.menus.attachment_options, "Soft Pinning", {}, "Will the attachment detach when repaired", function(on)
             attachment.options.use_soft_pinning = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.use_soft_pinning)
-        attachment.menus.detach = menu.action(attachment.menus.options, "Separate", {}, "Detach attachment from construct to create a new construct", function()
+        attachment.menus.detach = menu.action(attachment.menus.attachment_options, "Separate", {}, "Detach attachment from construct to create a new construct", function()
             local original_parent = attachment.parent
             constructor_lib.detach_attachment(attachment)
             table.insert(spawned_constructs, attachment)
@@ -1241,99 +1328,52 @@ menus.rebuild_attachment_menu = function(attachment)
             menus.refresh_loaded_constructs()
         end)
 
+        attachment.menus.more_options = menu.list(attachment.menus.options, "More Options")
+        attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, "LoD Distance", {"constructorsetloddistance"..attachment.handle}, "Level of Detail draw distance", 1, 9999999, attachment.options.lod_distance, 100, function(value)
+            attachment.options.lod_distance = value
+            constructor_lib.update_attachment(attachment)
+        end)
+
+        -- Blip
+        menu.divider(attachment.menus.more_options, "Blip")
+        attachment.menus.option_blip_sprite = menu.slider(attachment.menus.more_options, "Blip Sprite", {"constructorsetblipsprite"..attachment.handle}, "Icon to show on mini map for this construct", 1, 826, attachment.blip_sprite, 1, function(value)
+            attachment.blip_sprite = value
+            constructor_lib.refresh_blip(attachment)
+        end)
+        attachment.menus.option_blip_color = menu.slider(attachment.menus.more_options, "Blip Color", {"constructorsetblipcolor"..attachment.handle}, "Mini map icon color", 1, 85, attachment.blip_color, 1, function(value)
+            attachment.blip_color = value
+            constructor_lib.refresh_blip(attachment)
+        end)
+        menu.hyperlink(attachment.menus.more_options, "Blip Reference", "https://docs.fivem.net/docs/game-references/blips/", "Reference website for blip details")
+
         -- Lights
-        menu.divider(attachment.menus.options, "Lights")
-        attachment.menus.option_is_light_on = menu.toggle(attachment.menus.options, "Light On", {}, "If attachment is a light, it will be on and lit (many lights only work during night time).", function(on)
+        menu.divider(attachment.menus.more_options, "Lights")
+        attachment.menus.option_is_light_on = menu.toggle(attachment.menus.more_options, "Light On", {}, "If attachment is a light, it will be on and lit (many lights only work during night time).", function(on)
             attachment.options.is_light_on = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_light_on)
-        attachment.menus.option_light_disabled = menu.toggle(attachment.menus.options, "Light Disabled", {}, "If attachment is a light, it will be ALWAYS off, regardless of others settings.", function(on)
+        attachment.menus.option_light_disabled = menu.toggle(attachment.menus.more_options, "Light Disabled", {}, "If attachment is a light, it will be ALWAYS off, regardless of others settings.", function(on)
             attachment.options.is_light_disabled = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_light_disabled)
         -- Proofs
-        menu.divider(attachment.menus.options, "Proofs")
-        attachment.menus.option_is_bullet_proof = menu.toggle(attachment.menus.options, "Bullet Proof", {}, "If attachment is impervious to damage from bullets.", function(on)
+        menu.divider(attachment.menus.more_options, "Proofs")
+        attachment.menus.option_is_bullet_proof = menu.toggle(attachment.menus.more_options, "Bullet Proof", {}, "If attachment is impervious to damage from bullets.", function(on)
             attachment.options.is_bullet_proof = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_bullet_proof)
-        attachment.menus.option_is_fire_proof = menu.toggle(attachment.menus.options, "Fire Proof", {}, "If attachment is impervious to damage from fire.", function(on)
+        attachment.menus.option_is_fire_proof = menu.toggle(attachment.menus.more_options, "Fire Proof", {}, "If attachment is impervious to damage from fire.", function(on)
             attachment.options.is_fire_proof = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_fire_proof)
-        attachment.menus.option_is_explosion_proof = menu.toggle(attachment.menus.options, "Explosion Proof", {}, "If attachment is impervious to damage from explosions.", function(on)
+        attachment.menus.option_is_explosion_proof = menu.toggle(attachment.menus.more_options, "Explosion Proof", {}, "If attachment is impervious to damage from explosions.", function(on)
             attachment.options.is_explosion_proof = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_explosion_proof)
-        attachment.menus.option_is_melee_proof = menu.toggle(attachment.menus.options, "Melee Proof", {}, "If attachment is impervious to damage from melee attacks.", function(on)
+        attachment.menus.option_is_melee_proof = menu.toggle(attachment.menus.more_options, "Melee Proof", {}, "If attachment is impervious to damage from melee attacks.", function(on)
             attachment.options.is_melee_proof = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_melee_proof)
-
-        local function break_door(attachment, door)
-            if attachment.doors == nil then attachment.doors = {} end
-            if attachment.doors.broken == nil then attachment.doors.broken = {} end
-            door = true
-            constructor_lib.deserialize_vehicle_doors(attachment, attachment)
-        end
-
-        local DOOR_LOCK_STATUS = {
-           "None",
-           "Unlocked",
-           "Locked",
-           "Lockout Player Only",
-           "Locked Player Inside",
-           "Locked Initially",
-           "Force Shut Doors",
-           "Locked by can be damaged",
-           "Locked but trunk unlocked",
-           "Locked, no passengers",
-           "Cannot enter",
-        }
-
-        if attachment.type == "VEHICLE" then
-            menu.divider(attachment.menus.options, "Doors")
-            menu.list_select(attachment.menus.options, "Door Lock Status", {}, "", DOOR_LOCK_STATUS, 1, function(value)
-                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-                attachment.vehicle_attributes.doors.lock_status = value
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-            end)
-            attachment.menus.option_doors_broken_frontleft = menu.action(attachment.menus.options, "Break Door: Front Left", {}, "Remove door.", function()
-                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-                attachment.vehicle_attributes.doors.broken.frontleft = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-            end)
-            attachment.menus.option_doors_broken_backleft = menu.action(attachment.menus.options, "Break Door: Back Left", {}, "Remove door.", function()
-                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-                attachment.vehicle_attributes.doors.broken.backleft = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-            end)
-            attachment.menus.option_doors_broken_frontright = menu.action(attachment.menus.options, "Break Door: Front Right", {}, "Remove door.", function()
-                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-                attachment.vehicle_attributes.doors.broken.frontright = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-            end)
-            attachment.menus.option_doors_broken_backright = menu.action(attachment.menus.options, "Break Door: Back Right", {}, "Remove door.", function()
-                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-                attachment.vehicle_attributes.doors.broken.backright = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-            end)
-            attachment.menus.option_doors_broken_hood = menu.action(attachment.menus.options, "Break Door: Hood", {}, "Remove door.", function()
-                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-                attachment.vehicle_attributes.doors.broken.hood = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-            end)
-            attachment.menus.option_doors_broken_trunk = menu.action(attachment.menus.options, "Break Door: Trunk", {}, "Remove door.", function()
-                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-                attachment.vehicle_attributes.doors.broken.trunk = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-            end)
-            attachment.menus.option_doors_broken_trunk2 = menu.action(attachment.menus.options, "Break Door: Trunk2", {}, "Remove door.", function()
-                constructor_lib.serialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-                attachment.vehicle_attributes.doors.broken.trunk2 = true
-                constructor_lib.deserialize_vehicle_doors(attachment, attachment.vehicle_attributes)
-            end)
-        end
 
         --menu.divider(attachment.menus.main, "Attachments")
         --attachment.menus.attachments = menu.list(attachment.menus.main, "Attachments")
@@ -1373,9 +1413,17 @@ menus.rebuild_attachment_menu = function(attachment)
                 PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), attachment.handle, -1)
             end)
         end
-        attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport To", {}, "", function()
+        attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport Me to Construct", {}, "", function()
             local pos = ENTITY.GET_ENTITY_COORDS(attachment.handle)
             ENTITY.SET_ENTITY_COORDS(PLAYER.PLAYER_PED_ID(), pos.x, pos.y, pos.z + 2)
+        end)
+        attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport Construct to Me", {}, "", function()
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.0, 2.0, -2.5)
+            local heading = ENTITY.GET_ENTITY_HEADING(players.user_ped())
+            util.toast("Setting pos "..inspect(pos), TOAST_ALL)
+            ENTITY.SET_ENTITY_COORDS(attachment.handle, pos.x, pos.y, pos.z)
+            ENTITY.SET_ENTITY_ROTATION(attachment.handle, 0, 0, heading)
+            VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(attachment.handle, 5)
         end)
 
         attachment.menus.debug = menu.list(attachment.menus.main, "Debug Info")
@@ -1446,7 +1494,9 @@ end
 
 menus.create_new_construct = menu.list(menu.my_root(), "Create New Construct")
 
-menu.action(menus.create_new_construct, "Vehicle From Current", { "constructcreatefromvehicle" }, "Create a new construct based on current (or last in) vehicle", function()
+menu.divider(menus.create_new_construct, "Vehicle")
+
+menu.action(menus.create_new_construct, "From Current", { "constructcreatefromvehicle" }, "Create a new construct based on current (or last in) vehicle", function()
     local vehicle = entities.get_user_vehicle_as_handle()
     if vehicle == 0 then
         util.toast("Error: You must be (or recently been) in a vehicle to create a construct from it")
@@ -1460,7 +1510,7 @@ menu.action(menus.create_new_construct, "Vehicle From Current", { "constructcrea
     end
 end)
 
-menu.text_input(menus.create_new_construct, "Vehicle From Name", { "constructcreatefromvehiclename"}, "Create a new construct from a vehicle name", function(value, click_type)
+menu.text_input(menus.create_new_construct, "From Vehicle Name", { "constructcreatefromvehiclename"}, "Create a new construct from an exact vehicle name", function(value, click_type)
     if click_type ~= 1 then return end
     local construct_plan = {
         model = value,
@@ -1471,7 +1521,9 @@ menu.text_input(menus.create_new_construct, "Vehicle From Name", { "constructcre
     build_construct_from_plan(construct_plan)
 end)
 
-menu.action(menus.create_new_construct, "Structure", { "constructcreatestructure"}, "Create a new stationary construct", function()
+menu.divider(menus.create_new_construct, "Structure (Map)")
+
+menu.action(menus.create_new_construct, "From New Construction Cone", { "constructcreatestructure"}, "Create a new stationary construct", function()
     local construct_plan = {
         model = "prop_air_conelight",
         options = {
@@ -1485,7 +1537,7 @@ menu.action(menus.create_new_construct, "Structure", { "constructcreatestructure
     build_construct_from_plan(construct_plan)
 end)
 
-menu.text_input(menus.create_new_construct, "Structure From Object", { "constructcreatestructurefromobjectname"}, "Create a new stationary construct from an object name", function(value)
+menu.text_input(menus.create_new_construct, "From Object Name", { "constructcreatestructurefromobjectname"}, "Create a new stationary construct from an exact object name", function(value)
     local construct_plan = {
         model = value,
     }
@@ -1494,15 +1546,18 @@ menu.text_input(menus.create_new_construct, "Structure From Object", { "construc
     build_construct_from_plan(construct_plan)
 end)
 
-menu.action(menus.create_new_construct, "Create from Me", { "constructcreatefromme"}, "Create a new construct from your player Ped", function()
+menu.divider(menus.create_new_construct, "Ped (Player Skin)")
+
+menu.action(menus.create_new_construct, "From Me", { "constructcreatefromme"}, "Create a new construct from your player Ped", function()
     if player_construct ~= nil then
         util.toast("Player is already a construct")
         return
     end
     get_player_construct()
+    build_construct_from_plan(player_construct)
 end)
 
-menu.text_input(menus.create_new_construct, "Ped from Name", {"constructorcreatepedfromname"}, "Create a new Ped construct", function(value)
+menu.text_input(menus.create_new_construct, "From Ped Name", {"constructorcreatepedfromname"}, "Create a new Ped construct from exact name", function(value)
     local construct_plan = {
         model = value,
         type = "PED",
@@ -1523,6 +1578,19 @@ end)
 load_constructs_root_menu_file = {menu=menus.load_construct, name="Loaded Constructs Menu", menus={}}
 
 menu.hyperlink(menus.load_construct, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
+menu.divider(menus.load_construct, "Browse")
+
+--menu.action(menus.load_construct, "Search", {"constructorsearch"}, "", function()
+--    menu.show_command_box("constructorsearch ")
+--end, function(on_command)
+--    local results = search_vehicle(on_command)
+--    if #results == 0 then
+--        util.toast("No files found")
+--    else
+--        menu.set_list_action_options(v_search_results_action, results)
+--        menu.trigger_commands("constructorsearchresults")
+--    end
+--end)
 
 local function add_directory_to_load_constructs(path, parent_construct_plan_file)
     if path == nil then path = "" end
@@ -1531,12 +1599,18 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     for _, construct_plan_menu in pairs(parent_construct_plan_file.menus) do
         pcall(menu.delete, construct_plan_menu)
     end
-    for _, construct_plan_file in pairs(load_construct_plans_files_from_dir(CONSTRUCTS_DIR..path)) do
+
+    local construct_plan_files = load_construct_plans_files_from_dir(CONSTRUCTS_DIR..path)
+    for _, construct_plan_file in pairs(construct_plan_files) do
         if construct_plan_file.is_directory then
             construct_plan_file.menu = menu.list(parent_construct_plan_file.menu, construct_plan_file.name or "unknown", {}, "", function()
                 add_directory_to_load_constructs(path.."/"..construct_plan_file.filename, construct_plan_file)
             end)
-        else
+            table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
+        end
+    end
+    for _, construct_plan_file in pairs(construct_plan_files) do
+        if not construct_plan_file.is_directory then
             if is_file_type_supported(construct_plan_file.ext) then
                 construct_plan_file.menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
                     remove_preview()
@@ -1550,8 +1624,8 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
                 menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file)) end end)
                 menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
             end
+            table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
         end
-        table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
     end
 end
 
@@ -1625,6 +1699,29 @@ menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open
 menu.divider(script_meta_menu, "Credits")
 menu.readonly(script_meta_menu, "Jackz", "Much of Constructor is based on code from Jackz Vehicle Builder and wouldn't have been possible without this foundation")
 menu.readonly(script_meta_menu, "BigTuna", "Testing, Suggestions and Support")
+
+---
+--- Startup Logo
+---
+
+--if SCRIPT_MANUAL_START then
+--    local logo = directx.create_texture(filesystem.scripts_dir() .. '/lib/constructor/constructor_logo.png')
+--    local fade_steps = 50
+--    -- Fade In
+--    for i = 0,fade_steps do
+--        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
+--        util.yield()
+--    end
+--    for i = 0,100 do
+--        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
+--        util.yield()
+--    end
+--    -- Fade Out
+--    for i = fade_steps,0,-1 do
+--        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
+--        util.yield()
+--    end
+--end
 
 ---
 --- Run
