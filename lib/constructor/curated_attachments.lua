@@ -1,9 +1,11 @@
 -- Curated Attachments
+-- v1.1
 
 return {
     {
         name = "Lights",
-        objects = {
+        is_folder = true,
+        items = {
             {
                 name = "Red Spinning Light",
                 model = "hei_prop_wall_light_10a_cr",
@@ -288,7 +290,8 @@ return {
     },
     {
         name = "Props",
-        objects = {
+        is_folder = true,
+        items = {
             {
                 name = "Riot Shield",
                 model = "prop_riot_shield",
@@ -322,7 +325,8 @@ return {
     },
     {
         name = "Vehicles",
-        objects = {
+        is_folder = true,
+        items = {
             {
                 name = "Police Cruiser",
                 model = "police",
@@ -397,6 +401,33 @@ return {
                 name = "Riot Control Vehicle (RCV)",
                 model = "riot2",
                 type = "VEHICLE",
+            },
+        },
+    },
+    {
+        name = "Peds",
+        is_folder = true,
+        items = {
+            {
+                name="Ambient Females",
+                is_folder = true,
+                items = {
+                    {
+                        name="Beach Bikini",
+                        model="a_f_m_beach_01",
+                        type="PED",
+                    },
+                    --{
+                    --    name="",
+                    --    model="",
+                    --    type="PED",
+                    --},
+                    --{
+                    --    name="",
+                    --    model="",
+                    --    type="PED",
+                    --},
+                },
             },
         },
     },
