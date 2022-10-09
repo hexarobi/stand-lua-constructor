@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b3"
+local SCRIPT_VERSION = "0.20.4b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -274,6 +274,7 @@ end
 local function add_attachment_to_construct(attachment)
     debug_log("Adding attachment to construct "..tostring(attachment.name), attachment)
     constructor_lib.serialize_vehicle_attributes(attachment)
+    constructor_lib.serialize_ped_attributes(attachment)
     constructor_lib.add_attachment_to_construct(attachment)
     menus.rebuild_attachment_menu(attachment)
     attachment.parent.menus.refresh()
@@ -895,6 +896,24 @@ end
 --- Dynamic Menus
 ---
 
+local function build_curated_attachments_menu(attachment, root_menu, curated_item)
+    if curated_item.is_folder then
+        local child_menu = menu.list(root_menu, curated_item.name)
+        for _, child_item in pairs(curated_item.items) do
+            build_curated_attachments_menu(attachment, child_menu, child_item)
+        end
+    else
+        local menu_item = menu.action(root_menu, curated_item.name, {}, "", function()
+            local child_attachment = copy_construct_plan(curated_item)
+            child_attachment.root = attachment.root
+            child_attachment.parent = attachment
+            build_construct_from_plan(child_attachment)
+        end)
+        menu.on_focus(menu_item, function(direction) if direction ~= 0 then add_preview(curated_item) end end)
+        menu.on_blur(menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
+    end
+end
+
 menus.rebuild_add_attachments_menu = function(attachment)
     debug_log("Rebuilding add attachments menu "..tostring(attachment.name), attachment)
 
@@ -902,19 +921,8 @@ menus.rebuild_add_attachments_menu = function(attachment)
 
     if attachment.menus.add_attachment_categories ~= nil then return end
     attachment.menus.add_attachment_categories = {}
-    for _, category in pairs(curated_attachments) do
-        local category_menu = menu.list(attachment.menus.curated_attachments, category.name)
-        for _, available_attachment in pairs(category.objects) do
-            local menu_item = menu.action(category_menu, available_attachment.name, {}, "", function()
-                local child_attachment = copy_construct_plan(available_attachment)
-                child_attachment.root = attachment.root
-                child_attachment.parent = attachment
-                build_construct_from_plan(child_attachment)
-            end)
-            menu.on_focus(menu_item, function(direction) if direction ~= 0 then add_preview(available_attachment) end end)
-            menu.on_blur(menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
-        end
-        table.insert(attachment.menus.add_attachment_categories, category_menu)
+    for _, curated_item in pairs(curated_attachments) do
+        build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
     end
 
     local function add_search_results(attachment, query, page_size, page_number)
@@ -1260,20 +1268,110 @@ menus.rebuild_attachment_menu = function(attachment)
 
         if attachment.type == "PED" then
             attachment.menus.ped_options = menu.list(attachment.menus.options, "Ped Options")
-            menu.toggle(attachment.menus.ped_options, "Is Player Skin", {}, "If enabled, spawning this ped will act as a player skin.", function(value)
-                attachment.is_player = value
-            end, attachment.is_player)
+            --attachment.menus.option_ped_is_player_skin = menu.toggle(attachment.menus.ped_options, "Is Player Skin", {}, "If enabled, spawning this ped will act as a player skin.", function(value)
+            --    attachment.is_player = value
+            --end, attachment.is_player)
+            attachment.menus.option_ped_can_rag_doll = menu.toggle(attachment.menus.ped_options, "Can Rag Doll", {}, "If enabled, the ped can go limp.", function(value)
+                attachment.ped_attributes.can_rag_doll = value
+                constructor_lib.deserialize_ped_attributes(attachment)
+            end, attachment.ped_attributes.can_rag_doll)
+            attachment.menus.option_ped_armor = menu.slider(attachment.menus.ped_options, "Armor", {}, "How much armor does the ped have.", 0, attachment.ped_attributes.armor, 100, 1, function(value)
+                attachment.ped_attributes.armor = value
+                constructor_lib.deserialize_ped_attributes(attachment)
+            end)
+            -- TODO: Weapon picker
+
+            local function create_ped_component_menu(attachment, root_menu, index, name)
+                local component = attachment.ped_attributes.components["_".. index]
+                util.log("component "..inspect(component))
+                attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {}, "", 0, component.num_drawable_variations, component.drawable_variation, 1, function(value)
+                    component.drawable_variation = value
+                    constructor_lib.deserialize_ped_attributes(attachment)
+                    menu.set_max_value(attachment.menus["ped_components_drawable_"..index], component.num_drawable_variations)
+                    component.texture_variation = 0
+                    menu.set_value(attachment.menus["ped_components_texture_"..index], component.texture_variation)
+                    menu.set_max_value(attachment.menus["ped_components_texture_"..index], component.num_texture_variations)
+                end)
+                attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." Variation", {}, "", 0, component.num_texture_variations, component.texture_variation, 1, function(value)
+                    component.texture_variation = value
+                    constructor_lib.deserialize_ped_attributes(attachment)
+                end)
+            end
+
+            local function create_ped_prop_menu(attachment, root_menu, index, name)
+                local prop = attachment.ped_attributes.props["_".. index]
+                attachment.menus["ped_props_drawable_".. index] = menu.slider(root_menu, name, {}, "", -1, prop.num_drawable_variations, prop.drawable_variation, 1, function(value)
+                    prop.drawable_variation = value
+                    constructor_lib.deserialize_ped_attributes(attachment)
+                    menu.set_max_value(attachment.menus["ped_props_drawable_".. index], prop.num_drawable_variations)
+                    prop.texture_variation = 0
+                    menu.set_value(attachment.menus["ped_props_texture_".. index], prop.texture_variation)
+                    menu.set_max_value(attachment.menus["ped_props_texture_".. index], prop.num_texture_variations)
+                end)
+                attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name .." Variation", {}, "", 0, prop.num_texture_variations, prop.texture_variation, 1, function(value)
+                    prop.texture_variation = value
+                    constructor_lib.deserialize_ped_attributes(attachment)
+                end)
+            end
+
+            menu.divider(attachment.menus.ped_options, "Clothes")
+            for _, ped_component in pairs(constants.ped_components) do
+                create_ped_component_menu(attachment, attachment.menus.ped_options, ped_component.index, ped_component.name)
+            end
+
+            menu.divider(attachment.menus.ped_options, "Props")
+            for _, ped_prop in pairs(constants.ped_props) do
+                create_ped_prop_menu(attachment, attachment.menus.ped_options, ped_prop.index, ped_prop.name)
+            end
         end
 
         -- Attachment
         attachment.menus.attachment_options = menu.list(attachment.menus.options, "Attachment Options")
-        attachment.menus.option_attached = menu.toggle(attachment.menus.attachment_options, "Attached", {}, "Is this child physically attached to the parent, or does it move freely on its own.", function(on)
-            attachment.options.is_attached = on
-            constructor_lib.update_attachment(attachment)
-        end, attachment.options.is_attached)
-        attachment.menus.option_parent_attachment = menu.list(attachment.menus.attachment_options, "Change Parent", {}, "Select a new parent for this child. Construct will be rebuilt to accommodate changes.", function()
-            rebuild_reattach_to_menu(attachment)
-        end)
+        if attachment ~= attachment.parent then
+
+            attachment.menus.option_attached = menu.toggle(attachment.menus.attachment_options, "Attached", {}, "Is this child physically attached to the parent, or does it move freely on its own.", function(on)
+                attachment.options.is_attached = on
+                constructor_lib.update_attachment(attachment)
+            end, attachment.options.is_attached)
+            attachment.menus.option_parent_attachment = menu.list(attachment.menus.attachment_options, "Change Parent", {}, "Select a new parent for this child. Construct will be rebuilt to accommodate changes.", function()
+                rebuild_reattach_to_menu(attachment)
+            end)
+
+            attachment.menus.option_bone_index = menu.slider(attachment.menus.attachment_options, "Bone Index", {}, "Which bone of the parent should this entity be attached to", -1, attachment.parent.num_bones or 200, attachment.options.bone_index or -1, 1, function(value)
+                attachment.options.bone_index = value
+                constructor_lib.update_attachment(attachment)
+            end)
+
+            attachment.menus.option_bone_index_picker = menu.list(attachment.menus.attachment_options, "Bone Index Picker", {}, "Some common bones can be selected by name")
+            for _, bone_index_category in pairs(constants.bone_index_names) do
+                local category_menu = menu.list(attachment.menus.option_bone_index_picker, bone_index_category.name)
+                for _, bone_name in pairs(bone_index_category.bone_names) do
+                    menu.action(category_menu, bone_name, {}, "", function()
+                        attachment.options.bone_index = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(attachment.parent.handle, bone_name)
+                        constructor_lib.update_attachment(attachment)
+                        menu.set_value(attachment.menus.option_bone_index, attachment.options.bone_index)
+                        menu.focus(attachment.menus.option_bone_index)
+                    end)
+                end
+            end
+
+            attachment.menus.option_soft_pinning = menu.toggle(attachment.menus.attachment_options, "Soft Pinning", {}, "Will the attachment detach when repaired", function(on)
+                attachment.options.use_soft_pinning = on
+                constructor_lib.update_attachment(attachment)
+            end, attachment.options.use_soft_pinning)
+            attachment.menus.detach = menu.action(attachment.menus.attachment_options, "Separate", {}, "Detach attachment from construct to create a new construct", function()
+                local original_parent = attachment.parent
+                constructor_lib.detach_attachment(attachment)
+                table.insert(spawned_constructs, attachment)
+                attachment.menus = nil
+                menus.rebuild_attachment_menu(attachment)
+                original_parent.menus.refresh()
+                attachment.menus.refresh()
+                attachment.menus.focus()
+                menus.refresh_loaded_constructs()
+            end)
+
+        end
         menu.action(attachment.menus.attachment_options, "Copy to Me", {}, "Attach a copy of this object to your Ped.", function()
             local player_construct = get_player_construct()
             local attachment_copy = constructor_lib.serialize_attachment(attachment)
@@ -1294,39 +1392,6 @@ menus.rebuild_attachment_menu = function(attachment)
                 table.insert(player_construct.children, attachment_copy)
             end
             rebuild_attachment(attachment_copy)
-        end)
-        attachment.menus.option_bone_index = menu.slider(attachment.menus.attachment_options, "Bone Index", {}, "Which bone of the parent should this entity be attached to", -1, attachment.parent.num_bones or 200, attachment.options.bone_index or -1, 1, function(value)
-            attachment.options.bone_index = value
-            constructor_lib.update_attachment(attachment)
-        end)
-
-        attachment.menus.option_bone_index_picker = menu.list(attachment.menus.attachment_options, "Bone Index Picker", {}, "Some common bones can be selected by name")
-        for _, bone_index_category in pairs(constants.bone_index_names) do
-            local category_menu = menu.list(attachment.menus.option_bone_index_picker, bone_index_category.name)
-            for _, bone_name in pairs(bone_index_category.bone_names) do
-                menu.action(category_menu, bone_name, {}, "", function()
-                    attachment.options.bone_index = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(attachment.parent.handle, bone_name)
-                    constructor_lib.update_attachment(attachment)
-                    menu.set_value(attachment.menus.option_bone_index, attachment.options.bone_index)
-                    menu.focus(attachment.menus.option_bone_index)
-                end)
-            end
-        end
-
-        attachment.menus.option_soft_pinning = menu.toggle(attachment.menus.attachment_options, "Soft Pinning", {}, "Will the attachment detach when repaired", function(on)
-            attachment.options.use_soft_pinning = on
-            constructor_lib.update_attachment(attachment)
-        end, attachment.options.use_soft_pinning)
-        attachment.menus.detach = menu.action(attachment.menus.attachment_options, "Separate", {}, "Detach attachment from construct to create a new construct", function()
-            local original_parent = attachment.parent
-            constructor_lib.detach_attachment(attachment)
-            table.insert(spawned_constructs, attachment)
-            attachment.menus = nil
-            menus.rebuild_attachment_menu(attachment)
-            original_parent.menus.refresh()
-            attachment.menus.refresh()
-            attachment.menus.focus()
-            menus.refresh_loaded_constructs()
         end)
 
         attachment.menus.more_options = menu.list(attachment.menus.options, "More Options")
