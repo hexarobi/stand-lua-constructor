@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b9"
+local SCRIPT_VERSION = "0.20.4b10"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -372,16 +372,14 @@ local function calculate_camera_distance(attachment)
 end
 
 local function add_preview(construct_plan, preview_image_path)
-    if construct_plan.always_spawn_at_position then
-        if filesystem.exists(preview_image_path) then
-            image_preview = directx.create_texture(preview_image_path)
-        end
-        return
-    end
-    debug_log("Adding preview for construct plan "..tostring(construct_plan.name), construct_plan)
     if config.show_previews == false then return end
     remove_preview()
     if construct_plan == nil then return end
+    debug_log("Adding preview for construct plan "..tostring(construct_plan.name), construct_plan)
+    if construct_plan.always_spawn_at_position then
+        if filesystem.exists(preview_image_path) then image_preview = directx.create_texture(preview_image_path) end
+        return
+    end
     next_preview = construct_plan
     util.yield(config.preview_display_delay)
     if next_preview == construct_plan then
@@ -1677,7 +1675,8 @@ menu.action(menus.create_new_construct, "From Me", { "constructcreatefromme"}, "
         util.toast("Player is already a construct")
         return
     end
-    get_player_construct()
+    local player_construct = get_player_construct()
+    constructor_lib.serialize_ped_attributes(player_construct)
     build_construct_from_plan(player_construct)
 end)
 
