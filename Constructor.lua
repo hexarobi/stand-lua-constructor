@@ -763,6 +763,15 @@ local function load_construct_plan_from_xml_file(filepath)
     return construct_plan
 end
 
+local function load_construct_plan_from_ini_file(construct_plan_file)
+    local construct_plan = constructor_lib.convert_ini_to_construct_plan(construct_plan_file)
+    if not construct_plan then
+        util.toast("Failed to load INI file: "..construct_plan_file.filepath, TOAST_ALL)
+        return
+    end
+    return construct_plan
+end
+
 local function load_construct_plan_from_json_file(filepath)
     local data = read_file(filepath)
     if not data then return end
@@ -770,7 +779,7 @@ local function load_construct_plan_from_json_file(filepath)
 end
 
 local function is_file_type_supported(file_extension)
-    return (file_extension == "json" or file_extension == "xml")
+    return (file_extension == "json" or file_extension == "xml" or file_extension == "ini")
 end
 
 local function load_construct_plan_file(construct_plan_file)
@@ -780,6 +789,10 @@ local function load_construct_plan_file(construct_plan_file)
         construct_plan = load_construct_plan_from_json_file(construct_plan_file.filepath)
     elseif construct_plan_file.ext == "xml" then
         construct_plan = load_construct_plan_from_xml_file(construct_plan_file.filepath)
+        if not construct_plan then return end
+        construct_plan.name = construct_plan_file.filename
+    elseif construct_plan_file.ext == "ini" then
+        construct_plan = load_construct_plan_from_ini_file(construct_plan_file)
         if not construct_plan then return end
         construct_plan.name = construct_plan_file.filename
     end
@@ -821,7 +834,7 @@ local function load_construct_plans_files_from_dir(directory)
                 filepath=filepath,
                 filename=filename,
                 name=filename,
-                ext=ext
+                ext=ext,
             }
         end
         table.insert(construct_plan_files, construct_plan_file)
