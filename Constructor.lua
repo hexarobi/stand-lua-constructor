@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b7"
+local SCRIPT_VERSION = "0.20.4b8"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -134,6 +134,7 @@ local config = {
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
     deconstruct_all_spawned_constructs_on_unload = true,
     drive_spawned_vehicles = true,
+    wear_spawned_peds = true,
     preview_display_delay = 500,
     max_search_results = 100,
 }
@@ -593,9 +594,11 @@ end
 local function spawn_construct_from_plan(construct_plan)
     debug_log("Spawning construct from plan "..tostring(construct_plan.name), construct_plan)
     local construct = copy_construct_plan(construct_plan)
-    if construct_plan.is_player then
+    if config.wear_spawned_peds then
+        construct.is_player = true
         construct.handle = players.user_ped()
     else
+        construct.is_player = false
         calculate_camera_distance(construct)
         if not construct_plan.always_spawn_at_position then
             construct.position = get_offset_from_camera(construct.camera_distance)
@@ -1718,6 +1721,9 @@ menu.hyperlink(menus.load_construct_options, "Download Constructs", "file:///"..
 menu.toggle(menus.load_construct_options, "Drive Spawned Vehicles", {}, "When spawning vehicles, automatically place you into the drivers seat.", function(on)
     config.drive_spawned_vehicles = on
 end, config.drive_spawned_vehicles)
+menu.toggle(menus.load_construct_options, "Wear Spawned Peds", {}, "When spawning peds, replace your player skin with the ped.", function(on)
+    config.wear_spawned_peds = on
+end, config.wear_spawned_peds)
 
 menus.search_constructs = menu.list(menus.load_construct, "Search", {}, "", function()
     menu.show_command_box("constructorsearch ")
