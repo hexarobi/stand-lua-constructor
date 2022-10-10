@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b4"
+local SCRIPT_VERSION = "0.20.4b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -287,6 +287,7 @@ end
 
 local current_preview
 local next_preview
+local image_preview
 local minVec = v3.new()
 local maxVec = v3.new()
 
@@ -351,6 +352,7 @@ end
 
 local function remove_preview(construct_plan)
     next_preview = nil
+    image_preview = nil
     if construct_plan == nil then construct_plan = current_preview end
     if construct_plan ~= nil then
         constructor_lib.remove_attachment(construct_plan)
@@ -367,8 +369,13 @@ local function calculate_camera_distance(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
-local function add_preview(construct_plan)
-    if construct_plan.always_spawn_at_position then return end
+local function add_preview(construct_plan, preview_image_path)
+    if construct_plan.always_spawn_at_position then
+        if filesystem.exists(preview_image_path) then
+            image_preview = directx.create_texture(preview_image_path)
+        end
+        return
+    end
     debug_log("Adding preview for construct plan "..tostring(construct_plan.name), construct_plan)
     if config.show_previews == false then return end
     remove_preview()
@@ -403,6 +410,9 @@ local function update_preview_tick()
         constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
         constructor_lib.draw_bounding_box_with_dimensions(current_preview.handle, config.preview_bounding_box_color, current_preview.dimensions.min_vec, current_preview.dimensions.max_vec)
         constructor_lib.completely_disable_attachment_collision(current_preview)
+    end
+    if image_preview ~= nil then
+        directx.draw_texture(image_preview, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
     end
 end
 
@@ -835,6 +845,7 @@ local function load_construct_plans_files_from_dir(directory)
                 filename=filename,
                 name=filename,
                 ext=ext,
+                preview_image_path = directory .. "/" .. filename .. ".png",
             }
         end
         table.insert(construct_plan_files, construct_plan_file)
@@ -930,12 +941,11 @@ end
 menus.rebuild_add_attachments_menu = function(attachment)
     debug_log("Rebuilding add attachments menu "..tostring(attachment.name), attachment)
 
-    attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, "Curated", {}, "Browse a curated collection of attachments")
-
-    if attachment.menus.add_attachment_categories ~= nil then return end
-    attachment.menus.add_attachment_categories = {}
-    for _, curated_item in pairs(curated_attachments) do
-        build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
+    if attachment.menus.curated_attachments == nil then
+        attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, "Curated", {}, "Browse a curated collection of attachments")
+        for _, curated_item in pairs(curated_attachments) do
+            build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
+        end
     end
 
     local function add_search_results(attachment, query, page_size, page_number)
@@ -1413,18 +1423,19 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.update_attachment(attachment)
         end)
 
-        -- Blip
-        menu.divider(attachment.menus.more_options, "Blip")
-        attachment.menus.option_blip_sprite = menu.slider(attachment.menus.more_options, "Blip Sprite", {"constructorsetblipsprite"..attachment.handle}, "Icon to show on mini map for this construct", 1, 826, attachment.blip_sprite, 1, function(value)
-            attachment.blip_sprite = value
-            constructor_lib.refresh_blip(attachment)
-        end)
-        attachment.menus.option_blip_color = menu.slider(attachment.menus.more_options, "Blip Color", {"constructorsetblipcolor"..attachment.handle}, "Mini map icon color", 1, 85, attachment.blip_color, 1, function(value)
-            attachment.blip_color = value
-            constructor_lib.refresh_blip(attachment)
-        end)
-        menu.hyperlink(attachment.menus.more_options, "Blip Reference", "https://docs.fivem.net/docs/game-references/blips/", "Reference website for blip details")
-
+        if attachment == attachment.parent then
+            -- Blip
+            menu.divider(attachment.menus.more_options, "Blip")
+            attachment.menus.option_blip_sprite = menu.slider(attachment.menus.more_options, "Blip Sprite", {"constructorsetblipsprite"..attachment.handle}, "Icon to show on mini map for this construct", 1, 826, attachment.blip_sprite, 1, function(value)
+                attachment.blip_sprite = value
+                constructor_lib.refresh_blip(attachment)
+            end)
+            attachment.menus.option_blip_color = menu.slider(attachment.menus.more_options, "Blip Color", {"constructorsetblipcolor"..attachment.handle}, "Mini map icon color", 1, 85, attachment.blip_color, 1, function(value)
+                attachment.blip_color = value
+                constructor_lib.refresh_blip(attachment)
+            end)
+            menu.hyperlink(attachment.menus.more_options, "Blip Reference", "https://docs.fivem.net/docs/game-references/blips/", "Reference website for blip details")
+        end
         -- Lights
         menu.divider(attachment.menus.more_options, "Lights")
         attachment.menus.option_is_light_on = menu.toggle(attachment.menus.more_options, "Light On", {}, "If attachment is a light, it will be on and lit (many lights only work during night time).", function(on)
@@ -1706,7 +1717,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
                         build_construct_from_plan(construct_plan)
                     end
                 end)
-                menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file)) end end)
+                menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
                 menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
             end
             table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
