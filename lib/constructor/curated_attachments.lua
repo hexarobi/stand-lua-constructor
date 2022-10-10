@@ -1,5 +1,5 @@
 -- Curated Attachments
--- v1.2
+-- v1.3
 
 return {
     {
@@ -325,58 +325,58 @@ return {
                     },
                 },
             },
+            {
+                name = "Vehicle Objects",
+                is_folder = true,
+                items = {
+                    {
+                        name = "Aircraft Carrier",
+                        model = "prop_temp_carrier"
+                    },
+                    {
+                        name = "Commercial Jet",
+                        model = "p_med_jet_01_s"
+                    },
+                    {
+                        name = "Military Jet",
+                        model = "hei_prop_carrier_jet"
+                    },
+                    {
+                        name = "Tugboat",
+                        model = "hei_prop_heist_tug"
+                    },
+                    {
+                        name = "UFO",
+                        model = "imp_prop_ship_01a"
+                    },
+                    {
+                        name = "Yacht",
+                        model = "apa_mp_apa_yacht"
+                    },
+                }
+            },
+            {
+                name = "Animated Objects",
+                is_folder = true,
+                items = {
+                    {
+                        name = "Radar Dish",
+                        model = "hei_prop_carrier_radar_1_l1"
+                    },
+                    {
+                        name = "UFO",
+                        model = "p_spinning_anus_s"
+                    },
+                    {
+                        name = "Wacky Arm Waving Inflatable Tube Man",
+                        model = "prop_airdancer_2_cloth"
+                    },
+                }
+            },
             items = {
                 name = "Fun",
                 is_folder = true,
                 items = {
-                    {
-                        name = "Vehicle Objects",
-                        is_folder = true,
-                        items = {
-                            {
-                                name = "Aircraft Carrier",
-                                model = "prop_temp_carrier"
-                            },
-                            {
-                                name = "Commercial Jet",
-                                model = "p_med_jet_01_s"
-                            },
-                            {
-                                name = "Military Jet",
-                                model = "hei_prop_carrier_jet"
-                            },
-                            {
-                                name = "Tugboat",
-                                model = "hei_prop_heist_tug"
-                            },
-                            {
-                                name = "UFO",
-                                model = "imp_prop_ship_01a"
-                            },
-                            {
-                                name = "Yacht",
-                                model = "apa_mp_apa_yacht"
-                            },
-                        }
-                    },
-                    {
-                        name = "Animated Objects",
-                        is_folder = true,
-                        items = {
-                            {
-                                name = "Radar Dish",
-                                model = "hei_prop_carrier_radar_1_l1"
-                            },
-                            {
-                                name = "UFO",
-                                model = "p_spinning_anus_s"
-                            },
-                            {
-                                name = "Wacky Arm Waving Inflatable Tube Man",
-                                model = "prop_airdancer_2_cloth"
-                            },
-                        }
-                    },
                     {
                         name = "ATM",
                         model = "prop_atm_01"
