@@ -1686,7 +1686,7 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
     local parser = xml2lua.parser(vehicle_handler)
     parser:parse(xmldata)
 
-    --util.log("Parsed XML: "..inspect(vehicle_handler.root))
+    util.log("Parsed XML: "..inspect(vehicle_handler.root))
 
     if vehicle_handler.root.Vehicle ~= nil then
         construct_plan.type = "VEHICLE"
@@ -1703,7 +1703,9 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
             end
         end
     elseif vehicle_handler.root.SpoonerPlacements ~= nil then
-        for _, placement in pairs(vehicle_handler.root.SpoonerPlacements.Placement) do
+        local placements = vehicle_handler.root.SpoonerPlacements.Placement
+        if placements[1] == nil then placements = {placements} end -- Single prop maps need to be forced into a list
+        for _, placement in pairs(placements) do
             if construct_plan.model == nil then
                 map_placement(construct_plan, placement)
                 if construct_plan.type == "OBJECT" then construct_plan.always_spawn_at_position = true end
