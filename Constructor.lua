@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b6"
+local SCRIPT_VERSION = "0.20.4b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -967,77 +967,6 @@ local function build_curated_attachments_menu(attachment, root_menu, curated_ite
     end
 end
 
-menus.rebuild_add_attachments_menu = function(attachment)
-    debug_log("Rebuilding add attachments menu "..tostring(attachment.name), attachment)
-
-    if attachment.menus.curated_attachments == nil then
-        attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, "Curated", {}, "Browse a curated collection of attachments")
-        for _, curated_item in pairs(curated_attachments) do
-            build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
-        end
-    end
-
-    local function add_search_results(attachment, query, page_size, page_number)
-        if page_size == nil then page_size = 30 end
-        if page_number == nil then page_number = 0 end
-        local results = search_props(query)
-        for i = (page_size*page_number)+1, page_size*(page_number+1) do
-            if results[i] then
-                local model = results[i].prop
-                local search_result_menu_item = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
-                    build_construct_from_plan({
-                        root = attachment.root,
-                        parent = attachment,
-                        name = model,
-                        model = model,
-                    })
-                end)
-                menu.on_focus(search_result_menu_item, function(direction) if direction ~= 0 then add_preview({model=model}) end end)
-                menu.on_blur(search_result_menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
-                table.insert(attachment.menus.search_results, search_result_menu_item)
-            end
-        end
-        if attachment.menus.search_add_more ~= nil then menu.delete(attachment.menus.search_add_more) end
-        attachment.menus.search_add_more = menu.action(attachment.menus.search_add_prop, "Load More", {}, "", function()
-            add_search_results(attachment, query, page_size, page_number+1)
-        end)
-    end
-
-    attachment.menus.search_results = {}
-    attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search", {}, "Search for a prop by name")
-    menu.text_input(attachment.menus.search_add_prop, "Search for Object", {"constructorsearchobject"..attachment.handle}, "", function (query)
-        clear_menu_list(attachment.menus.search_results)
-        add_search_results(attachment, query)
-    end)
-
-    attachment.menus.exact_name = menu.list(attachment.menus.add_attachment, "Add by Name", {}, "Add an object, vehicle, or ped by exact name.")
-    menu.text_input(attachment.menus.exact_name, "Object by Name", {"constructorattachobject"..attachment.handle},
-            "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
-                build_construct_from_plan({
-                    root = attachment.root, parent = attachment, name = value, model = value,
-                })
-            end)
-    menu.text_input(attachment.menus.exact_name, "Vehicle by Name", {"constructorattachvehicle"..attachment.handle},
-            "Add a vehicle by exact name.", function (value)
-                build_construct_from_plan({
-                    root = attachment.root, parent = attachment, name = value, model = value, type = "VEHICLE",
-                })
-            end)
-    menu.text_input(attachment.menus.exact_name, "Ped by Name", {"constructorattachped"..attachment.handle},
-            "Add a vehicle by exact name.", function (value)
-                build_construct_from_plan({
-                    root = attachment.root, parent = attachment, name = value, model = value, type = "PED",
-                })
-            end)
-    menu.hyperlink(attachment.menus.exact_name, "Open gta-objects.xyz", "https://gta-objects.xyz/", "Website for browsing and searching for props")
-
-    menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
-        config.add_attachment_gun_active = on
-        config.add_attachment_gun_recipient = attachment
-    end, config.add_attachment_gun_active)
-
-end
-
 local function rebuild_attachment_debug_menu(attachment, parent_menu)
     if parent_menu == nil then parent_menu = attachment.root.menus.debug end
     --menu.readonly(parent_menu, "Copy Full Inspection", "foo")
@@ -1083,6 +1012,32 @@ local function rebuild_reattach_to_menu(attachment, current, path, depth)
             rebuild_reattach_to_menu(attachment, child_attachment, table.table_copy(path), depth)
         end
     end
+end
+
+local function add_prop_search_results(attachment, query, page_size, page_number)
+    if page_size == nil then page_size = 30 end
+    if page_number == nil then page_number = 0 end
+    local results = search_props(query)
+    for i = (page_size*page_number)+1, page_size*(page_number+1) do
+        if results[i] then
+            local model = results[i].prop
+            local search_result_menu_item = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
+                build_construct_from_plan({
+                    root = attachment.root,
+                    parent = attachment,
+                    name = model,
+                    model = model,
+                })
+            end)
+            menu.on_focus(search_result_menu_item, function(direction) if direction ~= 0 then add_preview({model=model}) end end)
+            menu.on_blur(search_result_menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
+            table.insert(attachment.temp.prop_search_results, search_result_menu_item)
+        end
+    end
+    if attachment.menus.search_add_more ~= nil then menu.delete(attachment.menus.search_add_more) end
+    attachment.menus.search_add_more = menu.action(attachment.menus.search_add_prop, "Load More", {}, "", function()
+        add_prop_search_results(attachment, query, page_size, page_number+1)
+    end)
 end
 
 local function make_wheels_invis(attachment)
@@ -1494,11 +1449,58 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_melee_proof)
 
+        ---
+        --- Add Attachment
+        ---
+
         --menu.divider(attachment.menus.main, "Attachments")
         --attachment.menus.attachments = menu.list(attachment.menus.main, "Attachments")
-        attachment.menus.add_attachment = menu.list(attachment.menus.main, "Add Attachment", {}, "", function()
-            menus.rebuild_add_attachments_menu(attachment)
+        attachment.menus.add_attachment = menu.list(attachment.menus.main, "Add Attachment", {}, "")
+
+        attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, "Curated", {}, "Browse a curated collection of attachments")
+        for _, curated_item in pairs(curated_attachments) do
+            build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
+        end
+
+        attachment.temp.prop_search_results = {}
+        attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search", {}, "Search for a prop by name", function()
+            menu.show_command_box("constructorsearchprop"..attachment.handle.." ")
         end)
+        menu.text_input(attachment.menus.search_add_prop, "Search", {"constructorsearchprop"..attachment.handle}, "", function (query)
+            clear_menu_list(attachment.temp.prop_search_results)
+            add_prop_search_results(attachment, query)
+        end)
+
+        attachment.menus.exact_name = menu.list(attachment.menus.add_attachment, "Add by Name", {}, "Add an object, vehicle, or ped by exact name.")
+        menu.text_input(attachment.menus.exact_name, "Object by Name", {"constructorattachobject"..attachment.handle},
+                "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, model = value,
+                    })
+                end)
+        menu.text_input(attachment.menus.exact_name, "Vehicle by Name", {"constructorattachvehicle"..attachment.handle},
+                "Add a vehicle by exact name.", function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, model = value, type = "VEHICLE",
+                    })
+                end)
+        menu.text_input(attachment.menus.exact_name, "Ped by Name", {"constructorattachped"..attachment.handle},
+                "Add a vehicle by exact name.", function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, model = value, type = "PED",
+                    })
+                end)
+        menu.hyperlink(attachment.menus.exact_name, "Open gta-objects.xyz", "https://gta-objects.xyz/", "Website for browsing and searching for props")
+
+        menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
+            config.add_attachment_gun_active = on
+            config.add_attachment_gun_recipient = attachment
+        end, config.add_attachment_gun_active)
+
+        ---
+        --- Edit Attachments
+        ---
+
         attachment.menus.edit_attachments = menu.list(attachment.menus.main, "Edit Attachments ("..#attachment.children..")", {}, "", function()
             menus.rebuild_attachment_menu(attachment)
         end)
