@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b5"
+local SCRIPT_VERSION = "0.20.4b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -135,6 +135,7 @@ local config = {
     deconstruct_all_spawned_constructs_on_unload = true,
     drive_spawned_vehicles = true,
     preview_display_delay = 500,
+    max_search_results = 100,
 }
 
 local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
@@ -828,29 +829,57 @@ end
 local function load_construct_plans_files_from_dir(directory)
     local construct_plan_files = {}
     for _, filepath in ipairs(filesystem.list_files(directory)) do
-        local construct_plan_file
         if filesystem.is_dir(filepath) then
             local _, dirname = string.match(filepath, "(.-)([^\\/]-%.?)$")
-            construct_plan_file = {
+            local dir_file = {
                 is_directory=true,
                 filepath=filepath,
                 filename=dirname,
                 name=dirname,
             }
+            table.insert(construct_plan_files, dir_file)
         else
             local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
-            construct_plan_file = {
-                is_directory=false,
-                filepath=filepath,
-                filename=filename,
-                name=filename,
-                ext=ext,
-                preview_image_path = directory .. "/" .. filename .. ".png",
-            }
+            if is_file_type_supported(ext) then
+                local construct_plan_file = {
+                    is_directory=false,
+                    filepath=filepath,
+                    filename=filename,
+                    name=filename,
+                    ext=ext,
+                    preview_image_path = directory .. "/" .. filename .. ".png",
+                }
+                table.insert(construct_plan_files, construct_plan_file)
+            end
         end
-        table.insert(construct_plan_files, construct_plan_file)
     end
     return construct_plan_files
+end
+
+local function search_constructs(directory, query, results)
+    if results == nil then results = {} end
+    if #results > config.max_search_results then return results end
+    for _, filepath in ipairs(filesystem.list_files(directory)) do
+        if filesystem.is_dir(filepath) then
+            search_constructs(filepath, query, results)
+        else
+            if filepath:match(query) then
+                local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
+                if is_file_type_supported(ext) then
+                    local construct_plan_file = {
+                        is_directory=false,
+                        filepath=filepath,
+                        filename=filename,
+                        name=filename,
+                        ext=ext,
+                        preview_image_path = directory .. "/" .. filename .. ".png",
+                    }
+                    table.insert(results, construct_plan_file)
+                end
+            end
+        end
+    end
+    return results
 end
 
 ---
@@ -1661,6 +1690,20 @@ end)
 --- Load Construct Menu
 ---
 
+local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
+    construct_plan_file.menu = menu.action(root_menu, construct_plan_file.name, {}, "", function()
+        remove_preview()
+        local construct_plan = load_construct_plan_file(construct_plan_file)
+        if construct_plan then
+            construct_plan.root = construct_plan
+            construct_plan.parent = construct_plan
+            build_construct_from_plan(construct_plan)
+        end
+    end)
+    menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
+    menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
+end
+
 local load_constructs_root_menu_file
 menus.load_construct = menu.list(menu.my_root(), "Load Construct", {}, "Load a previously saved or shared construct into the world", function()
     menus.rebuild_load_construct_menu()
@@ -1674,19 +1717,27 @@ menu.toggle(menus.load_construct_options, "Drive Spawned Vehicles", {}, "When sp
     config.drive_spawned_vehicles = on
 end, config.drive_spawned_vehicles)
 
-menu.divider(menus.load_construct, "Browse")
+menus.search_constructs = menu.list(menus.load_construct, "Search", {}, "", function()
+    menu.show_command_box("constructorsearch ")
+end)
+local previous_search_results = {}
+menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "", function(query)
+    for _, previous_search_result in pairs(previous_search_results) do
+        menu.delete(previous_search_result.menu)
+    end
+    previous_search_results = {}
+    local results = search_constructs(CONSTRUCTS_DIR, query)
+    if #results == 0 then
+        menu.divider(menus.search_constructs, "No results found")
+    else
+        for _, result in pairs(results) do
+            add_load_construct_plan_file_menu(menus.search_constructs, result)
+            table.insert(previous_search_results, result)
+        end
+    end
+end)
 
---menu.action(menus.load_construct, "Search", {"constructorsearch"}, "", function()
---    menu.show_command_box("constructorsearch ")
---end, function(on_command)
---    local results = search_vehicle(on_command)
---    if #results == 0 then
---        util.toast("No files found")
---    else
---        menu.set_list_action_options(v_search_results_action, results)
---        menu.trigger_commands("constructorsearchresults")
---    end
---end)
+menu.divider(menus.load_construct, "Browse")
 
 local function add_directory_to_load_constructs(path, parent_construct_plan_file)
     if path == nil then path = "" end
