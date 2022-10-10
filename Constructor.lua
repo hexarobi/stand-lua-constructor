@@ -983,7 +983,7 @@ menus.rebuild_add_attachments_menu = function(attachment)
         end)
     end
 
-    if attachment.menua.exact_name == nil then
+    if attachment.menus.exact_name == nil then
         attachment.menus.exact_name = menu.list(attachment.menus.add_attachment, "Add by Name", {}, "Add an object, vehicle, or ped by exact name.")
         menu.text_input(attachment.menus.exact_name, "Object by Name", {"constructorattachobject"..attachment.handle},
                 "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
@@ -1006,11 +1006,12 @@ menus.rebuild_add_attachments_menu = function(attachment)
         menu.hyperlink(attachment.menus.exact_name, "Open gta-objects.xyz", "https://gta-objects.xyz/", "Website for browsing and searching for props")
     end
 
-    menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
-        config.add_attachment_gun_active = on
-        config.add_attachment_gun_recipient = attachment
-    end, config.add_attachment_gun_active)
-
+    if attachment.menus.add_by_attachment_gun == nil then
+        attachment.menus.add_by_attachment_gun = menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
+            config.add_attachment_gun_active = on
+            config.add_attachment_gun_recipient = attachment
+        end, config.add_attachment_gun_active)    
+    end   
 end
 
 local function rebuild_attachment_debug_menu(attachment, parent_menu)
