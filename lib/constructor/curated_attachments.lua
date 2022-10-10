@@ -329,6 +329,90 @@ return {
                 name = "Fun",
                 is_folder = true,
                 items = {
+                    {
+                        name = "Vehicle Objects",
+                        is_folder = true,
+                        items = {
+                            {
+                                name = "Aircraft Carrier",
+                                model = "prop_temp_carrier"
+                            },
+                            {
+                                name = "Commercial Jet",
+                                model = "p_med_jet_01_s"
+                            },
+                            {
+                                name = "Military Jet",
+                                model = "hei_prop_carrier_jet"
+                            },
+                            {
+                                name = "Tugboat",
+                                model = "hei_prop_heist_tug"
+                            },
+                            {
+                                name = "UFO",
+                                model = "imp_prop_ship_01a"
+                            },
+                            {
+                                name = "Yacht",
+                                model = "apa_mp_apa_yacht"
+                            },
+                        }
+                    },
+                    {
+                        name = "Animated Objects",
+                        is_folder = true,
+                        items = {
+                            {
+                                name = "Radar Dish",
+                                model = "hei_prop_carrier_radar_1_l1"
+                            },
+                            {
+                                name = "UFO",
+                                model = "p_spinning_anus_s"
+                            },
+                            {
+                                name = "Wacky Arm Waving Inflatable Tube Man",
+                                model = "prop_airdancer_2_cloth"
+                            },
+                        }
+                    },
+                    {
+                        name = "ATM",
+                        model = "prop_atm_01"
+                    },
+                    {
+                        name = "Bomb",
+                        model = "imp_prop_bomb_ball"
+                    },
+                    {
+                        name = "Car wheel",
+                        model = "imp_prop_impexp_tyre_01c"
+                    },
+                    {
+                        name = "Ferris wheel",
+                        model = "p_ferris_wheel_amo_l"
+                    },
+                    {
+                        name = "Guitar",
+                        model = "prop_acc_guitar_01"
+                    },
+                    {
+                        name = "Pile o' cash",
+                        model = "bkr_prop_bkr_cashpile_01"
+                    },
+                    {
+                        name = "Shipping container",
+                        model = "port_xr_cont_01"
+                    },
+                    {
+                        name = "Weed plant",
+                        model = "bkr_prop_weed_lrg_01b"
+                    },
+                    {
+                        name = "Wood crate",
+                        model = "ng_proc_crate_04a"
+                    },
                 },
             },
         },
