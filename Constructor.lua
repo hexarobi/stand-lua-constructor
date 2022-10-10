@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b8"
+local SCRIPT_VERSION = "0.20.4b9"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1715,16 +1715,6 @@ menus.load_construct = menu.list(menu.my_root(), "Load Construct", {}, "Load a p
 end)
 load_constructs_root_menu_file = {menu=menus.load_construct, name="Loaded Constructs Menu", menus={}}
 
-menus.load_construct_options = menu.list(menus.load_construct, "Options")
-menu.hyperlink(menus.load_construct_options, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
-menu.hyperlink(menus.load_construct_options, "Download Constructs", "file:///"..CONSTRUCTS_DIR, "Download a curated collection of constructs.")
-menu.toggle(menus.load_construct_options, "Drive Spawned Vehicles", {}, "When spawning vehicles, automatically place you into the drivers seat.", function(on)
-    config.drive_spawned_vehicles = on
-end, config.drive_spawned_vehicles)
-menu.toggle(menus.load_construct_options, "Wear Spawned Peds", {}, "When spawning peds, replace your player skin with the ped.", function(on)
-    config.wear_spawned_peds = on
-end, config.wear_spawned_peds)
-
 menus.search_constructs = menu.list(menus.load_construct, "Search", {}, "", function()
     menu.show_command_box("constructorsearch ")
 end)
@@ -1744,6 +1734,23 @@ menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "", fu
         end
     end
 end)
+
+menus.load_construct_options = menu.list(menus.load_construct, "Options")
+menu.hyperlink(menus.load_construct_options, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
+menu.hyperlink(menus.load_construct_options, "Download Curated Constructs", "https://github.com/hexarobi/stand-curated-constructs", "Download a curated collection of constructs.")
+-- TODO: Update curated
+--menu.action(menus.load_construct_options, "Update Curated Constructs", {}, "Download a curated collection of constructs.", function()
+--    download_and_extract({
+--        source_url="https://github.com/hexarobi/stand-curated-constructs/archive/refs/heads/main.zip",
+--        destination_path=CONSTRUCTS_DIR.."/Curated"
+--    })
+--end)
+menu.toggle(menus.load_construct_options, "Drive Spawned Vehicles", {}, "When spawning vehicles, automatically place you into the drivers seat.", function(on)
+    config.drive_spawned_vehicles = on
+end, config.drive_spawned_vehicles)
+menu.toggle(menus.load_construct_options, "Wear Spawned Peds", {}, "When spawning peds, replace your player skin with the ped.", function(on)
+    config.wear_spawned_peds = on
+end, config.wear_spawned_peds)
 
 menu.divider(menus.load_construct, "Browse")
 
