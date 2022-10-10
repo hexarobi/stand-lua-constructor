@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b5"
+local LIB_VERSION = "3.21.4b6"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -607,6 +607,7 @@ end
 
 constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.children == nil then attachment.children = {} end
+    if attachment.temp == nil then attachment.temp = {} end
     if attachment.options == nil then attachment.options = {} end
     if attachment.offset == nil then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil then attachment.rotation = { x = 0, y = 0, z = 0 } end
@@ -1170,7 +1171,7 @@ constructor_lib.copy_serializable = function(attachment)
     }
     for k, v in pairs(attachment) do
         if not (
-            k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children"
+            k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp"
             or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading"
         ) then
             serializeable_attachment[k] = table.table_copy(v)
