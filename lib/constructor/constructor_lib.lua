@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b9"
+local LIB_VERSION = "3.21.4b10"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -307,9 +307,11 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
     if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.paint == nil then return end
 
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
-    VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle.handle, vehicle.vehicle_attributes.paint.color_combo or -1)
+    if vehicle.vehicle_attributes.paint.color_combo ~= nil then
+        VEHICLE.SET_VEHICLE_COLOUR_COMBINATION(vehicle.handle, vehicle.vehicle_attributes.paint.color_combo or -1)
+    end
 
-    if vehicle.vehicle_attributes.paint.vehicle_custom_color then
+    if vehicle.vehicle_attributes.paint.vehicle_custom_color ~= nil then
         VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
                 vehicle.handle,
                 vehicle.vehicle_attributes.paint.vehicle_custom_color.r,
@@ -324,8 +326,9 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
         )
     end
 
-    if vehicle.vehicle_attributes.paint.primary then
-        if vehicle.vehicle_attributes.paint.primary.vehicle_standard_color ~= nil or vehicle.vehicle_attributes.paint.secondary.vehicle_standard_color ~= nil then
+    if vehicle.vehicle_attributes.paint.primary ~= nil then
+        if vehicle.vehicle_attributes.paint.primary.vehicle_standard_color ~= nil
+                or vehicle.vehicle_attributes.paint.secondary.vehicle_standard_color ~= nil then
             VEHICLE.SET_VEHICLE_COLOURS(
                     vehicle.handle,
                     vehicle.vehicle_attributes.paint.primary.vehicle_standard_color,
@@ -340,7 +343,7 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
                     vehicle.vehicle_attributes.paint.primary.custom_color.b
             )
         end
-        if vehicle.vehicle_attributes.paint.primary.paint_type then
+        if vehicle.vehicle_attributes.paint.primary.paint_type ~= nil then
             VEHICLE.SET_VEHICLE_MOD_COLOR_1(
                     vehicle.handle,
                     vehicle.vehicle_attributes.paint.primary.paint_type,
@@ -356,7 +359,7 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
                     vehicle.vehicle_attributes.paint.secondary.custom_color.b
             )
         end
-        if vehicle.vehicle_attributes.paint.secondary.paint_type then
+        if vehicle.vehicle_attributes.paint.secondary.paint_type ~= nil then
             VEHICLE.SET_VEHICLE_MOD_COLOR_2(
                     vehicle.handle,
                     vehicle.vehicle_attributes.paint.secondary.paint_type,
@@ -365,7 +368,7 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
         end
     end
 
-    if vehicle.vehicle_attributes.paint.extra_colors then
+    if vehicle.vehicle_attributes.paint.extra_colors.pearlescent ~= nil or vehicle.vehicle_attributes.paint.extra_colors.wheel ~= nil then
         VEHICLE.SET_VEHICLE_EXTRA_COLOURS(
                 vehicle.handle,
                 vehicle.vehicle_attributes.paint.extra_colors.pearlescent,
@@ -373,15 +376,30 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
         )
     end
 
-    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, vehicle.vehicle_attributes.headlights_color)
-    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_6(vehicle.handle, vehicle.vehicle_attributes.paint.dashboard_color or -1)
-    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, vehicle.vehicle_attributes.paint.interior_color or -1)
-
-    VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle.handle, vehicle.vehicle_attributes.paint.fade or 0)
-    VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle.handle, vehicle.vehicle_attributes.paint.dirt_level or 0.0)
-    VEHICLE.SET_VEHICLE_MOD(vehicle.handle, 48, vehicle.vehicle_attributes.paint.livery or -1)
-    VEHICLE.SET_VEHICLE_LIVERY(vehicle.handle, vehicle.vehicle_attributes.paint.livery_legacy or -1)
-    VEHICLE.SET_VEHICLE_LIVERY2(vehicle.handle, vehicle.vehicle_attributes.paint.livery2_legacy or -1)
+    if vehicle.vehicle_attributes.headlights_color ~= nil then
+        VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, vehicle.vehicle_attributes.headlights_color)
+    end
+    if vehicle.vehicle_attributes.paint.dashboard_color ~= nil then
+        VEHICLE.SET_VEHICLE_EXTRA_COLOUR_6(vehicle.handle, vehicle.vehicle_attributes.paint.dashboard_color)
+    end
+    if vehicle.vehicle_attributes.paint.interior_color ~= nil then
+        VEHICLE.SET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, vehicle.vehicle_attributes.paint.interior_color)
+    end
+    if vehicle.vehicle_attributes.paint.fade ~= nil then
+        VEHICLE.SET_VEHICLE_ENVEFF_SCALE(vehicle.handle, vehicle.vehicle_attributes.paint.fade)
+    end
+    if vehicle.vehicle_attributes.paint.dirt_level ~= nil then
+        VEHICLE.SET_VEHICLE_DIRT_LEVEL(vehicle.handle, vehicle.vehicle_attributes.paint.dirt_level)
+    end
+    if vehicle.vehicle_attributes.paint.livery ~= nil then
+        VEHICLE.SET_VEHICLE_MOD(vehicle.handle, 48, vehicle.vehicle_attributes.paint.livery)
+    end
+    if vehicle.vehicle_attributes.paint.livery_legacy ~= nil then
+        VEHICLE.SET_VEHICLE_LIVERY(vehicle.handle, vehicle.vehicle_attributes.paint.livery_legacy)
+    end
+    if vehicle.vehicle_attributes.paint.livery2_legacy ~= nil then
+        VEHICLE.SET_VEHICLE_LIVERY2(vehicle.handle, vehicle.vehicle_attributes.paint.livery2_legacy)
+    end
 end
 
 constructor_lib.serialize_vehicle_neon = function(vehicle)
@@ -560,7 +578,10 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
     VEHICLE.SET_VEHICLE_SIREN(vehicle.handle, vehicle.vehicle_attributes.options.emergency_lights or false)
     VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle.handle, vehicle.vehicle_attributes.options.search_light or false, true)
     AUDIO.SET_VEHICLE_RADIO_LOUD(vehicle.handle, vehicle.vehicle_attributes.options.radio_loud or false)
-    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_text or "UNKNOWN")
+    if vehicle.vehicle_attributes.options.license_plate_text ~= nil then
+        util.toast("Setting plate text "..vehicle.vehicle_attributes.options.license_plate_text, TOAST_ALL)
+        VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_text or "UNKNOWN")
+    end
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_type or -1)
 
     if vehicle.vehicle_attributes.options.engine_running == true then
@@ -1063,10 +1084,10 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
 end
 
 constructor_lib.serialize_vehicle_attributes = function(vehicle)
-    debug_log("Serializing vehicle attributes "..tostring(vehicle.name).." "..debug.traceback())
     if vehicle.type ~= "VEHICLE" then return end
     constructor_lib.default_vehicle_attributes(vehicle)
     if not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
+    debug_log("Serializing vehicle attributes "..tostring(vehicle.name).." "..debug.traceback())
     constructor_lib.serialize_vehicle_paint(vehicle)
     constructor_lib.serialize_vehicle_neon(vehicle)
     constructor_lib.serialize_vehicle_wheels(vehicle)
@@ -1569,7 +1590,9 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.options.engine_running = toboolean(placement.VehicleProperties.EngineOn)
     attachment.vehicle_attributes.options.radio_loud = toboolean(placement.VehicleProperties.IsRadioLoud)
     attachment.vehicle_attributes.options.license_plate_type = tonumber(placement.VehicleProperties.NumberPlateIndex)
-    attachment.vehicle_attributes.options.license_plate_text = tostring(placement.VehicleProperties.NumberPlateText)
+    if placement.VehicleProperties.NumberPlateText ~= nil then
+        attachment.vehicle_attributes.options.license_plate_text = tostring(placement.VehicleProperties.NumberPlateText)
+    end
 
     if attachment.vehicle_attributes.mods == nil then attachment.vehicle_attributes.mods = {} end
     for index = 0, 49 do
