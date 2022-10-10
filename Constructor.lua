@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b10"
+local SCRIPT_VERSION = "0.20.4b11"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1154,15 +1154,15 @@ menus.rebuild_attachment_menu = function(attachment)
         end)
 
         menu.divider(attachment.menus.position, "World Rotation")
-        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, "X: Pitch", {"constructorrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, "X: Pitch", {"constructorworldrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
             attachment.world_rotation.x = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, "Y: Roll", {"constructorrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, "Y: Roll", {"constructorworldrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
             attachment.world_rotation.y = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, "Z: Yaw", {"constructorrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, "Z: Yaw", {"constructorworldrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
             attachment.world_rotation.z = value
             constructor_lib.move_attachment(attachment)
         end)
