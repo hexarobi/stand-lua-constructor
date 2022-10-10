@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b13"
+local SCRIPT_VERSION = "0.20.4b14"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1088,7 +1088,7 @@ end
 menus.rebuild_attachment_menu = function(attachment)
     if not attachment.handle then error("Attachment missing handle") end
     if attachment.menus == nil then
-        debug_log("Rebuilding attachment menu "..tostring(attachment.name).." "..debug.traceback(), attachment)
+        debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
         attachment.menus = {}
 
         local parent_menu
@@ -1098,15 +1098,15 @@ menus.rebuild_attachment_menu = function(attachment)
             parent_menu = attachment.parent.menus.edit_attachments
         end
         attachment.menus.main = menu.list(parent_menu, attachment.name)
-        -- TODO: This causes a crash when loading vehicle?!
-        --attachment.menus.children = {}
-        --table.insert(attachment.parent.menus.children, attachment.menus)
-
 
         attachment.menus.name = menu.text_input(attachment.menus.main, "Name", { "constructorsetattachmentname"..attachment.handle}, "Set name of the attachment", function(value)
             attachment.name = value
             attachment.menus.refresh()
         end, attachment.name)
+
+        ---
+        --- Position Menu
+        ---
 
         attachment.menus.position = menu.list(attachment.menus.main, "Position")
 
@@ -1166,6 +1166,10 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.move_attachment(attachment)
         end)
 
+        ---
+        --- Options Menu
+        ---
+
         attachment.menus.options = menu.list(attachment.menus.main, "Options")
         --local light_color = {r=0}
         --menu.slider(attachment.menu, "Color: Red", {}, "", 0, 255, light_color.r, 1, function(value)
@@ -1191,6 +1195,10 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.option_frozen = menu.toggle(attachment.menus.options, "Frozen", {}, "Will the attachment be frozen in place, or allowed to move freely", function(on)
             attachment.options.is_frozen = on
         end, attachment.options.is_frozen)
+
+        ---
+        --- Vehicle Options
+        ---
 
         if attachment.type == "VEHICLE" then
             attachment.menus.vehicle_options = menu.list(attachment.menus.options, "Vehicle Options")
@@ -1273,6 +1281,10 @@ menus.rebuild_attachment_menu = function(attachment)
 
         end
 
+        ---
+        --- Ped Options
+        ---
+
         if attachment.type == "PED" then
             attachment.menus.ped_options = menu.list(attachment.menus.options, "Ped Options")
             attachment.menus.option_ped_can_rag_doll = menu.toggle(attachment.menus.ped_options, "Can Rag Doll", {}, "If enabled, the ped can go limp.", function(value)
@@ -1329,7 +1341,10 @@ menus.rebuild_attachment_menu = function(attachment)
             end
         end
 
-        -- Attachment
+        ---
+        --- Attachment Options
+        ---
+
         attachment.menus.attachment_options = menu.list(attachment.menus.options, "Attachment Options")
         if attachment ~= attachment.parent then
 
