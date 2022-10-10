@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b11"
+local SCRIPT_VERSION = "0.20.4b12"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -592,11 +592,10 @@ end
 local function spawn_construct_from_plan(construct_plan)
     debug_log("Spawning construct from plan "..tostring(construct_plan.name), construct_plan)
     local construct = copy_construct_plan(construct_plan)
-    if config.wear_spawned_peds then
+    if construct_plan.type == "PED" and config.wear_spawned_peds then
         construct.is_player = true
         construct.handle = players.user_ped()
     else
-        construct.is_player = false
         calculate_camera_distance(construct)
         if not construct_plan.always_spawn_at_position then
             construct.position = get_offset_from_camera(construct.camera_distance)
@@ -1542,7 +1541,6 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport Construct to Me", {}, "", function()
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.0, 2.0, -2.5)
             local heading = ENTITY.GET_ENTITY_HEADING(players.user_ped())
-            util.toast("Setting pos "..inspect(pos), TOAST_ALL)
             ENTITY.SET_ENTITY_COORDS(attachment.handle, pos.x, pos.y, pos.z)
             ENTITY.SET_ENTITY_ROTATION(attachment.handle, 0, 0, heading)
             VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(attachment.handle, 5)
@@ -1818,16 +1816,13 @@ end)
 menu.slider(options_menu, "Edit Rotation Step", {}, "The amount of change each time you edit an attachment rotation (hold SHIFT or L1 for fine tuning)", 1, 30, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
-menu.toggle(options_menu, "Drive Spawned Vehicles", {}, "When spawning vehicles, automatically place you into the drivers seat.", function(on)
-    config.drive_spawned_vehicles = on
-end, config.drive_spawned_vehicles)
 menu.toggle(options_menu, "Show Previews", {}, "Show previews when adding attachments", function(on)
     config.show_previews = on
 end, config.show_previews)
 menu.slider(options_menu, "Preview Display Delay", {}, "After browsing to a construct or attachment, wait this long before showing the preview.", 100, 1000, config.preview_display_delay, 50, function(value)
     config.preview_display_delay = value
 end)
-menu.toggle(options_menu, "Deconstruct All on Unload", {}, "Deconstruct all spawned constructs when unloading Constructor", function(on)
+menu.toggle(options_menu, "Delete All on Unload", {}, "Deconstruct all spawned constructs when unloading Constructor", function(on)
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
 menu.action(options_menu, "Clean Up", {"cleanup"}, "Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris.", function()
