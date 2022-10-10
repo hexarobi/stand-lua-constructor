@@ -975,32 +975,36 @@ menus.rebuild_add_attachments_menu = function(attachment)
     end
 
     attachment.menus.search_results = {}
-    attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search", {}, "Search for a prop by name")
-    menu.text_input(attachment.menus.search_add_prop, "Search for Object", {"constructorsearchobject"..attachment.handle}, "", function (query)
-        clear_menu_list(attachment.menus.search_results)
-        add_search_results(attachment, query)
-    end)
+    if attachment.menus.search_add_prop == nil then
+       attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search", {}, "Search for a prop by name")
+        menu.text_input(attachment.menus.search_add_prop, "Search for Object", {"constructorsearchobject"..attachment.handle}, "", function (query)
+            clear_menu_list(attachment.menus.search_results)
+            add_search_results(attachment, query)
+        end)
+    end
 
-    attachment.menus.exact_name = menu.list(attachment.menus.add_attachment, "Add by Name", {}, "Add an object, vehicle, or ped by exact name.")
-    menu.text_input(attachment.menus.exact_name, "Object by Name", {"constructorattachobject"..attachment.handle},
-            "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
-                build_construct_from_plan({
-                    root = attachment.root, parent = attachment, name = value, model = value,
-                })
-            end)
-    menu.text_input(attachment.menus.exact_name, "Vehicle by Name", {"constructorattachvehicle"..attachment.handle},
-            "Add a vehicle by exact name.", function (value)
-                build_construct_from_plan({
-                    root = attachment.root, parent = attachment, name = value, model = value, type = "VEHICLE",
-                })
-            end)
-    menu.text_input(attachment.menus.exact_name, "Ped by Name", {"constructorattachped"..attachment.handle},
-            "Add a vehicle by exact name.", function (value)
-                build_construct_from_plan({
-                    root = attachment.root, parent = attachment, name = value, model = value, type = "PED",
-                })
-            end)
-    menu.hyperlink(attachment.menus.exact_name, "Open gta-objects.xyz", "https://gta-objects.xyz/", "Website for browsing and searching for props")
+    if attachment.menua.exact_name == nil then
+        attachment.menus.exact_name = menu.list(attachment.menus.add_attachment, "Add by Name", {}, "Add an object, vehicle, or ped by exact name.")
+        menu.text_input(attachment.menus.exact_name, "Object by Name", {"constructorattachobject"..attachment.handle},
+                "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, model = value,
+                    })
+                end)
+        menu.text_input(attachment.menus.exact_name, "Vehicle by Name", {"constructorattachvehicle"..attachment.handle},
+                "Add a vehicle by exact name.", function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, model = value, type = "VEHICLE",
+                    })
+                end)
+        menu.text_input(attachment.menus.exact_name, "Ped by Name", {"constructorattachped"..attachment.handle},
+                "Add a vehicle by exact name.", function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, model = value, type = "PED",
+                    })
+                end)
+        menu.hyperlink(attachment.menus.exact_name, "Open gta-objects.xyz", "https://gta-objects.xyz/", "Website for browsing and searching for props")
+    end
 
     menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
         config.add_attachment_gun_active = on
