@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b2"
+local LIB_VERSION = "3.21.4b4"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -20,6 +20,10 @@ if not status_inspect then error("Could not load inspect lib. This should have b
 
 local status_xml2lua, xml2lua = pcall(require, "constructor/xml2lua")
 if not status_xml2lua then error("Could not load xml2lua lib. This should have been auto-installed.") end
+
+util.ensure_package_is_installed('lua/iniparser')
+local status_iniparser, iniparser = pcall(require, "iniparser")
+if not status_iniparser then error("Could not load iniparser lib. Make sure it is selected under Stand > Lua Scripts > Repository > iniparser") end
 
 local status_constants, constants = pcall(require, "constructor/constants")
 if not status_constants then error("Could not load constants lib. This should have been auto-installed.") end
@@ -95,7 +99,7 @@ function table.array_remove(t, fnKeep)
 end
 
 local function toboolean(value)
-    return (value == true or value == "true")
+    return (value == true or value == "true" or value == "1")
 end
 
 constructor_lib.load_hash = function(hash)
@@ -629,8 +633,10 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options.bone_index == nil then attachment.options.bone_index = 0 end
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
     if attachment.options.is_attached == nil then attachment.options.is_attached = (attachment ~= attachment.parent) end
-    if attachment.blip_sprite == nil then attachment.blip_sprite = 1 end
-    if attachment.blip_color == nil then attachment.blip_color = 2 end
+    if attachment == attachment.parent then
+        if attachment.blip_sprite == nil then attachment.blip_sprite = 1 end
+        if attachment.blip_color == nil then attachment.blip_color = 2 end
+    end
     if attachment.hash == nil and attachment.model ~= nil then
         attachment.hash = util.joaat(attachment.model)
     elseif attachment.model == nil and attachment.hash ~= nil then
@@ -783,7 +789,7 @@ constructor_lib.attach_attachment = function(attachment)
         constructor_lib.deserialize_ped_attributes(attachment)
         return
     else
-        debug_log("Attaching "..attachment.name.." to "..attachment.parent.name)
+        debug_log("Attaching "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
     end
     if attachment.hash == nil and attachment.model == nil then
         error("Cannot create attachment "..tostring(attachment.name)..": Requires either a hash or a model")
@@ -1034,16 +1040,25 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.paint == nil then vehicle.vehicle_attributes.paint = {} end
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.paint == nil then vehicle.vehicle_attributes.paint = {} end
+    if vehicle.vehicle_attributes.paint.primary == nil then vehicle.vehicle_attributes.paint.primary = {} end
+    if vehicle.vehicle_attributes.paint.secondary == nil then vehicle.vehicle_attributes.paint.secondary = {} end
     if vehicle.vehicle_attributes.paint.dirt_level == nil then vehicle.vehicle_attributes.paint.dirt_level = 0 end
+    if vehicle.vehicle_attributes.paint.extra_colors == nil then vehicle.vehicle_attributes.paint.extra_colors = {} end
     if vehicle.vehicle_attributes.neon == nil then vehicle.vehicle_attributes.neon = {} end
+    if vehicle.vehicle_attributes.neon.lights == nil then vehicle.vehicle_attributes.neon.lights = {} end
+    if vehicle.vehicle_attributes.neon.color == nil then vehicle.vehicle_attributes.neon.color = {} end
     if vehicle.vehicle_attributes.wheels == nil then vehicle.vehicle_attributes.wheels = {} end
     if vehicle.vehicle_attributes.wheels.tires_burst == nil then vehicle.vehicle_attributes.wheels.tires_burst = {} end
+    if vehicle.vehicle_attributes.wheels.tire_smoke_color == nil then vehicle.vehicle_attributes.wheels.tire_smoke_color = {} end
     if vehicle.vehicle_attributes.headlights == nil then vehicle.vehicle_attributes.headlights = {} end
     if vehicle.vehicle_attributes.options == nil then vehicle.vehicle_attributes.options = {} end
     if vehicle.vehicle_attributes.extras == nil then vehicle.vehicle_attributes.extras = {} end
     if vehicle.vehicle_attributes.doors == nil then vehicle.vehicle_attributes.doors = {} end
     if vehicle.vehicle_attributes.doors.broken == nil then vehicle.vehicle_attributes.doors.broken = {} end
     if vehicle.vehicle_attributes.doors.open == nil then vehicle.vehicle_attributes.doors.open = {} end
+    if vehicle.vehicle_attributes.mods == nil then vehicle.vehicle_attributes.mods = {} end
 end
 
 constructor_lib.serialize_vehicle_attributes = function(vehicle)
@@ -1725,7 +1740,126 @@ constructor_lib.convert_xml_to_construct_plan = function(xmldata)
 end
 
 ---
+--- INI Convertor
+---
+
+local function map_ini_vehicle(attachment, data)
+    constructor_lib.default_vehicle_attributes(attachment)
+    if data["model"] ~= nil then attachment.hash = data["model"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+    if attachment.name == nil then attachment.name = attachment.model end
+    if data["bulletproof tyres"] ~= nil then attachment.vehicle_attributes.wheels.bulletproof_tires = data["bulletproof tyres"] end
+    if data["custom primary colour"] ~= nil then attachment.vehicle_attributes.paint.primary.is_custom = toboolean(data["custom primary colour"]) end
+    if data["custom secondary colour"] ~= nil then attachment.vehicle_attributes.paint.secondary.is_custom = toboolean(data["custom secondary colour"]) end
+
+    if data["dirt level"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = data["dirt level"] end
+
+    if data["neon 0"] ~= nil then attachment.vehicle_attributes.neon.lights.left = toboolean(data["neon 0"]) end
+    if data["neon 1"] ~= nil then attachment.vehicle_attributes.neon.lights.right = toboolean(data["neon 1"]) end
+    if data["neon 2"] ~= nil then attachment.vehicle_attributes.neon.lights.front = toboolean(data["neon 2"]) end
+    if data["neon 3"] ~= nil then attachment.vehicle_attributes.neon.lights.back = toboolean(data["neon 3"]) end
+
+    if data["neon blue"] ~= nil then attachment.vehicle_attributes.neon.color.b = data["neon blue"] end
+    if data["neon green"] ~= nil then attachment.vehicle_attributes.neon.color.g = data["neon green"] end
+    if data["neon red"] ~= nil then attachment.vehicle_attributes.neon.color.r = data["neon red"] end
+
+    if data["pearlescent colour"] ~= nil then attachment.vehicle_attributes.paint.extra_colors.pearlescent = data["pearlescent colour"] end
+    if data["primary paint"] ~= nil then attachment.vehicle_attributes.paint.primary.color = data["primary paint"] end
+    if data["secondary paint"] ~= nil then attachment.vehicle_attributes.paint.secondary.color = data["secondary paint"] end
+
+    if data["custom tyres"] ~= nil then attachment.vehicle_attributes.wheels.wheel_type = data["custom tyres"] end
+
+    if data["wheel colour"] ~= nil then attachment.vehicle_attributes.paint.extra_colors.wheel = data["wheel colour"] end
+    if data["wheel type"] ~= nil then attachment.vehicle_attributes.wheels.wheel_type = data["wheel type"] end
+    if data["window tint"] ~= nil then attachment.vehicle_attributes.options.window_tint = data["window tint"] end
+
+    if data["tyre smoke blue"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.b = data["tyre smoke blue"] end
+    if data["tyre smoke green"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.g = data["tyre smoke green"] end
+    if data["tyre smoke red"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.r = data["tyre smoke red"] end
+
+end
+
+local function map_ini_vehicle_mods(attachment, data)
+    for index = 0, 49 do
+        if not (index >= 17 and index <= 22) then
+            attachment.vehicle_attributes.mods["_"..index] = data[index]
+        end
+    end
+end
+
+local function map_ini_vehicle_mod_toggles(attachment, data)
+    for index = 17, 22 do
+        attachment.vehicle_attributes.mods["_"..index] = data[index]
+    end
+end
+
+local function map_ini_attachment(construct_plan, data)
+    local attachment = {}
+
+    if data["model"] ~= nil then attachment.hash = data["model"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+    constructor_lib.set_attachment_defaults(attachment)
+
+    if data["x offset"] ~= nil then attachment.offset.x = data["x offset"] end
+    if data["y offset"] ~= nil then attachment.offset.y = data["y offset"] end
+    if data["z offset"] ~= nil then attachment.offset.z = data["z offset"] end
+
+    if data["pitch"] ~= nil then attachment.rotation.x = data["pitch"] end
+    if data["roll"] ~= nil then attachment.rotation.y = data["roll"] end
+    if data["yaw"] ~= nil then attachment.rotation.z = data["yaw"] end
+
+    if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
+
+    table.insert(construct_plan.children, attachment)
+end
+
+constructor_lib.convert_ini_to_construct_plan = function(construct_plan_file)
+    local construct_plan = table.table_copy(constructor_lib.construct_base)
+
+    local status_ini_parse, data = pcall(iniparser.parse, construct_plan_file.filepath, "")
+    if not status_ini_parse then
+        util.toast("Error parsing INI file. "..construct_plan_file.filepath.." "..data)
+        return
+    end
+
+    --debug_log("Parsed INI: "..inspect(data))
+
+    if data.Vehicle ~= nil then
+        construct_plan.type = "VEHICLE"
+        map_ini_vehicle(construct_plan, data.Vehicle)
+        if data["Vehicle Mods"] ~= nil then
+            map_ini_vehicle_mods(construct_plan, data["Vehicle Mods"])
+        end
+        if data["Vehicle Toggles"] ~= nil then
+            map_ini_vehicle_mod_toggles(construct_plan, data["Vehicle Toggles"])
+        end
+        for attachment_index = 1, 200 do
+            if data["Attached Object "..attachment_index] ~= nil and data["Attached Object "..attachment_index].model then
+                map_ini_attachment(construct_plan, data["Attached Object "..attachment_index])
+            end
+        end
+    end
+
+    debug_log("Loaded INI construct plan: "..inspect(construct_plan))
+
+    if construct_plan.hash == nil and construct_plan.model == nil then
+        util.toast("Failed to load INI construct. Missing hash or model.", TOAST_ALL)
+        util.log("Attempted construct plan: "..inspect(construct_plan))
+        return
+    end
+
+    return construct_plan
+end
+
+
+
+---
 --- Return
 ---
 
 return constructor_lib
+
