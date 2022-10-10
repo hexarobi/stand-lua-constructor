@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b6"
+local LIB_VERSION = "3.21.4b7"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -1118,7 +1118,19 @@ end
 
 constructor_lib.serialize_ped_attributes = function(attachment)
     constructor_lib.default_ped_attributes(attachment)
-    -- TODO: Serialize ped attributes?
+    for index = 0, 9 do
+        attachment.ped_attributes.props["_"..index] = {
+            drawable_variation = PED.GET_PED_PROP_INDEX(players.user_ped(), index),
+            texture_variation = PED.GET_PED_PROP_TEXTURE_INDEX(players.user_ped(), index)
+        }
+    end
+    for index = 0, 11 do
+        attachment.ped_attributes.components["_"..index] = {
+            drawable_variation = PED.GET_PED_DRAWABLE_VARIATION(players.user_ped(), index),
+            texture_variation = PED.GET_PED_TEXTURE_VARIATION(players.user_ped(), index),
+            palette_variation = PED.GET_PED_PALETTE_VARIATION(players.user_ped(), index),
+        }
+    end
 end
 
 constructor_lib.deserialize_ped_attributes = function(attachment)
