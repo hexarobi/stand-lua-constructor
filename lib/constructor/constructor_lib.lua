@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b7"
+local LIB_VERSION = "3.21.4b8"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -1117,6 +1117,7 @@ constructor_lib.default_ped_attributes = function(attachment)
 end
 
 constructor_lib.serialize_ped_attributes = function(attachment)
+    if attachment.type ~= "PED" then return end
     constructor_lib.default_ped_attributes(attachment)
     for index = 0, 9 do
         attachment.ped_attributes.props["_"..index] = {
