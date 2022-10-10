@@ -2,6 +2,31 @@
 
 local constants = {}
 
+constants.tire_position_names = {
+    { name="Front Left", index=0 },
+    { name="Front Right", index=1 },
+    { name="Mid Left", index=2 },
+    { name="Mid Right", index=3 },
+    { name="Rear Left", index=4 },
+    { name="Rear Right", index=5 },
+    { name="6 Wheeler Left", index=45 },
+    { name="6 Wheeler Right", index=47 },
+}
+
+constants.door_lock_status = {
+    "None",
+    "Unlocked",
+    "Locked",
+    "Lockout Player Only",
+    "Locked Player Inside",
+    "Locked Initially",
+    "Force Shut Doors",
+    "Locked by can be damaged",
+    "Locked but trunk unlocked",
+    "Locked, no passengers",
+    "Cannot enter",
+}
+
 constants.bone_index_names = {
     {
         name="Ped",
