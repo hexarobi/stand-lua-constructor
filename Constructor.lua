@@ -4,13 +4,15 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4"
+local SCRIPT_VERSION = "0.20.5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
 local SELECTED_BRANCH_INDEX = 1
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
+
+local loading_menu = menu.divider(menu.my_root(), "Loading...")
 
 ---
 --- Auto-Updater Lib Install
@@ -102,8 +104,6 @@ local curated_attachments = libs.curated_attachments
 --- Dependencies
 ---
 
-local loading_menu = menu.divider(menu.my_root(), "Please wait...", {}, "Loading dependencies...")
-
 util.ensure_package_is_installed('lua/natives-1663599433')
 util.require_natives(1663599433)
 local status_natives, natives = pcall(require, "natives-1663599433")
@@ -115,7 +115,7 @@ if not status_json then error("Could not load json lib. Make sure it is selected
 
 local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
 
-menu.delete(loading_menu)
+pcall(menu.delete, loading_menu)
 
 local VERSION_STRING = "Constructor "..SCRIPT_VERSION.." / Lib "..constructor_lib.LIB_VERSION
 
@@ -128,13 +128,15 @@ local config = {
     edit_offset_step = 10,
     edit_rotation_step = 15,
     add_attachment_gun_active = false,
-    debug = false,
+    debug = true,
     show_previews = true,
     preview_camera_distance = 3,
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
     deconstruct_all_spawned_constructs_on_unload = true,
     drive_spawned_vehicles = true,
+    wear_spawned_peds = true,
     preview_display_delay = 500,
+    max_search_results = 100,
 }
 
 local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
@@ -274,6 +276,7 @@ end
 local function add_attachment_to_construct(attachment)
     debug_log("Adding attachment to construct "..tostring(attachment.name), attachment)
     constructor_lib.serialize_vehicle_attributes(attachment)
+    constructor_lib.serialize_ped_attributes(attachment)
     constructor_lib.add_attachment_to_construct(attachment)
     menus.rebuild_attachment_menu(attachment)
     attachment.parent.menus.refresh()
@@ -286,6 +289,7 @@ end
 
 local current_preview
 local next_preview
+local image_preview
 local minVec = v3.new()
 local maxVec = v3.new()
 
@@ -350,6 +354,7 @@ end
 
 local function remove_preview(construct_plan)
     next_preview = nil
+    image_preview = nil
     if construct_plan == nil then construct_plan = current_preview end
     if construct_plan ~= nil then
         constructor_lib.remove_attachment(construct_plan)
@@ -366,12 +371,15 @@ local function calculate_camera_distance(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
-local function add_preview(construct_plan)
-    if construct_plan.always_spawn_at_position then return end
-    debug_log("Adding preview for construct plan "..tostring(construct_plan.name), construct_plan)
+local function add_preview(construct_plan, preview_image_path)
     if config.show_previews == false then return end
     remove_preview()
     if construct_plan == nil then return end
+    debug_log("Adding preview for construct plan "..tostring(construct_plan.name), construct_plan)
+    if construct_plan.always_spawn_at_position then
+        if filesystem.exists(preview_image_path) then image_preview = directx.create_texture(preview_image_path) end
+        return
+    end
     next_preview = construct_plan
     util.yield(config.preview_display_delay)
     if next_preview == construct_plan then
@@ -402,6 +410,9 @@ local function update_preview_tick()
         constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
         constructor_lib.draw_bounding_box_with_dimensions(current_preview.handle, config.preview_bounding_box_color, current_preview.dimensions.min_vec, current_preview.dimensions.max_vec)
         constructor_lib.completely_disable_attachment_collision(current_preview)
+    end
+    if image_preview ~= nil then
+        directx.draw_texture(image_preview, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
     end
 end
 
@@ -581,7 +592,8 @@ end
 local function spawn_construct_from_plan(construct_plan)
     debug_log("Spawning construct from plan "..tostring(construct_plan.name), construct_plan)
     local construct = copy_construct_plan(construct_plan)
-    if construct_plan.is_player then
+    if construct_plan.type == "PED" and config.wear_spawned_peds then
+        construct.is_player = true
         construct.handle = players.user_ped()
     else
         calculate_camera_distance(construct)
@@ -638,8 +650,10 @@ local function cleanup_constructs_handler()
 end
 
 local function rebuild_attachment(attachment)
+    attachment.root.menu_auto_focus = false
     local construct_plan = constructor_lib.clone_attachment(attachment)
     delete_construct(attachment)
+    construct_plan.root.menu_auto_focus = true
     build_construct_from_plan(construct_plan)
 end
 
@@ -762,6 +776,15 @@ local function load_construct_plan_from_xml_file(filepath)
     return construct_plan
 end
 
+local function load_construct_plan_from_ini_file(construct_plan_file)
+    local construct_plan = constructor_lib.convert_ini_to_construct_plan(construct_plan_file)
+    if not construct_plan then
+        util.toast("Failed to load INI file: "..construct_plan_file.filepath, TOAST_ALL)
+        return
+    end
+    return construct_plan
+end
+
 local function load_construct_plan_from_json_file(filepath)
     local data = read_file(filepath)
     if not data then return end
@@ -769,7 +792,7 @@ local function load_construct_plan_from_json_file(filepath)
 end
 
 local function is_file_type_supported(file_extension)
-    return (file_extension == "json" or file_extension == "xml")
+    return (file_extension == "json" or file_extension == "xml" or file_extension == "ini")
 end
 
 local function load_construct_plan_file(construct_plan_file)
@@ -779,6 +802,10 @@ local function load_construct_plan_file(construct_plan_file)
         construct_plan = load_construct_plan_from_json_file(construct_plan_file.filepath)
     elseif construct_plan_file.ext == "xml" then
         construct_plan = load_construct_plan_from_xml_file(construct_plan_file.filepath)
+        if not construct_plan then return end
+        construct_plan.name = construct_plan_file.filename
+    elseif construct_plan_file.ext == "ini" then
+        construct_plan = load_construct_plan_from_ini_file(construct_plan_file)
         if not construct_plan then return end
         construct_plan.name = construct_plan_file.filename
     end
@@ -804,28 +831,57 @@ end
 local function load_construct_plans_files_from_dir(directory)
     local construct_plan_files = {}
     for _, filepath in ipairs(filesystem.list_files(directory)) do
-        local construct_plan_file
         if filesystem.is_dir(filepath) then
             local _, dirname = string.match(filepath, "(.-)([^\\/]-%.?)$")
-            construct_plan_file = {
+            local dir_file = {
                 is_directory=true,
                 filepath=filepath,
                 filename=dirname,
                 name=dirname,
             }
+            table.insert(construct_plan_files, dir_file)
         else
             local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
-            construct_plan_file = {
-                is_directory=false,
-                filepath=filepath,
-                filename=filename,
-                name=filename,
-                ext=ext
-            }
+            if is_file_type_supported(ext) then
+                local construct_plan_file = {
+                    is_directory=false,
+                    filepath=filepath,
+                    filename=filename,
+                    name=filename,
+                    ext=ext,
+                    preview_image_path = directory .. "/" .. filename .. ".png",
+                }
+                table.insert(construct_plan_files, construct_plan_file)
+            end
         end
-        table.insert(construct_plan_files, construct_plan_file)
     end
     return construct_plan_files
+end
+
+local function search_constructs(directory, query, results)
+    if results == nil then results = {} end
+    if #results > config.max_search_results then return results end
+    for _, filepath in ipairs(filesystem.list_files(directory)) do
+        if filesystem.is_dir(filepath) then
+            search_constructs(filepath, query, results)
+        else
+            if filepath:match(query) then
+                local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
+                if is_file_type_supported(ext) then
+                    local construct_plan_file = {
+                        is_directory=false,
+                        filepath=filepath,
+                        filename=filename,
+                        name=filename,
+                        ext=ext,
+                        preview_image_path = directory .. "/" .. filename .. ".png",
+                    }
+                    table.insert(results, construct_plan_file)
+                end
+            end
+        end
+    end
+    return results
 end
 
 ---
@@ -895,87 +951,22 @@ end
 --- Dynamic Menus
 ---
 
-menus.rebuild_add_attachments_menu = function(attachment)
-    debug_log("Rebuilding add attachments menu "..tostring(attachment.name), attachment)
-
-    attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, "Curated", {}, "Browse a curated collection of attachments")
-
-    if attachment.menus.add_attachment_categories ~= nil then return end
-    attachment.menus.add_attachment_categories = {}
-    for _, category in pairs(curated_attachments) do
-        local category_menu = menu.list(attachment.menus.curated_attachments, category.name)
-        for _, available_attachment in pairs(category.objects) do
-            local menu_item = menu.action(category_menu, available_attachment.name, {}, "", function()
-                local child_attachment = copy_construct_plan(available_attachment)
-                child_attachment.root = attachment.root
-                child_attachment.parent = attachment
-                build_construct_from_plan(child_attachment)
-            end)
-            menu.on_focus(menu_item, function(direction) if direction ~= 0 then add_preview(available_attachment) end end)
-            menu.on_blur(menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
+local function build_curated_attachments_menu(attachment, root_menu, curated_item)
+    if curated_item.is_folder then
+        local child_menu = menu.list(root_menu, curated_item.name)
+        for _, child_item in pairs(curated_item.items) do
+            build_curated_attachments_menu(attachment, child_menu, child_item)
         end
-        table.insert(attachment.menus.add_attachment_categories, category_menu)
-    end
-
-    local function add_search_results(attachment, query, page_size, page_number)
-        if page_size == nil then page_size = 30 end
-        if page_number == nil then page_number = 0 end
-        local results = search_props(query)
-        for i = (page_size*page_number)+1, page_size*(page_number+1) do
-            if results[i] then
-                local model = results[i].prop
-                local search_result_menu_item = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
-                    build_construct_from_plan({
-                        root = attachment.root,
-                        parent = attachment,
-                        name = model,
-                        model = model,
-                    })
-                end)
-                menu.on_focus(search_result_menu_item, function(direction) if direction ~= 0 then add_preview({model=model}) end end)
-                menu.on_blur(search_result_menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
-                table.insert(attachment.menus.search_results, search_result_menu_item)
-            end
-        end
-        if attachment.menus.search_add_more ~= nil then menu.delete(attachment.menus.search_add_more) end
-        attachment.menus.search_add_more = menu.action(attachment.menus.search_add_prop, "Load More", {}, "", function()
-            add_search_results(attachment, query, page_size, page_number+1)
+    else
+        local menu_item = menu.action(root_menu, curated_item.name, {}, "", function()
+            local child_attachment = copy_construct_plan(curated_item)
+            child_attachment.root = attachment.root
+            child_attachment.parent = attachment
+            build_construct_from_plan(child_attachment)
         end)
+        menu.on_focus(menu_item, function(direction) if direction ~= 0 then add_preview(curated_item) end end)
+        menu.on_blur(menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
     end
-
-    attachment.menus.search_results = {}
-    attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search", {}, "Search for a prop by name")
-    menu.text_input(attachment.menus.search_add_prop, "Search for Object", {"constructorsearchobject"..attachment.handle}, "", function (query)
-        clear_menu_list(attachment.menus.search_results)
-        add_search_results(attachment, query)
-    end)
-
-    attachment.menus.exact_name = menu.list(attachment.menus.add_attachment, "Add by Name", {}, "Add an object, vehicle, or ped by exact name.")
-    menu.text_input(attachment.menus.exact_name, "Object by Name", {"constructorattachobject"..attachment.handle},
-            "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
-                build_construct_from_plan({
-                    root = attachment.root, parent = attachment, name = value, model = value,
-                })
-            end)
-    menu.text_input(attachment.menus.exact_name, "Vehicle by Name", {"constructorattachvehicle"..attachment.handle},
-            "Add a vehicle by exact name.", function (value)
-                build_construct_from_plan({
-                    root = attachment.root, parent = attachment, name = value, model = value, type = "VEHICLE",
-                })
-            end)
-    menu.text_input(attachment.menus.exact_name, "Ped by Name", {"constructorattachped"..attachment.handle},
-            "Add a vehicle by exact name.", function (value)
-                build_construct_from_plan({
-                    root = attachment.root, parent = attachment, name = value, model = value, type = "PED",
-                })
-            end)
-    menu.hyperlink(attachment.menus.exact_name, "Open gta-objects.xyz", "https://gta-objects.xyz/", "Website for browsing and searching for props")
-
-    menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
-        config.add_attachment_gun_active = on
-        config.add_attachment_gun_recipient = attachment
-    end, config.add_attachment_gun_active)
-
 end
 
 local function rebuild_attachment_debug_menu(attachment, parent_menu)
@@ -1025,6 +1016,32 @@ local function rebuild_reattach_to_menu(attachment, current, path, depth)
     end
 end
 
+local function add_prop_search_results(attachment, query, page_size, page_number)
+    if page_size == nil then page_size = 30 end
+    if page_number == nil then page_number = 0 end
+    local results = search_props(query)
+    for i = (page_size*page_number)+1, page_size*(page_number+1) do
+        if results[i] then
+            local model = results[i].prop
+            local search_result_menu_item = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
+                build_construct_from_plan({
+                    root = attachment.root,
+                    parent = attachment,
+                    name = model,
+                    model = model,
+                })
+            end)
+            menu.on_focus(search_result_menu_item, function(direction) if direction ~= 0 then add_preview({model=model}) end end)
+            menu.on_blur(search_result_menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
+            table.insert(attachment.temp.prop_search_results, search_result_menu_item)
+        end
+    end
+    if attachment.menus.search_add_more ~= nil then menu.delete(attachment.menus.search_add_more) end
+    attachment.menus.search_add_more = menu.action(attachment.menus.search_add_prop, "Load More", {}, "", function()
+        add_prop_search_results(attachment, query, page_size, page_number+1)
+    end)
+end
+
 local function make_wheels_invis(attachment)
 
     local DBL_MAX = 1.79769e+308
@@ -1069,9 +1086,9 @@ local function make_wheels_invis(attachment)
 end
 
 menus.rebuild_attachment_menu = function(attachment)
-    debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
     if not attachment.handle then error("Attachment missing handle") end
     if attachment.menus == nil then
+        debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
         attachment.menus = {}
 
         local parent_menu
@@ -1080,18 +1097,16 @@ menus.rebuild_attachment_menu = function(attachment)
         else
             parent_menu = attachment.parent.menus.edit_attachments
         end
-        local attachment_label = attachment.name
-        if #attachment.children > 0 then attachment_label = attachment_label .. " (" .. #attachment.children .. ")" end
         attachment.menus.main = menu.list(parent_menu, attachment.name)
-        -- TODO: This causes a crash when loading vehicle?!
-        --attachment.menus.children = {}
-        --table.insert(attachment.parent.menus.children, attachment.menus)
-
 
         attachment.menus.name = menu.text_input(attachment.menus.main, "Name", { "constructorsetattachmentname"..attachment.handle}, "Set name of the attachment", function(value)
             attachment.name = value
             attachment.menus.refresh()
         end, attachment.name)
+
+        ---
+        --- Position Menu
+        ---
 
         attachment.menus.position = menu.list(attachment.menus.main, "Position")
 
@@ -1138,18 +1153,22 @@ menus.rebuild_attachment_menu = function(attachment)
         end)
 
         menu.divider(attachment.menus.position, "World Rotation")
-        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, "X: Pitch", {"constructorrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, "X: Pitch", {"constructorworldrotate"..attachment.handle.."x"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
             attachment.world_rotation.x = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, "Y: Roll", {"constructorrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, "Y: Roll", {"constructorworldrotate"..attachment.handle.."y"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
             attachment.world_rotation.y = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, "Z: Yaw", {"constructorrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, "Z: Yaw", {"constructorworldrotate"..attachment.handle.."z"}, "Hold SHIFT to fine tune", -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
             attachment.world_rotation.z = value
             constructor_lib.move_attachment(attachment)
         end)
+
+        ---
+        --- Options Menu
+        ---
 
         attachment.menus.options = menu.list(attachment.menus.main, "Options")
         --local light_color = {r=0}
@@ -1176,6 +1195,10 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.option_frozen = menu.toggle(attachment.menus.options, "Frozen", {}, "Will the attachment be frozen in place, or allowed to move freely", function(on)
             attachment.options.is_frozen = on
         end, attachment.options.is_frozen)
+
+        ---
+        --- Vehicle Options
+        ---
 
         if attachment.type == "VEHICLE" then
             attachment.menus.vehicle_options = menu.list(attachment.menus.options, "Vehicle Options")
@@ -1258,28 +1281,122 @@ menus.rebuild_attachment_menu = function(attachment)
 
         end
 
+        ---
+        --- Ped Options
+        ---
+
         if attachment.type == "PED" then
             attachment.menus.ped_options = menu.list(attachment.menus.options, "Ped Options")
-            menu.toggle(attachment.menus.ped_options, "Is Player Skin", {}, "If enabled, spawning this ped will act as a player skin.", function(value)
-                attachment.is_player = value
-            end, attachment.is_player)
+            attachment.menus.option_ped_can_rag_doll = menu.toggle(attachment.menus.ped_options, "Can Rag Doll", {}, "If enabled, the ped can go limp.", function(value)
+                attachment.ped_attributes.can_rag_doll = value
+                constructor_lib.deserialize_ped_attributes(attachment)
+            end, attachment.ped_attributes.can_rag_doll)
+            attachment.menus.option_ped_armor = menu.slider(attachment.menus.ped_options, "Armor", {}, "How much armor does the ped have.", 0, attachment.ped_attributes.armor, 100, 1, function(value)
+                attachment.ped_attributes.armor = value
+                constructor_lib.deserialize_ped_attributes(attachment)
+            end)
+            -- TODO: Weapon picker
+
+            local function create_ped_component_menu(attachment, root_menu, index, name)
+                local component = attachment.ped_attributes.components["_".. index]
+                util.log("component "..inspect(component))
+                attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {}, "", 0, component.num_drawable_variations, component.drawable_variation, 1, function(value)
+                    component.drawable_variation = value
+                    constructor_lib.deserialize_ped_attributes(attachment)
+                    menu.set_max_value(attachment.menus["ped_components_drawable_"..index], component.num_drawable_variations)
+                    component.texture_variation = 0
+                    menu.set_value(attachment.menus["ped_components_texture_"..index], component.texture_variation)
+                    menu.set_max_value(attachment.menus["ped_components_texture_"..index], component.num_texture_variations)
+                end)
+                attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." Variation", {}, "", 0, component.num_texture_variations, component.texture_variation, 1, function(value)
+                    component.texture_variation = value
+                    constructor_lib.deserialize_ped_attributes(attachment)
+                end)
+            end
+
+            local function create_ped_prop_menu(attachment, root_menu, index, name)
+                local prop = attachment.ped_attributes.props["_".. index]
+                attachment.menus["ped_props_drawable_".. index] = menu.slider(root_menu, name, {}, "", -1, prop.num_drawable_variations, prop.drawable_variation, 1, function(value)
+                    prop.drawable_variation = value
+                    constructor_lib.deserialize_ped_attributes(attachment)
+                    menu.set_max_value(attachment.menus["ped_props_drawable_".. index], prop.num_drawable_variations)
+                    prop.texture_variation = 0
+                    menu.set_value(attachment.menus["ped_props_texture_".. index], prop.texture_variation)
+                    menu.set_max_value(attachment.menus["ped_props_texture_".. index], prop.num_texture_variations)
+                end)
+                attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name .." Variation", {}, "", 0, prop.num_texture_variations, prop.texture_variation, 1, function(value)
+                    prop.texture_variation = value
+                    constructor_lib.deserialize_ped_attributes(attachment)
+                end)
+            end
+
+            menu.divider(attachment.menus.ped_options, "Clothes")
+            for _, ped_component in pairs(constants.ped_components) do
+                create_ped_component_menu(attachment, attachment.menus.ped_options, ped_component.index, ped_component.name)
+            end
+
+            menu.divider(attachment.menus.ped_options, "Props")
+            for _, ped_prop in pairs(constants.ped_props) do
+                create_ped_prop_menu(attachment, attachment.menus.ped_options, ped_prop.index, ped_prop.name)
+            end
         end
 
-        -- Attachment
+        ---
+        --- Attachment Options
+        ---
+
         attachment.menus.attachment_options = menu.list(attachment.menus.options, "Attachment Options")
-        attachment.menus.option_attached = menu.toggle(attachment.menus.attachment_options, "Attached", {}, "Is this child physically attached to the parent, or does it move freely on its own.", function(on)
-            attachment.options.is_attached = on
-            constructor_lib.update_attachment(attachment)
-        end, attachment.options.is_attached)
-        attachment.menus.option_parent_attachment = menu.list(attachment.menus.attachment_options, "Change Parent", {}, "Select a new parent for this child. Construct will be rebuilt to accommodate changes.", function()
-            rebuild_reattach_to_menu(attachment)
-        end)
+        if attachment ~= attachment.parent then
+
+            attachment.menus.option_attached = menu.toggle(attachment.menus.attachment_options, "Attached", {}, "Is this child physically attached to the parent, or does it move freely on its own.", function(on)
+                attachment.options.is_attached = on
+                constructor_lib.update_attachment(attachment)
+            end, attachment.options.is_attached)
+            attachment.menus.option_parent_attachment = menu.list(attachment.menus.attachment_options, "Change Parent", {}, "Select a new parent for this child. Construct will be rebuilt to accommodate changes.", function()
+                rebuild_reattach_to_menu(attachment)
+            end)
+
+            attachment.menus.option_bone_index = menu.slider(attachment.menus.attachment_options, "Bone Index", {}, "Which bone of the parent should this entity be attached to", -1, attachment.parent.num_bones or 200, attachment.options.bone_index or -1, 1, function(value)
+                attachment.options.bone_index = value
+                constructor_lib.update_attachment(attachment)
+            end)
+
+            attachment.menus.option_bone_index_picker = menu.list(attachment.menus.attachment_options, "Bone Index Picker", {}, "Some common bones can be selected by name")
+            for _, bone_index_category in pairs(constants.bone_index_names) do
+                local category_menu = menu.list(attachment.menus.option_bone_index_picker, bone_index_category.name)
+                for _, bone_name in pairs(bone_index_category.bone_names) do
+                    menu.action(category_menu, bone_name, {}, "", function()
+                        attachment.options.bone_index = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(attachment.parent.handle, bone_name)
+                        constructor_lib.update_attachment(attachment)
+                        menu.set_value(attachment.menus.option_bone_index, attachment.options.bone_index)
+                        menu.focus(attachment.menus.option_bone_index)
+                    end)
+                end
+            end
+
+            attachment.menus.option_soft_pinning = menu.toggle(attachment.menus.attachment_options, "Soft Pinning", {}, "Will the attachment detach when repaired", function(on)
+                attachment.options.use_soft_pinning = on
+                constructor_lib.update_attachment(attachment)
+            end, attachment.options.use_soft_pinning)
+            attachment.menus.detach = menu.action(attachment.menus.attachment_options, "Separate", {}, "Detach attachment from construct to create a new construct", function()
+                local original_parent = attachment.parent
+                constructor_lib.detach_attachment(attachment)
+                table.insert(spawned_constructs, attachment)
+                attachment.menus = nil
+                menus.rebuild_attachment_menu(attachment)
+                original_parent.menus.refresh()
+                attachment.menus.refresh()
+                attachment.menus.focus()
+                menus.refresh_loaded_constructs()
+            end)
+
+        end
         menu.action(attachment.menus.attachment_options, "Copy to Me", {}, "Attach a copy of this object to your Ped.", function()
             local player_construct = get_player_construct()
             local attachment_copy = constructor_lib.serialize_attachment(attachment)
-            util.log("Copying attachment "..attachment_copy.name)
+            debug_log("Copying attachment "..attachment_copy.name)
             if attachment == attachment.parent and attachment.type == "PED" then
-                util.log("Making ped into "..attachment_copy.name)
+                debug_log("Making ped into "..attachment_copy.name)
                 -- Transform into root model
                 attachment_copy.handle=players.user_ped()
                 attachment_copy.type="PED"
@@ -1295,39 +1412,6 @@ menus.rebuild_attachment_menu = function(attachment)
             end
             rebuild_attachment(attachment_copy)
         end)
-        attachment.menus.option_bone_index = menu.slider(attachment.menus.attachment_options, "Bone Index", {}, "Which bone of the parent should this entity be attached to", -1, attachment.parent.num_bones or 200, attachment.options.bone_index or -1, 1, function(value)
-            attachment.options.bone_index = value
-            constructor_lib.update_attachment(attachment)
-        end)
-
-        attachment.menus.option_bone_index_picker = menu.list(attachment.menus.attachment_options, "Bone Index Picker", {}, "Some common bones can be selected by name")
-        for _, bone_index_category in pairs(constants.bone_index_names) do
-            local category_menu = menu.list(attachment.menus.option_bone_index_picker, bone_index_category.name)
-            for _, bone_name in pairs(bone_index_category.bone_names) do
-                menu.action(category_menu, bone_name, {}, "", function()
-                    attachment.options.bone_index = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(attachment.parent.handle, bone_name)
-                    constructor_lib.update_attachment(attachment)
-                    menu.set_value(attachment.menus.option_bone_index, attachment.options.bone_index)
-                    menu.focus(attachment.menus.option_bone_index)
-                end)
-            end
-        end
-
-        attachment.menus.option_soft_pinning = menu.toggle(attachment.menus.attachment_options, "Soft Pinning", {}, "Will the attachment detach when repaired", function(on)
-            attachment.options.use_soft_pinning = on
-            constructor_lib.update_attachment(attachment)
-        end, attachment.options.use_soft_pinning)
-        attachment.menus.detach = menu.action(attachment.menus.attachment_options, "Separate", {}, "Detach attachment from construct to create a new construct", function()
-            local original_parent = attachment.parent
-            constructor_lib.detach_attachment(attachment)
-            table.insert(spawned_constructs, attachment)
-            attachment.menus = nil
-            menus.rebuild_attachment_menu(attachment)
-            original_parent.menus.refresh()
-            attachment.menus.refresh()
-            attachment.menus.focus()
-            menus.refresh_loaded_constructs()
-        end)
 
         attachment.menus.more_options = menu.list(attachment.menus.options, "More Options")
         attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, "LoD Distance", {"constructorsetloddistance"..attachment.handle}, "Level of Detail draw distance", 1, 9999999, attachment.options.lod_distance, 100, function(value)
@@ -1336,16 +1420,18 @@ menus.rebuild_attachment_menu = function(attachment)
         end)
 
         -- Blip
-        menu.divider(attachment.menus.more_options, "Blip")
-        attachment.menus.option_blip_sprite = menu.slider(attachment.menus.more_options, "Blip Sprite", {"constructorsetblipsprite"..attachment.handle}, "Icon to show on mini map for this construct", 1, 826, attachment.blip_sprite, 1, function(value)
-            attachment.blip_sprite = value
-            constructor_lib.refresh_blip(attachment)
-        end)
-        attachment.menus.option_blip_color = menu.slider(attachment.menus.more_options, "Blip Color", {"constructorsetblipcolor"..attachment.handle}, "Mini map icon color", 1, 85, attachment.blip_color, 1, function(value)
-            attachment.blip_color = value
-            constructor_lib.refresh_blip(attachment)
-        end)
-        menu.hyperlink(attachment.menus.more_options, "Blip Reference", "https://docs.fivem.net/docs/game-references/blips/", "Reference website for blip details")
+        if attachment == attachment.parent then
+            menu.divider(attachment.menus.more_options, "Blip")
+            attachment.menus.option_blip_sprite = menu.slider(attachment.menus.more_options, "Blip Sprite", {"constructorsetblipsprite"..attachment.handle}, "Icon to show on mini map for this construct", 1, 826, attachment.blip_sprite, 1, function(value)
+                attachment.blip_sprite = value
+                constructor_lib.refresh_blip(attachment)
+            end)
+            attachment.menus.option_blip_color = menu.slider(attachment.menus.more_options, "Blip Color", {"constructorsetblipcolor"..attachment.handle}, "Mini map icon color", 1, 85, attachment.blip_color, 1, function(value)
+                attachment.blip_color = value
+                constructor_lib.refresh_blip(attachment)
+            end)
+            menu.hyperlink(attachment.menus.more_options, "Blip Reference", "https://docs.fivem.net/docs/game-references/blips/", "Reference website for blip details")
+        end
 
         -- Lights
         menu.divider(attachment.menus.more_options, "Lights")
@@ -1357,6 +1443,7 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.options.is_light_disabled = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_light_disabled)
+
         -- Proofs
         menu.divider(attachment.menus.more_options, "Proofs")
         attachment.menus.option_is_bullet_proof = menu.toggle(attachment.menus.more_options, "Bullet Proof", {}, "If attachment is impervious to damage from bullets.", function(on)
@@ -1376,11 +1463,58 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_melee_proof)
 
+        ---
+        --- Add Attachment
+        ---
+
         --menu.divider(attachment.menus.main, "Attachments")
         --attachment.menus.attachments = menu.list(attachment.menus.main, "Attachments")
-        attachment.menus.add_attachment = menu.list(attachment.menus.main, "Add Attachment", {}, "", function()
-            menus.rebuild_add_attachments_menu(attachment)
+        attachment.menus.add_attachment = menu.list(attachment.menus.main, "Add Attachment", {}, "")
+
+        attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, "Curated", {}, "Browse a curated collection of attachments")
+        for _, curated_item in pairs(curated_attachments) do
+            build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
+        end
+
+        attachment.temp.prop_search_results = {}
+        attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, "Search", {}, "Search for a prop by name", function()
+            menu.show_command_box("constructorsearchprop"..attachment.handle.." ")
         end)
+        menu.text_input(attachment.menus.search_add_prop, "Search", {"constructorsearchprop"..attachment.handle}, "", function (query)
+            clear_menu_list(attachment.temp.prop_search_results)
+            add_prop_search_results(attachment, query)
+        end)
+
+        attachment.menus.exact_name = menu.list(attachment.menus.add_attachment, "Add by Name", {}, "Add an object, vehicle, or ped by exact name.")
+        menu.text_input(attachment.menus.exact_name, "Object by Name", {"constructorattachobject"..attachment.handle},
+                "Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/", function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, model = value,
+                    })
+                end)
+        menu.text_input(attachment.menus.exact_name, "Vehicle by Name", {"constructorattachvehicle"..attachment.handle},
+                "Add a vehicle by exact name.", function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, model = value, type = "VEHICLE",
+                    })
+                end)
+        menu.text_input(attachment.menus.exact_name, "Ped by Name", {"constructorattachped"..attachment.handle},
+                "Add a vehicle by exact name.", function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, model = value, type = "PED",
+                    })
+                end)
+        menu.hyperlink(attachment.menus.exact_name, "Open gta-objects.xyz", "https://gta-objects.xyz/", "Website for browsing and searching for props")
+
+        menu.toggle(attachment.menus.add_attachment, "Add Attachment Gun", {}, "Anything you shoot with this enabled will be added to the current construct", function(on)
+            config.add_attachment_gun_active = on
+            config.add_attachment_gun_recipient = attachment
+        end, config.add_attachment_gun_active)
+
+        ---
+        --- Edit Attachments
+        ---
+
         attachment.menus.edit_attachments = menu.list(attachment.menus.main, "Edit Attachments ("..#attachment.children..")", {}, "", function()
             menus.rebuild_attachment_menu(attachment)
         end)
@@ -1421,7 +1555,6 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport Construct to Me", {}, "", function()
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.0, 2.0, -2.5)
             local heading = ENTITY.GET_ENTITY_HEADING(players.user_ped())
-            util.toast("Setting pos "..inspect(pos), TOAST_ALL)
             ENTITY.SET_ENTITY_COORDS(attachment.handle, pos.x, pos.y, pos.z)
             ENTITY.SET_ENTITY_ROTATION(attachment.handle, 0, 0, heading)
             VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(attachment.handle, 5)
@@ -1454,6 +1587,7 @@ menus.rebuild_attachment_menu = function(attachment)
         end
 
         attachment.menus.refresh = function(updated_attachment)
+            debug_log("Refreshing attachment menu "..tostring(attachment.name))
             menu.set_menu_name(attachment.menus.main, attachment.name)
             menu.set_menu_name(attachment.menus.edit_attachments, "Edit Attachments ("..#attachment.children..")")
             rebuild_attachment_debug_menu(attachment)
@@ -1467,18 +1601,16 @@ menus.rebuild_attachment_menu = function(attachment)
             end
         end
         attachment.menus.rebuild = function()
+            debug_log("Rebuilding attachment menu "..tostring(attachment.name))
             for _, menu_handle in pairs(attachment.menus) do
                 if type(menu_handle) == "number" then pcall(menu.delete, menu_handle) end
             end
             attachment.menus = nil
             menus.rebuild_attachment_menu(attachment)
-            --for _, child_attachment in pairs(attachment.children) do
-            --    child_attachment.menus.rebuild()
-            --end
         end
         attachment.menus.focus = function()
-            if attachment.root.menu_auto_focus ~= false then
-                --util.toast("Auto focusing on "..attachment.name, TOAST_ALL)
+            if attachment.root.menu_auto_focus ~= false and attachment.menus.name ~= nil then
+                debug_log("Focusing on attachment menu "..tostring(attachment.name))
                 pcall(menu.focus, attachment.menus.name)
             end
         end
@@ -1554,7 +1686,8 @@ menu.action(menus.create_new_construct, "From Me", { "constructcreatefromme"}, "
         util.toast("Player is already a construct")
         return
     end
-    get_player_construct()
+    local player_construct = get_player_construct()
+    constructor_lib.serialize_ped_attributes(player_construct)
     build_construct_from_plan(player_construct)
 end)
 
@@ -1572,26 +1705,64 @@ end)
 --- Load Construct Menu
 ---
 
+local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
+    construct_plan_file.menu = menu.action(root_menu, construct_plan_file.name, {}, "", function()
+        remove_preview()
+        local construct_plan = load_construct_plan_file(construct_plan_file)
+        if construct_plan then
+            construct_plan.root = construct_plan
+            construct_plan.parent = construct_plan
+            build_construct_from_plan(construct_plan)
+        end
+    end)
+    menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
+    menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
+end
+
 local load_constructs_root_menu_file
 menus.load_construct = menu.list(menu.my_root(), "Load Construct", {}, "Load a previously saved or shared construct into the world", function()
     menus.rebuild_load_construct_menu()
 end)
 load_constructs_root_menu_file = {menu=menus.load_construct, name="Loaded Constructs Menu", menus={}}
 
-menu.hyperlink(menus.load_construct, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
-menu.divider(menus.load_construct, "Browse")
+menus.search_constructs = menu.list(menus.load_construct, "Search", {}, "", function()
+    menu.show_command_box("constructorsearch ")
+end)
+local previous_search_results = {}
+menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "", function(query)
+    for _, previous_search_result in pairs(previous_search_results) do
+        menu.delete(previous_search_result.menu)
+    end
+    previous_search_results = {}
+    local results = search_constructs(CONSTRUCTS_DIR, query)
+    if #results == 0 then
+        menu.divider(menus.search_constructs, "No results found")
+    else
+        for _, result in pairs(results) do
+            add_load_construct_plan_file_menu(menus.search_constructs, result)
+            table.insert(previous_search_results, result)
+        end
+    end
+end)
 
---menu.action(menus.load_construct, "Search", {"constructorsearch"}, "", function()
---    menu.show_command_box("constructorsearch ")
---end, function(on_command)
---    local results = search_vehicle(on_command)
---    if #results == 0 then
---        util.toast("No files found")
---    else
---        menu.set_list_action_options(v_search_results_action, results)
---        menu.trigger_commands("constructorsearchresults")
---    end
+menus.load_construct_options = menu.list(menus.load_construct, "Options")
+menu.hyperlink(menus.load_construct_options, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
+menu.hyperlink(menus.load_construct_options, "Download Curated Constructs", "https://github.com/hexarobi/stand-curated-constructs", "Download a curated collection of constructs.")
+-- TODO: Update curated
+--menu.action(menus.load_construct_options, "Update Curated Constructs", {}, "Download a curated collection of constructs.", function()
+--    download_and_extract({
+--        source_url="https://github.com/hexarobi/stand-curated-constructs/archive/refs/heads/main.zip",
+--        destination_path=CONSTRUCTS_DIR.."/Curated"
+--    })
 --end)
+menu.toggle(menus.load_construct_options, "Drive Spawned Vehicles", {}, "When spawning vehicles, automatically place you into the drivers seat.", function(on)
+    config.drive_spawned_vehicles = on
+end, config.drive_spawned_vehicles)
+menu.toggle(menus.load_construct_options, "Wear Spawned Peds", {}, "When spawning peds, replace your player skin with the ped.", function(on)
+    config.wear_spawned_peds = on
+end, config.wear_spawned_peds)
+
+menu.divider(menus.load_construct, "Browse")
 
 local function add_directory_to_load_constructs(path, parent_construct_plan_file)
     if path == nil then path = "" end
@@ -1622,7 +1793,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
                         build_construct_from_plan(construct_plan)
                     end
                 end)
-                menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file)) end end)
+                menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
                 menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
             end
             table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
@@ -1658,16 +1829,13 @@ end)
 menu.slider(options_menu, "Edit Rotation Step", {}, "The amount of change each time you edit an attachment rotation (hold SHIFT or L1 for fine tuning)", 1, 30, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
-menu.toggle(options_menu, "Drive Spawned Vehicles", {}, "When spawning vehicles, automatically place you into the drivers seat.", function(on)
-    config.drive_spawned_vehicles = on
-end, config.drive_spawned_vehicles)
 menu.toggle(options_menu, "Show Previews", {}, "Show previews when adding attachments", function(on)
     config.show_previews = on
 end, config.show_previews)
 menu.slider(options_menu, "Preview Display Delay", {}, "After browsing to a construct or attachment, wait this long before showing the preview.", 100, 1000, config.preview_display_delay, 50, function(value)
     config.preview_display_delay = value
 end)
-menu.toggle(options_menu, "Deconstruct All on Unload", {}, "Deconstruct all spawned constructs when unloading Constructor", function(on)
+menu.toggle(options_menu, "Delete All on Unload", {}, "Deconstruct all spawned constructs when unloading Constructor", function(on)
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
 menu.action(options_menu, "Clean Up", {"cleanup"}, "Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris.", function()
