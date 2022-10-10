@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.4b12"
+local SCRIPT_VERSION = "0.20.4b13"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -650,8 +650,10 @@ local function cleanup_constructs_handler()
 end
 
 local function rebuild_attachment(attachment)
+    attachment.root.menu_auto_focus = false
     local construct_plan = constructor_lib.clone_attachment(attachment)
     delete_construct(attachment)
+    construct_plan.root.menu_auto_focus = true
     build_construct_from_plan(construct_plan)
 end
 
@@ -1084,9 +1086,9 @@ local function make_wheels_invis(attachment)
 end
 
 menus.rebuild_attachment_menu = function(attachment)
-    debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
     if not attachment.handle then error("Attachment missing handle") end
     if attachment.menus == nil then
+        debug_log("Rebuilding attachment menu "..tostring(attachment.name).." "..debug.traceback(), attachment)
         attachment.menus = {}
 
         local parent_menu
@@ -1095,8 +1097,6 @@ menus.rebuild_attachment_menu = function(attachment)
         else
             parent_menu = attachment.parent.menus.edit_attachments
         end
-        local attachment_label = attachment.name
-        if #attachment.children > 0 then attachment_label = attachment_label .. " (" .. #attachment.children .. ")" end
         attachment.menus.main = menu.list(parent_menu, attachment.name)
         -- TODO: This causes a crash when loading vehicle?!
         --attachment.menus.children = {}
@@ -1275,9 +1275,6 @@ menus.rebuild_attachment_menu = function(attachment)
 
         if attachment.type == "PED" then
             attachment.menus.ped_options = menu.list(attachment.menus.options, "Ped Options")
-            --attachment.menus.option_ped_is_player_skin = menu.toggle(attachment.menus.ped_options, "Is Player Skin", {}, "If enabled, spawning this ped will act as a player skin.", function(value)
-            --    attachment.is_player = value
-            --end, attachment.is_player)
             attachment.menus.option_ped_can_rag_doll = menu.toggle(attachment.menus.ped_options, "Can Rag Doll", {}, "If enabled, the ped can go limp.", function(value)
                 attachment.ped_attributes.can_rag_doll = value
                 constructor_lib.deserialize_ped_attributes(attachment)
@@ -1382,9 +1379,9 @@ menus.rebuild_attachment_menu = function(attachment)
         menu.action(attachment.menus.attachment_options, "Copy to Me", {}, "Attach a copy of this object to your Ped.", function()
             local player_construct = get_player_construct()
             local attachment_copy = constructor_lib.serialize_attachment(attachment)
-            util.log("Copying attachment "..attachment_copy.name)
+            debug_log("Copying attachment "..attachment_copy.name)
             if attachment == attachment.parent and attachment.type == "PED" then
-                util.log("Making ped into "..attachment_copy.name)
+                debug_log("Making ped into "..attachment_copy.name)
                 -- Transform into root model
                 attachment_copy.handle=players.user_ped()
                 attachment_copy.type="PED"
@@ -1407,8 +1404,8 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.update_attachment(attachment)
         end)
 
+        -- Blip
         if attachment == attachment.parent then
-            -- Blip
             menu.divider(attachment.menus.more_options, "Blip")
             attachment.menus.option_blip_sprite = menu.slider(attachment.menus.more_options, "Blip Sprite", {"constructorsetblipsprite"..attachment.handle}, "Icon to show on mini map for this construct", 1, 826, attachment.blip_sprite, 1, function(value)
                 attachment.blip_sprite = value
@@ -1420,6 +1417,7 @@ menus.rebuild_attachment_menu = function(attachment)
             end)
             menu.hyperlink(attachment.menus.more_options, "Blip Reference", "https://docs.fivem.net/docs/game-references/blips/", "Reference website for blip details")
         end
+
         -- Lights
         menu.divider(attachment.menus.more_options, "Lights")
         attachment.menus.option_is_light_on = menu.toggle(attachment.menus.more_options, "Light On", {}, "If attachment is a light, it will be on and lit (many lights only work during night time).", function(on)
@@ -1430,6 +1428,7 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.options.is_light_disabled = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_light_disabled)
+
         -- Proofs
         menu.divider(attachment.menus.more_options, "Proofs")
         attachment.menus.option_is_bullet_proof = menu.toggle(attachment.menus.more_options, "Bullet Proof", {}, "If attachment is impervious to damage from bullets.", function(on)
@@ -1573,6 +1572,7 @@ menus.rebuild_attachment_menu = function(attachment)
         end
 
         attachment.menus.refresh = function(updated_attachment)
+            debug_log("Refreshing attachment menu "..tostring(attachment.name))
             menu.set_menu_name(attachment.menus.main, attachment.name)
             menu.set_menu_name(attachment.menus.edit_attachments, "Edit Attachments ("..#attachment.children..")")
             rebuild_attachment_debug_menu(attachment)
@@ -1586,18 +1586,16 @@ menus.rebuild_attachment_menu = function(attachment)
             end
         end
         attachment.menus.rebuild = function()
+            debug_log("Rebuilding attachment menu "..tostring(attachment.name))
             for _, menu_handle in pairs(attachment.menus) do
                 if type(menu_handle) == "number" then pcall(menu.delete, menu_handle) end
             end
             attachment.menus = nil
             menus.rebuild_attachment_menu(attachment)
-            --for _, child_attachment in pairs(attachment.children) do
-            --    child_attachment.menus.rebuild()
-            --end
         end
         attachment.menus.focus = function()
-            if attachment.root.menu_auto_focus ~= false then
-                --util.toast("Auto focusing on "..attachment.name, TOAST_ALL)
+            if attachment.root.menu_auto_focus ~= false and attachment.menus.name ~= nil then
+                debug_log("Focusing on attachment menu "..tostring(attachment.name))
                 pcall(menu.focus, attachment.menus.name)
             end
         end
