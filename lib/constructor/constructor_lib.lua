@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b8"
+local LIB_VERSION = "3.21.4b9"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -700,7 +700,7 @@ constructor_lib.update_attachment = function(attachment)
     AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud or false)
     if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
 
-    ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.world_rotation.x, attachment.world_rotation.y, attachment.world_rotation.z, 2, true)
+    --ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.world_rotation.x, attachment.world_rotation.y, attachment.world_rotation.z, 2, true)
 
     if attachment.options.is_attached then
         if attachment.type == "PED" and attachment.parent.is_player then
@@ -713,8 +713,8 @@ constructor_lib.update_attachment = function(attachment)
                     false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
             )
         end
-    else
-        constructor_lib.update_attachment_position(attachment)
+    --else
+    --    constructor_lib.update_attachment_position(attachment)
     end
 
 end
