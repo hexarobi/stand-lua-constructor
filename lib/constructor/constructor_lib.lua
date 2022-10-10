@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b4"
+local LIB_VERSION = "3.21.4b5"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -1352,12 +1352,13 @@ local function convert_jackz_object_to_attachment(jackz_object, jackz_save_data,
     if attachment == nil then attachment = {} end
     if attachment.children == nil then attachment.children = {} end
     if attachment.options == nil then attachment.options = {} end
-    attachment.hash = jackz_object.model
-    attachment.name = jackz_object.name
-    attachment.type = jackz_object.type or type
-    attachment.options.has_collision = jackz_object.collision
-    attachment.options.is_visible = jackz_object.visible
-    attachment.options.bone_index = jackz_object.bone_index
+
+    if jackz_object.model then attachment.hash = jackz_object.model end
+    if jackz_object.name then attachment.name = jackz_object.name end
+    if (jackz_object.type or type) then attachment.type = jackz_object.type or type end
+    if jackz_object.collision ~= nil then attachment.options.has_collision = jackz_object.collision end
+    if jackz_object.visible ~= nil then attachment.options.is_visible = jackz_object.visible end
+    if jackz_object.bone_index ~= nil then attachment.options.bone_index = jackz_object.bone_index end
     if jackz_object.offset then
         attachment.rotation = {
             x=jackz_object.rotation.x,
@@ -1383,11 +1384,14 @@ end
 
 constructor_lib.convert_jackz_to_construct_plan = function(jackz_build_data)
 
+    --debug_log("Parsed Jackz Build Data: "..inspect(jackz_build_data))
+
     local construct_plan = table.table_copy(constructor_lib.construct_base)
     construct_plan.name = jackz_build_data.name
     construct_plan.author = jackz_build_data.author
+    construct_plan.type = "VEHICLE"
 
-    convert_jackz_object_to_attachment(jackz_build_data.base.data, jackz_build_data.base.savedata, construct_plan)
+    convert_jackz_object_to_attachment(jackz_build_data.base.data or jackz_build_data.base, jackz_build_data.base.savedata, construct_plan)
 
     for _, child_object in pairs(jackz_build_data.objects) do
         local child_attachment = {type="OBJECT"}
@@ -1862,4 +1866,3 @@ end
 ---
 
 return constructor_lib
-
