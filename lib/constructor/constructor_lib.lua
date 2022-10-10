@@ -579,7 +579,6 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
     VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle.handle, vehicle.vehicle_attributes.options.search_light or false, true)
     AUDIO.SET_VEHICLE_RADIO_LOUD(vehicle.handle, vehicle.vehicle_attributes.options.radio_loud or false)
     if vehicle.vehicle_attributes.options.license_plate_text ~= nil then
-        util.toast("Setting plate text "..vehicle.vehicle_attributes.options.license_plate_text, TOAST_ALL)
         VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_text or "UNKNOWN")
     end
     VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_type or -1)
@@ -1060,6 +1059,7 @@ end
 
 constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
+    debug_log("Defaulting vehicle attributes "..tostring(vehicle.name))
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.paint == nil then vehicle.vehicle_attributes.paint = {} end
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
@@ -1087,7 +1087,7 @@ constructor_lib.serialize_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
     constructor_lib.default_vehicle_attributes(vehicle)
     if not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
-    debug_log("Serializing vehicle attributes "..tostring(vehicle.name).." "..debug.traceback())
+    debug_log("Serializing vehicle attributes "..tostring(vehicle.name))
     constructor_lib.serialize_vehicle_paint(vehicle)
     constructor_lib.serialize_vehicle_neon(vehicle)
     constructor_lib.serialize_vehicle_wheels(vehicle)
@@ -1099,7 +1099,7 @@ end
 
 constructor_lib.deserialize_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes == nil then return end
-    --debug_log("Deserializing vehicle attributes "..inspect(vehicle.vehicle_attributes))
+    debug_log("Defaulting vehicle attributes "..tostring(vehicle.name))
 
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
     ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle.handle, true, true)    -- Needed for plate text
