@@ -1903,17 +1903,24 @@ local function map_ini_attachment(attachment, data)
     if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
 end
 
-constructor_lib.convert_ini_to_construct_plan = function(construct_plan_file)
-    local construct_plan = table.table_copy(constructor_lib.construct_base)
+local function map_ini_data_flavor_1(construct_plan, data)
+    debug_log("Found INI flavor 1")
+end
 
-    local status_ini_parse, data = pcall(iniparser.parse, construct_plan_file.filepath, "")
-    if not status_ini_parse then
-        util.toast("Error parsing INI file. "..construct_plan_file.filepath.." "..data)
-        return
-    end
+local function map_ini_data_flavor_2(construct_plan, data)
+    debug_log("Found INI flavor 2")
+end
 
-    debug_log("Parsed INI: "..inspect(data))
+local function map_ini_data_flavor_3(construct_plan, data)
+    debug_log("Found INI flavor 3")
+end
 
+local function map_ini_data_flavor_4(construct_plan, data)
+    debug_log("Found INI flavor 4")
+end
+
+local function map_ini_data_flavor_6(construct_plan, data)
+    debug_log("Found INI flavor 6")
     if data.Vehicle ~= nil then
         construct_plan.type = "VEHICLE"
         map_ini_vehicle(construct_plan, data.Vehicle)
@@ -1944,6 +1951,41 @@ constructor_lib.convert_ini_to_construct_plan = function(construct_plan_file)
             end
         end
     end
+end
+
+local function map_ini_data_flavor_unknown()
+    util.log("Unable to determine flavor of INI file")
+end
+
+local function get_ini_flavor(data)
+    if data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT == nil and data.AllVehicles.Count == nil then 
+        return map_ini_data_flavor_1
+    elseif data.Vehicle.model ~= nil and data['Attached Object 1'].model == nil then 
+        return map_ini_data_flavor_2
+    elseif data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT ~= nil then 
+        return map_ini_data_flavor_3
+    elseif data.AllObjects.Count ~= nil and data.AllVehicles.Count ~= nil and data.AllPeds.Count ~= nil then 
+        return map_ini_data_flavor_4
+    elseif data.Vehicle.model ~= nil and data['Attached Object 1'].model ~= nil then 
+        return map_ini_data_flavor_6
+    else
+        return map_ini_data_flavor_unknown
+    end
+end
+
+constructor_lib.convert_ini_to_construct_plan = function(construct_plan_file)
+    local construct_plan = table.table_copy(constructor_lib.construct_base)
+
+    local status_ini_parse, data = pcall(iniparser.parse, construct_plan_file.filepath, "")
+    if not status_ini_parse then
+        util.toast("Error parsing INI file. "..construct_plan_file.filepath.." "..data)
+        return
+    end
+
+    debug_log("Parsed INI: "..inspect(data))
+
+    local map_flavor = get_ini_flavor(data)
+    map_flavor(construct_plan, data)
 
     debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
