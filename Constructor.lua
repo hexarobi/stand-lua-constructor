@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.6b1"
+local SCRIPT_VERSION = "0.20.6b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -137,6 +137,7 @@ local config = {
     wear_spawned_peds = true,
     preview_display_delay = 500,
     max_search_results = 100,
+    language = "en",
 }
 
 local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
@@ -813,17 +814,21 @@ local function load_construct_plan_file(construct_plan_file)
         util.toast("Could not load construct plan file "..construct_plan_file.filepath, TOAST_ALL)
         return
     end
-    if construct_plan.version and string.find(construct_plan.version, "Jackz") then
+    if construct_plan_file.ext == "json" and construct_plan.version and string.find(construct_plan.version, "Jackz") then
         construct_plan = constructor_lib.convert_jackz_to_construct_plan(construct_plan)
-        if not construct_plan then
-            util.toast("Could not load Jackz Vehicle file "..construct_plan_file.filepath, TOAST_ALL)
-            return
-        end
+        --if not construct_plan then
+        --    util.toast("Could not load JSON file "..construct_plan_file.filepath, TOAST_ALL)
+        --    return
+        --end
     end
-    if not construct_plan.target_version then
-        util.toast("Invalid construct file format. Missing target_version. "..construct_plan_file.filepath, TOAST_ALL)
+    if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil) then
+        util.toast("Failed to load construct from file "..construct_plan_file.filepath, TOAST_ALL)
         return
     end
+    --if not construct_plan.target_version then
+    --    util.toast("Invalid construct file format. Missing target_version. "..construct_plan_file.filepath, TOAST_ALL)
+    --    return
+    --end
     debug_log("Loaded construct plan "..tostring(construct_plan.name), construct_plan)
     return construct_plan
 end
