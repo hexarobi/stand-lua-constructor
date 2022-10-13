@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b11"
+local LIB_VERSION = "3.21.4b12"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -719,6 +719,13 @@ constructor_lib.update_attachment = function(attachment)
     --ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
     AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud or false)
     if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
+
+    if attachment.options.is_on_fire and attachment.temp.fire_id == nil then
+        attachment.temp.fire_id = FIRE.START_ENTITY_FIRE(attachment.handle)
+    elseif (not attachment.options.is_on_fire) and attachment.temp.fire_id ~= nil then
+        FIRE.STOP_ENTITY_FIRE(attachment.handle)
+        attachment.temp.fire_id = nil
+    end
 
     --ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.world_rotation.x, attachment.world_rotation.y, attachment.world_rotation.z, 2, true)
 
@@ -1796,7 +1803,140 @@ end
 --- INI Convertor
 ---
 
-local function map_ini_vehicle(attachment, data)
+local MAX_NUM_ATTACHMENTS = 300
+
+local function map_ini_data_flavor_2(construct_plan, data)
+    debug_log("Found INI flavor 2")
+end
+
+local function map_ini_data_flavor_3(construct_plan, data)
+    debug_log("Found INI flavor 3")
+end
+
+local function map_ini_data_flavor_4(construct_plan, data)
+    debug_log("Found INI flavor 4")
+end
+
+---
+--- INI Mapper Flavor #1
+---
+
+local function map_ini_vehicle_flavor_1(attachment, data)
+    constructor_lib.default_vehicle_attributes(attachment)
+    if data["Model"] ~= nil then attachment.hash = data["Model"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+    if attachment.name == nil then attachment.name = attachment.model end
+    if data["BulletproofTires"] ~= nil then attachment.vehicle_attributes.wheels.bulletproof_tires = toboolean(data["BulletproofTires"]) end
+    if data["CustomPrimaryColor"] ~= nil then attachment.vehicle_attributes.paint.primary.is_custom = toboolean(data["CustomPrimaryColor"]) end
+    if data["CustomSecondaryColor"] ~= nil then attachment.vehicle_attributes.paint.secondary.is_custom = toboolean(data["CustomSecondaryColor"]) end
+
+    if data["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = tonumber(data["Dirt"]) end
+
+    if data["Neon1"] ~= nil then attachment.vehicle_attributes.neon.lights.left = toboolean(data["Neon1"]) end
+    if data["Neon2"] ~= nil then attachment.vehicle_attributes.neon.lights.right = toboolean(data["Neon2"]) end
+    if data["Neon3"] ~= nil then attachment.vehicle_attributes.neon.lights.front = toboolean(data["Neon3"]) end
+    if data["Neon4"] ~= nil then attachment.vehicle_attributes.neon.lights.back = toboolean(data["Neon4"]) end
+
+    if data["NeonB"] ~= nil then attachment.vehicle_attributes.neon.color.b = tonumber(data["NeonB"]) end
+    if data["NeonG"] ~= nil then attachment.vehicle_attributes.neon.color.g = tonumber(data["NeonG"]) end
+    if data["NeonR"] ~= nil then attachment.vehicle_attributes.neon.color.r = tonumber(data["NeonR"]) end
+
+    if data["Pearl"] ~= nil then attachment.vehicle_attributes.paint.extra_colors.pearlescent = tonumber(data["Pearl"]) end
+    if data["Primary"] ~= nil then attachment.vehicle_attributes.paint.primary.color = tonumber(data["Primary"]) end
+    if data["Secondary"] ~= nil then attachment.vehicle_attributes.paint.secondary.color = tonumber(data["Secondary"]) end
+    if data["PaintFade"] ~= nil then attachment.vehicle_attributes.paint.fade = tonumber(data["PaintFade"]) end
+
+    if data["PrimaryRed"] ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.r = tonumber(data["PrimaryRed"]) end
+    if data["PrimaryGreen"] ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.g = tonumber(data["PrimaryGreen"]) end
+    if data["PrimaryBlue"] ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.b = tonumber(data["PrimaryBlue"]) end
+
+    if data["SecondaryRed"] ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.r = tonumber(data["SecondaryRed"]) end
+    if data["SecondaryGreen"] ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.g = tonumber(data["SecondaryGreen"]) end
+    if data["SecondaryBlue"] ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.b = tonumber(data["SecondaryBlue"]) end
+
+    if data["WheelColor"] ~= nil then attachment.vehicle_attributes.paint.extra_colors.wheel = tonumber(data["WheelColor"]) end
+    if data["Wheels"] ~= nil then attachment.vehicle_attributes.wheels.wheel_type = tonumber(data["Wheels"]) end
+    if data["Tint"] ~= nil then attachment.vehicle_attributes.options.window_tint = tonumber(data["Tint"]) end
+
+    if data["SmokeB"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.b = tonumber(data["SmokeB"]) end
+    if data["SmokeG"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.g = tonumber(data["SmokeG"]) end
+    if data["SmokeR"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.r = tonumber(data["SmokeR"]) end
+
+    if data["Plate"] ~= nil then attachment.vehicle_attributes.options.license_plate_type = tonumber(data["Plate"]) end
+    if data["PlateText"] ~= nil then attachment.vehicle_attributes.options.license_plate_text = data["PlateText"] end
+
+    for index = 0, 49 do
+        local field = data[tostring(index)]
+        if field ~= nil then
+            if (index >= 17 and index <= 22) then
+                attachment.vehicle_attributes.mods["_"..index] = toboolean(field)
+            else
+                attachment.vehicle_attributes.mods["_"..index] = tonumber(field)
+            end
+        end
+    end
+
+    for index = 0, 14 do
+        local field = data["extra"..index]
+        if field ~= nil then
+            attachment.vehicle_attributes.extras["_"..index] = toboolean(field)
+        end
+    end
+end
+
+local function map_ini_attachment_flavor_1(attachment, data)
+    if data["Model"] ~= nil then attachment.hash = data["Model"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+    constructor_lib.set_attachment_defaults(attachment)
+
+    if data["X"] ~= nil then attachment.offset.x = data["X"] end
+    if data["Y"] ~= nil then attachment.offset.y = data["Y"] end
+    if data["Z"] ~= nil then attachment.offset.z = data["Z"] end
+
+    if data["RotX"] ~= nil then attachment.rotation.x = data["RotX"] end
+    if data["RotY"] ~= nil then attachment.rotation.y = data["RotY"] end
+    if data["RotZ"] ~= nil then attachment.rotation.z = data["RotZ"] end
+
+    if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
+    if data["Bone"] ~= nil then attachment.options.bone_index = toboolean(data["Bone"]) end
+    if data["Froozen"] ~= nil then attachment.options.is_frozen = toboolean(data["Froozen"]) end
+    if data["Lit"] ~= nil then attachment.options.is_on_fire = toboolean(data["Lit"]) end
+end
+
+local function map_ini_data_flavor_1(construct_plan, data)
+    debug_log("Found INI flavor 1")
+    if data.Vehicle ~= nil then
+        construct_plan.type = "VEHICLE"
+        map_ini_vehicle_flavor_1(construct_plan, data.Vehicle)
+        --if data["Vehicle Mods"] ~= nil then
+        --    map_ini_vehicle_mods_flavor_1(construct_plan, data["Vehicle Mods"])
+        --end
+        --if data["Vehicle Toggles"] ~= nil then
+        --    map_ini_vehicle_mod_toggles_flavor_1(construct_plan, data["Vehicle Toggles"])
+        --end
+        --if data["Vehicle Extras"] ~= nil then
+        --    map_ini_vehicle_extras_flavor_1(construct_plan, data["Vehicle Extras"])
+        --end
+        for attachment_index = 0, MAX_NUM_ATTACHMENTS do
+            local attached_object = data[tostring(attachment_index)]
+            if attached_object ~= nil and attached_object.Model then
+                local attachment = {}
+                map_ini_attachment_flavor_1(attachment, attached_object)
+                table.insert(construct_plan.children, attachment)
+            end
+        end
+    end
+end
+
+---
+--- INI Mapper Flavor #6
+---
+
+local function map_ini_vehicle_flavor_6(attachment, data)
     constructor_lib.default_vehicle_attributes(attachment)
     if data["model"] ~= nil then attachment.hash = data["model"] end
     if attachment.model == nil and attachment.hash ~= nil then
@@ -1840,6 +1980,9 @@ local function map_ini_vehicle(attachment, data)
     if data["tyre smoke green"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.g = tonumber(data["tyre smoke green"]) end
     if data["tyre smoke red"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.r = tonumber(data["tyre smoke red"]) end
 
+    if data["plate index"] ~= nil then attachment.vehicle_attributes.options.license_plate_type = tonumber(data["plate index"]) end
+    if data["plate text"] ~= nil then attachment.vehicle_attributes.options.license_plate_text = data["plate text"] end
+
     for index = 0, 49 do
         local field
         if (index >= 17 and index <= 22) then
@@ -1863,7 +2006,7 @@ local function map_ini_vehicle(attachment, data)
     end
 end
 
-local function map_ini_vehicle_mods(attachment, data)
+local function map_ini_vehicle_mods_flavor_6(attachment, data)
     for index = 0, 49 do
         if not (index >= 17 and index <= 22) then
             attachment.vehicle_attributes.mods["_"..index] = tonumber(data[index])
@@ -1871,13 +2014,13 @@ local function map_ini_vehicle_mods(attachment, data)
     end
 end
 
-local function map_ini_vehicle_mod_toggles(attachment, data)
+local function map_ini_vehicle_mod_toggles_flavor_6(attachment, data)
     for index = 17, 22 do
         attachment.vehicle_attributes.mods["_"..index] = toboolean(data[index])
     end
 end
 
-local function map_ini_vehicle_extras(attachment, data)
+local function map_ini_vehicle_extras_flavor_6(attachment, data)
     for index = 0, 14 do
         if data[index] ~= nil then
             attachment.vehicle_attributes.extras["_"..index] = toboolean(data[index])
@@ -1885,7 +2028,7 @@ local function map_ini_vehicle_extras(attachment, data)
     end
 end
 
-local function map_ini_attachment(attachment, data)
+local function map_ini_attachment_flavor_6(attachment, data)
     if data["model"] ~= nil then attachment.hash = data["model"] end
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
@@ -1903,60 +2046,56 @@ local function map_ini_attachment(attachment, data)
     if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
 end
 
-local function map_ini_data_flavor_1(construct_plan, data)
-    debug_log("Found INI flavor 1")
-end
-
-local function map_ini_data_flavor_2(construct_plan, data)
-    debug_log("Found INI flavor 2")
-end
-
-local function map_ini_data_flavor_3(construct_plan, data)
-    debug_log("Found INI flavor 3")
-end
-
-local function map_ini_data_flavor_4(construct_plan, data)
-    debug_log("Found INI flavor 4")
-end
-
 local function map_ini_data_flavor_6(construct_plan, data)
     debug_log("Found INI flavor 6")
     if data.Vehicle ~= nil then
         construct_plan.type = "VEHICLE"
-        map_ini_vehicle(construct_plan, data.Vehicle)
+        map_ini_vehicle_flavor_6(construct_plan, data.Vehicle)
         if data["Vehicle Mods"] ~= nil then
-            map_ini_vehicle_mods(construct_plan, data["Vehicle Mods"])
+            map_ini_vehicle_mods_flavor_6(construct_plan, data["Vehicle Mods"])
         end
         if data["Vehicle Toggles"] ~= nil then
-            map_ini_vehicle_mod_toggles(construct_plan, data["Vehicle Toggles"])
+            map_ini_vehicle_mod_toggles_flavor_6(construct_plan, data["Vehicle Toggles"])
         end
         if data["Vehicle Extras"] ~= nil then
-            map_ini_vehicle_extras(construct_plan, data["Vehicle Extras"])
+            map_ini_vehicle_extras_flavor_6(construct_plan, data["Vehicle Extras"])
         end
-        for attachment_index = 1, 200 do
+        for attachment_index = 1, MAX_NUM_ATTACHMENTS do
             local attached_object = data["Attached Object "..attachment_index]
             if attached_object ~= nil and attached_object.model then
                 local attachment = {}
-                map_ini_attachment(attachment, attached_object)
+                map_ini_attachment_flavor_6(attachment, attached_object)
                 table.insert(construct_plan.children, attachment)
             end
         end
-        for attachment_index = 1, 200 do
+        for attachment_index = 1, MAX_NUM_ATTACHMENTS do
             local attached_vehicle = data["Attached Vehicle "..attachment_index]
             if attached_vehicle ~= nil and attached_vehicle.model then
                 local attachment = {}
-                map_ini_attachment(attachment, attached_vehicle)
-                map_ini_vehicle(attachment, attached_vehicle)
+                map_ini_attachment_flavor_6(attachment, attached_vehicle)
+                map_ini_vehicle_flavor_6(attachment, attached_vehicle)
                 table.insert(construct_plan.children, attachment)
             end
         end
     end
 end
 
-local function map_ini_data_flavor_unknown()
-    util.log("Unable to determine flavor of INI file")
+---
+--- INI Flavor Finder
+---
+
+local function map_ini_data_flavor_unknown(data)
+    util.toast("Unsupported INI file flavor", TOAST_ALL)
 end
 
+-- Copied from LanceSpooner. Thank you lance!
+-- determine type of ini file
+-- type 1 has no spaces in it (i.e Airship.xml).
+-- type 2 does and has  lowercase shit (420 Hydra.ini). it's also extremely stupid
+-- type 3 is extremely similar to type 1, but has values like PrimaryPaintT (BayWatch Blazer.xml)
+-- type 4 has an "AllObjects", "AllPeds", "AllVehicles" section in the ini (4tire_bike.ini)
+-- type 5 has AllObjects and AllVehicles (Boat-fsx.ini) (seems like theres an iniparser glitch in this one)
+-- type 6 is like type 2, but some keys are different, namely the numbers for attachments are called "Attached Object x" (Tankamid.ini)
 local function get_ini_flavor(data)
     if data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT == nil and data.AllVehicles.Count == nil then 
         return map_ini_data_flavor_1
@@ -1973,6 +2112,10 @@ local function get_ini_flavor(data)
     end
 end
 
+---
+--- Root INI Parser
+---
+
 constructor_lib.convert_ini_to_construct_plan = function(construct_plan_file)
     local construct_plan = table.table_copy(constructor_lib.construct_base)
 
@@ -1984,8 +2127,8 @@ constructor_lib.convert_ini_to_construct_plan = function(construct_plan_file)
 
     debug_log("Parsed INI: "..inspect(data))
 
-    local map_flavor = get_ini_flavor(data)
-    map_flavor(construct_plan, data)
+    local ini_mapper_flavor = get_ini_flavor(data)
+    ini_mapper_flavor(construct_plan, data)
 
     debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
@@ -1997,8 +2140,6 @@ constructor_lib.convert_ini_to_construct_plan = function(construct_plan_file)
 
     return construct_plan
 end
-
-
 
 ---
 --- Return
