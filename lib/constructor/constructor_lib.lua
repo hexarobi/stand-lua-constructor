@@ -1069,8 +1069,6 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     debug_log("Defaulting vehicle attributes "..tostring(vehicle.name))
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.paint == nil then vehicle.vehicle_attributes.paint = {} end
-    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
-    if vehicle.vehicle_attributes.paint == nil then vehicle.vehicle_attributes.paint = {} end
     if vehicle.vehicle_attributes.paint.primary == nil then vehicle.vehicle_attributes.paint.primary = {} end
     if vehicle.vehicle_attributes.paint.secondary == nil then vehicle.vehicle_attributes.paint.secondary = {} end
     if vehicle.vehicle_attributes.paint.primary.custom_color == nil then vehicle.vehicle_attributes.paint.primary.custom_color = {} end
@@ -1933,6 +1931,56 @@ local function map_ini_data_flavor_1(construct_plan, data)
 end
 
 ---
+--- INI Mapper Flavor #4
+---
+
+local function map_ini_vehicle_flavor_4(attachment, data)
+    constructor_lib.default_vehicle_attributes(attachment)
+    if data["Hash"] ~= nil then attachment.hash = data["Hash"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+    if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
+    if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
+    if data["Gravity"] ~= nil then attachment.options.has_gravity = toboolean(data["Gravity"]) end
+    if data["Invincible"] ~= nil then attachment.options.is_invincible = toboolean(data["Invincible"]) end
+    if data["PosX"] ~= nil then attachment.position.x = data["PosX"] end
+    if data["PosY"] ~= nil then attachment.position.y = data["PosY"] end
+    if data["PosZ"] ~= nil then attachment.position.z = data["PosZ"] end
+
+    if data["OffsetX"] ~= nil then attachment.offset.x = data["OffsetX"] end
+    if data["OffsetY"] ~= nil then attachment.offset.y = data["OffsetY"] end
+    if data["OffsetZ"] ~= nil then attachment.offset.z = data["OffsetZ"] end
+
+    if data["Pitch"] ~= nil then attachment.rotation.x = data["Pitch"] end
+    if data["Roll"] ~= nil then attachment.rotation.y = data["Roll"] end
+    if data["Yaw"] ~= nil then attachment.rotation.z = data["Yaw"] end
+
+
+    if data["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = tonumber(data["Dirt"]) end
+    if data["IsEngineOn"] ~= nil then attachment.vehicle_attributes.options.engine_running = toboolean(data["IsEngineOn"]) end
+    if data["HeadlightMultiplier"] ~= nil then attachment.vehicle_attributes.headlights.multiplier = tonumber(data["HeadlightMultiplier"]) end
+    if data["Siren"] ~= nil then attachment.vehicle_attributes.options.siren = toboolean(data["Siren"]) end
+
+    if data["Doorbroken0"] ~= nil then attachment.vehicle_attributes.doors.broken.frontleft = toboolean(data["Doorbroken0"]) end
+    if data["Doorbroken1"] ~= nil then attachment.vehicle_attributes.doors.broken.frontright = toboolean(data["Doorbroken1"]) end
+    if data["Doorbroken2"] ~= nil then attachment.vehicle_attributes.doors.broken.backleft = toboolean(data["Doorbroken2"]) end
+    if data["Doorbroken3"] ~= nil then attachment.vehicle_attributes.doors.broken.backright = toboolean(data["Doorbroken3"]) end
+    if data["Doorbroken4"] ~= nil then attachment.vehicle_attributes.doors.broken.hood = toboolean(data["Doorbroken4"]) end
+    if data["Doorbroken5"] ~= nil then attachment.vehicle_attributes.doors.broken.trunk = toboolean(data["Doorbroken5"]) end
+    if data["Doorbroken6"] ~= nil then attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(data["Doorbroken6"]) end
+
+    if data["TyreBurstLF"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[0] = toboolean(data["TyreBurstLF"]) end
+    if data["TyreBurstRF"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[1] = toboolean(data["TyreBurstRF"]) end
+    if data["TyreBurstLM"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[2] = toboolean(data["TyreBurstLM"]) end
+    if data["TyreBurstRM"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[3] = toboolean(data["TyreBurstRM"]) end
+    if data["TyreBurstLR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[4] = toboolean(data["TyreBurstLR"]) end
+    if data["TyreBurstRR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[5] = toboolean(data["TyreBurstRR"]) end
+    if data["TyreBurst6ML"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[45] = toboolean(data["TyreBurst6ML"]) end
+    if data["TyreBurst6MR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[47] = toboolean(data["TyreBurst6MR"]) end
+end
+
+---
 --- INI Mapper Flavor #6
 ---
 
@@ -2044,6 +2092,21 @@ local function map_ini_attachment_flavor_6(attachment, data)
     if data["yaw"] ~= nil then attachment.rotation.z = data["yaw"] end
 
     if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
+end
+
+local function map_ini_data_flavor_4(construct_plan, data)
+    debug_log("Found INI flavor 4")
+    if data.Vehicle0 ~= nil then
+        construct_plan.type = "VEHICLE"
+        map_ini_vehicle_flavor_4(construct_plan, data.Vehicle0)
+        -- for vehicle_index = 1, tonumber(data.AllVehicles.Count) - 1 do
+        --     local attached_vehicle = data["Vehicle"..vehicle_index]
+        --     if attached_vehicle ~= nil and attached_vehicle.Hash then
+        --         map_ini_vehicle_flavor_4(attachment, attached_vehicle)
+        --         table.insert(construct_plan.children, attachment)
+        --     end
+        -- end
+    end
 end
 
 local function map_ini_data_flavor_6(construct_plan, data)
