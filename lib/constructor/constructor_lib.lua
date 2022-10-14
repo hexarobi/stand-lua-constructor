@@ -1803,18 +1803,6 @@ end
 
 local MAX_NUM_ATTACHMENTS = 300
 
-local function map_ini_data_flavor_2(construct_plan, data)
-    debug_log("Found INI flavor 2")
-end
-
-local function map_ini_data_flavor_3(construct_plan, data)
-    debug_log("Found INI flavor 3")
-end
-
-local function map_ini_data_flavor_4(construct_plan, data)
-    debug_log("Found INI flavor 4")
-end
-
 ---
 --- INI Mapper Flavor #1
 ---
@@ -1931,22 +1919,137 @@ local function map_ini_data_flavor_1(construct_plan, data)
 end
 
 ---
+--- INI Mapper Flavor #2
+---
+
+local function map_ini_data_flavor_2(construct_plan, data)
+    debug_log("Found INI flavor 2")
+end
+
+---
+--- INI Mapper Flavor #3
+---
+
+local function map_ini_data_flavor_3(construct_plan, data)
+    debug_log("Found INI flavor 3")
+end
+
+---
 --- INI Mapper Flavor #4
 ---
 
-local function map_ini_vehicle_flavor_4(attachment, data)
+local function map_ini_vehicle_flavor_4(attachment, data, index)
+    local vehicle_main = data["Vehicle"..index]
+
     constructor_lib.default_vehicle_attributes(attachment)
+    if vehicle_main["Hash"] ~= nil then attachment.hash = vehicle_main["Hash"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+
+    if vehicle_main["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = tonumber(vehicle_main["Dirt"]) end
+    if vehicle_main["IsEngineOn"] ~= nil then attachment.vehicle_attributes.options.engine_running = toboolean(vehicle_main["IsEngineOn"]) end
+    if vehicle_main["HeadlightMultiplier"] ~= nil then attachment.vehicle_attributes.headlights.multiplier = tonumber(vehicle_main["HeadlightMultiplier"]) end
+    if vehicle_main["Siren"] ~= nil then attachment.vehicle_attributes.options.siren = toboolean(vehicle_main["Siren"]) end
+
+    if vehicle_main["Doorbroken0"] ~= nil then attachment.vehicle_attributes.doors.broken.frontleft = toboolean(vehicle_main["Doorbroken0"]) end
+    if vehicle_main["Doorbroken1"] ~= nil then attachment.vehicle_attributes.doors.broken.frontright = toboolean(vehicle_main["Doorbroken1"]) end
+    if vehicle_main["Doorbroken2"] ~= nil then attachment.vehicle_attributes.doors.broken.backleft = toboolean(vehicle_main["Doorbroken2"]) end
+    if vehicle_main["Doorbroken3"] ~= nil then attachment.vehicle_attributes.doors.broken.backright = toboolean(vehicle_main["Doorbroken3"]) end
+    if vehicle_main["Doorbroken4"] ~= nil then attachment.vehicle_attributes.doors.broken.hood = toboolean(vehicle_main["Doorbroken4"]) end
+    if vehicle_main["Doorbroken5"] ~= nil then attachment.vehicle_attributes.doors.broken.trunk = toboolean(vehicle_main["Doorbroken5"]) end
+    if vehicle_main["Doorbroken6"] ~= nil then attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(vehicle_main["Doorbroken6"]) end
+
+    if vehicle_main["TyreBurstLF"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[0] = toboolean(vehicle_main["TyreBurstLF"]) end
+    if vehicle_main["TyreBurstRF"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[1] = toboolean(vehicle_main["TyreBurstRF"]) end
+    if vehicle_main["TyreBurstLM"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[2] = toboolean(vehicle_main["TyreBurstLM"]) end
+    if vehicle_main["TyreBurstRM"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[3] = toboolean(vehicle_main["TyreBurstRM"]) end
+    if vehicle_main["TyreBurstLR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[4] = toboolean(vehicle_main["TyreBurstLR"]) end
+    if vehicle_main["TyreBurstRR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[5] = toboolean(vehicle_main["TyreBurstRR"]) end
+    if vehicle_main["TyreBurst6ML"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[45] = toboolean(vehicle_main["TyreBurst6ML"]) end
+    if vehicle_main["TyreBurst6MR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[47] = toboolean(vehicle_main["TyreBurst6MR"]) end
+
+    if data["Vehicle"..index.."TireSmoke"] ~= nil then
+        if data["Vehicle"..index.."TireSmoke"].R ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.r = tonumber(data["Vehicle"..index.."TireSmoke"].R) end
+        if data["Vehicle"..index.."TireSmoke"].G ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.g = tonumber(data["Vehicle"..index.."TireSmoke"].G) end
+        if data["Vehicle"..index.."TireSmoke"].B ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.b = tonumber(data["Vehicle"..index.."TireSmoke"].B) end
+    end
+    if data["Vehicle"..index.."Neon"] ~= nil then 
+        if data["Vehicle"..index.."Neon"].Enabled1 ~= nil then attachment.vehicle_attributes.neon.lights.left = toboolean(data["Vehicle"..index.."Neon"].Enabled1) end
+        if data["Vehicle"..index.."Neon"].Enabled2 ~= nil then attachment.vehicle_attributes.neon.lights.right = toboolean(data["Vehicle"..index.."Neon"].Enabled2) end
+        if data["Vehicle"..index.."Neon"].Enabled3 ~= nil then attachment.vehicle_attributes.neon.lights.front = toboolean(data["Vehicle"..index.."Neon"].Enabled3) end
+        if data["Vehicle"..index.."Neon"].Enabled4 ~= nil then attachment.vehicle_attributes.neon.lights.back = toboolean(data["Vehicle"..index.."Neon"].Enabled4) end
+    end
+    if data["Vehicle"..index.."PaintFade"] ~= nil then
+        if data["Vehicle"..index.."PaintFade"].PaintFade ~= nil then attachment.vehicle_attributes.paint.fade = tonumber(data["Vehicle"..index.."PaintFade"].PaintFade) end
+    end
+    if data["Vehicle"..index.."NeonColor"] ~= nil then 
+        if data["Vehicle"..index.."NeonColor"].R ~= nil then attachment.vehicle_attributes.neon.color.r = tonumber(data["Vehicle"..index.."NeonColor"].R) end
+        if data["Vehicle"..index.."NeonColor"].G ~= nil then attachment.vehicle_attributes.neon.color.g = tonumber(data["Vehicle"..index.."NeonColor"].G) end
+        if data["Vehicle"..index.."NeonColor"].B ~= nil then attachment.vehicle_attributes.neon.color.b = tonumber(data["Vehicle"..index.."NeonColor"].B) end
+    end
+    if data["Vehicle"..index.."VehicleColors"] ~= nil then
+        if data["Vehicle"..index.."VehicleColors"].Primary ~= nil then attachment.vehicle_attributes.paint.primary.color = tonumber(data["Vehicle"..index.."VehicleColors"].Primary) end
+        if data["Vehicle"..index.."VehicleColors"].Secondary ~= nil then attachment.vehicle_attributes.paint.secondary.color = tonumber(data["Vehicle"..index.."VehicleColors"].Secondary) end
+    end
+    if data["Vehicle"..index.."ExtraColors"] ~= nil then
+        if data["Vehicle"..index.."ExtraColors"].Pearl ~= nil then attachment.vehicle_attributes.paint.extra_colors.pearlescent = tonumber(data["Vehicle"..index.."ExtraColors"].Pearl) end
+        if data["Vehicle"..index.."ExtraColors"].Wheel ~= nil then attachment.vehicle_attributes.paint.extra_colors.wheel = tonumber(data["Vehicle"..index.."ExtraColors"].Wheel) end
+    end
+    if data["Vehicle"..index.."IsCustomPrimary"] ~= nil and toboolean(data["Vehicle"..index.."IsCustomPrimary"]["bool"]) == true then
+        if data["Vehicle"..index.."CustomPrimaryColor"] ~= nil then
+            attachment.vehicle_attributes.paint.primary.is_custom = true
+            if data["Vehicle"..index.."CustomPrimaryColor"].R ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.r = tonumber(data["Vehicle"..index.."CustomPrimaryColor"].R) end
+            if data["Vehicle"..index.."CustomPrimaryColor"].G ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.g = tonumber(data["Vehicle"..index.."CustomPrimaryColor"].G) end
+            if data["Vehicle"..index.."CustomPrimaryColor"].B ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.b = tonumber(data["Vehicle"..index.."CustomPrimaryColor"].B) end
+        end
+    end
+    if data["Vehicle"..index.."IsCustomSecondary"] ~= nil and toboolean(data["Vehicle"..index.."IsCustomSecondary"]["bool"]) == true then
+        if data["Vehicle"..index.."CustomSecondaryColor"] ~= nil then
+            attachment.vehicle_attributes.paint.secondary.is_custom = true
+            if data["Vehicle"..index.."CustomSecondaryColor"].R ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.r = tonumber(data["Vehicle"..index.."CustomSecondaryColor"].R) end
+            if data["Vehicle"..index.."CustomSecondaryColor"].G ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.g = tonumber(data["Vehicle"..index.."CustomSecondaryColor"].G) end
+            if data["Vehicle"..index.."CustomSecondaryColor"].B ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.b = tonumber(data["Vehicle"..index.."CustomSecondaryColor"].B) end
+        end
+    end
+    if data["Vehicle"..index.."WheelType"] ~= nil then
+        if data["Vehicle"..index.."WheelType"].Index ~= nil then attachment.vehicle_attributes.wheels.wheel_type = tonumber(data["Vehicle"..index.."WheelType"].Index) end
+    end
+    if data["Vehicle"..index.."NumberPlate"] ~= nil then
+        if data["Vehicle"..index.."NumberPlate"].Text ~= nil then attachment.vehicle_attributes.options.license_plate_text = data["Vehicle"..index.."NumberPlate"].Text end
+        if data["Vehicle"..index.."NumberPlate"].Index ~= nil then attachment.vehicle_attributes.options.license_plate_type = tonumber(data["Vehicle"..index.."NumberPlate"].Index) end
+    end
+    if data["Vehicle"..index.."WindowTint"] ~= nil then
+        if data["Vehicle"..index.."WindowTint"].Index ~= nil then attachment.vehicle_attributes.options.window_tint = tonumber(data["Vehicle"..index.."WindowTint"].Index) end
+    end
+end
+
+local function map_ini_vehicle_mods_flavor_4(attachment, data)
+    for index = 0, 49 do
+        attachment.vehicle_attributes.mods["_"..index] = tonumber(data["M"..index])
+    end
+end
+
+local function map_ini_vehicle_toggles_flavor_4(attachment, data)
+    for index = 0, 49 do
+        attachment.vehicle_attributes.mods["_"..index] = tonumber(data["T"..index])
+    end
+end
+
+local function map_ini_vehicle_extras_flavor_4(attachment, data)
+    for index = 0, 14 do
+        if data["E"..index] ~= nil then
+            attachment.vehicle_attributes.extras["_"..index] = toboolean(data["E"..index])
+        end
+    end
+end
+
+local function map_ini_attachment_flavor_4(attachment, data)
     if data["Hash"] ~= nil then attachment.hash = data["Hash"] end
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
-    if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
-    if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
-    if data["Gravity"] ~= nil then attachment.options.has_gravity = toboolean(data["Gravity"]) end
-    if data["Invincible"] ~= nil then attachment.options.is_invincible = toboolean(data["Invincible"]) end
-    if data["PosX"] ~= nil then attachment.position.x = data["PosX"] end
-    if data["PosY"] ~= nil then attachment.position.y = data["PosY"] end
-    if data["PosZ"] ~= nil then attachment.position.z = data["PosZ"] end
+    constructor_lib.set_attachment_defaults(attachment)
 
     if data["OffsetX"] ~= nil then attachment.offset.x = data["OffsetX"] end
     if data["OffsetY"] ~= nil then attachment.offset.y = data["OffsetY"] end
@@ -1956,28 +2059,46 @@ local function map_ini_vehicle_flavor_4(attachment, data)
     if data["Roll"] ~= nil then attachment.rotation.y = data["Roll"] end
     if data["Yaw"] ~= nil then attachment.rotation.z = data["Yaw"] end
 
+    if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
+    if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
+    if data["Gravity"] ~= nil then attachment.options.has_gravity = toboolean(data["Gravity"]) end
+    if data["Invincible"] ~= nil then attachment.options.is_invincible = toboolean(data["Invincible"]) end
+end
 
-    if data["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = tonumber(data["Dirt"]) end
-    if data["IsEngineOn"] ~= nil then attachment.vehicle_attributes.options.engine_running = toboolean(data["IsEngineOn"]) end
-    if data["HeadlightMultiplier"] ~= nil then attachment.vehicle_attributes.headlights.multiplier = tonumber(data["HeadlightMultiplier"]) end
-    if data["Siren"] ~= nil then attachment.vehicle_attributes.options.siren = toboolean(data["Siren"]) end
-
-    if data["Doorbroken0"] ~= nil then attachment.vehicle_attributes.doors.broken.frontleft = toboolean(data["Doorbroken0"]) end
-    if data["Doorbroken1"] ~= nil then attachment.vehicle_attributes.doors.broken.frontright = toboolean(data["Doorbroken1"]) end
-    if data["Doorbroken2"] ~= nil then attachment.vehicle_attributes.doors.broken.backleft = toboolean(data["Doorbroken2"]) end
-    if data["Doorbroken3"] ~= nil then attachment.vehicle_attributes.doors.broken.backright = toboolean(data["Doorbroken3"]) end
-    if data["Doorbroken4"] ~= nil then attachment.vehicle_attributes.doors.broken.hood = toboolean(data["Doorbroken4"]) end
-    if data["Doorbroken5"] ~= nil then attachment.vehicle_attributes.doors.broken.trunk = toboolean(data["Doorbroken5"]) end
-    if data["Doorbroken6"] ~= nil then attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(data["Doorbroken6"]) end
-
-    if data["TyreBurstLF"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[0] = toboolean(data["TyreBurstLF"]) end
-    if data["TyreBurstRF"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[1] = toboolean(data["TyreBurstRF"]) end
-    if data["TyreBurstLM"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[2] = toboolean(data["TyreBurstLM"]) end
-    if data["TyreBurstRM"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[3] = toboolean(data["TyreBurstRM"]) end
-    if data["TyreBurstLR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[4] = toboolean(data["TyreBurstLR"]) end
-    if data["TyreBurstRR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[5] = toboolean(data["TyreBurstRR"]) end
-    if data["TyreBurst6ML"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[45] = toboolean(data["TyreBurst6ML"]) end
-    if data["TyreBurst6MR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[47] = toboolean(data["TyreBurst6MR"]) end
+local function map_ini_data_flavor_4(construct_plan, data)
+    debug_log("Found INI flavor 4")
+    if data.Vehicle0 ~= nil then
+        construct_plan.type = "VEHICLE"
+        map_ini_vehicle_flavor_4(construct_plan, data, 0)
+        if data.Vehicle0Mods ~= nil then
+            map_ini_vehicle_mods_flavor_4(construct_plan, data.Vehicle0Mods)
+        end
+        if data.Vehicle0Toggles ~= nil then
+            map_ini_vehicle_toggles_flavor_4(construct_plan, data.Vehicle0Toggles)
+        end
+        if data.Vehicle0Extras ~= nil then
+            map_ini_vehicle_extras_flavor_4(construct_plan, data.Vehicle0Extras)
+        end
+        for vehicle_index = 1, tonumber(data.AllVehicles.Count) - 1 do
+            local attached_vehicle = data["Vehicle"..vehicle_index]
+            if attached_vehicle ~= nil then
+                local attachment = {}
+                attachment.type = "VEHICLE"
+                map_ini_attachment_flavor_4(attachment, attached_vehicle)
+                map_ini_vehicle_flavor_4(attachment, data, vehicle_index)
+                if data["Vehicle"..vehicle_index.."Mods"] ~= nil then
+                    map_ini_vehicle_mods_flavor_4(attachment, data["Vehicle"..vehicle_index.."Mods"])
+                end
+                if data["Vehicle"..vehicle_index.."Toggles"] ~= nil then
+                    map_ini_vehicle_toggles_flavor_4(attachment, data["Vehicle"..vehicle_index.."Toggles"])
+                end
+                if data["Vehicle"..vehicle_index.."Extras"] ~= nil then
+                    map_ini_vehicle_extras_flavor_4(attachment, data["Vehicle"..vehicle_index.."Extras"])
+                end
+                table.insert(construct_plan.children, attachment)
+            end
+        end
+    end
 end
 
 ---
@@ -2092,21 +2213,6 @@ local function map_ini_attachment_flavor_6(attachment, data)
     if data["yaw"] ~= nil then attachment.rotation.z = data["yaw"] end
 
     if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
-end
-
-local function map_ini_data_flavor_4(construct_plan, data)
-    debug_log("Found INI flavor 4")
-    if data.Vehicle0 ~= nil then
-        construct_plan.type = "VEHICLE"
-        map_ini_vehicle_flavor_4(construct_plan, data.Vehicle0)
-        -- for vehicle_index = 1, tonumber(data.AllVehicles.Count) - 1 do
-        --     local attached_vehicle = data["Vehicle"..vehicle_index]
-        --     if attached_vehicle ~= nil and attached_vehicle.Hash then
-        --         map_ini_vehicle_flavor_4(attachment, attached_vehicle)
-        --         table.insert(construct_plan.children, attachment)
-        --     end
-        -- end
-    end
 end
 
 local function map_ini_data_flavor_6(construct_plan, data)
