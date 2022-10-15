@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b12"
+local LIB_VERSION = "3.21.4b13"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -38,6 +38,7 @@ constructor_lib.construct_base = {
     target_version = LIB_VERSION,
     children = {},
     options = {},
+    temp = {},
     position = {x=0,y=0,z=0},
     offset = {x=0,y=0,z=0},
     rotation = {x=0,y=0,z=0},
@@ -1894,7 +1895,6 @@ local function map_ini_attachment_flavor_1(attachment, data)
 end
 
 local function map_ini_data_flavor_1(construct_plan, data)
-    debug_log("Found INI flavor 1")
     if data.Vehicle ~= nil then
         construct_plan.type = "VEHICLE"
         map_ini_vehicle_flavor_1(construct_plan, data.Vehicle)
@@ -1917,6 +1917,7 @@ local function map_ini_data_flavor_1(construct_plan, data)
         end
     end
 end
+
 
 ---
 --- INI Mapper Flavor #2
@@ -1974,7 +1975,7 @@ local function map_ini_vehicle_flavor_4(attachment, data, index)
         if data["Vehicle"..index.."TireSmoke"].G ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.g = tonumber(data["Vehicle"..index.."TireSmoke"].G) end
         if data["Vehicle"..index.."TireSmoke"].B ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.b = tonumber(data["Vehicle"..index.."TireSmoke"].B) end
     end
-    if data["Vehicle"..index.."Neon"] ~= nil then 
+    if data["Vehicle"..index.."Neon"] ~= nil then
         if data["Vehicle"..index.."Neon"].Enabled1 ~= nil then attachment.vehicle_attributes.neon.lights.left = toboolean(data["Vehicle"..index.."Neon"].Enabled1) end
         if data["Vehicle"..index.."Neon"].Enabled2 ~= nil then attachment.vehicle_attributes.neon.lights.right = toboolean(data["Vehicle"..index.."Neon"].Enabled2) end
         if data["Vehicle"..index.."Neon"].Enabled3 ~= nil then attachment.vehicle_attributes.neon.lights.front = toboolean(data["Vehicle"..index.."Neon"].Enabled3) end
@@ -1983,7 +1984,7 @@ local function map_ini_vehicle_flavor_4(attachment, data, index)
     if data["Vehicle"..index.."PaintFade"] ~= nil then
         if data["Vehicle"..index.."PaintFade"].PaintFade ~= nil then attachment.vehicle_attributes.paint.fade = tonumber(data["Vehicle"..index.."PaintFade"].PaintFade) end
     end
-    if data["Vehicle"..index.."NeonColor"] ~= nil then 
+    if data["Vehicle"..index.."NeonColor"] ~= nil then
         if data["Vehicle"..index.."NeonColor"].R ~= nil then attachment.vehicle_attributes.neon.color.r = tonumber(data["Vehicle"..index.."NeonColor"].R) end
         if data["Vehicle"..index.."NeonColor"].G ~= nil then attachment.vehicle_attributes.neon.color.g = tonumber(data["Vehicle"..index.."NeonColor"].G) end
         if data["Vehicle"..index.."NeonColor"].B ~= nil then attachment.vehicle_attributes.neon.color.b = tonumber(data["Vehicle"..index.."NeonColor"].B) end
@@ -2026,13 +2027,17 @@ end
 
 local function map_ini_vehicle_mods_flavor_4(attachment, data)
     for index = 0, 49 do
-        attachment.vehicle_attributes.mods["_"..index] = tonumber(data["M"..index])
+        if not (index >= 17 and index <= 22) then
+            attachment.vehicle_attributes.mods["_"..index] = tonumber(data["M"..index])
+        end
     end
 end
 
 local function map_ini_vehicle_toggles_flavor_4(attachment, data)
     for index = 0, 49 do
-        attachment.vehicle_attributes.mods["_"..index] = tonumber(data["T"..index])
+        if (index >= 17 and index <= 22) then
+            attachment.vehicle_attributes.mods["_"..index] = tonumber(data["T"..index])
+        end
     end
 end
 
@@ -2050,6 +2055,15 @@ local function map_ini_attachment_flavor_4(attachment, data)
         attachment.model = util.reverse_joaat(attachment.hash)
     end
     constructor_lib.set_attachment_defaults(attachment)
+    if data["Name"] ~= nil then attachment.name = data["Name"] end
+
+    if data["PosX"] ~= nil then attachment.position.x = data["PosX"] end
+    if data["PosY"] ~= nil then attachment.position.y = data["PosY"] end
+    if data["PosZ"] ~= nil then attachment.position.z = data["PosZ"] end
+
+    if data["RotX"] ~= nil then attachment.world_rotation.x = data["RotX"] end
+    if data["RotY"] ~= nil then attachment.world_rotation.y = data["RotY"] end
+    if data["RotZ"] ~= nil then attachment.world_rotation.z = data["RotZ"] end
 
     if data["OffsetX"] ~= nil then attachment.offset.x = data["OffsetX"] end
     if data["OffsetY"] ~= nil then attachment.offset.y = data["OffsetY"] end
@@ -2063,10 +2077,17 @@ local function map_ini_attachment_flavor_4(attachment, data)
     if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
     if data["Gravity"] ~= nil then attachment.options.has_gravity = toboolean(data["Gravity"]) end
     if data["Invincible"] ~= nil then attachment.options.is_invincible = toboolean(data["Invincible"]) end
+    if data["Freeze"] ~= nil then attachment.options.is_frozen = toboolean(data["Freeze"]) end
+    if data["Lights"] ~= nil then attachment.options.lights = toboolean(data["Lights"]) end
+    if data["Health"] ~= nil then attachment.options.health = tonumber(data["Health"]) end
+    if data["Alpha"] ~= nil then attachment.options.alpha = tonumber(data["Alpha"]) end
+    if data["Bone"] ~= nil then attachment.options.bone_index = tonumber(data["Bone"]) end
+    if data["IsAttached"] ~= nil then attachment.options.is_attached = tonumber(data["IsAttached"]) end
+    if data["SelfNumeration"] ~= nil then attachment.initial_handle = tonumber(data["SelfNumeration"]) end
+    if data["AttachNumeration"] ~= nil then attachment.parents_initial_handle = tonumber(data["AttachNumeration"]) end
 end
 
 local function map_ini_data_flavor_4(construct_plan, data)
-    debug_log("Found INI flavor 4")
     if data.Vehicle0 ~= nil then
         construct_plan.type = "VEHICLE"
         map_ini_vehicle_flavor_4(construct_plan, data, 0)
@@ -2095,6 +2116,15 @@ local function map_ini_data_flavor_4(construct_plan, data)
                 if data["Vehicle"..vehicle_index.."Extras"] ~= nil then
                     map_ini_vehicle_extras_flavor_4(attachment, data["Vehicle"..vehicle_index.."Extras"])
                 end
+                table.insert(construct_plan.children, attachment)
+            end
+        end
+        for object_index = 1, tonumber(data.AllObjects.Count) - 1 do
+            local attached_object = data["Object".. object_index]
+            if attached_object ~= nil then
+                local attachment = {}
+                attachment.type = "OBJECT"
+                map_ini_attachment_flavor_4(attachment, attached_object)
                 table.insert(construct_plan.children, attachment)
             end
         end
@@ -2216,7 +2246,6 @@ local function map_ini_attachment_flavor_6(attachment, data)
 end
 
 local function map_ini_data_flavor_6(construct_plan, data)
-    debug_log("Found INI flavor 6")
     if data.Vehicle ~= nil then
         construct_plan.type = "VEHICLE"
         map_ini_vehicle_flavor_6(construct_plan, data.Vehicle)
@@ -2253,10 +2282,6 @@ end
 --- INI Flavor Finder
 ---
 
-local function map_ini_data_flavor_unknown(data)
-    util.toast("Unsupported INI file flavor", TOAST_ALL)
-end
-
 -- Copied from LanceSpooner. Thank you lance!
 -- determine type of ini file
 -- type 1 has no spaces in it (i.e Airship.xml).
@@ -2265,19 +2290,34 @@ end
 -- type 4 has an "AllObjects", "AllPeds", "AllVehicles" section in the ini (4tire_bike.ini)
 -- type 5 has AllObjects and AllVehicles (Boat-fsx.ini) (seems like theres an iniparser glitch in this one)
 -- type 6 is like type 2, but some keys are different, namely the numbers for attachments are called "Attached Object x" (Tankamid.ini)
-local function get_ini_flavor(data)
+constructor_lib.get_ini_flavor = function(data)
     if data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT == nil and data.AllVehicles.Count == nil then 
-        return map_ini_data_flavor_1
+        return 1
     elseif data.Vehicle.model ~= nil and data['Attached Object 1'].model == nil then 
-        return map_ini_data_flavor_2
+        return 2
     elseif data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT ~= nil then 
-        return map_ini_data_flavor_3
+        return 3
     elseif data.AllObjects.Count ~= nil and data.AllVehicles.Count ~= nil and data.AllPeds.Count ~= nil then 
-        return map_ini_data_flavor_4
+        return 4
+    -- no 5?
     elseif data.Vehicle.model ~= nil and data['Attached Object 1'].model ~= nil then 
-        return map_ini_data_flavor_6
-    else
-        return map_ini_data_flavor_unknown
+        return 6
+    end
+end
+
+local function map_ini_data(construct_plan, data)
+    if construct_plan.temp.ini_flavor == 1 then
+        return map_ini_data_flavor_1(construct_plan, data)
+    elseif construct_plan.temp.ini_flavor == 2 then
+        return map_ini_data_flavor_2(construct_plan, data)
+    elseif construct_plan.temp.ini_flavor == 3 then
+        return map_ini_data_flavor_3(construct_plan, data)
+    elseif construct_plan.temp.ini_flavor == 4 then
+        return map_ini_data_flavor_4(construct_plan, data)
+    --elseif construct_plan.temp.ini_flavor == 5 then
+    --    return map_ini_data_flavor_5(construct_plan, data)
+    elseif construct_plan.temp.ini_flavor == 6 then
+        return map_ini_data_flavor_6(construct_plan, data)
     end
 end
 
@@ -2296,8 +2336,12 @@ constructor_lib.convert_ini_to_construct_plan = function(construct_plan_file)
 
     debug_log("Parsed INI: "..inspect(data))
 
-    local ini_mapper_flavor = get_ini_flavor(data)
-    ini_mapper_flavor(construct_plan, data)
+    construct_plan.temp.ini_flavor = constructor_lib.get_ini_flavor(data)
+    if not construct_plan.temp.ini_flavor then
+        util.toast("Unsupported INI Flavor. If you think this file should be supported, please post it in the #broken-constructs channel on discord.", TOAST_ALL)
+        return
+    end
+    map_ini_data(construct_plan, data)
 
     debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
