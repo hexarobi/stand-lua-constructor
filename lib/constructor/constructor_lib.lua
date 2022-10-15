@@ -1960,14 +1960,14 @@ local function map_ini_vehicle_flavor_4(attachment, data, index)
     if vehicle_main["Doorbroken5"] ~= nil then attachment.vehicle_attributes.doors.broken.trunk = toboolean(vehicle_main["Doorbroken5"]) end
     if vehicle_main["Doorbroken6"] ~= nil then attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(vehicle_main["Doorbroken6"]) end
 
-    if vehicle_main["TyreBurstLF"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[0] = toboolean(vehicle_main["TyreBurstLF"]) end
-    if vehicle_main["TyreBurstRF"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[1] = toboolean(vehicle_main["TyreBurstRF"]) end
-    if vehicle_main["TyreBurstLM"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[2] = toboolean(vehicle_main["TyreBurstLM"]) end
-    if vehicle_main["TyreBurstRM"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[3] = toboolean(vehicle_main["TyreBurstRM"]) end
-    if vehicle_main["TyreBurstLR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[4] = toboolean(vehicle_main["TyreBurstLR"]) end
-    if vehicle_main["TyreBurstRR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[5] = toboolean(vehicle_main["TyreBurstRR"]) end
-    if vehicle_main["TyreBurst6ML"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[45] = toboolean(vehicle_main["TyreBurst6ML"]) end
-    if vehicle_main["TyreBurst6MR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst[47] = toboolean(vehicle_main["TyreBurst6MR"]) end
+    if vehicle_main["TyreBurstLF"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst["_0"] = toboolean(vehicle_main["TyreBurstLF"]) end
+    if vehicle_main["TyreBurstRF"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst["_1"] = toboolean(vehicle_main["TyreBurstRF"]) end
+    if vehicle_main["TyreBurstLM"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst["_2"] = toboolean(vehicle_main["TyreBurstLM"]) end
+    if vehicle_main["TyreBurstRM"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst["_3"] = toboolean(vehicle_main["TyreBurstRM"]) end
+    if vehicle_main["TyreBurstLR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst["_4"] = toboolean(vehicle_main["TyreBurstLR"]) end
+    if vehicle_main["TyreBurstRR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst["_5"] = toboolean(vehicle_main["TyreBurstRR"]) end
+    if vehicle_main["TyreBurst6ML"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst["_45"] = toboolean(vehicle_main["TyreBurst6ML"]) end
+    if vehicle_main["TyreBurst6MR"] ~= nil then attachment.vehicle_attributes.wheels.tires_burst["_47"] = toboolean(vehicle_main["TyreBurst6MR"]) end
 
     if data["Vehicle"..index.."TireSmoke"] ~= nil then
         if data["Vehicle"..index.."TireSmoke"].R ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.r = tonumber(data["Vehicle"..index.."TireSmoke"].R) end
