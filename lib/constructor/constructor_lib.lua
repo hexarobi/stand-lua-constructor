@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b13"
+local LIB_VERSION = "3.21.4b14"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -653,6 +653,7 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options.is_light_on == nil then attachment.options.is_light_on = true end
     if attachment.options.use_soft_pinning == nil then attachment.options.use_soft_pinning = true end
     if attachment.options.bone_index == nil then attachment.options.bone_index = 0 end
+    if attachment.options.is_dynamic == nil then attachment.options.is_dynamic = true end
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
     if attachment.options.is_attached == nil then attachment.options.is_attached = (attachment ~= attachment.parent) end
     if attachment == attachment.parent then
@@ -701,6 +702,8 @@ constructor_lib.update_attachment = function(attachment)
         ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
     end
 
+
+    ENTITY.SET_ENTITY_DYNAMIC(attachment.handle, attachment.options.is_dynamic)
     ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity)
     if attachment.options.is_light_on == true then
         VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
@@ -1662,10 +1665,11 @@ local function map_placement_options(attachment, placement)
     if placement.OpacityLevel ~= nil then attachment.options.alpha = tonumber(placement.OpacityLevel) end
     if placement.LodDistance ~= nil then attachment.options.lod_distance = tonumber(placement.LodDistance) end
     if placement.IsVisible ~= nil then attachment.options.is_visible = toboolean(placement.IsVisible) end
-    -- max health
-    -- health
+    if placement.Dynamic ~= nil then attachment.options.is_dynamic = toboolean(placement.Dynamic) end
+    if placement.Health ~= nil then attachment.options.health = tonumber(placement.Health) end
+    if placement.MaxHealth ~= nil then attachment.options.max_health = tonumber(placement.MaxHealth) end
     if placement.HasGravity ~= nil then attachment.options.has_gravity = toboolean(placement.HasGravity) end
-    -- on fire
+    if placement.IsOnFire ~= nil then attachment.options.is_on_fire = toboolean(placement.IsOnFire) end
     if placement.IsInvincible ~= nil then attachment.options.is_invincible = toboolean(placement.IsInvincible) end
     if placement.IsBulletProof ~= nil then attachment.options.is_bullet_proof = toboolean(placement.IsBulletProof) end
     if placement.IsFireProof ~= nil then attachment.options.is_fire_proof = toboolean(placement.IsFireProof) end
@@ -1939,14 +1943,47 @@ end
 --- INI Mapper Flavor #4
 ---
 
-local function map_ini_vehicle_flavor_4(attachment, data, index)
-    local vehicle_main = data["Vehicle"..index]
-
-    constructor_lib.default_vehicle_attributes(attachment)
-    if vehicle_main["Hash"] ~= nil then attachment.hash = vehicle_main["Hash"] end
+local function map_ini_attachment_flavor_4(attachment, data)
+    if data["Hash"] ~= nil then attachment.hash = data["Hash"] end
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
+    constructor_lib.set_attachment_defaults(attachment)
+    if data["Name"] ~= nil then attachment.name = data["Name"] end
+
+    if data["PosX"] ~= nil then attachment.position.x = tonumber(data["PosX"]) end
+    if data["PosY"] ~= nil then attachment.position.y = tonumber(data["PosY"]) end
+    if data["PosZ"] ~= nil then attachment.position.z = tonumber(data["PosZ"]) end
+
+    if data["RotX"] ~= nil then attachment.world_rotation.x = data["RotX"] end
+    if data["RotY"] ~= nil then attachment.world_rotation.y = data["RotY"] end
+    if data["RotZ"] ~= nil then attachment.world_rotation.z = data["RotZ"] end
+
+    if data["OffsetX"] ~= nil then attachment.offset.x = data["OffsetX"] end
+    if data["OffsetY"] ~= nil then attachment.offset.y = data["OffsetY"] end
+    if data["OffsetZ"] ~= nil then attachment.offset.z = data["OffsetZ"] end
+
+    if data["Pitch"] ~= nil then attachment.rotation.x = data["Pitch"] end
+    if data["Roll"] ~= nil then attachment.rotation.y = data["Roll"] end
+    if data["Yaw"] ~= nil then attachment.rotation.z = data["Yaw"] end
+
+    if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
+    if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
+    if data["Gravity"] ~= nil then attachment.options.has_gravity = toboolean(data["Gravity"]) end
+    if data["Invincible"] ~= nil then attachment.options.is_invincible = toboolean(data["Invincible"]) end
+    if data["Freeze"] ~= nil then attachment.options.is_frozen = toboolean(data["Freeze"]) end
+    if data["Lights"] ~= nil then attachment.options.lights = toboolean(data["Lights"]) end
+    if data["Dynamic"] ~= nil then attachment.options.is_dynamic = toboolean(data["Dynamic"]) end
+    if data["Health"] ~= nil then attachment.options.health = tonumber(data["Health"]) end
+    if data["Alpha"] ~= nil then attachment.options.alpha = tonumber(data["Alpha"]) end
+    if data["Bone"] ~= nil then attachment.options.bone_index = tonumber(data["Bone"]) end
+    if data["IsAttached"] ~= nil then attachment.options.is_attached = tonumber(data["IsAttached"]) end
+    if data["SelfNumeration"] ~= nil then attachment.initial_handle = tonumber(data["SelfNumeration"]) end
+    if data["AttachNumeration"] ~= nil then attachment.parents_initial_handle = tonumber(data["AttachNumeration"]) end
+end
+
+local function map_ini_vehicle_flavor_4(attachment, data, index)
+    local vehicle_main = data["Vehicle"..index]
 
     if vehicle_main["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = tonumber(vehicle_main["Dirt"]) end
     if vehicle_main["IsEngineOn"] ~= nil then attachment.vehicle_attributes.options.engine_running = toboolean(vehicle_main["IsEngineOn"]) end
@@ -2049,47 +2086,11 @@ local function map_ini_vehicle_extras_flavor_4(attachment, data)
     end
 end
 
-local function map_ini_attachment_flavor_4(attachment, data)
-    if data["Hash"] ~= nil then attachment.hash = data["Hash"] end
-    if attachment.model == nil and attachment.hash ~= nil then
-        attachment.model = util.reverse_joaat(attachment.hash)
-    end
-    constructor_lib.set_attachment_defaults(attachment)
-    if data["Name"] ~= nil then attachment.name = data["Name"] end
-
-    if data["PosX"] ~= nil then attachment.position.x = data["PosX"] end
-    if data["PosY"] ~= nil then attachment.position.y = data["PosY"] end
-    if data["PosZ"] ~= nil then attachment.position.z = data["PosZ"] end
-
-    if data["RotX"] ~= nil then attachment.world_rotation.x = data["RotX"] end
-    if data["RotY"] ~= nil then attachment.world_rotation.y = data["RotY"] end
-    if data["RotZ"] ~= nil then attachment.world_rotation.z = data["RotZ"] end
-
-    if data["OffsetX"] ~= nil then attachment.offset.x = data["OffsetX"] end
-    if data["OffsetY"] ~= nil then attachment.offset.y = data["OffsetY"] end
-    if data["OffsetZ"] ~= nil then attachment.offset.z = data["OffsetZ"] end
-
-    if data["Pitch"] ~= nil then attachment.rotation.x = data["Pitch"] end
-    if data["Roll"] ~= nil then attachment.rotation.y = data["Roll"] end
-    if data["Yaw"] ~= nil then attachment.rotation.z = data["Yaw"] end
-
-    if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
-    if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
-    if data["Gravity"] ~= nil then attachment.options.has_gravity = toboolean(data["Gravity"]) end
-    if data["Invincible"] ~= nil then attachment.options.is_invincible = toboolean(data["Invincible"]) end
-    if data["Freeze"] ~= nil then attachment.options.is_frozen = toboolean(data["Freeze"]) end
-    if data["Lights"] ~= nil then attachment.options.lights = toboolean(data["Lights"]) end
-    if data["Health"] ~= nil then attachment.options.health = tonumber(data["Health"]) end
-    if data["Alpha"] ~= nil then attachment.options.alpha = tonumber(data["Alpha"]) end
-    if data["Bone"] ~= nil then attachment.options.bone_index = tonumber(data["Bone"]) end
-    if data["IsAttached"] ~= nil then attachment.options.is_attached = tonumber(data["IsAttached"]) end
-    if data["SelfNumeration"] ~= nil then attachment.initial_handle = tonumber(data["SelfNumeration"]) end
-    if data["AttachNumeration"] ~= nil then attachment.parents_initial_handle = tonumber(data["AttachNumeration"]) end
-end
 
 local function map_ini_data_flavor_4(construct_plan, data)
     if data.Vehicle0 ~= nil then
         construct_plan.type = "VEHICLE"
+        map_ini_attachment_flavor_4(construct_plan, data.Vehicle0)
         map_ini_vehicle_flavor_4(construct_plan, data, 0)
         if data.Vehicle0Mods ~= nil then
             map_ini_vehicle_mods_flavor_4(construct_plan, data.Vehicle0Mods)
@@ -2342,6 +2343,7 @@ constructor_lib.convert_ini_to_construct_plan = function(construct_plan_file)
         return
     end
     map_ini_data(construct_plan, data)
+    rearrange_by_initial_attachment(construct_plan)
 
     debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
