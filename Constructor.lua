@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.6b2"
+local SCRIPT_VERSION = "0.20.6b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -372,6 +372,18 @@ local function calculate_camera_distance(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
+local function get_construct_plan_description(construct_plan)
+    local descriptions = {}
+    if construct_plan.temp.ini_flavor ~= nil then
+        table.insert(descriptions, "INI Flavor: "..construct_plan.temp.ini_flavor)
+    end
+    local description_string = ""
+    for _, description in pairs(descriptions) do
+        description_string = description_string .. description .. "\n"
+    end
+    return description_string
+end
+
 local function add_preview(construct_plan, preview_image_path)
     if config.show_previews == false then return end
     remove_preview()
@@ -392,6 +404,9 @@ local function add_preview(construct_plan, preview_image_path)
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
         current_preview = constructor_lib.attach_attachment_with_children(attachment)
+        if construct_plan.load_menu then
+            menu.set_help_text(construct_plan.load_menu, get_construct_plan_description(current_preview))
+        end
         if next_preview ~= construct_plan then
             remove_preview(current_preview)
         end
@@ -417,16 +432,16 @@ local function update_preview_tick()
     end
 end
 
-local function freeze_attachment(attachment)
-    ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
+local function update_attachment_tick(attachment)
+    constructor_lib.update_attachment_tick(attachment)
     for _, child_attachment in pairs(attachment.children) do
-        freeze_attachment(child_attachment)
+        update_attachment_tick(child_attachment)
     end
 end
 
-local function frozen_attachment_tick()
+local function update_constructs_tick()
     for _, spawned_construct in pairs(spawned_constructs) do
-        freeze_attachment(spawned_construct)
+        update_attachment_tick(spawned_construct)
     end
 end
 
@@ -829,6 +844,9 @@ local function load_construct_plan_file(construct_plan_file)
     --    util.toast("Invalid construct file format. Missing target_version. "..construct_plan_file.filepath, TOAST_ALL)
     --    return
     --end
+    if construct_plan_file.load_menu ~= nil then
+        construct_plan.menu = construct_plan_file.load_menu
+    end
     debug_log("Loaded construct plan "..tostring(construct_plan.name), construct_plan)
     return construct_plan
 end
@@ -963,14 +981,14 @@ local function build_curated_attachments_menu(attachment, root_menu, curated_ite
             build_curated_attachments_menu(attachment, child_menu, child_item)
         end
     else
-        local menu_item = menu.action(root_menu, curated_item.name, {}, "", function()
+        curated_item.load_menu = menu.action(root_menu, curated_item.name, {}, "", function()
             local child_attachment = copy_construct_plan(curated_item)
             child_attachment.root = attachment.root
             child_attachment.parent = attachment
             build_construct_from_plan(child_attachment)
         end)
-        menu.on_focus(menu_item, function(direction) if direction ~= 0 then add_preview(curated_item) end end)
-        menu.on_blur(menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
+        menu.on_focus(curated_item.load_menu, function(direction) if direction ~= 0 then add_preview(curated_item) end end)
+        menu.on_blur(curated_item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
     end
 end
 
@@ -1028,17 +1046,17 @@ local function add_prop_search_results(attachment, query, page_size, page_number
     for i = (page_size*page_number)+1, page_size*(page_number+1) do
         if results[i] then
             local model = results[i].prop
-            local search_result_menu_item = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
+            local search_result_attachment_menu = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
                 build_construct_from_plan({
                     root = attachment.root,
                     parent = attachment,
-                    name = model,
-                    model = model,
+                    name = results[i].prop,
+                    model = results[i].prop,
                 })
             end)
-            menu.on_focus(search_result_menu_item, function(direction) if direction ~= 0 then add_preview({model=model}) end end)
-            menu.on_blur(search_result_menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
-            table.insert(attachment.temp.prop_search_results, search_result_menu_item)
+            menu.on_focus(search_result_attachment_menu, function(direction) if direction ~= 0 then add_preview({model=model}) end end)
+            menu.on_blur(search_result_attachment_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+            table.insert(attachment.temp.prop_search_results, search_result_attachment_menu)
         end
     end
     if attachment.menus.search_add_more ~= nil then menu.delete(attachment.menus.search_add_more) end
@@ -1300,6 +1318,10 @@ menus.rebuild_attachment_menu = function(attachment)
                 attachment.ped_attributes.armor = value
                 constructor_lib.deserialize_ped_attributes(attachment)
             end)
+            attachment.menus.option_on_fire = menu.toggle(attachment.menus.ped_options, "On Fire", {}, "Will the ped be burning on fire, or not", function(on)
+                attachment.options.is_on_fire = on
+                constructor_lib.deserialize_ped_attributes(attachment)
+            end, attachment.options.is_on_fire)
             -- TODO: Weapon picker
 
             local function create_ped_component_menu(attachment, root_menu, index, name)
@@ -1717,7 +1739,7 @@ end)
 ---
 
 local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
-    construct_plan_file.menu = menu.action(root_menu, construct_plan_file.name, {}, "", function()
+    construct_plan_file.load_menu = menu.action(root_menu, construct_plan_file.name, {}, "", function()
         remove_preview()
         local construct_plan = load_construct_plan_file(construct_plan_file)
         if construct_plan then
@@ -1726,8 +1748,8 @@ local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
             build_construct_from_plan(construct_plan)
         end
     end)
-    menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
-    menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
+    menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
+    menu.on_blur(construct_plan_file.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
 end
 
 local load_constructs_root_menu_file
@@ -1742,7 +1764,7 @@ end)
 local previous_search_results = {}
 menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "", function(query)
     for _, previous_search_result in pairs(previous_search_results) do
-        menu.delete(previous_search_result.menu)
+        pcall(menu.delete, previous_search_result.menu)
     end
     previous_search_results = {}
     local results = search_constructs(CONSTRUCTS_DIR, query)
@@ -1795,7 +1817,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     for _, construct_plan_file in pairs(construct_plan_files) do
         if not construct_plan_file.is_directory then
             if is_file_type_supported(construct_plan_file.ext) then
-                construct_plan_file.menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
+                construct_plan_file.load_menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
                     remove_preview()
                     local construct_plan = load_construct_plan_file(construct_plan_file)
                     if construct_plan then
@@ -1804,10 +1826,10 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
                         build_construct_from_plan(construct_plan)
                     end
                 end)
-                menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
-                menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
+                menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
+                menu.on_blur(construct_plan_file.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+                table.insert(parent_construct_plan_file.menus, construct_plan_file.load_menu)
             end
-            table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
         end
     end
 end
@@ -1877,8 +1899,9 @@ end)
 menu.hyperlink(script_meta_menu, "Github Source", "https://github.com/hexarobi/stand-lua-constructor", "View source files on Github")
 menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open Discord Server")
 menu.divider(script_meta_menu, "Credits")
-menu.readonly(script_meta_menu, "Jackz", "Much of Constructor is based on code from Jackz Vehicle Builder and wouldn't have been possible without this foundation")
-menu.readonly(script_meta_menu, "BigTuna", "Testing, Suggestions and Support")
+menu.readonly(script_meta_menu, "BigTuna", "Code, Testing, Suggestions and Support")
+menu.readonly(script_meta_menu, "Jackz", "Much of Constructor is based on code originally copied from Jackz Vehicle Builder and wouldn't have been possible without this incredible tool. Constructor is just my own copy of Jackz's amazing work.")
+menu.readonly(script_meta_menu, "Lance", "Constructor also owes inspiration to LanceSpooner")
 
 ---
 --- Startup Logo
@@ -1911,7 +1934,7 @@ local function constructor_tick()
     aim_info_tick()
     update_preview_tick()
     sensitivity_modifier_check_tick()
-    frozen_attachment_tick()
+    update_constructs_tick()
     draw_editing_attachment_bounding_box_tick()
 end
 util.create_tick_handler(constructor_tick)
