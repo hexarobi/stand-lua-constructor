@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b15"
+local LIB_VERSION = "3.21.4b16"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -640,7 +640,10 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options.is_visible == nil then attachment.options.is_visible = true end
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
     if attachment.options.has_collision == nil then
-        attachment.options.has_collision = (attachment.root.type ~= "PED")
+        attachment.options.has_collision = true
+        if attachment.root ~= nil and attachment.root.type == "PED" then
+            attachment.options.has_collision = false
+        end
     end
     if attachment.root ~= nil and attachment.root.is_preview then attachment.is_preview = true end
     if attachment.options.is_networked == nil and (attachment.root ~= nil and not attachment.root.is_preview) then
@@ -1964,8 +1967,138 @@ end
 --- INI Mapper Flavor #2
 ---
 
+local function map_ini_vehicle_flavor_2(attachment, data)
+    constructor_lib.default_vehicle_attributes(attachment)
+    if data["model"] ~= nil then attachment.hash = data["model"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+    if attachment.name == nil then attachment.name = attachment.model end
+    if data["bulletproof tyres"] ~= nil then attachment.vehicle_attributes.wheels.bulletproof_tires = toboolean(data["bulletproof tyres"]) end
+    if data["custom primary colour"] ~= nil then attachment.vehicle_attributes.paint.primary.is_custom = toboolean(data["custom primary colour"]) end
+    if data["custom secondary colour"] ~= nil then attachment.vehicle_attributes.paint.secondary.is_custom = toboolean(data["custom secondary colour"]) end
+
+    if data["dirt level"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = tonumber(data["dirt level"]) end
+
+    if data["neon 0"] ~= nil then attachment.vehicle_attributes.neon.lights.left = toboolean(data["neon 0"]) end
+    if data["neon 1"] ~= nil then attachment.vehicle_attributes.neon.lights.right = toboolean(data["neon 1"]) end
+    if data["neon 2"] ~= nil then attachment.vehicle_attributes.neon.lights.front = toboolean(data["neon 2"]) end
+    if data["neon 3"] ~= nil then attachment.vehicle_attributes.neon.lights.back = toboolean(data["neon 3"]) end
+
+    if data["neon blue"] ~= nil then attachment.vehicle_attributes.neon.color.b = tonumber(data["neon blue"]) end
+    if data["neon green"] ~= nil then attachment.vehicle_attributes.neon.color.g = tonumber(data["neon green"]) end
+    if data["neon red"] ~= nil then attachment.vehicle_attributes.neon.color.r = tonumber(data["neon red"]) end
+
+    if data["pearlescent colour"] ~= nil then attachment.vehicle_attributes.paint.extra_colors.pearlescent = tonumber(data["pearlescent colour"]) end
+    if data["primary paint"] ~= nil then attachment.vehicle_attributes.paint.primary.color = tonumber(data["primary paint"]) end
+    if data["secondary paint"] ~= nil then attachment.vehicle_attributes.paint.secondary.color = tonumber(data["secondary paint"]) end
+
+    if data["primary red"] ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.r = tonumber(data["primary red"]) end
+    if data["primary green"] ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.g = tonumber(data["primary green"]) end
+    if data["primary blue"] ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.b = tonumber(data["primary blue"]) end
+
+    if data["secondary red"] ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.r = tonumber(data["secondary red"]) end
+    if data["secondary green"] ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.g = tonumber(data["secondary green"]) end
+    if data["secondary blue"] ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.b = tonumber(data["secondary blue"]) end
+
+    if data["custom tyres"] ~= nil then attachment.vehicle_attributes.wheels.wheel_type = tonumber(data["custom tyres"]) end
+
+    if data["wheel colour"] ~= nil then attachment.vehicle_attributes.paint.extra_colors.wheel = tonumber(data["wheel colour"]) end
+    if data["wheel type"] ~= nil then attachment.vehicle_attributes.wheels.wheel_type = tonumber(data["wheel type"]) end
+    if data["window tint"] ~= nil then attachment.vehicle_attributes.options.window_tint = tonumber(data["window tint"]) end
+
+    if data["tyre smoke blue"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.b = tonumber(data["tyre smoke blue"]) end
+    if data["tyre smoke green"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.g = tonumber(data["tyre smoke green"]) end
+    if data["tyre smoke red"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.r = tonumber(data["tyre smoke red"]) end
+
+    if data["plate index"] ~= nil then attachment.vehicle_attributes.options.license_plate_type = tonumber(data["plate index"]) end
+    if data["plate text"] ~= nil then attachment.vehicle_attributes.options.license_plate_text = data["plate text"] end
+
+    for index = 0, 49 do
+        local field
+        if (index >= 17 and index <= 22) then
+            field = data["toggle "..index]
+            if field ~= nil then
+                attachment.vehicle_attributes.mods["_"..index] = toboolean(field)
+            end
+        else
+            field = data["mods "..index]
+            if field ~= nil then
+                attachment.vehicle_attributes.mods["_"..index] = tonumber(field)
+            end
+        end
+    end
+
+    for index = 0, 14 do
+        local field = data["extra "..index]
+        if field ~= nil then
+            attachment.vehicle_attributes.extras["_"..index] = toboolean(field)
+        end
+    end
+end
+
+local function map_ini_vehicle_mods_flavor_2(attachment, data)
+    for index = 0, 49 do
+        if not (index >= 17 and index <= 22) then
+            attachment.vehicle_attributes.mods["_"..index] = tonumber(data[index])
+        end
+    end
+end
+
+local function map_ini_vehicle_mod_toggles_flavor_2(attachment, data)
+    for index = 17, 22 do
+        attachment.vehicle_attributes.mods["_"..index] = toboolean(data[index])
+    end
+end
+
+local function map_ini_vehicle_extras_flavor_2(attachment, data)
+    for index = 0, 14 do
+        if data[index] ~= nil then
+            attachment.vehicle_attributes.extras["_"..index] = toboolean(data[index])
+        end
+    end
+end
+
+local function map_ini_attachment_flavor_2(attachment, data)
+    if data["model"] ~= nil then attachment.hash = data["model"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+    constructor_lib.set_attachment_defaults(attachment)
+
+    if data["x"] ~= nil then attachment.offset.x = data["x"] end
+    if data["y"] ~= nil then attachment.offset.y = data["y"] end
+    if data["z"] ~= nil then attachment.offset.z = data["z"] end
+
+    if data["RotX"] ~= nil then attachment.rotation.x = data["RotX"] end
+    if data["RotY"] ~= nil then attachment.rotation.y = data["RotY"] end
+    if data["RotZ"] ~= nil then attachment.rotation.z = data["RotZ"] end
+
+    if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
+end
+
 local function map_ini_data_flavor_2(construct_plan, data)
-    debug_log("Found INI flavor 2")
+    if data.Vehicle ~= nil then
+        construct_plan.type = "VEHICLE"
+        map_ini_vehicle_flavor_2(construct_plan, data.Vehicle)
+        if data["Vehicle Mods"] ~= nil then
+            map_ini_vehicle_mods_flavor_2(construct_plan, data["Vehicle Mods"])
+        end
+        if data["Vehicle Toggles"] ~= nil then
+            map_ini_vehicle_mod_toggles_flavor_2(construct_plan, data["Vehicle Toggles"])
+        end
+        if data["Vehicle Extras"] ~= nil then
+            map_ini_vehicle_extras_flavor_2(construct_plan, data["Vehicle Extras"])
+        end
+        for attachment_index = 0, MAX_NUM_ATTACHMENTS do
+            local attached_object = data[tostring(attachment_index)]
+            if attached_object ~= nil and attached_object.model then
+                local attachment = {}
+                map_ini_attachment_flavor_2(attachment, attached_object)
+                table.insert(construct_plan.children, attachment)
+            end
+        end
+    end
 end
 
 ---
