@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local LIB_VERSION = "3.21.4b14"
+local LIB_VERSION = "3.21.4b15"
 
 local constructor_lib = {
     LIB_VERSION = LIB_VERSION,
@@ -639,17 +639,19 @@ constructor_lib.set_attachment_defaults = function(attachment)
     end
     if attachment.options.is_visible == nil then attachment.options.is_visible = true end
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
-    if attachment.options.has_collision == nil then attachment.options.has_collision = true end
+    if attachment.options.has_collision == nil then
+        attachment.options.has_collision = (attachment.root.type ~= "PED")
+    end
     if attachment.root ~= nil and attachment.root.is_preview then attachment.is_preview = true end
     if attachment.options.is_networked == nil and (attachment.root ~= nil and not attachment.root.is_preview) then
         attachment.options.is_networked = true
     end
     if attachment.options.is_mission_entity == nil then attachment.options.is_mission_entity = false end
-    if attachment.options.is_invincible == nil then attachment.options.is_invincible = true end
-    if attachment.options.is_bullet_proof == nil then attachment.options.is_bullet_proof = true end
-    if attachment.options.is_fire_proof == nil then attachment.options.is_fire_proof = true end
-    if attachment.options.is_explosion_proof == nil then attachment.options.is_explosion_proof = true end
-    if attachment.options.is_melee_proof == nil then attachment.options.is_melee_proof = true end
+    if attachment.options.is_invincible == nil then attachment.options.is_invincible = false end
+    if attachment.options.is_bullet_proof == nil then attachment.options.is_bullet_proof = false end
+    if attachment.options.is_fire_proof == nil then attachment.options.is_fire_proof = false end
+    if attachment.options.is_explosion_proof == nil then attachment.options.is_explosion_proof = false end
+    if attachment.options.is_melee_proof == nil then attachment.options.is_melee_proof = false end
     if attachment.options.is_light_on == nil then attachment.options.is_light_on = true end
     if attachment.options.use_soft_pinning == nil then attachment.options.use_soft_pinning = true end
     if attachment.options.bone_index == nil then attachment.options.bone_index = 0 end
@@ -686,6 +688,33 @@ constructor_lib.refresh_blip = function(attachment)
     HUD.SET_BLIP_COLOUR(attachment.blip_handle, attachment.blip_color)
 end
 
+constructor_lib.update_ped_attachment = function(attachment)
+    if attachment.type ~= "PED" then return end
+    if attachment.options.is_on_fire then
+        FIRE.START_ENTITY_FIRE(attachment.handle)
+        ENTITY.SET_ENTITY_PROOFS(
+                attachment.handle,
+                attachment.options.is_bullet_proof, true,
+                attachment.options.is_explosion_proof, attachment.options.is_melee_proof,
+                false, 0, false
+        )
+    else
+        FIRE.STOP_ENTITY_FIRE(attachment.handle)
+        ENTITY.SET_ENTITY_PROOFS(
+                attachment.handle,
+                attachment.options.is_bullet_proof, attachment.options.is_fire_proof,
+                attachment.options.is_explosion_proof, attachment.options.is_melee_proof,
+                false, 0, false
+        )
+    end
+end
+
+constructor_lib.update_attachment_tick = function(attachment)
+    if attachment.options.is_frozen ~= nil then
+        ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
+    end
+end
+
 constructor_lib.update_attachment = function(attachment)
 
     --if constructor_lib.debug then util.log("Updating attachment "..attachment.name.." ["..attachment.handle.."]") end
@@ -702,7 +731,6 @@ constructor_lib.update_attachment = function(attachment)
         ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
     end
 
-
     ENTITY.SET_ENTITY_DYNAMIC(attachment.handle, attachment.options.is_dynamic)
     ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity)
     if attachment.options.is_light_on == true then
@@ -714,22 +742,13 @@ constructor_lib.update_attachment = function(attachment)
     end
     ENTITY.SET_ENTITY_PROOFS(
             attachment.handle,
-            attachment.options.is_bullet_proof,
-            attachment.options.is_fire_proof,
-            attachment.options.is_explosion_proof,
-            attachment.options.is_melee_proof,
-            false, true, false
+            attachment.options.is_bullet_proof, attachment.options.is_fire_proof,
+            attachment.options.is_explosion_proof, attachment.options.is_melee_proof,
+            false, 0, false
     )
     --ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
     AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud or false)
     if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
-
-    if attachment.options.is_on_fire and attachment.temp.fire_id == nil then
-        attachment.temp.fire_id = FIRE.START_ENTITY_FIRE(attachment.handle)
-    elseif (not attachment.options.is_on_fire) and attachment.temp.fire_id ~= nil then
-        FIRE.STOP_ENTITY_FIRE(attachment.handle)
-        attachment.temp.fire_id = nil
-    end
 
     --ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.world_rotation.x, attachment.world_rotation.y, attachment.world_rotation.z, 2, true)
 
@@ -748,6 +767,7 @@ constructor_lib.update_attachment = function(attachment)
     --    constructor_lib.update_attachment_position(attachment)
     end
 
+    constructor_lib.update_ped_attachment(attachment)
 end
 
 constructor_lib.update_attachment_position = function(attachment)
@@ -1171,6 +1191,23 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
     PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
     if attachment.ped_attributes.armour then
         PED.SET_PED_ARMOUR(attachment.handle, attachment.ped_attributes.armour)
+    end
+    if attachment.options.is_on_fire == true then
+        FIRE.START_ENTITY_FIRE(attachment.handle)
+        ENTITY.SET_ENTITY_PROOFS(
+                attachment.handle,
+                attachment.options.is_bullet_proof, true,
+                attachment.options.is_explosion_proof, attachment.options.is_melee_proof,
+                false, 0, false
+        )
+    else
+        FIRE.STOP_ENTITY_FIRE(attachment.handle)
+        ENTITY.SET_ENTITY_PROOFS(
+                attachment.handle,
+                attachment.options.is_bullet_proof, attachment.options.is_fire_proof,
+                attachment.options.is_explosion_proof, attachment.options.is_melee_proof,
+                false, 0, false
+        )
     end
     if attachment.ped_attributes.weapon then
         WEAPON.GIVE_WEAPON_TO_PED(attachment.handle, attachment.ped_attributes.weapon, 999, false, true)
