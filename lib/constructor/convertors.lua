@@ -35,7 +35,7 @@ local function debug_log(message, additional_details)
 end
 
 local function toboolean(value)
-    return not (value == nil or value == false or value == "" or value == "false" or value == "0" or value == 0)
+    return not (value == nil or value == false or value == "" or value == "false" or value == "0" or value == 0 or value == {})
 end
 
 ---
