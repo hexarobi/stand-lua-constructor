@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.6b5"
+local SCRIPT_VERSION = "0.20.6b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -382,10 +382,42 @@ local function calculate_camera_distance(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
+local function get_type(attachment)
+    local child_type = attachment.type
+    if child_type == nil then child_type = "OBJECT" end
+    return child_type
+end
+
+local function count_construct_children(construct_plan, counter)
+    if counter == nil then counter = {["OBJECT"]=0, ["PED"]=0, ["VEHICLE"]=0, ["TOTAL"]=0} end
+    for _, child_attachment in pairs(construct_plan.children) do
+        local child_type = get_type(child_attachment)
+        if counter[child_type] == nil then error("Invalid type "..tostring(child_type)) end
+        counter[child_type] = counter[child_type] + 1
+        counter["TOTAL"] = counter["TOTAL"] + 1
+        count_construct_children(child_attachment, counter)
+    end
+    return counter
+end
+
 local function get_construct_plan_description(construct_plan)
     local descriptions = {}
+    if construct_plan.name ~= nil then
+        table.insert(descriptions, construct_plan.name)
+    end
+    if construct_plan.author ~= nil then
+        table.insert(descriptions, "Created By: "..construct_plan.author)
+    end
+    if construct_plan.description ~= nil then
+        table.insert(descriptions, construct_plan.description)
+    end
     if construct_plan.temp.ini_flavor ~= nil then
         table.insert(descriptions, "INI Flavor: "..construct_plan.temp.ini_flavor)
+    end
+    table.insert(descriptions, get_type(construct_plan))
+    local counter = count_construct_children(construct_plan)
+    if counter["TOTAL"] > 0 then
+        table.insert(descriptions, counter["TOTAL"].." attachments ("..counter["PED"].." peds, "..counter["OBJECT"].." objects, "..counter["VEHICLE"].." vehicles)")
     end
     local description_string = ""
     for _, description in pairs(descriptions) do
@@ -407,7 +439,7 @@ local function add_preview(construct_plan, preview_image_path)
     util.yield(config.preview_display_delay)
     if next_preview == construct_plan then
         local attachment = copy_construct_plan(construct_plan)
-        attachment.name = attachment.model.." (Preview)"
+        if attachment.name == nil then attachment.name = attachment.model end
         attachment.root = attachment
         attachment.parent = attachment
         attachment.is_preview = true
@@ -843,7 +875,7 @@ local function load_construct_plan_file(construct_plan_file)
         util.toast("Failed to load construct from file "..construct_plan_file.filepath, TOAST_ALL)
         return
     end
-    if construct_plan_file.load_menu ~= nil then construct_plan.menu = construct_plan_file.load_menu end
+    if construct_plan_file.load_menu ~= nil then construct_plan.load_menu = construct_plan_file.load_menu end
     debug_log("Loaded construct plan "..tostring(construct_plan.name), construct_plan)
     return construct_plan
 end
