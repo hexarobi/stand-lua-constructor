@@ -1,6 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
+local SCRIPT_VERSION = "0.1"
 local convertor = {}
 
 ---
@@ -17,6 +18,9 @@ util.ensure_package_is_installed('lua/iniparser')
 local status_iniparser, iniparser = pcall(require, "iniparser")
 if not status_iniparser then error("Could not load iniparser lib. Make sure it is selected under Stand > Lua Scripts > Repository > iniparser") end
 
+local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
+if not status_constructor_lib then error("Could not load constructor_lib. This should have been auto-installed.") end
+
 ---
 --- Utils
 ---
@@ -28,6 +32,10 @@ local function debug_log(message, additional_details)
         end
         util.log(message)
     end
+end
+
+local function toboolean(value)
+    return (value == true or value == "true" or value == "1")
 end
 
 ---
@@ -1210,7 +1218,7 @@ end
 -- type 4 has an "AllObjects", "AllPeds", "AllVehicles" section in the ini (4tire_bike.ini)
 -- type 5 has AllObjects and AllVehicles (Boat-fsx.ini) (seems like theres an iniparser glitch in this one)
 -- type 6 is like type 2, but some keys are different, namely the numbers for attachments are called "Attached Object x" (Tankamid.ini)
-constructor_lib.get_ini_flavor = function(data)
+local function get_ini_flavor(data)
     if data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT == nil and data.AllVehicles.Count == nil then
         return 1
     elseif data.Vehicle.model ~= nil and data['Attached Object 1'].model == nil then
@@ -1256,7 +1264,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
 
     debug_log("Parsed INI: "..inspect(data))
 
-    construct_plan.temp.ini_flavor = constructor_lib.get_ini_flavor(data)
+    construct_plan.temp.ini_flavor = get_ini_flavor(data)
     if not construct_plan.temp.ini_flavor then
         util.toast("Unsupported INI Flavor. If you think this file should be supported, please post it in the #broken-constructs channel on discord.", TOAST_ALL)
         return
