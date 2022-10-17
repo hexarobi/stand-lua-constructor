@@ -24,7 +24,7 @@ if not status_constants then error("Could not load constants lib. This should ha
 --- Data
 ---
 
-local ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
+constructor_lib.ENTITY_TYPES = {"PED", "VEHICLE", "OBJECT"}
 
 constructor_lib.construct_base = {
     target_version = constructor_lib.LIB_VERSION,
@@ -741,8 +741,6 @@ constructor_lib.update_attachment = function(attachment)
     AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud or false)
     if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
 
-    --ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.world_rotation.x, attachment.world_rotation.y, attachment.world_rotation.z, 2, true)
-
     if attachment.options.is_attached then
         if attachment.type == "PED" and attachment.parent.is_player then
             util.toast("Cannot attach ped to player. Spawning new ped "..tostring(attachment.name), TOAST_ALL)
@@ -754,8 +752,6 @@ constructor_lib.update_attachment = function(attachment)
                     false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
             )
         end
-    --else
-    --    constructor_lib.update_attachment_position(attachment)
     end
 
     constructor_lib.update_ped_attachment(attachment)
@@ -909,7 +905,7 @@ constructor_lib.attach_attachment = function(attachment)
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
 
     if attachment.num_bones == nil or attachment.num_bones == 200 then attachment.num_bones = ENTITY.GET_ENTITY_BONE_COUNT(attachment.handle) end
-    if attachment.type == nil then attachment.type = ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)] end
+    if attachment.type == nil then attachment.type = constructor_lib.ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)] end
     if attachment.flash_start_on ~= nil then ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0) end
     if attachment.options.is_invincible ~= nil then ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, attachment.options.is_invincible) end
 
@@ -1244,8 +1240,8 @@ constructor_lib.copy_serializable = function(attachment)
     }
     for k, v in pairs(attachment) do
         if not (
-            k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp"
-            or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading"
+                k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp"
+                or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading"
         ) then
             serializeable_attachment[k] = table.table_copy(v)
         end

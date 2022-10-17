@@ -521,7 +521,7 @@ local function map_placement(attachment, placement)
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
-    if placement.Type then attachment.type = ENTITY_TYPES[tonumber(placement.Type)] end
+    if placement.Type then attachment.type = constructor_lib.ENTITY_TYPES[tonumber(placement.Type)] end
     attachment.initial_handle = tonumber(placement.InitialHandle)
     -- dynamic?
     if attachment.children == nil then attachment.children = {} end
