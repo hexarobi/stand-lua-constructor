@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.6b4"
+local SCRIPT_VERSION = "0.20.6b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -77,6 +77,13 @@ local auto_update_config = {
             verify_file_begins_with="--",
         },
         {
+            name="convertors",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/convertors.lua",
+            script_relpath="lib/constructor/convertors.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+        },
+        {
             name="curated_attachments",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
             script_relpath="lib/constructor/curated_attachments.lua",
@@ -97,6 +104,7 @@ for _, dependency in pairs(auto_update_config.dependencies) do
 end
 local inspect = libs.inspect
 local constructor_lib = libs.constructor_lib
+local convertors = libs.convertors
 local constants = libs.constants
 local curated_attachments = libs.curated_attachments
 
@@ -139,6 +147,8 @@ local config = {
     max_search_results = 100,
     language = "en",
 }
+
+CONSTRUCTOR_DEBUG_MODE = true
 
 local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
 filesystem.mkdirs(CONSTRUCTS_DIR)
@@ -781,19 +791,19 @@ local function read_file(filepath)
     end
 end
 
-local function load_construct_plan_from_xml_file(filepath)
-    local data = read_file(filepath)
+local function load_construct_plan_from_xml_file(construct_plan_file)
+    local data = read_file(construct_plan_file.filepath)
     if not data then return end
-    local construct_plan = constructor_lib.convert_xml_to_construct_plan(data)
+    local construct_plan = convertors.convert_xml_to_construct_plan(data)
     if not construct_plan then
-        util.toast("Failed to load XML file: "..filepath, TOAST_ALL)
+        util.toast("Failed to load XML file: ".. construct_plan_file.filepath, TOAST_ALL)
         return
     end
     return construct_plan
 end
 
 local function load_construct_plan_from_ini_file(construct_plan_file)
-    local construct_plan = constructor_lib.convert_ini_to_construct_plan(construct_plan_file)
+    local construct_plan = convertors.convert_ini_to_construct_plan(construct_plan_file)
     if not construct_plan then
         util.toast("Failed to load INI file: "..construct_plan_file.filepath, TOAST_ALL)
         return
@@ -801,10 +811,14 @@ local function load_construct_plan_from_ini_file(construct_plan_file)
     return construct_plan
 end
 
-local function load_construct_plan_from_json_file(filepath)
-    local data = read_file(filepath)
-    if not data then return end
-    return json.decode(data)
+local function load_construct_plan_from_json_file(construct_plan_file)
+    local raw_data = read_file(construct_plan_file.filepath)
+    if not raw_data then return end
+    local construct_plan = json.decode(raw_data)
+    if construct_plan.version and string.find(construct_plan.version, "Jackz") then
+        construct_plan = convertors.convert_jackz_to_construct_plan(construct_plan)
+    end
+    return construct_plan
 end
 
 local function is_file_type_supported(file_extension)
@@ -815,9 +829,9 @@ local function load_construct_plan_file(construct_plan_file)
     debug_log("Loading construct plan file from filepath "..tostring(construct_plan_file.filepath), construct_plan_file)
     local construct_plan
     if construct_plan_file.ext == "json" then
-        construct_plan = load_construct_plan_from_json_file(construct_plan_file.filepath)
+        construct_plan = load_construct_plan_from_json_file(construct_plan_file)
     elseif construct_plan_file.ext == "xml" then
-        construct_plan = load_construct_plan_from_xml_file(construct_plan_file.filepath)
+        construct_plan = load_construct_plan_from_xml_file(construct_plan_file)
         if not construct_plan then return end
         construct_plan.name = construct_plan_file.filename
     elseif construct_plan_file.ext == "ini" then
@@ -825,28 +839,11 @@ local function load_construct_plan_file(construct_plan_file)
         if not construct_plan then return end
         construct_plan.name = construct_plan_file.filename
     end
-    if not construct_plan then
-        util.toast("Could not load construct plan file "..construct_plan_file.filepath, TOAST_ALL)
-        return
-    end
-    if construct_plan_file.ext == "json" and construct_plan.version and string.find(construct_plan.version, "Jackz") then
-        construct_plan = constructor_lib.convert_jackz_to_construct_plan(construct_plan)
-        --if not construct_plan then
-        --    util.toast("Could not load JSON file "..construct_plan_file.filepath, TOAST_ALL)
-        --    return
-        --end
-    end
     if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil) then
         util.toast("Failed to load construct from file "..construct_plan_file.filepath, TOAST_ALL)
         return
     end
-    --if not construct_plan.target_version then
-    --    util.toast("Invalid construct file format. Missing target_version. "..construct_plan_file.filepath, TOAST_ALL)
-    --    return
-    --end
-    if construct_plan_file.load_menu ~= nil then
-        construct_plan.menu = construct_plan_file.load_menu
-    end
+    if construct_plan_file.load_menu ~= nil then construct_plan.menu = construct_plan_file.load_menu end
     debug_log("Loaded construct plan "..tostring(construct_plan.name), construct_plan)
     return construct_plan
 end
