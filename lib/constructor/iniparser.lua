@@ -11,8 +11,10 @@
 -- Other Credits:
 --      - kektram#8996 (743564698699563020); significantly assisted with parse optimizations, and other areas such as garbage collection.
 
+-- Hacked by Hexarobi to support strings
+
 local ini <const> = {
-    version = "0.2.7",
+    version = "0.2.8",
     __debug = false
 }
 
@@ -169,26 +171,18 @@ function ini.parse(path, cwd)
                             serialized_val = cache_val
                         else
                             local nVal <const> = tonumber(value)
-
-                            -- Hack to convert i18n values (with comma for decimal separator)
-                            local converted_nVal
-                            if type(value) == "string" then
-                                local new_value = value:gsub(",", ".")
-                                converted_nVal = tonumber(new_value)
-                            end
-
                             local bVal <const> = luaBoolValues[value]
 
                             if nVal then
                                 serialized_val = nVal
-                            elseif converted_nVal then
-                                serialized_val = converted_nVal
                             elseif bVal ~= nil then
                                 if bVal == "nil" then
                                     serialized_val = nil
                                 else
                                     serialized_val = bVal
                                 end
+                            elseif value then
+                                serialized_val = value
                             end
 
                             cache.values[value] = serialized_val
