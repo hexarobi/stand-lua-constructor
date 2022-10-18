@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.6b6"
+local SCRIPT_VERSION = "0.20.6b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -917,7 +917,7 @@ local function search_constructs(directory, query, results)
         if filesystem.is_dir(filepath) then
             search_constructs(filepath, query, results)
         else
-            if filepath:match(query) then
+            if string.match(filepath:lower(), query:lower()) then
                 local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
                 if is_file_type_supported(ext) then
                     local construct_plan_file = {
@@ -1349,7 +1349,7 @@ menus.rebuild_attachment_menu = function(attachment)
             end)
             attachment.menus.option_on_fire = menu.toggle(attachment.menus.ped_options, "On Fire", {}, "Will the ped be burning on fire, or not", function(on)
                 attachment.options.is_on_fire = on
-                constructor_lib.deserialize_ped_attributes(attachment)
+                constructor_lib.update_ped_attachment(attachment)
             end, attachment.options.is_on_fire)
             -- TODO: Weapon picker
 
@@ -1787,18 +1787,20 @@ menus.load_construct = menu.list(menu.my_root(), "Load Construct", {}, "Load a p
 end)
 load_constructs_root_menu_file = {menu=menus.load_construct, name="Loaded Constructs Menu", menus={}}
 
-menus.search_constructs = menu.list(menus.load_construct, "Search", {}, "", function()
+menus.search_constructs = menu.list(menus.load_construct, "Search", {}, "Search all your construct files", function()
     menu.show_command_box("constructorsearch ")
 end)
 local previous_search_results = {}
-menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "", function(query)
+menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "Edit your search query", function(query)
     for _, previous_search_result in pairs(previous_search_results) do
-        pcall(menu.delete, previous_search_result.menu)
+        pcall(menu.delete, previous_search_result.load_menu)
     end
     previous_search_results = {}
     local results = search_constructs(CONSTRUCTS_DIR, query)
     if #results == 0 then
-        menu.divider(menus.search_constructs, "No results found")
+        local divider = {}
+        divider.load_menu = menu.divider(menus.search_constructs, "No results found")
+        table.insert(previous_search_results, divider)
     else
         for _, result in pairs(results) do
             add_load_construct_plan_file_menu(menus.search_constructs, result)
@@ -1806,6 +1808,25 @@ menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "", fu
         end
     end
 end)
+
+--local function download_and_extract(download_config)
+--
+--    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
+--
+--    auto_updater.run_auto_update({
+--        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
+--        script_relpath="store"..ZIP_FILE_STORE_PATH,
+--        http_timeout=30000,
+--    })
+--
+--    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
+--
+--    if not filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
+--        error("Missing downloaded file "..DOWNLOADED_ZIP_FILE_PATH)
+--    end
+--
+--    util.toast("File downloaded "..DOWNLOADED_ZIP_FILE_PATH)
+--end
 
 menus.load_construct_options = menu.list(menus.load_construct, "Options")
 menu.hyperlink(menus.load_construct_options, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
