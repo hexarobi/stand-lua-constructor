@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.6b8"
+local SCRIPT_VERSION = "0.20.6b9"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1954,9 +1954,9 @@ menu.toggle(options_menu, "Delete All on Unload", {}, "Deconstruct all spawned c
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
 menu.action(options_menu, "Clean Up", {"cleanup"}, "Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris.", function()
-    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),100, "VEHICLE")
-    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),100, "OBJECT")
-    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),100, "PED")
+    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),500, "VEHICLE")
+    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),500, "OBJECT")
+    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),500, "PED")
     util.toast("Removed "..objects.." objects, "..vehicles.." vehicles, and "..peds.." peds", TOAST_ALL)
 end)
 
