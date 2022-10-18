@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.2"
+local SCRIPT_VERSION = "0.4"
 local convertor = {}
 
 ---
@@ -317,8 +317,10 @@ convertor.convert_json_to_construct_plan = function(construct_plan_file)
     convertor.convert_raw_construct_to_construct_plan(construct_plan)
     construct_plan.temp.source_file_type = "Construct"
     if construct_plan.version and string.find(construct_plan.version, "Jackz") then
+        debug_log("JSON data "..inspect(construct_plan))
         construct_plan = convertor.convert_jackz_to_construct_plan(construct_plan)
     end
+    return construct_plan
 end
 
 ---
@@ -431,23 +433,23 @@ local function map_vehicle_attributes(attachment, placement)
     if attachment.vehicle_attributes.doors == nil then attachment.vehicle_attributes.doors = {} end
     if attachment.vehicle_attributes.doors.open == nil then attachment.vehicle_attributes.doors.open = {} end
     if placement.VehicleProperties.DoorsOpen then
-    attachment.vehicle_attributes.doors.open.backleft = toboolean(placement.VehicleProperties.DoorsOpen.BackLeftDoor)
-    attachment.vehicle_attributes.doors.open.backright = toboolean(placement.VehicleProperties.DoorsOpen.BackRightDoor)
-    attachment.vehicle_attributes.doors.open.frontleft = toboolean(placement.VehicleProperties.DoorsOpen.FrontLeftDoor)
-    attachment.vehicle_attributes.doors.open.frontright = toboolean(placement.VehicleProperties.DoorsOpen.FrontRightDoor)
-    attachment.vehicle_attributes.doors.open.hood = toboolean(placement.VehicleProperties.DoorsOpen.Hood)
-    attachment.vehicle_attributes.doors.open.trunk = toboolean(placement.VehicleProperties.DoorsOpen.Trunk)
-    attachment.vehicle_attributes.doors.open.trunk2 = toboolean(placement.VehicleProperties.DoorsOpen.Trunk2)
+        attachment.vehicle_attributes.doors.open.backleft = toboolean(placement.VehicleProperties.DoorsOpen.BackLeftDoor)
+        attachment.vehicle_attributes.doors.open.backright = toboolean(placement.VehicleProperties.DoorsOpen.BackRightDoor)
+        attachment.vehicle_attributes.doors.open.frontleft = toboolean(placement.VehicleProperties.DoorsOpen.FrontLeftDoor)
+        attachment.vehicle_attributes.doors.open.frontright = toboolean(placement.VehicleProperties.DoorsOpen.FrontRightDoor)
+        attachment.vehicle_attributes.doors.open.hood = toboolean(placement.VehicleProperties.DoorsOpen.Hood)
+        attachment.vehicle_attributes.doors.open.trunk = toboolean(placement.VehicleProperties.DoorsOpen.Trunk)
+        attachment.vehicle_attributes.doors.open.trunk2 = toboolean(placement.VehicleProperties.DoorsOpen.Trunk2)
     end
     if attachment.vehicle_attributes.doors.broken == nil then attachment.vehicle_attributes.doors.broken = {} end
     if placement.VehicleProperties.DoorsBroken then
-    attachment.vehicle_attributes.doors.broken.backleft = toboolean(placement.VehicleProperties.DoorsBroken.BackLeftDoor)
-    attachment.vehicle_attributes.doors.broken.backright = toboolean(placement.VehicleProperties.DoorsBroken.BackRightDoor)
-    attachment.vehicle_attributes.doors.broken.frontleft = toboolean(placement.VehicleProperties.DoorsBroken.FrontLeftDoor)
-    attachment.vehicle_attributes.doors.broken.frontright = toboolean(placement.VehicleProperties.DoorsBroken.FrontRightDoor)
-    attachment.vehicle_attributes.doors.broken.hood = toboolean(placement.VehicleProperties.DoorsBroken.Hood)
-    attachment.vehicle_attributes.doors.broken.trunk = toboolean(placement.VehicleProperties.DoorsBroken.Trunk)
-    attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(placement.VehicleProperties.DoorsBroken.Trunk2)
+        attachment.vehicle_attributes.doors.broken.backleft = toboolean(placement.VehicleProperties.DoorsBroken.BackLeftDoor)
+        attachment.vehicle_attributes.doors.broken.backright = toboolean(placement.VehicleProperties.DoorsBroken.BackRightDoor)
+        attachment.vehicle_attributes.doors.broken.frontleft = toboolean(placement.VehicleProperties.DoorsBroken.FrontLeftDoor)
+        attachment.vehicle_attributes.doors.broken.frontright = toboolean(placement.VehicleProperties.DoorsBroken.FrontRightDoor)
+        attachment.vehicle_attributes.doors.broken.hood = toboolean(placement.VehicleProperties.DoorsBroken.Hood)
+        attachment.vehicle_attributes.doors.broken.trunk = toboolean(placement.VehicleProperties.DoorsBroken.Trunk)
+        attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(placement.VehicleProperties.DoorsBroken.Trunk2)
     end
 
     if attachment.vehicle_attributes.options == nil then attachment.vehicle_attributes.options = {} end
@@ -457,21 +459,21 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.options.radio_loud = toboolean(placement.VehicleProperties.IsRadioLoud)
     attachment.vehicle_attributes.options.license_plate_type = tonumber(placement.VehicleProperties.NumberPlateIndex)
     if placement.VehicleProperties.NumberPlateText ~= nil then
-    attachment.vehicle_attributes.options.license_plate_text = tostring(placement.VehicleProperties.NumberPlateText)
+        attachment.vehicle_attributes.options.license_plate_text = tostring(placement.VehicleProperties.NumberPlateText)
     end
 
     if attachment.vehicle_attributes.mods == nil then attachment.vehicle_attributes.mods = {} end
     for index = 0, 49 do
-    local formatter = function(value) if type(value) == "table" then return tonumber(value[1]) end end
-    if index >= 17 and index <= 22 then formatter = toboolean end
-    attachment.vehicle_attributes.mods["_"..index] = formatter(placement.VehicleProperties.Mods["_"..index])
+        local formatter = function(value) if type(value) == "table" then return tonumber(value[1]) end end
+        if index >= 17 and index <= 22 then formatter = toboolean end
+        attachment.vehicle_attributes.mods["_"..index] = formatter(placement.VehicleProperties.Mods["_"..index])
     end
 
     if attachment.vehicle_attributes.extras == nil then attachment.vehicle_attributes.extras = {} end
     for index = 0, 14 do
-    attachment.vehicle_attributes.extras["_"..index] = toboolean(placement.VehicleProperties.ModExtras["_"..index])
+        attachment.vehicle_attributes.extras["_"..index] = toboolean(placement.VehicleProperties.ModExtras["_"..index])
     end
-    end
+end
 
 local function map_ped_placement(attachment, placement)
     if not placement.PedProperties then return end
@@ -732,13 +734,13 @@ local function map_ini_attachment_flavor_1(attachment, data)
     end
     constructor_lib.set_attachment_defaults(attachment)
 
-    if data["X"] ~= nil then attachment.offset.x = data["X"] end
-    if data["Y"] ~= nil then attachment.offset.y = data["Y"] end
-    if data["Z"] ~= nil then attachment.offset.z = data["Z"] end
+    if data["X"] ~= nil then attachment.offset.x = tonumber(data["X"]) end
+    if data["Y"] ~= nil then attachment.offset.y = tonumber(data["Y"]) end
+    if data["Z"] ~= nil then attachment.offset.z = tonumber(data["Z"]) end
 
-    if data["RotX"] ~= nil then attachment.rotation.x = data["RotX"] end
-    if data["RotY"] ~= nil then attachment.rotation.y = data["RotY"] end
-    if data["RotZ"] ~= nil then attachment.rotation.z = data["RotZ"] end
+    if data["RotX"] ~= nil then attachment.rotation.x = tonumber(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.rotation.y = tonumber(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.rotation.z = tonumber(data["RotZ"]) end
 
     if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
     if data["Bone"] ~= nil then attachment.options.bone_index = toboolean(data["Bone"]) end
@@ -874,13 +876,13 @@ local function map_ini_attachment_flavor_2(attachment, data)
     end
     constructor_lib.set_attachment_defaults(attachment)
 
-    if data["x"] ~= nil then attachment.offset.x = data["x"] end
-    if data["y"] ~= nil then attachment.offset.y = data["y"] end
-    if data["z"] ~= nil then attachment.offset.z = data["z"] end
+    if data["x"] ~= nil then attachment.offset.x = tonumber(data["x"]) end
+    if data["y"] ~= nil then attachment.offset.y = tonumber(data["y"]) end
+    if data["z"] ~= nil then attachment.offset.z = tonumber(data["z"]) end
 
-    if data["RotX"] ~= nil then attachment.rotation.x = data["RotX"] end
-    if data["RotY"] ~= nil then attachment.rotation.y = data["RotY"] end
-    if data["RotZ"] ~= nil then attachment.rotation.z = data["RotZ"] end
+    if data["RotX"] ~= nil then attachment.rotation.x = tonumber(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.rotation.y = tonumber(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.rotation.z = tonumber(data["RotZ"]) end
 
     if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
 end
@@ -973,13 +975,13 @@ local function map_ini_attachment_flavor_3(attachment, data)
     end
     constructor_lib.set_attachment_defaults(attachment)
 
-    if data["X"] ~= nil then attachment.offset.x = data["X"] end
-    if data["Y"] ~= nil then attachment.offset.y = data["Y"] end
-    if data["Z"] ~= nil then attachment.offset.z = data["Z"] end
+    if data["X"] ~= nil then attachment.offset.x = tonumber(data["X"]) end
+    if data["Y"] ~= nil then attachment.offset.y = tonumber(data["Y"]) end
+    if data["Z"] ~= nil then attachment.offset.z = tonumber(data["Z"]) end
 
-    if data["RotX"] ~= nil then attachment.rotation.x = data["RotX"] end
-    if data["RotY"] ~= nil then attachment.rotation.y = data["RotY"] end
-    if data["RotZ"] ~= nil then attachment.rotation.z = data["RotZ"] end
+    if data["RotX"] ~= nil then attachment.rotation.x = tonumber(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.rotation.y = tonumber(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.rotation.z = tonumber(data["RotZ"]) end
 end
 
 local function map_ini_data_flavor_3(construct_plan, data)
@@ -1016,17 +1018,17 @@ local function map_ini_attachment_flavor_4(attachment, data)
     if data["PosY"] ~= nil then attachment.position.y = tonumber(data["PosY"]) end
     if data["PosZ"] ~= nil then attachment.position.z = tonumber(data["PosZ"]) end
 
-    if data["RotX"] ~= nil then attachment.world_rotation.x = data["RotX"] end
-    if data["RotY"] ~= nil then attachment.world_rotation.y = data["RotY"] end
-    if data["RotZ"] ~= nil then attachment.world_rotation.z = data["RotZ"] end
+    if data["RotX"] ~= nil then attachment.world_rotation.x = tonumber(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.world_rotation.y = tonumber(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.world_rotation.z = tonumber(data["RotZ"]) end
 
-    if data["OffsetX"] ~= nil then attachment.offset.x = data["OffsetX"] end
-    if data["OffsetY"] ~= nil then attachment.offset.y = data["OffsetY"] end
-    if data["OffsetZ"] ~= nil then attachment.offset.z = data["OffsetZ"] end
+    if data["OffsetX"] ~= nil then attachment.offset.x = tonumber(data["OffsetX"]) end
+    if data["OffsetY"] ~= nil then attachment.offset.y = tonumber(data["OffsetY"]) end
+    if data["OffsetZ"] ~= nil then attachment.offset.z = tonumber(data["OffsetZ"]) end
 
-    if data["Pitch"] ~= nil then attachment.rotation.x = data["Pitch"] end
-    if data["Roll"] ~= nil then attachment.rotation.y = data["Roll"] end
-    if data["Yaw"] ~= nil then attachment.rotation.z = data["Yaw"] end
+    if data["Pitch"] ~= nil then attachment.rotation.x = tonumber(data["Pitch"]) end
+    if data["Roll"] ~= nil then attachment.rotation.y = tonumber(data["Roll"]) end
+    if data["Yaw"] ~= nil then attachment.rotation.z = tonumber(data["Yaw"]) end
 
     if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
     if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
@@ -1296,13 +1298,13 @@ local function map_ini_attachment_flavor_6(attachment, data)
     end
     constructor_lib.set_attachment_defaults(attachment)
 
-    if data["x offset"] ~= nil then attachment.offset.x = data["x offset"] end
-    if data["y offset"] ~= nil then attachment.offset.y = data["y offset"] end
-    if data["z offset"] ~= nil then attachment.offset.z = data["z offset"] end
+    if data["x offset"] ~= nil then attachment.offset.x = tonumber(data["x offset"]) end
+    if data["y offset"] ~= nil then attachment.offset.y = tonumber(data["y offset"]) end
+    if data["z offset"] ~= nil then attachment.offset.z = tonumber(data["z offset"]) end
 
-    if data["pitch"] ~= nil then attachment.rotation.x = data["pitch"] end
-    if data["roll"] ~= nil then attachment.rotation.y = data["roll"] end
-    if data["yaw"] ~= nil then attachment.rotation.z = data["yaw"] end
+    if data["pitch"] ~= nil then attachment.rotation.x = tonumber(data["pitch"]) end
+    if data["roll"] ~= nil then attachment.rotation.y = tonumber(data["roll"]) end
+    if data["yaw"] ~= nil then attachment.rotation.z = tonumber(data["yaw"]) end
 
     if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
 end

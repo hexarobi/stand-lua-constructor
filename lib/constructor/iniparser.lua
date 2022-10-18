@@ -11,7 +11,7 @@
 -- Other Credits:
 --      - kektram#8996 (743564698699563020); significantly assisted with parse optimizations, and other areas such as garbage collection.
 
--- Hacked by Hexarobi to support strings
+-- Hacked by Hexarobi to support strings.
 
 local ini <const> = {
     version = "0.2.8",
