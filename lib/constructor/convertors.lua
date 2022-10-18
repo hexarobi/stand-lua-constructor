@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.1"
+local SCRIPT_VERSION = "0.2"
 local convertor = {}
 
 ---
@@ -372,18 +372,21 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.paint.dashboard_color = tonumber(placement.VehicleProperties.Colours.LrDashboard)
 
     if attachment.vehicle_attributes.neon == nil then attachment.vehicle_attributes.neon = {} end
-    if attachment.vehicle_attributes.neon.lights == nil then attachment.vehicle_attributes.neon.lights = {} end
-    attachment.vehicle_attributes.neon.lights.left = toboolean(placement.VehicleProperties.Neons.Left)
-    attachment.vehicle_attributes.neon.lights.right = toboolean(placement.VehicleProperties.Neons.Right)
-    attachment.vehicle_attributes.neon.lights.front = toboolean(placement.VehicleProperties.Neons.Front)
-    attachment.vehicle_attributes.neon.lights.back = toboolean(placement.VehicleProperties.Neons.Back)
     if attachment.vehicle_attributes.neon.color == nil then attachment.vehicle_attributes.neon.color = {} end
-    attachment.vehicle_attributes.neon.color.r = tonumber(placement.VehicleProperties.Neons.R)
-    attachment.vehicle_attributes.neon.color.g = tonumber(placement.VehicleProperties.Neons.G)
-    attachment.vehicle_attributes.neon.color.b = tonumber(placement.VehicleProperties.Neons.B)
+    if attachment.vehicle_attributes.neon.lights == nil then attachment.vehicle_attributes.neon.lights = {} end
+    if placement.VehicleProperties.Neons then
+        attachment.vehicle_attributes.neon.lights.left = toboolean(placement.VehicleProperties.Neons.Left)
+        attachment.vehicle_attributes.neon.lights.right = toboolean(placement.VehicleProperties.Neons.Right)
+        attachment.vehicle_attributes.neon.lights.front = toboolean(placement.VehicleProperties.Neons.Front)
+        attachment.vehicle_attributes.neon.lights.back = toboolean(placement.VehicleProperties.Neons.Back)
+        attachment.vehicle_attributes.neon.color.r = tonumber(placement.VehicleProperties.Neons.R)
+        attachment.vehicle_attributes.neon.color.g = tonumber(placement.VehicleProperties.Neons.G)
+        attachment.vehicle_attributes.neon.color.b = tonumber(placement.VehicleProperties.Neons.B)
+    end
 
     if attachment.vehicle_attributes.doors == nil then attachment.vehicle_attributes.doors = {} end
     if attachment.vehicle_attributes.doors.open == nil then attachment.vehicle_attributes.doors.open = {} end
+    if placement.VehicleProperties.DoorsOpen then
     attachment.vehicle_attributes.doors.open.backleft = toboolean(placement.VehicleProperties.DoorsOpen.BackLeftDoor)
     attachment.vehicle_attributes.doors.open.backright = toboolean(placement.VehicleProperties.DoorsOpen.BackRightDoor)
     attachment.vehicle_attributes.doors.open.frontleft = toboolean(placement.VehicleProperties.DoorsOpen.FrontLeftDoor)
@@ -391,7 +394,9 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.doors.open.hood = toboolean(placement.VehicleProperties.DoorsOpen.Hood)
     attachment.vehicle_attributes.doors.open.trunk = toboolean(placement.VehicleProperties.DoorsOpen.Trunk)
     attachment.vehicle_attributes.doors.open.trunk2 = toboolean(placement.VehicleProperties.DoorsOpen.Trunk2)
+    end
     if attachment.vehicle_attributes.doors.broken == nil then attachment.vehicle_attributes.doors.broken = {} end
+    if placement.VehicleProperties.DoorsBroken then
     attachment.vehicle_attributes.doors.broken.backleft = toboolean(placement.VehicleProperties.DoorsBroken.BackLeftDoor)
     attachment.vehicle_attributes.doors.broken.backright = toboolean(placement.VehicleProperties.DoorsBroken.BackRightDoor)
     attachment.vehicle_attributes.doors.broken.frontleft = toboolean(placement.VehicleProperties.DoorsBroken.FrontLeftDoor)
@@ -399,6 +404,7 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.doors.broken.hood = toboolean(placement.VehicleProperties.DoorsBroken.Hood)
     attachment.vehicle_attributes.doors.broken.trunk = toboolean(placement.VehicleProperties.DoorsBroken.Trunk)
     attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(placement.VehicleProperties.DoorsBroken.Trunk2)
+    end
 
     if attachment.vehicle_attributes.options == nil then attachment.vehicle_attributes.options = {} end
     attachment.vehicle_attributes.options.siren = toboolean(placement.VehicleProperties.SirenActive)
@@ -407,21 +413,21 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.options.radio_loud = toboolean(placement.VehicleProperties.IsRadioLoud)
     attachment.vehicle_attributes.options.license_plate_type = tonumber(placement.VehicleProperties.NumberPlateIndex)
     if placement.VehicleProperties.NumberPlateText ~= nil then
-        attachment.vehicle_attributes.options.license_plate_text = tostring(placement.VehicleProperties.NumberPlateText)
+    attachment.vehicle_attributes.options.license_plate_text = tostring(placement.VehicleProperties.NumberPlateText)
     end
 
     if attachment.vehicle_attributes.mods == nil then attachment.vehicle_attributes.mods = {} end
     for index = 0, 49 do
-        local formatter = function(value) if type(value) == "table" then return tonumber(value[1]) end end
-        if index >= 17 and index <= 22 then formatter = toboolean end
-        attachment.vehicle_attributes.mods["_"..index] = formatter(placement.VehicleProperties.Mods["_"..index])
+    local formatter = function(value) if type(value) == "table" then return tonumber(value[1]) end end
+    if index >= 17 and index <= 22 then formatter = toboolean end
+    attachment.vehicle_attributes.mods["_"..index] = formatter(placement.VehicleProperties.Mods["_"..index])
     end
 
     if attachment.vehicle_attributes.extras == nil then attachment.vehicle_attributes.extras = {} end
     for index = 0, 14 do
-        attachment.vehicle_attributes.extras["_"..index] = toboolean(placement.VehicleProperties.ModExtras["_"..index])
+    attachment.vehicle_attributes.extras["_"..index] = toboolean(placement.VehicleProperties.ModExtras["_"..index])
     end
-end
+    end
 
 local function map_ped_placement(attachment, placement)
     if not placement.PedProperties then return end
@@ -861,6 +867,7 @@ end
 ---
 --- INI Mapper Flavor #3
 ---
+
 local function map_ini_vehicle_flavor_3(attachment, data)
     if data["Model"] ~= nil then attachment.hash = data["Model"] end
     if attachment.model == nil and attachment.hash ~= nil then
@@ -870,7 +877,7 @@ local function map_ini_vehicle_flavor_3(attachment, data)
     if data["PaintFade"] ~= nil then attachment.vehicle_attributes.paint.fade = tonumber(data["PaintFade"]) end
     if data["DashColor"] ~= nil then attachment.vehicle_attributes.paint.dashboard_color = tonumber(data["DashColor"]) end
     if data["BulletProof"] ~= nil then attachment.vehicle_attributes.wheels.bulletproof_tires = toboolean(data["BulletProof"]) end
-    if data["NeonEnabled"] ~= nil and toboolean(data["NeonEnabled"]) == true then 
+    if data["NeonEnabled"] ~= nil and toboolean(data["NeonEnabled"]) == true then
         attachment.vehicle_attributes.neon.lights.left = true
         attachment.vehicle_attributes.neon.lights.right = true
         attachment.vehicle_attributes.neon.lights.front = true
@@ -878,7 +885,7 @@ local function map_ini_vehicle_flavor_3(attachment, data)
     end
     if data["NeonR"] ~= nil then attachment.vehicle_attributes.neon.color.r = tonumber(data["NeonR"]) end
     if data["NeonG"] ~= nil then attachment.vehicle_attributes.neon.color.g = tonumber(data["NeonG"]) end
-    if data["NeonB"] ~= nil then attachment.vehicle_attributes.neon.color.b = tonumber(data["NeonB"]) end 
+    if data["NeonB"] ~= nil then attachment.vehicle_attributes.neon.color.b = tonumber(data["NeonB"]) end
     if data["SmokeR"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.r = tonumber(data["SmokeR"]) end
     if data["SmokeG"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.g = tonumber(data["SmokeG"]) end
     if data["SmokeB"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.b = tonumber(data["SmokeB"]) end
