@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.6b7"
+local SCRIPT_VERSION = "0.20.6b8"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -73,6 +73,13 @@ local auto_update_config = {
             name="constructor_lib",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
             script_relpath="lib/constructor/constructor_lib.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+        },
+        {
+            name="iniparser",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/iniparser.lua",
+            script_relpath="lib/constructor/iniparser.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
         },
@@ -249,15 +256,48 @@ local function array_remove(t, fnKeep)
     return t;
 end
 
-local function delete_entities_by_range(my_entities, range)
+local function get_player_vehicle_handles()
+    local player_vehicle_handles = {}
+    for _, pid in pairs(players.list()) do
+        local player_ped = PLAYER.GET_PLAYER_PED(pid)
+        local veh = PED.GET_VEHICLE_PED_IS_IN(player_ped, false)
+        if not ENTITY.IS_ENTITY_A_VEHICLE(veh) then
+            veh = PED.GET_VEHICLE_PED_IS_IN(player_ped, true)
+        end
+        if not ENTITY.IS_ENTITY_A_VEHICLE(veh) then
+            veh = 0
+        end
+        if veh then
+            player_vehicle_handles[pid] = veh
+        end
+    end
+    return player_vehicle_handles
+end
+
+local function is_entity_occupied(entity, type, player_vehicle_handles)
+    local occupied = false
+    if type == "VEHICLE" then
+        for _, vehicle_handle in pairs(player_vehicle_handles) do
+            if entity == vehicle_handle then
+                occupied = true
+            end
+        end
+    end
+    return occupied
+end
+
+local function delete_entities_by_range(my_entities, range, type)
+    local player_vehicle_handles = get_player_vehicle_handles()
     local player_pos = ENTITY.GET_ENTITY_COORDS(PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()), 1)
     local count = 0
     for _, entity in ipairs(my_entities) do
         local entity_pos = ENTITY.GET_ENTITY_COORDS(entity, 1)
         local dist = SYSTEM.VDIST(player_pos.x, player_pos.y, player_pos.z, entity_pos.x, entity_pos.y, entity_pos.z)
         if dist <= range then
-            entities.delete_by_handle(entity)
-            count = count + 1
+            if not is_entity_occupied(entity, type, player_vehicle_handles) then
+                entities.delete_by_handle(entity)
+                count = count + 1
+            end
         end
     end
     return count
@@ -402,23 +442,16 @@ end
 
 local function get_construct_plan_description(construct_plan)
     local descriptions = {}
-    if construct_plan.name ~= nil then
-        table.insert(descriptions, construct_plan.name)
-    end
-    if construct_plan.author ~= nil then
-        table.insert(descriptions, "Created By: "..construct_plan.author)
-    end
-    if construct_plan.description ~= nil then
-        table.insert(descriptions, construct_plan.description)
-    end
-    if construct_plan.temp.ini_flavor ~= nil then
-        table.insert(descriptions, "INI Flavor: "..construct_plan.temp.ini_flavor)
-    end
+    if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
     table.insert(descriptions, get_type(construct_plan))
+    if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, construct_plan.temp.source_file_type) end
+    if construct_plan.author ~= nil then table.insert(descriptions, "Created By: "..construct_plan.author) end
+    if construct_plan.description ~= nil then table.insert(descriptions, construct_plan.description) end
     local counter = count_construct_children(construct_plan)
     if counter["TOTAL"] > 0 then
         table.insert(descriptions, counter["TOTAL"].." attachments ("..counter["PED"].." peds, "..counter["OBJECT"].." objects, "..counter["VEHICLE"].." vehicles)")
     end
+    if construct_plan.temp.filepath ~= nil then table.insert(descriptions, construct_plan.temp.filepath) end
     local description_string = ""
     for _, description in pairs(descriptions) do
         description_string = description_string .. description .. "\n"
@@ -844,11 +877,10 @@ local function load_construct_plan_from_ini_file(construct_plan_file)
 end
 
 local function load_construct_plan_from_json_file(construct_plan_file)
-    local raw_data = read_file(construct_plan_file.filepath)
-    if not raw_data then return end
-    local construct_plan = json.decode(raw_data)
-    if construct_plan.version and string.find(construct_plan.version, "Jackz") then
-        construct_plan = convertors.convert_jackz_to_construct_plan(construct_plan)
+    local construct_plan = convertors.convert_json_to_construct_plan(construct_plan_file)
+    if not construct_plan then
+        util.toast("Failed to load JSON file: "..construct_plan_file.filepath, TOAST_ALL)
+        return
     end
     return construct_plan
 end
@@ -864,18 +896,18 @@ local function load_construct_plan_file(construct_plan_file)
         construct_plan = load_construct_plan_from_json_file(construct_plan_file)
     elseif construct_plan_file.ext == "xml" then
         construct_plan = load_construct_plan_from_xml_file(construct_plan_file)
-        if not construct_plan then return end
         construct_plan.name = construct_plan_file.filename
     elseif construct_plan_file.ext == "ini" then
         construct_plan = load_construct_plan_from_ini_file(construct_plan_file)
-        if not construct_plan then return end
-        construct_plan.name = construct_plan_file.filename
     end
+    if not construct_plan then return end
+    if construct_plan.name then construct_plan.name = construct_plan_file.filename end
     if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil) then
         util.toast("Failed to load construct from file "..construct_plan_file.filepath, TOAST_ALL)
         return
     end
     if construct_plan_file.load_menu ~= nil then construct_plan.load_menu = construct_plan_file.load_menu end
+    construct_plan.temp.filepath = construct_plan_file.filepath
     debug_log("Loaded construct plan "..tostring(construct_plan.name), construct_plan)
     return construct_plan
 end
@@ -1922,9 +1954,9 @@ menu.toggle(options_menu, "Delete All on Unload", {}, "Deconstruct all spawned c
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
 menu.action(options_menu, "Clean Up", {"cleanup"}, "Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris.", function()
-    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),100)
-    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),100)
-    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),100)
+    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),100, "VEHICLE")
+    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),100, "OBJECT")
+    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),100, "PED")
     util.toast("Removed "..objects.." objects, "..vehicles.." vehicles, and "..peds.." peds", TOAST_ALL)
 end)
 
