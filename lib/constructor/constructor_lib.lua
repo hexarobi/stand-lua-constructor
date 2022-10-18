@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.4b17"
+local SCRIPT_VERSION = "3.21.4b18"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -741,6 +741,8 @@ constructor_lib.update_attachment = function(attachment)
     AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud or false)
     if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
 
+    --ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.world_rotation.x, attachment.world_rotation.y, attachment.world_rotation.z, 2, true)
+
     if attachment.options.is_attached then
         if attachment.type == "PED" and attachment.parent.is_player then
             util.toast("Cannot attach ped to player. Spawning new ped "..tostring(attachment.name), TOAST_ALL)
@@ -752,6 +754,8 @@ constructor_lib.update_attachment = function(attachment)
                     false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
             )
         end
+    --else
+    --    constructor_lib.update_attachment_position(attachment)
     end
 
     constructor_lib.update_ped_attachment(attachment)
@@ -882,6 +886,8 @@ constructor_lib.attach_attachment = function(attachment)
             pos = ENTITY.GET_ENTITY_COORDS(attachment.root.handle)
         end
         if is_networked then
+            -- breaks rotation!?!
+            --attachment.handle = NETWORK.OBJ_TO_NET(entities.create_object(attachment.hash, pos))
             attachment.handle = entities.create_object(attachment.hash, pos)
         else
             attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(
@@ -1113,6 +1119,7 @@ constructor_lib.serialize_vehicle_attributes = function(vehicle)
     constructor_lib.serialize_vehicle_options(vehicle)
     constructor_lib.serialize_vehicle_mods(vehicle)
     constructor_lib.serialize_vehicle_extras(vehicle)
+    --debug_log("Serialized vehicle attributes "..inspect(vehicle.vehicle_attributes))
 end
 
 constructor_lib.deserialize_vehicle_attributes = function(vehicle)
@@ -1240,8 +1247,8 @@ constructor_lib.copy_serializable = function(attachment)
     }
     for k, v in pairs(attachment) do
         if not (
-                k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp"
-                or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading"
+            k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp"
+            or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading"
         ) then
             serializeable_attachment[k] = table.table_copy(v)
         end
@@ -1251,9 +1258,9 @@ end
 
 constructor_lib.serialize_attachment = function(attachment)
     if attachment.target_version == nil then attachment.target_version = constructor_lib.LIB_VERSION end
-    local serialized_attachment = constructor_lib.copy_serializable(attachment)
     constructor_lib.serialize_vehicle_attributes(attachment)
     constructor_lib.serialize_ped_attributes(attachment)
+    local serialized_attachment = constructor_lib.copy_serializable(attachment)
     if attachment.children then
         for _, child_attachment in pairs(attachment.children) do
             if not child_attachment.options.is_temporary then
