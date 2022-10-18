@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.6b5"
+local SCRIPT_VERSION = "0.20.6b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -382,10 +382,42 @@ local function calculate_camera_distance(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
+local function get_type(attachment)
+    local child_type = attachment.type
+    if child_type == nil then child_type = "OBJECT" end
+    return child_type
+end
+
+local function count_construct_children(construct_plan, counter)
+    if counter == nil then counter = {["OBJECT"]=0, ["PED"]=0, ["VEHICLE"]=0, ["TOTAL"]=0} end
+    for _, child_attachment in pairs(construct_plan.children) do
+        local child_type = get_type(child_attachment)
+        if counter[child_type] == nil then error("Invalid type "..tostring(child_type)) end
+        counter[child_type] = counter[child_type] + 1
+        counter["TOTAL"] = counter["TOTAL"] + 1
+        count_construct_children(child_attachment, counter)
+    end
+    return counter
+end
+
 local function get_construct_plan_description(construct_plan)
     local descriptions = {}
+    if construct_plan.name ~= nil then
+        table.insert(descriptions, construct_plan.name)
+    end
+    if construct_plan.author ~= nil then
+        table.insert(descriptions, "Created By: "..construct_plan.author)
+    end
+    if construct_plan.description ~= nil then
+        table.insert(descriptions, construct_plan.description)
+    end
     if construct_plan.temp.ini_flavor ~= nil then
         table.insert(descriptions, "INI Flavor: "..construct_plan.temp.ini_flavor)
+    end
+    table.insert(descriptions, get_type(construct_plan))
+    local counter = count_construct_children(construct_plan)
+    if counter["TOTAL"] > 0 then
+        table.insert(descriptions, counter["TOTAL"].." attachments ("..counter["PED"].." peds, "..counter["OBJECT"].." objects, "..counter["VEHICLE"].." vehicles)")
     end
     local description_string = ""
     for _, description in pairs(descriptions) do
@@ -407,7 +439,7 @@ local function add_preview(construct_plan, preview_image_path)
     util.yield(config.preview_display_delay)
     if next_preview == construct_plan then
         local attachment = copy_construct_plan(construct_plan)
-        attachment.name = attachment.model.." (Preview)"
+        if attachment.name == nil then attachment.name = attachment.model end
         attachment.root = attachment
         attachment.parent = attachment
         attachment.is_preview = true
@@ -843,7 +875,7 @@ local function load_construct_plan_file(construct_plan_file)
         util.toast("Failed to load construct from file "..construct_plan_file.filepath, TOAST_ALL)
         return
     end
-    if construct_plan_file.load_menu ~= nil then construct_plan.menu = construct_plan_file.load_menu end
+    if construct_plan_file.load_menu ~= nil then construct_plan.load_menu = construct_plan_file.load_menu end
     debug_log("Loaded construct plan "..tostring(construct_plan.name), construct_plan)
     return construct_plan
 end
@@ -885,7 +917,7 @@ local function search_constructs(directory, query, results)
         if filesystem.is_dir(filepath) then
             search_constructs(filepath, query, results)
         else
-            if filepath:match(query) then
+            if string.match(filepath:lower(), query:lower()) then
                 local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
                 if is_file_type_supported(ext) then
                     local construct_plan_file = {
@@ -1317,7 +1349,7 @@ menus.rebuild_attachment_menu = function(attachment)
             end)
             attachment.menus.option_on_fire = menu.toggle(attachment.menus.ped_options, "On Fire", {}, "Will the ped be burning on fire, or not", function(on)
                 attachment.options.is_on_fire = on
-                constructor_lib.deserialize_ped_attributes(attachment)
+                constructor_lib.update_ped_attachment(attachment)
             end, attachment.options.is_on_fire)
             -- TODO: Weapon picker
 
@@ -1755,18 +1787,20 @@ menus.load_construct = menu.list(menu.my_root(), "Load Construct", {}, "Load a p
 end)
 load_constructs_root_menu_file = {menu=menus.load_construct, name="Loaded Constructs Menu", menus={}}
 
-menus.search_constructs = menu.list(menus.load_construct, "Search", {}, "", function()
+menus.search_constructs = menu.list(menus.load_construct, "Search", {}, "Search all your construct files", function()
     menu.show_command_box("constructorsearch ")
 end)
 local previous_search_results = {}
-menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "", function(query)
+menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "Edit your search query", function(query)
     for _, previous_search_result in pairs(previous_search_results) do
-        pcall(menu.delete, previous_search_result.menu)
+        pcall(menu.delete, previous_search_result.load_menu)
     end
     previous_search_results = {}
     local results = search_constructs(CONSTRUCTS_DIR, query)
     if #results == 0 then
-        menu.divider(menus.search_constructs, "No results found")
+        local divider = {}
+        divider.load_menu = menu.divider(menus.search_constructs, "No results found")
+        table.insert(previous_search_results, divider)
     else
         for _, result in pairs(results) do
             add_load_construct_plan_file_menu(menus.search_constructs, result)
@@ -1774,6 +1808,25 @@ menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "", fu
         end
     end
 end)
+
+--local function download_and_extract(download_config)
+--
+--    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
+--
+--    auto_updater.run_auto_update({
+--        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
+--        script_relpath="store"..ZIP_FILE_STORE_PATH,
+--        http_timeout=30000,
+--    })
+--
+--    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
+--
+--    if not filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
+--        error("Missing downloaded file "..DOWNLOADED_ZIP_FILE_PATH)
+--    end
+--
+--    util.toast("File downloaded "..DOWNLOADED_ZIP_FILE_PATH)
+--end
 
 menus.load_construct_options = menu.list(menus.load_construct, "Options")
 menu.hyperlink(menus.load_construct_options, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
