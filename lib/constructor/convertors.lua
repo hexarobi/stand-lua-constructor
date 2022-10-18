@@ -1046,6 +1046,7 @@ local function map_ini_attachment_flavor_4(attachment, data)
 end
 
 local function map_ini_vehicle_flavor_4(attachment, data, index)
+    constructor_lib.default_vehicle_attributes(attachment)
     local vehicle_main = data["Vehicle"..index]
 
     if vehicle_main["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = tonumber(vehicle_main["Dirt"]) end

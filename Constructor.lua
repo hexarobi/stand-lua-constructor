@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.6b8"
+local SCRIPT_VERSION = "0.20.6b12"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -132,7 +132,7 @@ local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.t
 
 pcall(menu.delete, loading_menu)
 
-local VERSION_STRING = "Constructor "..SCRIPT_VERSION.." / Lib "..constructor_lib.LIB_VERSION
+local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION
 
 ---
 --- Data
@@ -660,7 +660,7 @@ local function save_vehicle(construct)
     debug_log("Saving construct "..tostring(construct.name), construct)
     if construct.author == nil then construct.author = players.get_name(players.user()) end
     if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
-    if construct.version == nil then construct.version = VERSION_STRING end
+    if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local file = io.open(filepath, "wb")
     if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
@@ -1954,9 +1954,9 @@ menu.toggle(options_menu, "Delete All on Unload", {}, "Deconstruct all spawned c
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
 menu.action(options_menu, "Clean Up", {"cleanup"}, "Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris.", function()
-    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),100, "VEHICLE")
-    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),100, "OBJECT")
-    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),100, "PED")
+    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),500, "VEHICLE")
+    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),500, "OBJECT")
+    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),500, "PED")
     util.toast("Removed "..objects.." objects, "..vehicles.." vehicles, and "..peds.." peds", TOAST_ALL)
 end)
 
@@ -1977,6 +1977,10 @@ menu.action(script_meta_menu, "Check for Update", {}, "The script will automatic
     if auto_updater.run_auto_update(auto_update_config) then
         util.toast("No updates found")
     end
+end)
+menu.action(script_meta_menu, "Clean Reinstall", {}, "Force an update to the latest version, regardless of current version.", function()
+    auto_update_config.clean_reinstall = true
+    auto_updater.run_auto_update(auto_update_config)
 end)
 menu.hyperlink(script_meta_menu, "Github Source", "https://github.com/hexarobi/stand-lua-constructor", "View source files on Github")
 menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open Discord Server")

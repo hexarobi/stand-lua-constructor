@@ -1,6 +1,29 @@
 -- GTA5 Constants
+-- v1.1
 
 local constants = {}
+
+constants.ped_props = {
+    {index=0, name="Hats"},
+    {index=1, name="Glasses"},
+    {index=2, name="Earrings"},
+    {index=6, name="Watch"},
+    {index=7, name="Bracelet"},
+}
+
+constants.ped_components = {
+    {index=1, name="Mask"},
+    {index=2, name="Hair"},
+    {index=8, name="Shirt"},
+    {index=11, name="Jacket"},
+    {index=4, name="Pants"},
+    {index=6, name="Shoes"},
+    {index=7, name="Necktie"},
+    {index=3, name="Gloves"},
+    {index=5, name="Parachute / Bag"},
+    {index=9, name="Body Armor"},
+    {index=10, name="Decals"},
+}
 
 constants.tire_position_names = {
     { name="Front Left", index=0 },
