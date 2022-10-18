@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.20.6b11"
+local SCRIPT_VERSION = "0.20.6b12"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -660,7 +660,7 @@ local function save_vehicle(construct)
     debug_log("Saving construct "..tostring(construct.name), construct)
     if construct.author == nil then construct.author = players.get_name(players.user()) end
     if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
-    if construct.version == nil then construct.version = VERSION_STRING end
+    if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local file = io.open(filepath, "wb")
     if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
@@ -1977,6 +1977,10 @@ menu.action(script_meta_menu, "Check for Update", {}, "The script will automatic
     if auto_updater.run_auto_update(auto_update_config) then
         util.toast("No updates found")
     end
+end)
+menu.action(script_meta_menu, "Clean Reinstall", {}, "Force an update to the latest version, regardless of current version.", function()
+    auto_update_config.clean_reinstall = true
+    auto_updater.run_auto_update(auto_update_config)
 end)
 menu.hyperlink(script_meta_menu, "Github Source", "https://github.com/hexarobi/stand-lua-constructor", "View source files on Github")
 menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open Discord Server")
