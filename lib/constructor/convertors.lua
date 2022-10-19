@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.1"
+local SCRIPT_VERSION = "0.5"
 local convertor = {}
 
 ---
@@ -14,9 +14,12 @@ if not status_inspect then error("Could not load inspect lib. This should have b
 local status_xml2lua, xml2lua = pcall(require, "constructor/xml2lua")
 if not status_xml2lua then error("Could not load xml2lua lib. This should have been auto-installed.") end
 
-util.ensure_package_is_installed('lua/iniparser')
-local status_iniparser, iniparser = pcall(require, "iniparser")
-if not status_iniparser then error("Could not load iniparser lib. Make sure it is selected under Stand > Lua Scripts > Repository > iniparser") end
+local status_iniparser, iniparser = pcall(require, "constructor/iniparser")
+if not status_iniparser then error("Could not load iniparser lib. This should have been auto-installed.") end
+
+--util.ensure_package_is_installed('lua/json')
+--local status_json, json = pcall(require, "json")
+--if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
 local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
 if not status_constructor_lib then error("Could not load constructor_lib. This should have been auto-installed.") end
@@ -35,7 +38,32 @@ local function debug_log(message, additional_details)
 end
 
 local function toboolean(value)
-    return (value == true or value == "true" or value == "1")
+    return not (value == nil or value == false or value == "" or value == "false" or value == "0" or value == 0 or value == {})
+end
+
+local function read_file(filepath)
+    local file = io.open(filepath, "r")
+    if file then
+        local status, data = pcall(function() return file:read("*a") end)
+        if not status then
+            util.toast("Invalid construct file. "..filepath, TOAST_ALL)
+            return
+        end
+        file:close()
+        return data
+    else
+        error("Could not read file '" .. filepath .. "'", TOAST_ALL)
+    end
+end
+
+---
+--- Constructor Format
+---
+
+convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
+    constructor_lib.set_attachment_defaults(construct_plan)
+    construct_plan.temp.source_file_type = "Construct"
+    return construct_plan
 end
 
 ---
@@ -230,6 +258,7 @@ convertor.convert_jackz_to_construct_plan = function(jackz_build_data)
     --debug_log("Parsed Jackz Build Data: "..inspect(jackz_build_data))
 
     local construct_plan = table.table_copy(constructor_lib.construct_base)
+    construct_plan.temp.source_file_type = "Jackz Vehicle Builder"
     construct_plan.name = jackz_build_data.name
     construct_plan.author = jackz_build_data.author
     construct_plan.type = "VEHICLE"
@@ -274,6 +303,23 @@ convertor.convert_jackz_to_construct_plan = function(jackz_build_data)
 
     --if constructor_lib.debug then util.log("Loaded Jackz construct plan: "..inspect(construct_plan)) end
 
+    return construct_plan
+end
+
+---
+--- JSON to Construct Plan Convertor
+---
+
+convertor.convert_json_to_construct_plan = function(construct_plan_file)
+    local raw_data = read_file(construct_plan_file.filepath)
+    if not raw_data then return end
+    local construct_plan = soup.json.decode(raw_data)
+    convertor.convert_raw_construct_to_construct_plan(construct_plan)
+    construct_plan.temp.source_file_type = "Construct"
+    if construct_plan.version and string.find(construct_plan.version, "Jackz") then
+        debug_log("JSON data "..inspect(construct_plan))
+        construct_plan = convertor.convert_jackz_to_construct_plan(construct_plan)
+    end
     return construct_plan
 end
 
@@ -372,33 +418,39 @@ local function map_vehicle_attributes(attachment, placement)
     attachment.vehicle_attributes.paint.dashboard_color = tonumber(placement.VehicleProperties.Colours.LrDashboard)
 
     if attachment.vehicle_attributes.neon == nil then attachment.vehicle_attributes.neon = {} end
-    if attachment.vehicle_attributes.neon.lights == nil then attachment.vehicle_attributes.neon.lights = {} end
-    attachment.vehicle_attributes.neon.lights.left = toboolean(placement.VehicleProperties.Neons.Left)
-    attachment.vehicle_attributes.neon.lights.right = toboolean(placement.VehicleProperties.Neons.Right)
-    attachment.vehicle_attributes.neon.lights.front = toboolean(placement.VehicleProperties.Neons.Front)
-    attachment.vehicle_attributes.neon.lights.back = toboolean(placement.VehicleProperties.Neons.Back)
     if attachment.vehicle_attributes.neon.color == nil then attachment.vehicle_attributes.neon.color = {} end
-    attachment.vehicle_attributes.neon.color.r = tonumber(placement.VehicleProperties.Neons.R)
-    attachment.vehicle_attributes.neon.color.g = tonumber(placement.VehicleProperties.Neons.G)
-    attachment.vehicle_attributes.neon.color.b = tonumber(placement.VehicleProperties.Neons.B)
+    if attachment.vehicle_attributes.neon.lights == nil then attachment.vehicle_attributes.neon.lights = {} end
+    if placement.VehicleProperties.Neons then
+        attachment.vehicle_attributes.neon.lights.left = toboolean(placement.VehicleProperties.Neons.Left)
+        attachment.vehicle_attributes.neon.lights.right = toboolean(placement.VehicleProperties.Neons.Right)
+        attachment.vehicle_attributes.neon.lights.front = toboolean(placement.VehicleProperties.Neons.Front)
+        attachment.vehicle_attributes.neon.lights.back = toboolean(placement.VehicleProperties.Neons.Back)
+        attachment.vehicle_attributes.neon.color.r = tonumber(placement.VehicleProperties.Neons.R)
+        attachment.vehicle_attributes.neon.color.g = tonumber(placement.VehicleProperties.Neons.G)
+        attachment.vehicle_attributes.neon.color.b = tonumber(placement.VehicleProperties.Neons.B)
+    end
 
     if attachment.vehicle_attributes.doors == nil then attachment.vehicle_attributes.doors = {} end
     if attachment.vehicle_attributes.doors.open == nil then attachment.vehicle_attributes.doors.open = {} end
-    attachment.vehicle_attributes.doors.open.backleft = toboolean(placement.VehicleProperties.DoorsOpen.BackLeftDoor)
-    attachment.vehicle_attributes.doors.open.backright = toboolean(placement.VehicleProperties.DoorsOpen.BackRightDoor)
-    attachment.vehicle_attributes.doors.open.frontleft = toboolean(placement.VehicleProperties.DoorsOpen.FrontLeftDoor)
-    attachment.vehicle_attributes.doors.open.frontright = toboolean(placement.VehicleProperties.DoorsOpen.FrontRightDoor)
-    attachment.vehicle_attributes.doors.open.hood = toboolean(placement.VehicleProperties.DoorsOpen.Hood)
-    attachment.vehicle_attributes.doors.open.trunk = toboolean(placement.VehicleProperties.DoorsOpen.Trunk)
-    attachment.vehicle_attributes.doors.open.trunk2 = toboolean(placement.VehicleProperties.DoorsOpen.Trunk2)
+    if placement.VehicleProperties.DoorsOpen then
+        attachment.vehicle_attributes.doors.open.backleft = toboolean(placement.VehicleProperties.DoorsOpen.BackLeftDoor)
+        attachment.vehicle_attributes.doors.open.backright = toboolean(placement.VehicleProperties.DoorsOpen.BackRightDoor)
+        attachment.vehicle_attributes.doors.open.frontleft = toboolean(placement.VehicleProperties.DoorsOpen.FrontLeftDoor)
+        attachment.vehicle_attributes.doors.open.frontright = toboolean(placement.VehicleProperties.DoorsOpen.FrontRightDoor)
+        attachment.vehicle_attributes.doors.open.hood = toboolean(placement.VehicleProperties.DoorsOpen.Hood)
+        attachment.vehicle_attributes.doors.open.trunk = toboolean(placement.VehicleProperties.DoorsOpen.Trunk)
+        attachment.vehicle_attributes.doors.open.trunk2 = toboolean(placement.VehicleProperties.DoorsOpen.Trunk2)
+    end
     if attachment.vehicle_attributes.doors.broken == nil then attachment.vehicle_attributes.doors.broken = {} end
-    attachment.vehicle_attributes.doors.broken.backleft = toboolean(placement.VehicleProperties.DoorsBroken.BackLeftDoor)
-    attachment.vehicle_attributes.doors.broken.backright = toboolean(placement.VehicleProperties.DoorsBroken.BackRightDoor)
-    attachment.vehicle_attributes.doors.broken.frontleft = toboolean(placement.VehicleProperties.DoorsBroken.FrontLeftDoor)
-    attachment.vehicle_attributes.doors.broken.frontright = toboolean(placement.VehicleProperties.DoorsBroken.FrontRightDoor)
-    attachment.vehicle_attributes.doors.broken.hood = toboolean(placement.VehicleProperties.DoorsBroken.Hood)
-    attachment.vehicle_attributes.doors.broken.trunk = toboolean(placement.VehicleProperties.DoorsBroken.Trunk)
-    attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(placement.VehicleProperties.DoorsBroken.Trunk2)
+    if placement.VehicleProperties.DoorsBroken then
+        attachment.vehicle_attributes.doors.broken.backleft = toboolean(placement.VehicleProperties.DoorsBroken.BackLeftDoor)
+        attachment.vehicle_attributes.doors.broken.backright = toboolean(placement.VehicleProperties.DoorsBroken.BackRightDoor)
+        attachment.vehicle_attributes.doors.broken.frontleft = toboolean(placement.VehicleProperties.DoorsBroken.FrontLeftDoor)
+        attachment.vehicle_attributes.doors.broken.frontright = toboolean(placement.VehicleProperties.DoorsBroken.FrontRightDoor)
+        attachment.vehicle_attributes.doors.broken.hood = toboolean(placement.VehicleProperties.DoorsBroken.Hood)
+        attachment.vehicle_attributes.doors.broken.trunk = toboolean(placement.VehicleProperties.DoorsBroken.Trunk)
+        attachment.vehicle_attributes.doors.broken.trunk2 = toboolean(placement.VehicleProperties.DoorsBroken.Trunk2)
+    end
 
     if attachment.vehicle_attributes.options == nil then attachment.vehicle_attributes.options = {} end
     attachment.vehicle_attributes.options.siren = toboolean(placement.VehicleProperties.SirenActive)
@@ -521,7 +573,7 @@ local function map_placement(attachment, placement)
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
-    if placement.Type then attachment.type = ENTITY_TYPES[tonumber(placement.Type)] end
+    if placement.Type then attachment.type = constructor_lib.ENTITY_TYPES[tonumber(placement.Type)] end
     attachment.initial_handle = tonumber(placement.InitialHandle)
     -- dynamic?
     if attachment.children == nil then attachment.children = {} end
@@ -534,6 +586,7 @@ end
 
 convertor.convert_xml_to_construct_plan = function(xmldata)
     local construct_plan = table.table_copy(constructor_lib.construct_base)
+    construct_plan.temp.source_file_type = "Menyoo XML"
 
     local vehicle_handler = xml2lua.TreeHandler:new()
     local parser = xml2lua.parser(vehicle_handler)
@@ -681,13 +734,13 @@ local function map_ini_attachment_flavor_1(attachment, data)
     end
     constructor_lib.set_attachment_defaults(attachment)
 
-    if data["X"] ~= nil then attachment.offset.x = data["X"] end
-    if data["Y"] ~= nil then attachment.offset.y = data["Y"] end
-    if data["Z"] ~= nil then attachment.offset.z = data["Z"] end
+    if data["X"] ~= nil then attachment.offset.x = tonumber(data["X"]) end
+    if data["Y"] ~= nil then attachment.offset.y = tonumber(data["Y"]) end
+    if data["Z"] ~= nil then attachment.offset.z = tonumber(data["Z"]) end
 
-    if data["RotX"] ~= nil then attachment.rotation.x = data["RotX"] end
-    if data["RotY"] ~= nil then attachment.rotation.y = data["RotY"] end
-    if data["RotZ"] ~= nil then attachment.rotation.z = data["RotZ"] end
+    if data["RotX"] ~= nil then attachment.rotation.x = tonumber(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.rotation.y = tonumber(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.rotation.z = tonumber(data["RotZ"]) end
 
     if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
     if data["Bone"] ~= nil then attachment.options.bone_index = toboolean(data["Bone"]) end
@@ -823,13 +876,13 @@ local function map_ini_attachment_flavor_2(attachment, data)
     end
     constructor_lib.set_attachment_defaults(attachment)
 
-    if data["x"] ~= nil then attachment.offset.x = data["x"] end
-    if data["y"] ~= nil then attachment.offset.y = data["y"] end
-    if data["z"] ~= nil then attachment.offset.z = data["z"] end
+    if data["x"] ~= nil then attachment.offset.x = tonumber(data["x"]) end
+    if data["y"] ~= nil then attachment.offset.y = tonumber(data["y"]) end
+    if data["z"] ~= nil then attachment.offset.z = tonumber(data["z"]) end
 
-    if data["RotX"] ~= nil then attachment.rotation.x = data["RotX"] end
-    if data["RotY"] ~= nil then attachment.rotation.y = data["RotY"] end
-    if data["RotZ"] ~= nil then attachment.rotation.z = data["RotZ"] end
+    if data["RotX"] ~= nil then attachment.rotation.x = tonumber(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.rotation.y = tonumber(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.rotation.z = tonumber(data["RotZ"]) end
 
     if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
 end
@@ -862,8 +915,91 @@ end
 --- INI Mapper Flavor #3
 ---
 
+local function map_ini_vehicle_flavor_3(attachment, data)
+    if data["Model"] ~= nil then attachment.hash = data["Model"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+    constructor_lib.default_vehicle_attributes(attachment)
+    if data["PaintFade"] ~= nil then attachment.vehicle_attributes.paint.fade = tonumber(data["PaintFade"]) end
+    if data["DashColor"] ~= nil then attachment.vehicle_attributes.paint.dashboard_color = tonumber(data["DashColor"]) end
+    if data["BulletProof"] ~= nil then attachment.vehicle_attributes.wheels.bulletproof_tires = toboolean(data["BulletProof"]) end
+    if data["NeonEnabled"] ~= nil and toboolean(data["NeonEnabled"]) == true then
+        attachment.vehicle_attributes.neon.lights.left = true
+        attachment.vehicle_attributes.neon.lights.right = true
+        attachment.vehicle_attributes.neon.lights.front = true
+        attachment.vehicle_attributes.neon.lights.back = true
+    end
+    if data["NeonR"] ~= nil then attachment.vehicle_attributes.neon.color.r = tonumber(data["NeonR"]) end
+    if data["NeonG"] ~= nil then attachment.vehicle_attributes.neon.color.g = tonumber(data["NeonG"]) end
+    if data["NeonB"] ~= nil then attachment.vehicle_attributes.neon.color.b = tonumber(data["NeonB"]) end
+    if data["SmokeR"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.r = tonumber(data["SmokeR"]) end
+    if data["SmokeG"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.g = tonumber(data["SmokeG"]) end
+    if data["SmokeB"] ~= nil then attachment.vehicle_attributes.wheels.tire_smoke_color.b = tonumber(data["SmokeB"]) end
+    if data["WindowTint"] ~= nil then attachment.vehicle_attributes.options.window_tint = tonumber(data["WindowTint"]) end
+    if data["PrimaryPaintT"] ~= nil then attachment.vehicle_attributes.paint.primary.is_custom = toboolean(data["PrimaryPaintT"]) end
+    if data["PrimaryPaint"] ~= nil then attachment.vehicle_attributes.paint.primary.color = tonumber(data["PrimaryPaint"]) end
+    if data["SecondaryPaintT"] ~= nil then attachment.vehicle_attributes.paint.secondary.is_custom = toboolean(data["SecondaryPaintT"]) end
+    if data["SecondaryPaint"] ~= nil then attachment.vehicle_attributes.paint.secondary.color = tonumber(data["SecondaryPaint"]) end
+    if data["Pearlescent"] ~= nil then attachment.vehicle_attributes.paint.extra_colors.pearlescent = tonumber(data["Pearlescent"]) end
+    if data["PrimaryR"] ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.r = tonumber(data["PrimaryR"]) end
+    if data["PrimaryG"] ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.g = tonumber(data["PrimaryG"]) end
+    if data["PrimaryB"] ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.b = tonumber(data["PrimaryB"]) end
+    if data["SecondaryR"] ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.r = tonumber(data["SecondaryR"]) end
+    if data["SecondaryG"] ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.g = tonumber(data["SecondaryG"]) end
+    if data["SecondaryB"] ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.b = tonumber(data["SecondaryB"]) end
+    if data["WheelsColor"] ~= nil then attachment.vehicle_attributes.paint.extra_colors.wheel = tonumber(data["WheelsColor"]) end
+    if data["WheelsType"] ~= nil then attachment.vehicle_attributes.wheels.wheel_type = tonumber(data["WheelsType"]) end
+    if data["PlateIndex"] ~= nil then attachment.vehicle_attributes.options.license_plate_type = tonumber(data["PlateIndex"]) end
+    if data["PlateText"] ~= nil then attachment.vehicle_attributes.options.license_plate_text = data["PlateText"] end
+end
+
+local function map_ini_vehicle_mods_flavor_3(attachment, data)
+    for index = 0, 49 do
+        if not (index >= 17 and index <= 22) then
+            attachment.vehicle_attributes.mods["_"..index] = tonumber(data[index])
+        end
+    end
+end
+
+local function map_ini_vehicle_toggles_flavor_3(attachment, data)
+    for index = 17, 22 do
+        attachment.vehicle_attributes.mods["_"..index] = toboolean(data["TOGGLE_"..index])
+    end
+end
+
+local function map_ini_attachment_flavor_3(attachment, data)
+    if data["Model"] ~= nil then attachment.hash = data["Model"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+    constructor_lib.set_attachment_defaults(attachment)
+
+    if data["X"] ~= nil then attachment.offset.x = tonumber(data["X"]) end
+    if data["Y"] ~= nil then attachment.offset.y = tonumber(data["Y"]) end
+    if data["Z"] ~= nil then attachment.offset.z = tonumber(data["Z"]) end
+
+    if data["RotX"] ~= nil then attachment.rotation.x = tonumber(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.rotation.y = tonumber(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.rotation.z = tonumber(data["RotZ"]) end
+end
+
 local function map_ini_data_flavor_3(construct_plan, data)
-    debug_log("Found INI flavor 3")
+    if data.Vehicle ~= nil then
+        construct_plan.type = "VEHICLE"
+        map_ini_vehicle_flavor_3(construct_plan, data.Vehicle)
+        map_ini_vehicle_mods_flavor_3(construct_plan, data.Vehicle)
+        map_ini_vehicle_toggles_flavor_3(construct_plan, data.Vehicle)
+        for attachment_index = 0, MAX_NUM_ATTACHMENTS do
+            local attached_object = data[tostring(attachment_index)]
+            if attached_object ~= nil and attached_object.Model then
+                local attachment = {}
+                attachment.type = "OBJECT"
+                map_ini_attachment_flavor_3(attachment, attached_object)
+                table.insert(construct_plan.children, attachment)
+            end
+        end
+    end
 end
 
 ---
@@ -882,17 +1018,17 @@ local function map_ini_attachment_flavor_4(attachment, data)
     if data["PosY"] ~= nil then attachment.position.y = tonumber(data["PosY"]) end
     if data["PosZ"] ~= nil then attachment.position.z = tonumber(data["PosZ"]) end
 
-    if data["RotX"] ~= nil then attachment.world_rotation.x = data["RotX"] end
-    if data["RotY"] ~= nil then attachment.world_rotation.y = data["RotY"] end
-    if data["RotZ"] ~= nil then attachment.world_rotation.z = data["RotZ"] end
+    if data["RotX"] ~= nil then attachment.world_rotation.x = tonumber(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.world_rotation.y = tonumber(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.world_rotation.z = tonumber(data["RotZ"]) end
 
-    if data["OffsetX"] ~= nil then attachment.offset.x = data["OffsetX"] end
-    if data["OffsetY"] ~= nil then attachment.offset.y = data["OffsetY"] end
-    if data["OffsetZ"] ~= nil then attachment.offset.z = data["OffsetZ"] end
+    if data["OffsetX"] ~= nil then attachment.offset.x = tonumber(data["OffsetX"]) end
+    if data["OffsetY"] ~= nil then attachment.offset.y = tonumber(data["OffsetY"]) end
+    if data["OffsetZ"] ~= nil then attachment.offset.z = tonumber(data["OffsetZ"]) end
 
-    if data["Pitch"] ~= nil then attachment.rotation.x = data["Pitch"] end
-    if data["Roll"] ~= nil then attachment.rotation.y = data["Roll"] end
-    if data["Yaw"] ~= nil then attachment.rotation.z = data["Yaw"] end
+    if data["Pitch"] ~= nil then attachment.rotation.x = tonumber(data["Pitch"]) end
+    if data["Roll"] ~= nil then attachment.rotation.y = tonumber(data["Roll"]) end
+    if data["Yaw"] ~= nil then attachment.rotation.z = tonumber(data["Yaw"]) end
 
     if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
     if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
@@ -910,6 +1046,7 @@ local function map_ini_attachment_flavor_4(attachment, data)
 end
 
 local function map_ini_vehicle_flavor_4(attachment, data, index)
+    constructor_lib.default_vehicle_attributes(attachment)
     local vehicle_main = data["Vehicle"..index]
 
     if vehicle_main["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = tonumber(vehicle_main["Dirt"]) end
@@ -1162,13 +1299,13 @@ local function map_ini_attachment_flavor_6(attachment, data)
     end
     constructor_lib.set_attachment_defaults(attachment)
 
-    if data["x offset"] ~= nil then attachment.offset.x = data["x offset"] end
-    if data["y offset"] ~= nil then attachment.offset.y = data["y offset"] end
-    if data["z offset"] ~= nil then attachment.offset.z = data["z offset"] end
+    if data["x offset"] ~= nil then attachment.offset.x = tonumber(data["x offset"]) end
+    if data["y offset"] ~= nil then attachment.offset.y = tonumber(data["y offset"]) end
+    if data["z offset"] ~= nil then attachment.offset.z = tonumber(data["z offset"]) end
 
-    if data["pitch"] ~= nil then attachment.rotation.x = data["pitch"] end
-    if data["roll"] ~= nil then attachment.rotation.y = data["roll"] end
-    if data["yaw"] ~= nil then attachment.rotation.z = data["yaw"] end
+    if data["pitch"] ~= nil then attachment.rotation.x = tonumber(data["pitch"]) end
+    if data["roll"] ~= nil then attachment.rotation.y = tonumber(data["roll"]) end
+    if data["yaw"] ~= nil then attachment.rotation.z = tonumber(data["yaw"]) end
 
     if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
 end
@@ -1269,6 +1406,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
         util.toast("Unsupported INI Flavor. If you think this file should be supported, please post it in the #broken-constructs channel on discord.", TOAST_ALL)
         return
     end
+    construct_plan.temp.source_file_type = "INI Flavor "..construct_plan.temp.ini_flavor
     map_ini_data(construct_plan, data)
     rearrange_by_initial_attachment(construct_plan)
 
