@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23b2"
+local SCRIPT_VERSION = "0.23b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -866,7 +866,7 @@ local function activate_vehicle_sirens(parent_attachment)
 end
 
 local function refresh_vehicle_sirens(attachment)
-    if attachment.options.has_siren then
+    if attachment.options.has_siren and attachment ~= attachment.parent then
         rebuild_attachment(attachment)
     else
         for _, child_attachment in attachment.children do
