@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.22"
+local SCRIPT_VERSION = "0.23b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 local loading_menu = menu.divider(menu.my_root(), "Loading...")
@@ -101,6 +101,11 @@ local auto_update_config = {
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
             script_relpath="lib/constructor/objects_complete.txt",
             verify_file_begins_with="ba_prop_glass_garage_opaque",
+        },
+        {
+            name="constructor_logo",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
+            script_relpath="lib/constructor/constructor_logo.png",
         }
     }
 }
@@ -1997,24 +2002,24 @@ menu.readonly(script_meta_menu, "Lance", "Constructor also owes inspiration to L
 --- Startup Logo
 ---
 
---if SCRIPT_MANUAL_START then
---    local logo = directx.create_texture(filesystem.scripts_dir() .. '/lib/constructor/constructor_logo.png')
---    local fade_steps = 50
---    -- Fade In
---    for i = 0,fade_steps do
---        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
---        util.yield()
---    end
---    for i = 0,100 do
---        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
---        util.yield()
---    end
---    -- Fade Out
---    for i = fade_steps,0,-1 do
---        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
---        util.yield()
---    end
---end
+if SCRIPT_MANUAL_START then
+    local logo = directx.create_texture(filesystem.scripts_dir() .. '/lib/constructor/constructor_logo.png')
+    local fade_steps = 50
+    -- Fade In
+    for i = 0,fade_steps do
+        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
+        util.yield()
+    end
+    for i = 0,100 do
+        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
+        util.yield()
+    end
+    -- Fade Out
+    for i = fade_steps,0,-1 do
+        directx.draw_texture(logo, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, i/fade_steps)
+        util.yield()
+    end
+end
 
 ---
 --- Run
