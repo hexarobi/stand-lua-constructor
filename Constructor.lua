@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.21"
+local SCRIPT_VERSION = "0.22"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -77,6 +77,20 @@ local auto_update_config = {
             verify_file_begins_with="--",
         },
         {
+            name="iniparser",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/iniparser.lua",
+            script_relpath="lib/constructor/iniparser.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+        },
+        {
+            name="convertors",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/convertors.lua",
+            script_relpath="lib/constructor/convertors.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+        },
+        {
             name="curated_attachments",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
             script_relpath="lib/constructor/curated_attachments.lua",
@@ -97,6 +111,7 @@ for _, dependency in pairs(auto_update_config.dependencies) do
 end
 local inspect = libs.inspect
 local constructor_lib = libs.constructor_lib
+local convertors = libs.convertors
 local constants = libs.constants
 local curated_attachments = libs.curated_attachments
 
@@ -117,7 +132,7 @@ local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.t
 
 pcall(menu.delete, loading_menu)
 
-local VERSION_STRING = "Constructor "..SCRIPT_VERSION.." / Lib "..constructor_lib.LIB_VERSION
+local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION
 
 ---
 --- Data
@@ -128,7 +143,7 @@ local config = {
     edit_offset_step = 10,
     edit_rotation_step = 15,
     add_attachment_gun_active = false,
-    debug = true,
+    debug = false,
     show_previews = true,
     preview_camera_distance = 3,
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
@@ -137,7 +152,10 @@ local config = {
     wear_spawned_peds = true,
     preview_display_delay = 500,
     max_search_results = 100,
+    language = "en",
 }
+
+CONSTRUCTOR_DEBUG_MODE = false
 
 local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
 filesystem.mkdirs(CONSTRUCTS_DIR)
@@ -238,15 +256,48 @@ local function array_remove(t, fnKeep)
     return t;
 end
 
-local function delete_entities_by_range(my_entities, range)
+local function get_player_vehicle_handles()
+    local player_vehicle_handles = {}
+    for _, pid in pairs(players.list()) do
+        local player_ped = PLAYER.GET_PLAYER_PED(pid)
+        local veh = PED.GET_VEHICLE_PED_IS_IN(player_ped, false)
+        if not ENTITY.IS_ENTITY_A_VEHICLE(veh) then
+            veh = PED.GET_VEHICLE_PED_IS_IN(player_ped, true)
+        end
+        if not ENTITY.IS_ENTITY_A_VEHICLE(veh) then
+            veh = 0
+        end
+        if veh then
+            player_vehicle_handles[pid] = veh
+        end
+    end
+    return player_vehicle_handles
+end
+
+local function is_entity_occupied(entity, type, player_vehicle_handles)
+    local occupied = false
+    if type == "VEHICLE" then
+        for _, vehicle_handle in pairs(player_vehicle_handles) do
+            if entity == vehicle_handle then
+                occupied = true
+            end
+        end
+    end
+    return occupied
+end
+
+local function delete_entities_by_range(my_entities, range, type)
+    local player_vehicle_handles = get_player_vehicle_handles()
     local player_pos = ENTITY.GET_ENTITY_COORDS(PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()), 1)
     local count = 0
     for _, entity in ipairs(my_entities) do
         local entity_pos = ENTITY.GET_ENTITY_COORDS(entity, 1)
         local dist = SYSTEM.VDIST(player_pos.x, player_pos.y, player_pos.z, entity_pos.x, entity_pos.y, entity_pos.z)
         if dist <= range then
-            entities.delete_by_handle(entity)
-            count = count + 1
+            if not is_entity_occupied(entity, type, player_vehicle_handles) then
+                entities.delete_by_handle(entity)
+                count = count + 1
+            end
         end
     end
     return count
@@ -371,6 +422,43 @@ local function calculate_camera_distance(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
+local function get_type(attachment)
+    local child_type = attachment.type
+    if child_type == nil then child_type = "OBJECT" end
+    return child_type
+end
+
+local function count_construct_children(construct_plan, counter)
+    if counter == nil then counter = {["OBJECT"]=0, ["PED"]=0, ["VEHICLE"]=0, ["TOTAL"]=0} end
+    for _, child_attachment in pairs(construct_plan.children) do
+        local child_type = get_type(child_attachment)
+        if counter[child_type] == nil then error("Invalid type "..tostring(child_type)) end
+        counter[child_type] = counter[child_type] + 1
+        counter["TOTAL"] = counter["TOTAL"] + 1
+        count_construct_children(child_attachment, counter)
+    end
+    return counter
+end
+
+local function get_construct_plan_description(construct_plan)
+    local descriptions = {}
+    if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
+    table.insert(descriptions, get_type(construct_plan))
+    if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, construct_plan.temp.source_file_type) end
+    if construct_plan.author ~= nil then table.insert(descriptions, "Created By: "..construct_plan.author) end
+    if construct_plan.description ~= nil then table.insert(descriptions, construct_plan.description) end
+    local counter = count_construct_children(construct_plan)
+    if counter["TOTAL"] > 0 then
+        table.insert(descriptions, counter["TOTAL"].." attachments ("..counter["PED"].." peds, "..counter["OBJECT"].." objects, "..counter["VEHICLE"].." vehicles)")
+    end
+    if construct_plan.temp.filepath ~= nil then table.insert(descriptions, construct_plan.temp.filepath) end
+    local description_string = ""
+    for _, description in pairs(descriptions) do
+        description_string = description_string .. description .. "\n"
+    end
+    return description_string
+end
+
 local function add_preview(construct_plan, preview_image_path)
     if config.show_previews == false then return end
     remove_preview()
@@ -384,13 +472,16 @@ local function add_preview(construct_plan, preview_image_path)
     util.yield(config.preview_display_delay)
     if next_preview == construct_plan then
         local attachment = copy_construct_plan(construct_plan)
-        attachment.name = attachment.model.." (Preview)"
+        if attachment.name == nil then attachment.name = attachment.model end
         attachment.root = attachment
         attachment.parent = attachment
         attachment.is_preview = true
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
         current_preview = constructor_lib.attach_attachment_with_children(attachment)
+        if construct_plan.load_menu then
+            menu.set_help_text(construct_plan.load_menu, get_construct_plan_description(current_preview))
+        end
         if next_preview ~= construct_plan then
             remove_preview(current_preview)
         end
@@ -416,16 +507,16 @@ local function update_preview_tick()
     end
 end
 
-local function freeze_attachment(attachment)
-    ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
+local function update_attachment_tick(attachment)
+    constructor_lib.update_attachment_tick(attachment)
     for _, child_attachment in pairs(attachment.children) do
-        freeze_attachment(child_attachment)
+        update_attachment_tick(child_attachment)
     end
 end
 
-local function frozen_attachment_tick()
+local function update_constructs_tick()
     for _, spawned_construct in pairs(spawned_constructs) do
-        freeze_attachment(spawned_construct)
+        update_attachment_tick(spawned_construct)
     end
 end
 
@@ -569,7 +660,7 @@ local function save_vehicle(construct)
     debug_log("Saving construct "..tostring(construct.name), construct)
     if construct.author == nil then construct.author = players.get_name(players.user()) end
     if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
-    if construct.version == nil then construct.version = VERSION_STRING end
+    if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local file = io.open(filepath, "wb")
     if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
@@ -765,19 +856,19 @@ local function read_file(filepath)
     end
 end
 
-local function load_construct_plan_from_xml_file(filepath)
-    local data = read_file(filepath)
+local function load_construct_plan_from_xml_file(construct_plan_file)
+    local data = read_file(construct_plan_file.filepath)
     if not data then return end
-    local construct_plan = constructor_lib.convert_xml_to_construct_plan(data)
+    local construct_plan = convertors.convert_xml_to_construct_plan(data)
     if not construct_plan then
-        util.toast("Failed to load XML file: "..filepath, TOAST_ALL)
+        util.toast("Failed to load XML file: ".. construct_plan_file.filepath, TOAST_ALL)
         return
     end
     return construct_plan
 end
 
 local function load_construct_plan_from_ini_file(construct_plan_file)
-    local construct_plan = constructor_lib.convert_ini_to_construct_plan(construct_plan_file)
+    local construct_plan = convertors.convert_ini_to_construct_plan(construct_plan_file)
     if not construct_plan then
         util.toast("Failed to load INI file: "..construct_plan_file.filepath, TOAST_ALL)
         return
@@ -785,10 +876,13 @@ local function load_construct_plan_from_ini_file(construct_plan_file)
     return construct_plan
 end
 
-local function load_construct_plan_from_json_file(filepath)
-    local data = read_file(filepath)
-    if not data then return end
-    return json.decode(data)
+local function load_construct_plan_from_json_file(construct_plan_file)
+    local construct_plan = convertors.convert_json_to_construct_plan(construct_plan_file)
+    if not construct_plan then
+        util.toast("Failed to load JSON file: "..construct_plan_file.filepath, TOAST_ALL)
+        return
+    end
+    return construct_plan
 end
 
 local function is_file_type_supported(file_extension)
@@ -799,31 +893,21 @@ local function load_construct_plan_file(construct_plan_file)
     debug_log("Loading construct plan file from filepath "..tostring(construct_plan_file.filepath), construct_plan_file)
     local construct_plan
     if construct_plan_file.ext == "json" then
-        construct_plan = load_construct_plan_from_json_file(construct_plan_file.filepath)
+        construct_plan = load_construct_plan_from_json_file(construct_plan_file)
     elseif construct_plan_file.ext == "xml" then
-        construct_plan = load_construct_plan_from_xml_file(construct_plan_file.filepath)
-        if not construct_plan then return end
+        construct_plan = load_construct_plan_from_xml_file(construct_plan_file)
         construct_plan.name = construct_plan_file.filename
     elseif construct_plan_file.ext == "ini" then
         construct_plan = load_construct_plan_from_ini_file(construct_plan_file)
-        if not construct_plan then return end
-        construct_plan.name = construct_plan_file.filename
     end
-    if not construct_plan then
-        util.toast("Could not load construct plan file "..construct_plan_file.filepath, TOAST_ALL)
+    if not construct_plan then return end
+    if construct_plan.name then construct_plan.name = construct_plan_file.filename end
+    if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil) then
+        util.toast("Failed to load construct from file "..construct_plan_file.filepath, TOAST_ALL)
         return
     end
-    if construct_plan.version and string.find(construct_plan.version, "Jackz") then
-        construct_plan = constructor_lib.convert_jackz_to_construct_plan(construct_plan)
-        if not construct_plan then
-            util.toast("Could not load Jackz Vehicle file "..construct_plan_file.filepath, TOAST_ALL)
-            return
-        end
-    end
-    if not construct_plan.target_version then
-        util.toast("Invalid construct file format. Missing target_version. "..construct_plan_file.filepath, TOAST_ALL)
-        return
-    end
+    if construct_plan_file.load_menu ~= nil then construct_plan.load_menu = construct_plan_file.load_menu end
+    construct_plan.temp.filepath = construct_plan_file.filepath
     debug_log("Loaded construct plan "..tostring(construct_plan.name), construct_plan)
     return construct_plan
 end
@@ -865,7 +949,7 @@ local function search_constructs(directory, query, results)
         if filesystem.is_dir(filepath) then
             search_constructs(filepath, query, results)
         else
-            if filepath:match(query) then
+            if string.match(filepath:lower(), query:lower()) then
                 local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
                 if is_file_type_supported(ext) then
                     local construct_plan_file = {
@@ -958,14 +1042,14 @@ local function build_curated_attachments_menu(attachment, root_menu, curated_ite
             build_curated_attachments_menu(attachment, child_menu, child_item)
         end
     else
-        local menu_item = menu.action(root_menu, curated_item.name, {}, "", function()
+        curated_item.load_menu = menu.action(root_menu, curated_item.name, {}, "", function()
             local child_attachment = copy_construct_plan(curated_item)
             child_attachment.root = attachment.root
             child_attachment.parent = attachment
             build_construct_from_plan(child_attachment)
         end)
-        menu.on_focus(menu_item, function(direction) if direction ~= 0 then add_preview(curated_item) end end)
-        menu.on_blur(menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
+        menu.on_focus(curated_item.load_menu, function(direction) if direction ~= 0 then add_preview(curated_item) end end)
+        menu.on_blur(curated_item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
     end
 end
 
@@ -1023,17 +1107,17 @@ local function add_prop_search_results(attachment, query, page_size, page_number
     for i = (page_size*page_number)+1, page_size*(page_number+1) do
         if results[i] then
             local model = results[i].prop
-            local search_result_menu_item = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
+            local search_result_attachment_menu = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
                 build_construct_from_plan({
                     root = attachment.root,
                     parent = attachment,
-                    name = model,
-                    model = model,
+                    name = results[i].prop,
+                    model = results[i].prop,
                 })
             end)
-            menu.on_focus(search_result_menu_item, function(direction) if direction ~= 0 then add_preview({model=model}) end end)
-            menu.on_blur(search_result_menu_item, function(direction) if direction ~= 0 then remove_preview() end end)
-            table.insert(attachment.temp.prop_search_results, search_result_menu_item)
+            menu.on_focus(search_result_attachment_menu, function(direction) if direction ~= 0 then add_preview({model=model}) end end)
+            menu.on_blur(search_result_attachment_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+            table.insert(attachment.temp.prop_search_results, search_result_attachment_menu)
         end
     end
     if attachment.menus.search_add_more ~= nil then menu.delete(attachment.menus.search_add_more) end
@@ -1295,6 +1379,10 @@ menus.rebuild_attachment_menu = function(attachment)
                 attachment.ped_attributes.armor = value
                 constructor_lib.deserialize_ped_attributes(attachment)
             end)
+            attachment.menus.option_on_fire = menu.toggle(attachment.menus.ped_options, "On Fire", {}, "Will the ped be burning on fire, or not", function(on)
+                attachment.options.is_on_fire = on
+                constructor_lib.update_ped_attachment(attachment)
+            end, attachment.options.is_on_fire)
             -- TODO: Weapon picker
 
             local function create_ped_component_menu(attachment, root_menu, index, name)
@@ -1550,7 +1638,13 @@ menus.rebuild_attachment_menu = function(attachment)
         end
         attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport Me to Construct", {}, "", function()
             local pos = ENTITY.GET_ENTITY_COORDS(attachment.handle)
-            ENTITY.SET_ENTITY_COORDS(PLAYER.PLAYER_PED_ID(), pos.x, pos.y, pos.z + 2)
+            local vehicle = entities.get_user_vehicle_as_handle()
+            if vehicle and PED.IS_PED_SITTING_IN_VEHICLE(players.user_ped(), vehicle) then
+                ENTITY.SET_ENTITY_COORDS(vehicle, pos.x, pos.y, pos.z)
+                VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(vehicle, 5)
+            else
+                ENTITY.SET_ENTITY_COORDS(players.user_ped(), pos.x, pos.y, pos.z)
+            end
         end)
         attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, "Teleport Construct to Me", {}, "", function()
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.0, 2.0, -2.5)
@@ -1706,7 +1800,7 @@ end)
 ---
 
 local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
-    construct_plan_file.menu = menu.action(root_menu, construct_plan_file.name, {}, "", function()
+    construct_plan_file.load_menu = menu.action(root_menu, construct_plan_file.name, {}, "", function()
         remove_preview()
         local construct_plan = load_construct_plan_file(construct_plan_file)
         if construct_plan then
@@ -1715,8 +1809,8 @@ local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
             build_construct_from_plan(construct_plan)
         end
     end)
-    menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
-    menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
+    menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
+    menu.on_blur(construct_plan_file.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
 end
 
 local load_constructs_root_menu_file
@@ -1725,18 +1819,20 @@ menus.load_construct = menu.list(menu.my_root(), "Load Construct", {}, "Load a p
 end)
 load_constructs_root_menu_file = {menu=menus.load_construct, name="Loaded Constructs Menu", menus={}}
 
-menus.search_constructs = menu.list(menus.load_construct, "Search", {}, "", function()
+menus.search_constructs = menu.list(menus.load_construct, "Search", {}, "Search all your construct files", function()
     menu.show_command_box("constructorsearch ")
 end)
 local previous_search_results = {}
-menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "", function(query)
+menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "Edit your search query", function(query)
     for _, previous_search_result in pairs(previous_search_results) do
-        menu.delete(previous_search_result.menu)
+        pcall(menu.delete, previous_search_result.load_menu)
     end
     previous_search_results = {}
     local results = search_constructs(CONSTRUCTS_DIR, query)
     if #results == 0 then
-        menu.divider(menus.search_constructs, "No results found")
+        local divider = {}
+        divider.load_menu = menu.divider(menus.search_constructs, "No results found")
+        table.insert(previous_search_results, divider)
     else
         for _, result in pairs(results) do
             add_load_construct_plan_file_menu(menus.search_constructs, result)
@@ -1744,6 +1840,29 @@ menu.text_input(menus.search_constructs, "Search", {"constructorsearch"}, "", fu
         end
     end
 end)
+
+--local function download_and_extract(download_config)
+--
+--    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
+--
+--    auto_updater.run_auto_update({
+--        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
+--        script_relpath="store"..ZIP_FILE_STORE_PATH,
+--        http_timeout=30000,
+--    })
+--
+--    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
+--
+--    if not filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
+--        error("Missing downloaded file "..DOWNLOADED_ZIP_FILE_PATH)
+--    end
+--
+--    util.toast("File downloaded "..DOWNLOADED_ZIP_FILE_PATH, TOAST_ALL)
+--
+--    util.toast("Unzipping", TOAST_ALL)
+--    os.execute("tar -xf "..DOWNLOADED_ZIP_FILE_PATH)
+--    util.toast("Unzipped", TOAST_ALL)
+--end
 
 menus.load_construct_options = menu.list(menus.load_construct, "Options")
 menu.hyperlink(menus.load_construct_options, "Open Constructs Folder", "file:///"..CONSTRUCTS_DIR, "Open constructs folder. Share your creations or add new creations here.")
@@ -1784,7 +1903,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     for _, construct_plan_file in pairs(construct_plan_files) do
         if not construct_plan_file.is_directory then
             if is_file_type_supported(construct_plan_file.ext) then
-                construct_plan_file.menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
+                construct_plan_file.load_menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
                     remove_preview()
                     local construct_plan = load_construct_plan_file(construct_plan_file)
                     if construct_plan then
@@ -1793,10 +1912,10 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
                         build_construct_from_plan(construct_plan)
                     end
                 end)
-                menu.on_focus(construct_plan_file.menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
-                menu.on_blur(construct_plan_file.menu, function(direction) if direction ~= 0 then remove_preview() end end)
+                menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
+                menu.on_blur(construct_plan_file.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+                table.insert(parent_construct_plan_file.menus, construct_plan_file.load_menu)
             end
-            table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
         end
     end
 end
@@ -1839,9 +1958,9 @@ menu.toggle(options_menu, "Delete All on Unload", {}, "Deconstruct all spawned c
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
 menu.action(options_menu, "Clean Up", {"cleanup"}, "Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris.", function()
-    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),100)
-    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),100)
-    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),100)
+    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),500, "VEHICLE")
+    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),500, "OBJECT")
+    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),500, "PED")
     util.toast("Removed "..objects.." objects, "..vehicles.." vehicles, and "..peds.." peds", TOAST_ALL)
 end)
 
@@ -1863,11 +1982,16 @@ menu.action(script_meta_menu, "Check for Update", {}, "The script will automatic
         util.toast("No updates found")
     end
 end)
+menu.action(script_meta_menu, "Clean Reinstall", {}, "Force an update to the latest version, regardless of current version.", function()
+    auto_update_config.clean_reinstall = true
+    auto_updater.run_auto_update(auto_update_config)
+end)
 menu.hyperlink(script_meta_menu, "Github Source", "https://github.com/hexarobi/stand-lua-constructor", "View source files on Github")
 menu.hyperlink(script_meta_menu, "Discord", "https://discord.gg/RF4N7cKz", "Open Discord Server")
 menu.divider(script_meta_menu, "Credits")
-menu.readonly(script_meta_menu, "Jackz", "Much of Constructor is based on code from Jackz Vehicle Builder and wouldn't have been possible without this foundation")
-menu.readonly(script_meta_menu, "BigTuna", "Testing, Suggestions and Support")
+menu.readonly(script_meta_menu, "BigTuna", "Code, Testing, Suggestions and Support")
+menu.readonly(script_meta_menu, "Jackz", "Much of Constructor is based on code originally copied from Jackz Vehicle Builder and wouldn't have been possible without this incredible tool. Constructor is just my own copy of Jackz's amazing work.")
+menu.readonly(script_meta_menu, "Lance", "Constructor also owes inspiration to LanceSpooner")
 
 ---
 --- Startup Logo
@@ -1900,7 +2024,7 @@ local function constructor_tick()
     aim_info_tick()
     update_preview_tick()
     sensitivity_modifier_check_tick()
-    frozen_attachment_tick()
+    update_constructs_tick()
     draw_editing_attachment_bounding_box_tick()
 end
 util.create_tick_handler(constructor_tick)
