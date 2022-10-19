@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.5"
+local SCRIPT_VERSION = "3.21.6b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -1165,17 +1165,18 @@ end
 constructor_lib.serialize_ped_attributes = function(attachment)
     if attachment.type ~= "PED" then return end
     constructor_lib.default_ped_attributes(attachment)
+    attachment.hash = ENTITY.GET_ENTITY_MODEL(attachment.handle)
     for index = 0, 9 do
         attachment.ped_attributes.props["_"..index] = {
-            drawable_variation = PED.GET_PED_PROP_INDEX(players.user_ped(), index),
-            texture_variation = PED.GET_PED_PROP_TEXTURE_INDEX(players.user_ped(), index)
+            drawable_variation = PED.GET_PED_PROP_INDEX(attachment.handle, index),
+            texture_variation = PED.GET_PED_PROP_TEXTURE_INDEX(attachment.handle, index)
         }
     end
     for index = 0, 11 do
         attachment.ped_attributes.components["_"..index] = {
-            drawable_variation = PED.GET_PED_DRAWABLE_VARIATION(players.user_ped(), index),
-            texture_variation = PED.GET_PED_TEXTURE_VARIATION(players.user_ped(), index),
-            palette_variation = PED.GET_PED_PALETTE_VARIATION(players.user_ped(), index),
+            drawable_variation = PED.GET_PED_DRAWABLE_VARIATION(attachment.handle, index),
+            texture_variation = PED.GET_PED_TEXTURE_VARIATION(attachment.handle, index),
+            palette_variation = PED.GET_PED_PALETTE_VARIATION(attachment.handle, index),
         }
     end
 end
