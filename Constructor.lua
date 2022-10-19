@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23b1"
+local SCRIPT_VERSION = "0.23b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -121,6 +121,15 @@ local constants = libs.constants
 local curated_attachments = libs.curated_attachments
 
 ---
+--- Translations
+---
+
+local function t(text)
+    -- TODO: Replace text based on selection
+    return text
+end
+
+---
 --- Dependencies
 ---
 
@@ -128,10 +137,6 @@ util.ensure_package_is_installed('lua/natives-1663599433')
 util.require_natives(1663599433)
 local status_natives, natives = pcall(require, "natives-1663599433")
 if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
-
-util.ensure_package_is_installed('lua/json')
-local status_json, json = pcall(require, "json")
-if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
 local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
 
@@ -148,7 +153,6 @@ local config = {
     edit_offset_step = 10,
     edit_rotation_step = 15,
     add_attachment_gun_active = false,
-    debug = false,
     show_previews = true,
     preview_camera_distance = 3,
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
@@ -160,7 +164,7 @@ local config = {
     language = "en",
 }
 
-CONSTRUCTOR_DEBUG_MODE = false
+CONSTRUCTOR_DEBUG_MODE = true
 
 local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
 filesystem.mkdirs(CONSTRUCTS_DIR)
@@ -173,6 +177,7 @@ local last_spawned_construct
 local menus = {
     children = {}
 }
+local original_player_skin
 local player_construct
 
 --local example_construct = {
@@ -215,8 +220,8 @@ local SIRENS_ALL_ON = 3
 ---
 
 local function debug_log(message, additional_details)
-    if config.debug then
-        if config.debug == 2 and additional_details ~= nil then
+    if CONSTRUCTOR_DEBUG_MODE then
+        if CONSTRUCTOR_DEBUG_MODE == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
         util.log(message)
@@ -340,6 +345,43 @@ local function add_attachment_to_construct(attachment)
 end
 
 ---
+--- Player Construct
+---
+
+local function save_original_player_skin()
+    debug_log("Saving original player skin")
+    original_player_skin = table.table_copy(constructor_lib.construct_base)
+    original_player_skin.handle = players.user_ped()
+    original_player_skin.name = "Original Player Skin"
+    original_player_skin.type = "PED"
+    original_player_skin.is_player=true
+    original_player_skin.root = original_player_skin
+    original_player_skin.parent = original_player_skin
+    constructor_lib.serialize_ped_attributes(original_player_skin)
+end
+
+local function get_player_construct()
+    if player_construct == nil then
+        save_original_player_skin()
+        player_construct = table.table_copy(constructor_lib.construct_base)
+        player_construct.handle=players.user_ped()
+        player_construct.type="PED"
+        player_construct.name="Player"
+        player_construct.is_player=true
+        player_construct.root = player_construct
+        player_construct.parent = player_construct
+    end
+    return player_construct
+end
+
+local function restore_original_player_skin()
+    debug_log("Restoring original player skin")
+    if original_player_skin ~= nil then
+        constructor_lib.reattach_attachment_with_children(original_player_skin)
+    end
+end
+
+---
 --- Preview
 ---
 
@@ -454,7 +496,8 @@ local function get_construct_plan_description(construct_plan)
     if construct_plan.description ~= nil then table.insert(descriptions, construct_plan.description) end
     local counter = count_construct_children(construct_plan)
     if counter["TOTAL"] > 0 then
-        table.insert(descriptions, counter["TOTAL"].." attachments ("..counter["PED"].." peds, "..counter["OBJECT"].." objects, "..counter["VEHICLE"].." vehicles)")
+        table.insert(descriptions,
+                counter["TOTAL"].." "..t("attachments").." ("..counter["PED"].." "..t("peds")..", "..counter["OBJECT"].." "..t("objects")..", "..counter["VEHICLE"].." "..t("vehicles")..")")
     end
     if construct_plan.temp.filepath ~= nil then table.insert(descriptions, construct_plan.temp.filepath) end
     local description_string = ""
@@ -669,7 +712,7 @@ local function save_vehicle(construct)
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local file = io.open(filepath, "wb")
     if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
-    local content = json.encode(constructor_lib.serialize_attachment(construct))
+    local content = soup.json.encode(constructor_lib.serialize_attachment(construct))
     if content == "" or (not string.starts(content, "{")) then
         util.toast("Cannot save vehicle: Error serializing.", TOAST_ALL)
         return
@@ -685,12 +728,35 @@ end
 --- Construct Spawners
 ---
 
+local function delete_construct(construct)
+    debug_log("Deleting construct "..tostring(construct.name), construct)
+    constructor_lib.remove_attachment_from_parent(construct)
+    if construct.is_player then
+        restore_original_player_skin()
+    else
+        entities.delete_by_handle(construct.handle)
+    end
+    array_remove(spawned_constructs, function(t, i)
+        local spawned_construct = t[i]
+        return spawned_construct ~= construct
+    end)
+    menus.refresh_loaded_constructs()
+end
+
 local function spawn_construct_from_plan(construct_plan)
     debug_log("Spawning construct from plan "..tostring(construct_plan.name), construct_plan)
     local construct = copy_construct_plan(construct_plan)
     if construct_plan.type == "PED" and config.wear_spawned_peds then
         construct.is_player = true
         construct.handle = players.user_ped()
+        if player_construct ~= nil then
+            -- Delete current player construct
+            delete_construct(player_construct)
+            restore_original_player_skin()
+            player_construct = nil
+        end
+        get_player_construct()
+        player_construct = construct
     else
         calculate_camera_distance(construct)
         if not construct_plan.always_spawn_at_position then
@@ -722,19 +788,6 @@ local function build_construct_from_plan(construct_plan)
     else
         add_attachment_to_construct(construct_plan)
     end
-end
-
-local function delete_construct(construct)
-    debug_log("Deleting construct "..tostring(construct.name), construct)
-    constructor_lib.remove_attachment_from_parent(construct)
-    if not construct.is_player then
-        entities.delete_by_handle(construct.handle)
-    end
-    array_remove(spawned_constructs, function(t, i)
-        local spawned_construct = t[i]
-        return spawned_construct ~= construct
-    end)
-    menus.refresh_loaded_constructs()
 end
 
 local function cleanup_constructs_handler()
@@ -971,23 +1024,6 @@ local function search_constructs(directory, query, results)
         end
     end
     return results
-end
-
----
---- Player Construct
----
-
-local function get_player_construct()
-    if player_construct == nil then
-        player_construct = table.table_copy(constructor_lib.construct_base)
-        player_construct.handle=players.user_ped()
-        player_construct.type="PED"
-        player_construct.name="Player"
-        player_construct.is_player=true
-        player_construct.root = player_construct
-        player_construct.parent = player_construct
-    end
-    return player_construct
 end
 
 ---
@@ -1392,7 +1428,6 @@ menus.rebuild_attachment_menu = function(attachment)
 
             local function create_ped_component_menu(attachment, root_menu, index, name)
                 local component = attachment.ped_attributes.components["_".. index]
-                util.log("component "..inspect(component))
                 attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {}, "", 0, component.num_drawable_variations, component.drawable_variation, 1, function(value)
                     component.drawable_variation = value
                     constructor_lib.deserialize_ped_attributes(attachment)
@@ -1485,7 +1520,7 @@ menus.rebuild_attachment_menu = function(attachment)
 
         end
         menu.action(attachment.menus.attachment_options, "Copy to Me", {}, "Attach a copy of this object to your Ped.", function()
-            local player_construct = get_player_construct()
+            get_player_construct()
             local attachment_copy = constructor_lib.serialize_attachment(attachment)
             debug_log("Copying attachment "..attachment_copy.name)
             if attachment == attachment.parent and attachment.type == "PED" then
@@ -1785,7 +1820,7 @@ menu.action(menus.create_new_construct, "From Me", { "constructcreatefromme"}, "
         util.toast("Player is already a construct")
         return
     end
-    local player_construct = get_player_construct()
+    get_player_construct()
     constructor_lib.serialize_ped_attributes(player_construct)
     build_construct_from_plan(player_construct)
 end)
