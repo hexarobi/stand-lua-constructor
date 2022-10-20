@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.6b1"
+local SCRIPT_VERSION = "3.21.6b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -45,12 +45,16 @@ constructor_lib.construct_base = {
 --- Utilities
 ---
 
+local function t(text)
+    return CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+end
+
 local function debug_log(message, additional_details)
     if CONSTRUCTOR_DEBUG_MODE then
         if CONSTRUCTOR_DEBUG_MODE == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
-        util.log(message)
+        util.log("[constructor_lib] "..message)
     end
 end
 
@@ -101,7 +105,7 @@ end
 constructor_lib.spawn_vehicle_for_player = function(pid, model_name)
     local model = util.joaat(model_name)
     if not STREAMING.IS_MODEL_VALID(model) or not STREAMING.IS_MODEL_A_VEHICLE(model) then
-        util.toast("Error: Invalid vehicle name")
+        util.toast(t("Error: Invalid vehicle name"))
         return
     else
         constructor_lib.load_hash(model)
@@ -615,6 +619,7 @@ constructor_lib.completely_disable_attachment_collision = function(attachment)
 end
 
 constructor_lib.set_attachment_defaults = function(attachment)
+    debug_log("Defaulting attachment "..tostring(attachment.name))
     if attachment.children == nil then attachment.children = {} end
     if attachment.temp == nil then attachment.temp = {} end
     if attachment.options == nil then attachment.options = {} end
@@ -681,6 +686,7 @@ end
 
 constructor_lib.update_ped_attachment = function(attachment)
     if attachment.type ~= "PED" then return end
+    debug_log("Updating ped attachment "..tostring(attachment.name))
     if attachment.options.is_on_fire then
         FIRE.START_ENTITY_FIRE(attachment.handle)
         ENTITY.SET_ENTITY_PROOFS(
@@ -707,8 +713,7 @@ constructor_lib.update_attachment_tick = function(attachment)
 end
 
 constructor_lib.update_attachment = function(attachment)
-
-    --if constructor_lib.debug then util.log("Updating attachment "..attachment.name.." ["..attachment.handle.."]") end
+    debug_log("Updating attachment "..tostring(attachment.name))
 
     if attachment.is_preview then
         constructor_lib.set_preview_visibility(attachment)
@@ -722,8 +727,8 @@ constructor_lib.update_attachment = function(attachment)
         ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
     end
 
-    ENTITY.SET_ENTITY_DYNAMIC(attachment.handle, attachment.options.is_dynamic)
-    ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity)
+    if attachment.options.is_dynamic ~= nil then ENTITY.SET_ENTITY_DYNAMIC(attachment.handle, attachment.options.is_dynamic) end
+    if attachment.options.has_gravity ~= nil then ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity) end
     if attachment.options.is_light_on == true then
         VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(attachment.handle, true)
@@ -738,7 +743,7 @@ constructor_lib.update_attachment = function(attachment)
             false, 0, false
     )
     --ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
-    AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud or false)
+    if attachment.options.radio_loud ~= nil then AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud) end
     if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
 
     --ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.world_rotation.x, attachment.world_rotation.y, attachment.world_rotation.z, 2, true)
@@ -747,12 +752,17 @@ constructor_lib.update_attachment = function(attachment)
         if attachment.type == "PED" and attachment.parent.is_player then
             util.toast("Cannot attach ped to player. Spawning new ped "..tostring(attachment.name), TOAST_ALL)
         else
-            ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                    attachment.handle, attachment.parent.handle, attachment.options.bone_index,
-                    attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
-                    attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                    false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
-            )
+            if attachment == attachment.parent then
+                debug_log("Cannot attach attachment to itself "..tostring(attachment.name))
+            else
+                debug_log("Attaching entity to entity "..tostring(attachment.name))
+                ENTITY.ATTACH_ENTITY_TO_ENTITY(
+                        attachment.handle, attachment.parent.handle, attachment.options.bone_index,
+                        attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
+                        attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
+                        false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
+                )
+            end
         end
     --else
     --    constructor_lib.update_attachment_position(attachment)
@@ -762,6 +772,7 @@ constructor_lib.update_attachment = function(attachment)
 end
 
 constructor_lib.update_attachment_position = function(attachment)
+    debug_log("Updating attachment position "..tostring(attachment.name))
     if attachment == attachment.parent or not attachment.options.is_attached then
         ENTITY.SET_ENTITY_ROTATION(
                 attachment.handle,
@@ -835,19 +846,20 @@ constructor_lib.attach_attachment = function(attachment)
         debug_log("Attaching "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
     end
     if attachment.hash == nil and attachment.model == nil then
-        error("Cannot create attachment "..tostring(attachment.name)..": Requires either a hash or a model")
+        error(t("Cannot create attachment").." "..tostring(attachment.name)..": "..t("Requires either a hash or a model"))
     end
-    --if constructor_lib.debug then util.log("Attaching attachment "..attachment.name.." [parent="..attachment.parent.name..",root="..attachment.root.name.."]") end
     if (not constructor_lib.load_hash_for_attachment(attachment)) then
+        debug_log("Failed to load hash for attachment "..tostring(attachment.name))
         return
     end
 
     if attachment.root == nil then
-        error("Attachment missing root")
+        error(t("Attachment missing root"))
     end
 
     local is_networked = attachment.options.is_networked and not attachment.is_preview
     if attachment.type == "VEHICLE" then
+        debug_log("Creating vehicle "..tostring(attachment.name))
         if is_networked then
             attachment.handle = entities.create_vehicle(attachment.hash, attachment.offset, attachment.heading)
         else
@@ -862,6 +874,7 @@ constructor_lib.attach_attachment = function(attachment)
         end
         constructor_lib.deserialize_vehicle_attributes(attachment)
     elseif attachment.type == "PED" then
+        debug_log("Creating ped "..tostring(attachment.name))
         local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
         if is_networked then
             attachment.handle = entities.create_ped(1, attachment.hash, pos, attachment.heading)
@@ -879,6 +892,7 @@ constructor_lib.attach_attachment = function(attachment)
         end
         constructor_lib.deserialize_ped_attributes(attachment)
     else
+        debug_log("Creating object "..tostring(attachment.name))
         local pos
         if attachment.position ~= nil then
             pos = attachment.position
@@ -900,10 +914,8 @@ constructor_lib.attach_attachment = function(attachment)
         end
     end
 
-    --util.log("Created attachment "..attachment.name.." "..attachment.handle)
-
     if not attachment.handle then
-        error("Error attaching attachment. Could not create handle.")
+        error(t("Error attaching attachment. Could not create handle."))
     end
 
     if attachment.root.is_preview == true then constructor_lib.set_preview_visibility(attachment) end
@@ -925,10 +937,12 @@ constructor_lib.attach_attachment = function(attachment)
     --    --util.yield(2000)
     --end
 
+    debug_log("Done attaching "..tostring(attachment.name))
     return attachment
 end
 
 constructor_lib.update_reflection_offsets = function(reflection)
+    debug_log("Updating reflection offsets "..tostring(reflection.name))
     --- This function isn't quite right, it breaks with certain root rotations, but close enough for now
     reflection.offset = { x = 0, y = 0, z = 0 }
     reflection.rotation = { x = 0, y = 0, z = 0 }
@@ -944,6 +958,7 @@ constructor_lib.update_reflection_offsets = function(reflection)
 end
 
 constructor_lib.move_attachment = function(attachment)
+    debug_log("Moving attachment "..tostring(attachment.name))
     if attachment.reflection then
         constructor_lib.update_reflection_offsets(attachment.reflection)
         constructor_lib.update_attachment(attachment.reflection)
@@ -953,6 +968,7 @@ constructor_lib.move_attachment = function(attachment)
 end
 
 constructor_lib.detach_attachment = function(attachment)
+    debug_log("Detaching attachment "..tostring(attachment.name))
     ENTITY.DETACH_ENTITY(attachment.handle, true, true)
     table.array_remove(attachment.parent.children, function(t, i)
         local child_attachment = t[i]
@@ -963,6 +979,7 @@ constructor_lib.detach_attachment = function(attachment)
 end
 
 constructor_lib.remove_attachment = function(attachment)
+    debug_log("Reattaching attachment "..tostring(attachment.name))
     if not attachment then return end
     if attachment.children then
         table.array_remove(attachment.children, function(t, i)
@@ -990,6 +1007,7 @@ constructor_lib.remove_attachment = function(attachment)
 end
 
 constructor_lib.remove_attachment_from_parent = function(attachment)
+    debug_log("Removing attachment from parent "..tostring(attachment.name))
     if attachment == attachment.parent then
         constructor_lib.remove_attachment(attachment)
     else
@@ -1007,6 +1025,7 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
 end
 
 constructor_lib.reattach_attachment_with_children = function(attachment)
+    debug_log("Reattaching attachment with children "..tostring(attachment.name))
     constructor_lib.attach_attachment(attachment)
     for _, child_attachment in pairs(attachment.children) do
         child_attachment.root = attachment.root
@@ -1016,7 +1035,7 @@ constructor_lib.reattach_attachment_with_children = function(attachment)
 end
 
 constructor_lib.attach_attachment_with_children = function(new_attachment)
-    --if constructor_lib.debug then util.log("Attaching attachment with children "..(new_attachment.name or new_attachment.model or new_attachment.hash)) end
+    debug_log("Attaching attachment with children "..tostring(new_attachment.name))
     for key, value in pairs(constructor_lib.construct_base) do
         if new_attachment[key] == nil then
             new_attachment[key] = table.table_copy(value)
@@ -1040,6 +1059,7 @@ constructor_lib.attach_attachment_with_children = function(new_attachment)
 end
 
 constructor_lib.add_attachment_to_construct = function(attachment)
+    debug_log("Adding attachment to construct "..tostring(attachment.name))
     constructor_lib.attach_attachment_with_children(attachment)
     table.insert(attachment.parent.children, attachment)
     attachment.root.menus.refresh(attachment)
@@ -1062,6 +1082,7 @@ constructor_lib.copy_construct_plan = function(construct_plan)
 end
 
 constructor_lib.clone_attachment = function(attachment)
+    debug_log("Cloning attachment "..tostring(attachment.name))
     if attachment.type == "VEHICLE" then
         attachment.heading = ENTITY.GET_ENTITY_HEADING(attachment.handle) or 0
     end
@@ -1109,6 +1130,7 @@ end
 
 constructor_lib.serialize_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
+    debug_log("Serializing vehicle attributes "..tostring(attachment.name))
     constructor_lib.default_vehicle_attributes(vehicle)
     if not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
     debug_log("Serializing vehicle attributes "..tostring(vehicle.name))
@@ -1119,12 +1141,11 @@ constructor_lib.serialize_vehicle_attributes = function(vehicle)
     constructor_lib.serialize_vehicle_options(vehicle)
     constructor_lib.serialize_vehicle_mods(vehicle)
     constructor_lib.serialize_vehicle_extras(vehicle)
-    --debug_log("Serialized vehicle attributes "..inspect(vehicle.vehicle_attributes))
 end
 
 constructor_lib.deserialize_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes == nil then return end
-    debug_log("Defaulting vehicle attributes "..tostring(vehicle.name))
+    debug_log("Deserializing vehicle attributes "..tostring(vehicle.name))
 
     VEHICLE.SET_VEHICLE_MOD_KIT(vehicle.handle, 0)
     ENTITY.SET_ENTITY_AS_MISSION_ENTITY(vehicle.handle, true, true)    -- Needed for plate text
@@ -1141,6 +1162,7 @@ end
 
 constructor_lib.default_ped_attributes = function(attachment)
     if attachment.type ~= "PED" then return end
+    debug_log("Defaulting ped attributes "..tostring(attachment.name))
     if attachment.ped_attributes == nil then attachment.ped_attributes = {} end
     if attachment.ped_attributes.armor == nil then attachment.ped_attributes.armor = 0 end
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
@@ -1164,6 +1186,7 @@ end
 
 constructor_lib.serialize_ped_attributes = function(attachment)
     if attachment.type ~= "PED" then return end
+    debug_log("Serializing ped attributes "..tostring(attachment.name))
     constructor_lib.default_ped_attributes(attachment)
     attachment.hash = ENTITY.GET_ENTITY_MODEL(attachment.handle)
     for index = 0, 9 do
@@ -1182,6 +1205,7 @@ constructor_lib.serialize_ped_attributes = function(attachment)
 end
 
 constructor_lib.deserialize_ped_attributes = function(attachment)
+    debug_log("Deserializing ped attributes "..tostring(attachment.name))
     if attachment.ped_attributes == nil then return end
     PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
     if attachment.ped_attributes.armour then
@@ -1243,6 +1267,7 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
 end
 
 constructor_lib.copy_serializable = function(attachment)
+    debug_log("Copying serializable "..tostring(attachment.name))
     local serializeable_attachment = {
         children = {}
     }
@@ -1258,6 +1283,7 @@ constructor_lib.copy_serializable = function(attachment)
 end
 
 constructor_lib.serialize_attachment = function(attachment)
+    debug_log("Serializing attachment "..tostring(attachment.name))
     if attachment.target_version == nil then attachment.target_version = constructor_lib.LIB_VERSION end
     constructor_lib.serialize_vehicle_attributes(attachment)
     constructor_lib.serialize_ped_attributes(attachment)
