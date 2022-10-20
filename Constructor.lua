@@ -2095,12 +2095,12 @@ menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/RF4N7cKz", t(
 menus.credits = menu.list(script_meta_menu, t("Credits"))
 menu.divider(menus.credits, t("Developers"))
 menu.readonly(menus.credits, "Hexarobi", t("Main developer"))
-menu.readonly(menus.credits, "BigTuna", t("Development, Testing, Suggestions and Support!"))
+menu.readonly(menus.credits, "BigTuna", t("Development, Testing, Suggestions and Support"))
 menu.divider(menus.credits, t("Inspirations"))
-menu.readonly(menus.credits, "Jackz", t("Much of Constructor is based on code originally copied from Jackz Vehicle Builder and wouldn't have been possible without this incredible tool. Constructor is just my own copy of Jackz's amazing work."))
-menu.readonly(menus.credits, "Lance", t("LanceSpooner is also a huge inspiration to this script."))
+menu.readonly(menus.credits, "Jackz Vehicle Builder", t("Much of Constructor is based on code originally copied from Jackz Vehicle Builder and this script wouldn't be possible without it. Constructor is just my own copy of Jackz's amazing work. Thank you Jackz!"))
+menu.readonly(menus.credits, "LanceSpooner", t("LanceSpooner is also a huge inspiration to this script. Thanks Lance!"))
 menu.divider(menus.credits, t("Translators"))
-menu.readonly(menus.credits, t("Chinese"), t("CqCq"))
+menu.readonly(menus.credits, t("Chinese"), t("CqCq and Zelda Two"))
 
 ---
 --- Startup Logo
