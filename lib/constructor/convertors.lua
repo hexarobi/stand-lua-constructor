@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.5"
+local SCRIPT_VERSION = "0.6"
 local convertor = {}
 
 ---
@@ -17,20 +17,20 @@ if not status_xml2lua then error("Could not load xml2lua lib. This should have b
 local status_iniparser, iniparser = pcall(require, "constructor/iniparser")
 if not status_iniparser then error("Could not load iniparser lib. This should have been auto-installed.") end
 
+local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
+if not status_constructor_lib then error("Could not load constructor_lib. This should have been auto-installed.") end
+
 --util.ensure_package_is_installed('lua/json')
 --local status_json, json = pcall(require, "json")
 --if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
-
-local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
-if not status_constructor_lib then error("Could not load constructor_lib. This should have been auto-installed.") end
 
 ---
 --- Utils
 ---
 
 local function debug_log(message, additional_details)
-    if CONSTRUCTOR_DEBUG_MODE then
-        if CONSTRUCTOR_DEBUG_MODE == 2 and additional_details ~= nil then
+    if CONSTRUCTOR_CONFIG.debug_mode then
+        if CONSTRUCTOR_CONFIG.debug_mode == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
         util.log(message)
@@ -312,7 +312,7 @@ end
 
 convertor.convert_json_to_construct_plan = function(construct_plan_file)
     local raw_data = read_file(construct_plan_file.filepath)
-    if not raw_data then return end
+    if not raw_data or raw_data == "" then return end
     local construct_plan = soup.json.decode(raw_data)
     convertor.convert_raw_construct_to_construct_plan(construct_plan)
     construct_plan.temp.source_file_type = "Construct"
