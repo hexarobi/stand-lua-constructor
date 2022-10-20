@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.24b2"
+local SCRIPT_VERSION = "0.23b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -164,10 +164,11 @@ end
 
 local current_translations = {}
 local missing_translations = {}
+local LANG_STRING_NOT_FOUND = "/!\\ STRING NOT FOUND /!\\"
 
 function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
     local translated_string = current_translations[text]
-    if translated_string ~= nil and translated_string ~= "/!\\ STRING NOT FOUND /!\\" then
+    if translated_string ~= nil and translated_string ~= LANG_STRING_NOT_FOUND then
         debug_log("Found local translation for '"..text.."'")
         return translated_string
     end
@@ -175,7 +176,7 @@ function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
     if label_id then
         debug_log("Found global translation for '"..text.."'")
         translated_string = lang.get_string(label_id, lang.get_current())
-        if translated_string ~= "/!\\ STRING NOT FOUND /!\\" then
+        if translated_string ~= LANG_STRING_NOT_FOUND then
             return translated_string
         end
     else
@@ -202,14 +203,16 @@ for lang_id, language_key in pairs(translations.GAME_LANGUAGE_IDS) do
                 debug_log("Registered '"..english_string.."' as label "..label_id)
             end
             local existing_translation = lang.get_string(label_id, lang_id)
-            if (not existing_translation) or existing_translation == english_string or existing_translation == "/!\\ STRING NOT FOUND /!\\" then
+            if (not existing_translation) or existing_translation == english_string or existing_translation == LANG_STRING_NOT_FOUND then
                 debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
                 if label_id > 0 then
                     lang.translate(label_id, translated_string)
                 else
                     debug_log("Cannot translate internal label")
                 end
-                current_translations[english_string] = translated_string
+                if lang_id == lang.get_current() then
+                    current_translations[english_string] = translated_string
+                end
             else
                 debug_log("Found translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..existing_translation.."'")
             end
