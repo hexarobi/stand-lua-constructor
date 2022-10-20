@@ -91,6 +91,7 @@ translations["zh"] = {
     ["Attachment missing handle"] = "附件缺少手把",
     ["Rebuilding attachment menu "] = "重建附件菜单 ",
     ["Name"] = "名称",
+    ["Name"] = "名称",
     ["Position"] = "位置",
     ["Offset"] = "偏移",
     ["X: Left / Right"] = "X: 左/右",
