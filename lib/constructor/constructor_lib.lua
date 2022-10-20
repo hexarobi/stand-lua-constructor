@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.6b2"
+local SCRIPT_VERSION = "3.21.6b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -50,8 +50,8 @@ local function t(text)
 end
 
 local function debug_log(message, additional_details)
-    if CONSTRUCTOR_DEBUG_MODE then
-        if CONSTRUCTOR_DEBUG_MODE == 2 and additional_details ~= nil then
+    if CONSTRUCTOR_CONFIG.debug_mode then
+        if CONSTRUCTOR_CONFIG.debug_mode == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
         util.log("[constructor_lib] "..message)
