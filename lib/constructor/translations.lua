@@ -1,5 +1,5 @@
 -- Constructor Translations
--- v1.1
+-- v1.2
 
 local translations = {}
 
@@ -297,7 +297,9 @@ translations["zh"] = {
     ["Inspirations"] = "启示",
     ["Much of Constructor is based on code originally copied from Jackz Vehicle Builder and this script wouldn't be possible without it. Constructor is just my own copy of Jackz's amazing work. Thank you Jackz!"] = "大部分Constructor都是基于Jackz Vehicle Builder的代码,没有它.这个脚本就不可能实现.构造者只是我对Jackz惊人作品的复制品.谢谢你,Jackz！",
     ["LanceSpooner is also a huge inspiration to this script. Thanks Lance!"] = "构造者要感谢LanceSpooner的启发,谢谢你Lance！",
-    ["Translators"] = "翻译"
+    ["Translators"] = "翻译",
+    ["Log Missing Translations"] = "记录缺失翻译",
+    ["Log any newly found missing translations"] = "记录任何缺失的翻译",
 }
 
 ---
