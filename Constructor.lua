@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23b4"
+local SCRIPT_VERSION = "0.23b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -124,9 +124,29 @@ local curated_attachments = libs.curated_attachments
 --- Translations
 ---
 
-local function t(text)
-    -- TODO: Replace text based on selection
+local new_translations = {}
+local supported_languages = {"English", "Test"}
+local language = "test"
+
+local status_lang_file, translations = pcall(require, "constructor/translations/"..language)
+if not status_lang_file then error("Could not load lang file.") end
+
+function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+    if translations[text] ~= nil then
+        return translations[text]
+    else
+        new_translations[text] = text
+    end
     return text
+end
+
+local function t(text)
+    return CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+end
+
+local function save_translations()
+    util.toast("Saving new translations", TOAST_ALL)
+    util.log(inspect(new_translations))
 end
 
 ---
@@ -224,7 +244,7 @@ local function debug_log(message, additional_details)
         if CONSTRUCTOR_DEBUG_MODE == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
-        util.log(message)
+        util.log("[constructor_lib] "..message)
     end
 end
 
@@ -455,6 +475,7 @@ local function remove_preview(construct_plan)
     image_preview = nil
     if construct_plan == nil then construct_plan = current_preview end
     if construct_plan ~= nil then
+        debug_log("Removing preview "..tostring(construct_plan.name))
         constructor_lib.remove_attachment(construct_plan)
         current_preview = nil
     end
@@ -488,6 +509,7 @@ local function count_construct_children(construct_plan, counter)
 end
 
 local function get_construct_plan_description(construct_plan)
+    debug_log("Building construct plan description "..tostring(construct_plan.name), construct_plan)
     local descriptions = {}
     if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
     table.insert(descriptions, get_type(construct_plan))
@@ -508,6 +530,7 @@ local function get_construct_plan_description(construct_plan)
 end
 
 local function add_preview(construct_plan, preview_image_path)
+    debug_log("Adding a preview "..tostring(construct_plan.name))
     if config.show_previews == false then return end
     remove_preview()
     if construct_plan == nil then return end
@@ -679,6 +702,7 @@ end
 ---
 
 local function add_spawned_construct(construct)
+    debug_log("Adding spawned construct to list "..tostring(construct.name))
     constructor_lib.set_attachment_defaults(construct)
     table.insert(spawned_constructs, construct)
     last_spawned_construct = construct
@@ -730,10 +754,10 @@ end
 
 local function delete_construct(construct)
     debug_log("Deleting construct "..tostring(construct.name), construct)
-    constructor_lib.remove_attachment_from_parent(construct)
     if construct.is_player then
         restore_original_player_skin()
     else
+        constructor_lib.remove_attachment_from_parent(construct)
         entities.delete_by_handle(construct.handle)
     end
     array_remove(spawned_constructs, function(t, i)
@@ -792,6 +816,7 @@ end
 
 local function cleanup_constructs_handler()
     if config.deconstruct_all_spawned_constructs_on_unload then
+        debug_log("Clean up on close")
         for _, construct in pairs(spawned_constructs) do
             delete_construct(construct)
         end
@@ -799,6 +824,7 @@ local function cleanup_constructs_handler()
 end
 
 local function rebuild_attachment(attachment)
+    debug_log("Rebuilding "..tostring(attachment.name))
     attachment.root.menu_auto_focus = false
     local construct_plan = constructor_lib.clone_attachment(attachment)
     delete_construct(attachment)
@@ -948,7 +974,7 @@ local function is_file_type_supported(file_extension)
 end
 
 local function load_construct_plan_file(construct_plan_file)
-    debug_log("Loading construct plan file from filepath "..tostring(construct_plan_file.filepath), construct_plan_file)
+    debug_log("Loading construct plan file from "..tostring(construct_plan_file.filepath), construct_plan_file)
     local construct_plan
     if construct_plan_file.ext == "json" then
         construct_plan = load_construct_plan_from_json_file(construct_plan_file)
@@ -1436,7 +1462,7 @@ menus.rebuild_attachment_menu = function(attachment)
                     menu.set_value(attachment.menus["ped_components_texture_"..index], component.texture_variation)
                     menu.set_max_value(attachment.menus["ped_components_texture_"..index], component.num_texture_variations)
                 end)
-                attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." Variation", {}, "", 0, component.num_texture_variations, component.texture_variation, 1, function(value)
+                attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, component.num_texture_variations, component.texture_variation, 1, function(value)
                     component.texture_variation = value
                     constructor_lib.deserialize_ped_attributes(attachment)
                 end)
@@ -1452,7 +1478,7 @@ menus.rebuild_attachment_menu = function(attachment)
                     menu.set_value(attachment.menus["ped_props_texture_".. index], prop.texture_variation)
                     menu.set_max_value(attachment.menus["ped_props_texture_".. index], prop.num_texture_variations)
                 end)
-                attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name ..t(" Variation"), {}, "", 0, prop.num_texture_variations, prop.texture_variation, 1, function(value)
+                attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, prop.num_texture_variations, prop.texture_variation, 1, function(value)
                     prop.texture_variation = value
                     constructor_lib.deserialize_ped_attributes(attachment)
                 end)
@@ -2025,6 +2051,11 @@ menu.action(script_meta_menu, t("Clean Reinstall"), {}, t("Force an update to th
     auto_update_config.clean_reinstall = true
     auto_updater.run_auto_update(auto_update_config)
 end)
+
+menu.action(script_meta_menu, "Save Translations", {}, "", function()
+    save_translations()
+end)
+
 menu.hyperlink(script_meta_menu, t("Github Source"), "https://github.com/hexarobi/stand-lua-constructor", t("View source files on Github"))
 menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/RF4N7cKz", t("Open Discord Server"))
 menu.divider(script_meta_menu, t("Credits"))
