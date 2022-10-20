@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23b5"
+local SCRIPT_VERSION = "0.23b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -106,7 +106,13 @@ local auto_update_config = {
             name="constructor_logo",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
             script_relpath="lib/constructor/constructor_logo.png",
-        }
+        },
+        {
+            name="translations",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
+            script_relpath="lib/constructor/translations.lua",
+            verify_file_begins_with="--",
+        },
     }
 }
 auto_updater.run_auto_update(auto_update_config)
@@ -119,34 +125,83 @@ local constructor_lib = libs.constructor_lib
 local convertors = libs.convertors
 local constants = libs.constants
 local curated_attachments = libs.curated_attachments
+local translations = libs.translations
+
+---
+--- Config
+---
+
+CONSTRUCTOR_CONFIG = {
+    source_code_branch = "main",
+    edit_offset_step = 10,
+    edit_rotation_step = 15,
+    add_attachment_gun_active = false,
+    show_previews = true,
+    preview_camera_distance = 3,
+    preview_bounding_box_color = {r=255,g=0,b=255,a=255},
+    deconstruct_all_spawned_constructs_on_unload = true,
+    drive_spawned_vehicles = true,
+    wear_spawned_peds = true,
+    preview_display_delay = 500,
+    max_search_results = 100,
+    selected_language = 1,
+    debug_mode = false,
+}
+local config = CONSTRUCTOR_CONFIG
+
+local function debug_log(message, additional_details)
+    if CONSTRUCTOR_CONFIG.debug_mode then
+        if CONSTRUCTOR_CONFIG.debug_mode == 2 and additional_details ~= nil then
+            message = message .. "\n" .. inspect(additional_details)
+        end
+        util.log("[constructor_lib] "..message)
+    end
+end
 
 ---
 --- Translations
 ---
 
-local new_translations = {}
-local supported_languages = {"English", "Test"}
-local language = "test"
-
-local status_lang_file, translations = pcall(require, "constructor/translations/"..language)
-if not status_lang_file then error("Could not load lang file.") end
+local missing_translations = {}
 
 function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
-    if translations[text] ~= nil then
-        return translations[text]
+    local label_id = lang.find(text, "en")
+    if label_id then
+        return lang.get_string(label_id, lang.get_current())
     else
-        new_translations[text] = text
+        debug_log("Missing translation: "..text)
+        missing_translations[text] = text
     end
     return text
 end
 
+-- Shorthand wrapper for translation function
 local function t(text)
     return CONSTRUCTOR_TRANSLATE_FUNCTION(text)
 end
 
-local function save_translations()
-    util.toast("Saving new translations", TOAST_ALL)
-    util.log(inspect(new_translations))
+for lang_id, language_key in pairs(translations.GAME_LANGUAGE_IDS) do
+    if translations[lang_id] ~= nil then
+        --util.toast("Adding translations for language "..lang_id, TOAST_ALL)
+        lang.set_translate(lang_id)
+        for english_string, translated_string in pairs(translations[lang_id]) do
+            local label_id = lang.find(english_string, "en")
+            --util.toast("Found label for "..english_string.." as "..label_id, TOAST_ALL)
+            if label_id == 0 then
+                label_id = lang.register(english_string)
+                --util.toast("Registered "..english_string.." as "..label_id, TOAST_ALL)
+            end
+            if not lang.get_string(label_id, lang_id) then
+                --util.toast("Saving translation for "..lang_id.." '"..english_string.."' for label_id "..label_id, TOAST_ALL)
+                lang.translate(label_id, translated_string)
+            end
+        end
+    end
+end
+
+local function log_missing_translations()
+    util.toast("Missing translations", TOAST_ALL)
+    util.log(inspect(missing_translations))
 end
 
 ---
@@ -167,25 +222,6 @@ local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION
 ---
 --- Data
 ---
-
-local config = {
-    source_code_branch = "main",
-    edit_offset_step = 10,
-    edit_rotation_step = 15,
-    add_attachment_gun_active = false,
-    show_previews = true,
-    preview_camera_distance = 3,
-    preview_bounding_box_color = {r=255,g=0,b=255,a=255},
-    deconstruct_all_spawned_constructs_on_unload = true,
-    drive_spawned_vehicles = true,
-    wear_spawned_peds = true,
-    preview_display_delay = 500,
-    max_search_results = 100,
-    language = "en",
-}
-
-CONSTRUCTOR_DEBUG_MODE = true
-
 local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
 filesystem.mkdirs(CONSTRUCTS_DIR)
 
@@ -238,15 +274,6 @@ local SIRENS_ALL_ON = 3
 ---
 --- Utilities
 ---
-
-local function debug_log(message, additional_details)
-    if CONSTRUCTOR_DEBUG_MODE then
-        if CONSTRUCTOR_DEBUG_MODE == 2 and additional_details ~= nil then
-            message = message .. "\n" .. inspect(additional_details)
-        end
-        util.log("[constructor_lib] "..message)
-    end
-end
 
 function table.table_copy(obj, depth)
     if depth == nil then depth = 0 end
@@ -2052,9 +2079,15 @@ menu.action(script_meta_menu, t("Clean Reinstall"), {}, t("Force an update to th
     auto_updater.run_auto_update(auto_update_config)
 end)
 
-menu.action(script_meta_menu, "Save Translations", {}, "", function()
-    save_translations()
-end)
+menu.toggle(script_meta_menu, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
+    config.debug_mode = toggle
+end, config.debug_mode)
+
+if config.debug_mode then
+    menu.action(script_meta_menu, "Log Missing Translations", {}, "Log any newly found missing translations", function()
+        log_missing_translations()
+    end)
+end
 
 menu.hyperlink(script_meta_menu, t("Github Source"), "https://github.com/hexarobi/stand-lua-constructor", t("View source files on Github"))
 menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/RF4N7cKz", t("Open Discord Server"))
