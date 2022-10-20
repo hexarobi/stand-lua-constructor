@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23b7"
+local SCRIPT_VERSION = "0.23b8"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2091,12 +2091,16 @@ end
 
 menu.hyperlink(script_meta_menu, t("Github Source"), "https://github.com/hexarobi/stand-lua-constructor", t("View source files on Github"))
 menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/RF4N7cKz", t("Open Discord Server"))
-menu.divider(script_meta_menu, t("Credits"))
-menu.readonly(script_meta_menu, "BigTuna", t("Code, Testing, Suggestions and Support"))
-menu.readonly(script_meta_menu, "Jackz", t("Much of Constructor is based on code originally copied from Jackz Vehicle Builder and wouldn't have been possible without this incredible tool. Constructor is just my own copy of Jackz's amazing work."))
-menu.readonly(script_meta_menu, "Lance", t("Constructor also owes inspiration to LanceSpooner"))
-menu.divider(script_meta_menu, t("Translators"))
-menu.readonly(script_meta_menu, t("Chinese"), t("CqCq"))
+
+menus.credits = menu.list(script_meta_menu, t("Credits"))
+menu.divider(menus.credits, t("Developers"))
+menu.readonly(menus.credits, "Hexarobi", t("Main developer"))
+menu.readonly(menus.credits, "BigTuna", t("Development, Testing, Suggestions and Support!"))
+menu.divider(menus.credits, t("Inspirations"))
+menu.readonly(menus.credits, "Jackz", t("Much of Constructor is based on code originally copied from Jackz Vehicle Builder and wouldn't have been possible without this incredible tool. Constructor is just my own copy of Jackz's amazing work."))
+menu.readonly(menus.credits, "Lance", t("LanceSpooner is also a huge inspiration to this script."))
+menu.divider(menus.credits, t("Translators"))
+menu.readonly(menus.credits, t("Chinese"), t("CqCq"))
 
 ---
 --- Startup Logo
