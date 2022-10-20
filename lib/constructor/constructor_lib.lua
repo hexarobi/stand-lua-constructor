@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.6"
+local SCRIPT_VERSION = "3.21.7"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -686,7 +686,7 @@ end
 
 constructor_lib.update_ped_attachment = function(attachment)
     if attachment.type ~= "PED" then return end
-    debug_log("Updating ped attachment "..tostring(attachment.name))
+    --debug_log("Updating ped attachment "..tostring(attachment.name))
     if attachment.options.is_on_fire then
         FIRE.START_ENTITY_FIRE(attachment.handle)
         ENTITY.SET_ENTITY_PROOFS(
@@ -713,7 +713,7 @@ constructor_lib.update_attachment_tick = function(attachment)
 end
 
 constructor_lib.update_attachment = function(attachment)
-    debug_log("Updating attachment "..tostring(attachment.name))
+    --debug_log("Updating attachment "..tostring(attachment.name))
 
     if attachment.is_preview then
         constructor_lib.set_preview_visibility(attachment)
@@ -772,7 +772,7 @@ constructor_lib.update_attachment = function(attachment)
 end
 
 constructor_lib.update_attachment_position = function(attachment)
-    debug_log("Updating attachment position "..tostring(attachment.name))
+    --debug_log("Updating attachment position "..tostring(attachment.name))
     if attachment == attachment.parent or not attachment.options.is_attached then
         ENTITY.SET_ENTITY_ROTATION(
                 attachment.handle,
@@ -1273,7 +1273,7 @@ constructor_lib.copy_serializable = function(attachment)
     }
     for k, v in pairs(attachment) do
         if not (
-            k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp"
+            k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp" or k == "load_menu"
             or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading"
         ) then
             serializeable_attachment[k] = table.table_copy(v)
@@ -1295,7 +1295,7 @@ constructor_lib.serialize_attachment = function(attachment)
             end
         end
     end
-    --util.toast(inspect(serialized_attachment), TOAST_ALL)
+    --debug_log("Serialized attachment "..inspect(serialized_attachment))
     return serialized_attachment
 end
 
