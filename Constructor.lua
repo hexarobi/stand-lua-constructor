@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23"
+local SCRIPT_VERSION = "0.23.1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -162,14 +162,25 @@ end
 --- Translations
 ---
 
+local current_translations = {}
 local missing_translations = {}
+local LANG_STRING_NOT_FOUND = "/!\\ STRING NOT FOUND /!\\"
 
 function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+    local translated_string = current_translations[text]
+    if translated_string ~= nil and translated_string ~= LANG_STRING_NOT_FOUND then
+        --debug_log("Found local translation for '"..text.."'")
+        return translated_string
+    end
     local label_id = lang.find(text, "en")
-    if label_id ~= 0 then
-        return lang.get_string(label_id, lang.get_current())
+    if label_id then
+        --debug_log("Found global translation for '"..text.."'")
+        translated_string = lang.get_string(label_id, lang.get_current())
+        if translated_string ~= LANG_STRING_NOT_FOUND then
+            return translated_string
+        end
     else
-        debug_log("Missing translation: "..text)
+        --debug_log("Missing translation: "..text)
         missing_translations[text] = text
     end
     return text
@@ -182,18 +193,28 @@ end
 
 for lang_id, language_key in pairs(translations.GAME_LANGUAGE_IDS) do
     if translations[lang_id] ~= nil then
-        --util.toast("Adding translations for language "..lang_id, TOAST_ALL)
+        --debug_log("Processing translations language "..lang_id)
         lang.set_translate(lang_id)
         for english_string, translated_string in pairs(translations[lang_id]) do
             local label_id = lang.find(english_string, "en")
-            --util.toast("Found label for "..english_string.." as "..label_id, TOAST_ALL)
-            if label_id == 0 then
+            --debug_log("Found label for '"..english_string.."' as label "..label_id)
+            if (not label_id) or label_id == 0 then
                 label_id = lang.register(english_string)
-                --util.toast("Registered "..english_string.." as "..label_id, TOAST_ALL)
+                --debug_log("Registered '"..english_string.."' as label "..label_id)
             end
-            if not lang.get_string(label_id, lang_id) then
-                --util.toast("Saving translation for "..lang_id.." '"..english_string.."' for label_id "..label_id, TOAST_ALL)
-                lang.translate(label_id, translated_string)
+            local existing_translation = lang.get_string(label_id, lang_id)
+            if (not existing_translation) or existing_translation == english_string or existing_translation == LANG_STRING_NOT_FOUND then
+                --debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
+                if label_id > 0 then
+                    lang.translate(label_id, translated_string)
+                else
+                    --debug_log("Cannot translate internal label")
+                end
+                if lang_id == lang.get_current() then
+                    current_translations[english_string] = translated_string
+                end
+            else
+                --debug_log("Found translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..existing_translation.."'")
             end
         end
     end
@@ -405,6 +426,7 @@ local function save_original_player_skin()
     original_player_skin.root = original_player_skin
     original_player_skin.parent = original_player_skin
     constructor_lib.serialize_ped_attributes(original_player_skin)
+    debug_log("Saved original player skin "..inspect(original_player_skin))
 end
 
 local function get_player_construct()
@@ -424,7 +446,7 @@ end
 local function restore_original_player_skin()
     debug_log("Restoring original player skin")
     if original_player_skin ~= nil then
-        constructor_lib.reattach_attachment_with_children(original_player_skin)
+        constructor_lib.deserialize_ped_attributes(original_player_skin)
     end
 end
 
@@ -557,11 +579,10 @@ local function get_construct_plan_description(construct_plan)
 end
 
 local function add_preview(construct_plan, preview_image_path)
-    debug_log("Adding a preview "..tostring(construct_plan.name))
     if config.show_previews == false then return end
     remove_preview()
     if construct_plan == nil then return end
-    debug_log("Adding preview for construct plan "..tostring(construct_plan.name), construct_plan)
+    debug_log("Adding preview for "..tostring(construct_plan.name), construct_plan)
     if construct_plan.always_spawn_at_position then
         if filesystem.exists(preview_image_path) then image_preview = directx.create_texture(preview_image_path) end
         return
@@ -782,6 +803,7 @@ end
 local function delete_construct(construct)
     debug_log("Deleting construct "..tostring(construct.name), construct)
     if construct.is_player then
+        constructor_lib.remove_attachment_from_parent(construct)
         restore_original_player_skin()
     else
         constructor_lib.remove_attachment_from_parent(construct)
@@ -1933,6 +1955,8 @@ menu.text_input(menus.search_constructs, t("Search"), {"constructorsearch"}, t("
     end
 end)
 
+--local zip = require("minizip")
+--
 --local function download_and_extract(download_config)
 --
 --    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
@@ -1952,8 +1976,9 @@ end)
 --    util.toast("File downloaded "..DOWNLOADED_ZIP_FILE_PATH, TOAST_ALL)
 --
 --    util.toast("Unzipping", TOAST_ALL)
---    os.execute("tar -xf "..DOWNLOADED_ZIP_FILE_PATH)
---    util.toast("Unzipped", TOAST_ALL)
+--    local z = zip.open(DOWNLOADED_ZIP_FILE_PATH, "r")
+--    util.toast("Unzipped "..z.get_global_info(), TOAST_ALL)
+--    z.close_file()
 --end
 
 menus.load_construct_options = menu.list(menus.load_construct, t("Options"))
