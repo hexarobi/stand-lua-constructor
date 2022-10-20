@@ -162,13 +162,22 @@ end
 --- Translations
 ---
 
+local current_translations = {}
 local missing_translations = {}
 
 function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+    local translated_string = current_translations[text]
+    if translated_string ~= nil and translated_string ~= "/!\\ STRING NOT FOUND /!\\" then
+        debug_log("Found local translation for '"..text.."'")
+        return translated_string
+    end
     local label_id = lang.find(text, "en")
     if label_id then
-        debug_log("Found translation for '"..text.."'")
-        return lang.get_string(label_id, lang.get_current())
+        debug_log("Found global translation for '"..text.."'")
+        translated_string = lang.get_string(label_id, lang.get_current())
+        if translated_string ~= "/!\\ STRING NOT FOUND /!\\" then
+            return translated_string
+        end
     else
         debug_log("Missing translation: "..text)
         missing_translations[text] = text
@@ -192,16 +201,17 @@ for lang_id, language_key in pairs(translations.GAME_LANGUAGE_IDS) do
                 label_id = lang.register(english_string)
                 debug_log("Registered '"..english_string.."' as label "..label_id)
             end
-            if label_id > 0 then
-                local existing_translation = lang.get_string(label_id, lang_id)
-                if (not existing_translation) or existing_translation == english_string or existing_translation == "/!\\ STRING NOT FOUND /!\\" then
-                    debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
+            local existing_translation = lang.get_string(label_id, lang_id)
+            if (not existing_translation) or existing_translation == english_string or existing_translation == "/!\\ STRING NOT FOUND /!\\" then
+                debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
+                if label_id > 0 then
                     lang.translate(label_id, translated_string)
                 else
-                    debug_log("Found translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..existing_translation.."'")
+                    debug_log("Cannot translate internal label")
                 end
+                current_translations[english_string] = translated_string
             else
-                debug_log("Skipping translation due to negative label id")
+                debug_log("Found translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..existing_translation.."'")
             end
         end
     end
