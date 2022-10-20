@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23b6"
+local SCRIPT_VERSION = "0.23b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -166,7 +166,7 @@ local missing_translations = {}
 
 function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
     local label_id = lang.find(text, "en")
-    if label_id then
+    if label_id ~= 0 then
         return lang.get_string(label_id, lang.get_current())
     else
         debug_log("Missing translation: "..text)
@@ -2095,6 +2095,8 @@ menu.divider(script_meta_menu, t("Credits"))
 menu.readonly(script_meta_menu, "BigTuna", t("Code, Testing, Suggestions and Support"))
 menu.readonly(script_meta_menu, "Jackz", t("Much of Constructor is based on code originally copied from Jackz Vehicle Builder and wouldn't have been possible without this incredible tool. Constructor is just my own copy of Jackz's amazing work."))
 menu.readonly(script_meta_menu, "Lance", t("Constructor also owes inspiration to LanceSpooner"))
+menu.divider(script_meta_menu, t("Translators"))
+menu.readonly(script_meta_menu, t("Chinese"), t("CqCq"))
 
 ---
 --- Startup Logo
