@@ -1,5 +1,5 @@
 -- Constructor Translations
--- v1.2
+-- v1.2.1
 
 local translations = {}
 
@@ -300,6 +300,7 @@ translations["zh"] = {
     ["Translators"] = "翻译",
     ["Log Missing Translations"] = "记录缺失翻译",
     ["Log any newly found missing translations"] = "记录任何缺失的翻译",
+    ["Cutting edge updates, but less stable."] = "最新版本,但是不太稳定",
 }
 
 ---
