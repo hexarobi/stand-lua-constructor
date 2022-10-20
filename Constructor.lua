@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23"
+local SCRIPT_VERSION = "0.24b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 local loading_menu = menu.divider(menu.my_root(), "Loading...")
@@ -145,7 +145,7 @@ CONSTRUCTOR_CONFIG = {
     preview_display_delay = 500,
     max_search_results = 100,
     selected_language = 1,
-    debug_mode = false,
+    debug_mode = true,
 }
 local config = CONSTRUCTOR_CONFIG
 
@@ -166,7 +166,8 @@ local missing_translations = {}
 
 function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
     local label_id = lang.find(text, "en")
-    if label_id ~= 0 then
+    if label_id then
+        debug_log("Found translation for '"..text.."'")
         return lang.get_string(label_id, lang.get_current())
     else
         debug_log("Missing translation: "..text)
@@ -182,18 +183,25 @@ end
 
 for lang_id, language_key in pairs(translations.GAME_LANGUAGE_IDS) do
     if translations[lang_id] ~= nil then
-        --util.toast("Adding translations for language "..lang_id, TOAST_ALL)
+        debug_log("Processing translations language "..lang_id)
         lang.set_translate(lang_id)
         for english_string, translated_string in pairs(translations[lang_id]) do
             local label_id = lang.find(english_string, "en")
-            --util.toast("Found label for "..english_string.." as "..label_id, TOAST_ALL)
-            if label_id == 0 then
+            debug_log("Found label for '"..english_string.."' as label "..label_id)
+            if (not label_id) or label_id == 0 then
                 label_id = lang.register(english_string)
-                --util.toast("Registered "..english_string.." as "..label_id, TOAST_ALL)
+                debug_log("Registered '"..english_string.."' as label "..label_id)
             end
-            if not lang.get_string(label_id, lang_id) then
-                --util.toast("Saving translation for "..lang_id.." '"..english_string.."' for label_id "..label_id, TOAST_ALL)
-                lang.translate(label_id, translated_string)
+            if label_id > 0 then
+                local existing_translation = lang.get_string(label_id, lang_id)
+                if (not existing_translation) or existing_translation == english_string or existing_translation == "/!\\ STRING NOT FOUND /!\\" then
+                    debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
+                    lang.translate(label_id, translated_string)
+                else
+                    debug_log("Found translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..existing_translation.."'")
+                end
+            else
+                debug_log("Skipping translation due to negative label id")
             end
         end
     end
