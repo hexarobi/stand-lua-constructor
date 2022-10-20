@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23b5"
+local SCRIPT_VERSION = "0.23.2b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -145,7 +145,7 @@ CONSTRUCTOR_CONFIG = {
     preview_display_delay = 500,
     max_search_results = 100,
     selected_language = 1,
-    debug_mode = true,
+    debug_mode = false,
 }
 local config = CONSTRUCTOR_CONFIG
 
@@ -169,18 +169,18 @@ local LANG_STRING_NOT_FOUND = "/!\\ STRING NOT FOUND /!\\"
 function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
     local translated_string = current_translations[text]
     if translated_string ~= nil and translated_string ~= LANG_STRING_NOT_FOUND then
-        debug_log("Found local translation for '"..text.."'")
+        --debug_log("Found local translation for '"..text.."'")
         return translated_string
     end
     local label_id = lang.find(text, "en")
     if label_id then
-        debug_log("Found global translation for '"..text.."'")
+        --debug_log("Found global translation for '"..text.."'")
         translated_string = lang.get_string(label_id, lang.get_current())
         if translated_string ~= LANG_STRING_NOT_FOUND then
             return translated_string
         end
     else
-        debug_log("Missing translation: "..text)
+        --debug_log("Missing translation: "..text)
         missing_translations[text] = text
     end
     return text
@@ -193,28 +193,28 @@ end
 
 for lang_id, language_key in pairs(translations.GAME_LANGUAGE_IDS) do
     if translations[lang_id] ~= nil then
-        debug_log("Processing translations language "..lang_id)
+        --debug_log("Processing translations language "..lang_id)
         lang.set_translate(lang_id)
         for english_string, translated_string in pairs(translations[lang_id]) do
             local label_id = lang.find(english_string, "en")
-            debug_log("Found label for '"..english_string.."' as label "..label_id)
+            --debug_log("Found label for '"..english_string.."' as label "..label_id)
             if (not label_id) or label_id == 0 then
                 label_id = lang.register(english_string)
-                debug_log("Registered '"..english_string.."' as label "..label_id)
+                --debug_log("Registered '"..english_string.."' as label "..label_id)
             end
             local existing_translation = lang.get_string(label_id, lang_id)
             if (not existing_translation) or existing_translation == english_string or existing_translation == LANG_STRING_NOT_FOUND then
-                debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
+                --debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
                 if label_id > 0 then
                     lang.translate(label_id, translated_string)
                 else
-                    debug_log("Cannot translate internal label")
+                    --debug_log("Cannot translate internal label")
                 end
                 if lang_id == lang.get_current() then
                     current_translations[english_string] = translated_string
                 end
             else
-                debug_log("Found translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..existing_translation.."'")
+                --debug_log("Found translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..existing_translation.."'")
             end
         end
     end
@@ -426,6 +426,7 @@ local function save_original_player_skin()
     original_player_skin.root = original_player_skin
     original_player_skin.parent = original_player_skin
     constructor_lib.serialize_ped_attributes(original_player_skin)
+    --debug_log("Saved original player skin "..inspect(original_player_skin))
 end
 
 local function get_player_construct()
@@ -445,7 +446,7 @@ end
 local function restore_original_player_skin()
     debug_log("Restoring original player skin")
     if original_player_skin ~= nil then
-        constructor_lib.reattach_attachment_with_children(original_player_skin)
+        constructor_lib.deserialize_ped_attributes(original_player_skin)
     end
 end
 
@@ -578,11 +579,10 @@ local function get_construct_plan_description(construct_plan)
 end
 
 local function add_preview(construct_plan, preview_image_path)
-    debug_log("Adding a preview "..tostring(construct_plan.name))
     if config.show_previews == false then return end
     remove_preview()
     if construct_plan == nil then return end
-    debug_log("Adding preview for construct plan "..tostring(construct_plan.name), construct_plan)
+    debug_log("Adding preview for "..tostring(construct_plan.name), construct_plan)
     if construct_plan.always_spawn_at_position then
         if filesystem.exists(preview_image_path) then image_preview = directx.create_texture(preview_image_path) end
         return
@@ -803,6 +803,7 @@ end
 local function delete_construct(construct)
     debug_log("Deleting construct "..tostring(construct.name), construct)
     if construct.is_player then
+        constructor_lib.remove_attachment_from_parent(construct)
         restore_original_player_skin()
     else
         constructor_lib.remove_attachment_from_parent(construct)
@@ -1240,6 +1241,41 @@ local function add_prop_search_results(attachment, query, page_size, page_number
         add_prop_search_results(attachment, query, page_size, page_number+1)
     end)
 end
+
+---
+--- Download and Extract Curated Constructs
+---
+
+local function download_and_extract_curated_constructs()
+    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
+    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
+
+    util.toast("Downloading curated constructs...", TOAST_ALL)
+    auto_updater.run_auto_update({
+        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
+        script_relpath="store"..ZIP_FILE_STORE_PATH,
+        http_timeout=120000,
+    })
+
+    if not filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
+        error("Missing downloaded file "..DOWNLOADED_ZIP_FILE_PATH)
+    end
+    debug_log("Successfully downloaded curated constructs "..DOWNLOADED_ZIP_FILE_PATH, TOAST_ALL)
+
+    util.toast("Extracting curated constructs...", TOAST_ALL)
+    util.i_really_need_manual_access_to_process_apis()
+    local CURATED_CONSTRUCTS_DIR = CONSTRUCTS_DIR..'\\Curated'
+    filesystem.mkdirs(CURATED_CONSTRUCTS_DIR)
+    local command = 'tar -C "'..CURATED_CONSTRUCTS_DIR..'" -xf "'..DOWNLOADED_ZIP_FILE_PATH..'" --strip-components=1'
+    debug_log("Running command: "..command)
+    if os.execute(command) then
+        util.toast("Successfully installed curated constructs!", TOAST_ALL)
+        menu.focus(menus.search_constructs)
+    else
+        util.toast("There was a problem extracting the curated constructs", TOAST_ALL)
+    end
+end
+
 
 local function make_wheels_invis(attachment)
 
@@ -1929,6 +1965,13 @@ end
 local load_constructs_root_menu_file
 menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {}, t("Load a previously saved or shared construct into the world"), function()
     menus.rebuild_load_construct_menu()
+    if #load_constructs_root_menu_file.menus == 0 then
+        util.toast("No constructs found!", TOAST_ALL)
+        menu.show_warning(menu.my_root(), CLICK_COMMAND, t("No constructs found! Would you like to download a curated collection of constructs? This includes popular vehicles, maps and skins to get started with Constructor."), function()
+            download_and_extract_curated_constructs()
+            menus.rebuild_load_construct_menu()
+        end)
+    end
 end)
 load_constructs_root_menu_file = {menu=menus.load_construct, name=t("Loaded Constructs Menu"), menus={}}
 
@@ -1954,39 +1997,11 @@ menu.text_input(menus.search_constructs, t("Search"), {"constructorsearch"}, t("
     end
 end)
 
---local function download_and_extract(download_config)
---
---    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
---
---    auto_updater.run_auto_update({
---        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
---        script_relpath="store"..ZIP_FILE_STORE_PATH,
---        http_timeout=30000,
---    })
---
---    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
---
---    if not filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
---        error("Missing downloaded file "..DOWNLOADED_ZIP_FILE_PATH)
---    end
---
---    util.toast("File downloaded "..DOWNLOADED_ZIP_FILE_PATH, TOAST_ALL)
---
---    util.toast("Unzipping", TOAST_ALL)
---    os.execute("tar -xf "..DOWNLOADED_ZIP_FILE_PATH)
---    util.toast("Unzipped", TOAST_ALL)
---end
-
 menus.load_construct_options = menu.list(menus.load_construct, t("Options"))
 menu.hyperlink(menus.load_construct_options, t("Open Constructs Folder"), "file:///"..CONSTRUCTS_DIR, t("Open constructs folder. Share your creations or add new creations here."))
-menu.hyperlink(menus.load_construct_options, t("Download Curated Constructs"), "https://github.com/hexarobi/stand-curated-constructs", t("Download a curated collection of constructs."))
--- TODO: Update curated
---menu.action(menus.load_construct_options, t("Update Curated Constructs"), {}, t("Download a curated collection of constructs."), function()
---    download_and_extract({
---        source_url="https://github.com/hexarobi/stand-curated-constructs/archive/refs/heads/main.zip",
---        destination_path=CONSTRUCTS_DIR.."/Curated"
---    })
---end)
+menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs from https://github.com/hexarobi/stand-curated-constructs"), function(click_type)
+    download_and_extract_curated_constructs()
+end)
 menu.toggle(menus.load_construct_options, t("Drive Spawned Vehicles"), {}, t("When spawning vehicles, automatically place you into the drivers seat."), function(on)
     config.drive_spawned_vehicles = on
 end, config.drive_spawned_vehicles)
@@ -2035,7 +2050,6 @@ end
 
 menus.rebuild_load_construct_menu = function()
     add_directory_to_load_constructs()
-    --add_directory_to_load_constructs(load_constructs_root_menu_file, CONSTRUCTS_DIR)
 end
 
 ---
