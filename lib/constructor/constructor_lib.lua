@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.7"
+local SCRIPT_VERSION = "3.21.8"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -1063,10 +1063,6 @@ constructor_lib.add_attachment_to_construct = function(attachment)
     constructor_lib.attach_attachment_with_children(attachment)
     table.insert(attachment.parent.children, attachment)
     attachment.root.menus.refresh(attachment)
-    --attachment.root.menus.focus_on_new()
-    --if attachment.root.menus.focus_menu then
-    --    menu.focus(attachment.root.menus.focus_menu)
-    --end
 end
 
 constructor_lib.copy_construct_plan = function(construct_plan)
@@ -1130,7 +1126,7 @@ end
 
 constructor_lib.serialize_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
-    debug_log("Serializing vehicle attributes "..tostring(attachment.name))
+    debug_log("Serializing vehicle attributes "..tostring(vehicle.name))
     constructor_lib.default_vehicle_attributes(vehicle)
     if not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
     debug_log("Serializing vehicle attributes "..tostring(vehicle.name))
@@ -1207,7 +1203,22 @@ end
 constructor_lib.deserialize_ped_attributes = function(attachment)
     debug_log("Deserializing ped attributes "..tostring(attachment.name))
     if attachment.ped_attributes == nil then return end
-    PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
+    if attachment.ped_attributes.can_rag_doll ~= nil then
+        PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
+    end
+    if attachment.ped_attributes.weapon_hash == nil and attachment.ped_attributes.weapon ~= nil then
+        attachment.ped_attributes.weapon_hash = util.joaat(attachment.ped_attributes.weapon)
+        debug_log("Setting weapon hash "..tostring(attachment.ped_attributes.weapon_hash))
+    end
+    if attachment.ped_attributes.weapon_hash ~= nil then
+        constructor_lib.load_hash(attachment.ped_attributes.weapon_hash)
+        debug_log("Setting current weapon "..attachment.ped_attributes.weapon_hash)
+        util.toast("Setting current weapon "..attachment.ped_attributes.weapon_hash, TOAST_ALL)
+        --WEAPON.GIVE_WEAPON_TO_PED(attachment.handle, attachment.ped_attributes.weapon_hash, 1, false, true)
+        --WEAPON.SET_CURRENT_PED_WEAPON(attachment.handle, attachment.ped_attributes.weapon_hash, true)
+    end
+    --if attachment.ped_attributes.weapon then
+    --end
     if attachment.ped_attributes.armour then
         PED.SET_PED_ARMOUR(attachment.handle, attachment.ped_attributes.armour)
     end
@@ -1228,39 +1239,40 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
                 false, 0, false
         )
     end
-    if attachment.ped_attributes.weapon then
-        WEAPON.GIVE_WEAPON_TO_PED(attachment.handle, attachment.ped_attributes.weapon, 999, false, true)
-    end
-    if attachment.ped_attributes.props then
+    if attachment.ped_attributes.props ~= nil then
         for index = 0, 9 do
             local prop = attachment.ped_attributes.props["_".. index]
-            if prop.drawable_variation >= 0 then
-                PED.SET_PED_PROP_INDEX(
-                        attachment.handle,
-                        index,
-                        tonumber(prop.drawable_variation),
-                        tonumber(prop.texture_variation),
-                        true
-                )
-            else
-                PED.CLEAR_PED_PROP(attachment.handle, index)
+            if prop ~= nil then
+                if prop.drawable_variation >= 0 then
+                    PED.SET_PED_PROP_INDEX(
+                            attachment.handle,
+                            index,
+                            tonumber(prop.drawable_variation),
+                            tonumber(prop.texture_variation),
+                            true
+                    )
+                else
+                    PED.CLEAR_PED_PROP(attachment.handle, index)
+                end
+                prop.num_drawable_variations = PED.GET_NUMBER_OF_PED_PROP_DRAWABLE_VARIATIONS(attachment.handle, index) - 1
+                prop.num_texture_variations = PED.GET_NUMBER_OF_PED_PROP_TEXTURE_VARIATIONS(attachment.handle, index, prop.drawable_variation) - 1
             end
-            prop.num_drawable_variations = PED.GET_NUMBER_OF_PED_PROP_DRAWABLE_VARIATIONS(attachment.handle, index) - 1
-            prop.num_texture_variations = PED.GET_NUMBER_OF_PED_PROP_TEXTURE_VARIATIONS(attachment.handle, index, prop.drawable_variation) - 1
         end
     end
-    if attachment.ped_attributes.components then
+    if attachment.ped_attributes.components ~= nil then
         for index = 0, 11 do
             local component = attachment.ped_attributes.components["_".. index]
-            PED.SET_PED_COMPONENT_VARIATION(
-                    attachment.handle,
-                    index,
-                    tonumber(component.drawable_variation),
-                    tonumber(component.texture_variation),
-                    tonumber(component.palette_variation)
-            )
-            component.num_drawable_variations = PED.GET_NUMBER_OF_PED_DRAWABLE_VARIATIONS(attachment.handle, index) - 1
-            component.num_texture_variations = PED.GET_NUMBER_OF_PED_TEXTURE_VARIATIONS(attachment.handle, index, attachment.ped_attributes.components["_".. index].drawable_variation) - 1
+            if component ~= nil then
+                PED.SET_PED_COMPONENT_VARIATION(
+                        attachment.handle,
+                        index,
+                        tonumber(component.drawable_variation),
+                        tonumber(component.texture_variation),
+                        tonumber(component.palette_variation)
+                )
+                component.num_drawable_variations = PED.GET_NUMBER_OF_PED_DRAWABLE_VARIATIONS(attachment.handle, index) - 1
+                component.num_texture_variations = PED.GET_NUMBER_OF_PED_TEXTURE_VARIATIONS(attachment.handle, index, attachment.ped_attributes.components["_".. index].drawable_variation) - 1
+            end
         end
     end
     constructor_lib.animate_peds(attachment)
@@ -1273,7 +1285,7 @@ constructor_lib.copy_serializable = function(attachment)
     }
     for k, v in pairs(attachment) do
         if not (
-            k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp" or k == "load_menu"
+            k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp" or k == "load_menu" or k == "menu_auto_focus"
             or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading"
         ) then
             serializeable_attachment[k] = table.table_copy(v)
