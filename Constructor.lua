@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23.3"
+local SCRIPT_VERSION = "0.24"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1246,39 +1246,21 @@ local function add_prop_search_results(attachment, query, page_size, page_number
 end
 
 ---
---- Download and Extract Curated Constructs
+--- Curated Constructs Installer
 ---
 
-local function download_and_extract_curated_constructs()
-    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
-    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
-
-    util.toast("Downloading curated constructs...", TOAST_ALL)
-    auto_updater.run_auto_update({
-        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
-        script_relpath="store"..ZIP_FILE_STORE_PATH,
-        http_timeout=120000,
-    })
-
-    if not filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
-        error("Missing downloaded file "..DOWNLOADED_ZIP_FILE_PATH)
-    end
-    debug_log("Successfully downloaded curated constructs "..DOWNLOADED_ZIP_FILE_PATH, TOAST_ALL)
-
-    util.toast("Extracting curated constructs...", TOAST_ALL)
-    -- I could not find a way to extract a zip using simple lua. Running an OS command requires special user auth, but seems worth it.
-    -- To avoid requiring these permissions, comment out the following line. The only effect will be lack of auto-installing curated constructs.
-    util.i_really_need_manual_access_to_process_apis()
-    local CURATED_CONSTRUCTS_DIR = CONSTRUCTS_DIR..'\\Curated'
-    filesystem.mkdirs(CURATED_CONSTRUCTS_DIR)
-    local command = 'tar -C "'..CURATED_CONSTRUCTS_DIR..'" -xf "'..DOWNLOADED_ZIP_FILE_PATH..'" --strip-components=1'
-    debug_log("Running command: "..command)
-    if os.execute(command) then
-        util.toast("Successfully installed curated constructs!", TOAST_ALL)
-        menu.focus(menus.search_constructs)
-    else
-        util.toast("There was a problem extracting the curated constructs", TOAST_ALL)
-    end
+local function install_curated_constructs()
+    local to_path = filesystem.scripts_dir().."/Constructs Installer.lua"
+    local write_file = io.open(to_path, "wb")
+    if write_file == nil then util.toast("Error writing to "..to_path..".") end
+    write_file:write(constants.CONSTRUCTS_INSTALLER_SCRIPT)
+    write_file:close()
+    util.yield(100)
+    menu.focus(menu.ref_by_path("Stand>Lua Scripts"))
+    util.yield(100)
+    menu.focus(menu.ref_by_path("Stand>Lua Scripts>Repository"))
+    util.yield(100)
+    menu.trigger_commands("luaconstructsinstaller")
 end
 
 
@@ -1968,12 +1950,15 @@ local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
 end
 
 local load_constructs_root_menu_file
-menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {}, t("Load a previously saved or shared construct into the world"), function()
+menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {"constructorloadconstruct"}, t("Load a previously saved or shared construct into the world"), function()
     menus.rebuild_load_construct_menu()
     if #load_constructs_root_menu_file.menus == 0 then
         util.toast("No constructs found!", TOAST_ALL)
-        menu.show_warning(menu.my_root(), CLICK_COMMAND, t("No constructs found! Would you like to download a curated collection of constructs? This includes popular vehicles, maps and skins to get started with Constructor."), function()
-            download_and_extract_curated_constructs()
+        menu.show_warning(menu.my_root(), CLICK_COMMAND, t(
+                "No constructs found! Would you like to download a curated collection of constructs? "
+                .."This includes popular vehicles, maps and skins to get started with Constructor. "
+                .."Installer requires special permissions for direct access to system for unzipping."), function()
+            install_curated_constructs()
             menus.rebuild_load_construct_menu()
         end)
     end
@@ -1984,7 +1969,7 @@ menus.search_constructs = menu.list(menus.load_construct, t("Search"), {}, t("Se
     menu.show_command_box("constructorsearch ")
 end)
 local previous_search_results = {}
-menu.text_input(menus.search_constructs, t("Search"), {"constructorsearch"}, t("Edit your search query"), function(query)
+menus.load_construct_search = menu.text_input(menus.search_constructs, t("Search"), {"constructorsearch"}, t("Edit your search query"), function(query)
     for _, previous_search_result in pairs(previous_search_results) do
         pcall(menu.delete, previous_search_result.load_menu)
     end
@@ -2005,7 +1990,7 @@ end)
 menus.load_construct_options = menu.list(menus.load_construct, t("Options"))
 menu.hyperlink(menus.load_construct_options, t("Open Constructs Folder"), "file:///"..CONSTRUCTS_DIR, t("Open constructs folder. Share your creations or add new creations here."))
 menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs from https://github.com/hexarobi/stand-curated-constructs"), function(click_type)
-    download_and_extract_curated_constructs()
+    install_curated_constructs()
 end)
 menu.toggle(menus.load_construct_options, t("Drive Spawned Vehicles"), {}, t("When spawning vehicles, automatically place you into the drivers seat."), function(on)
     config.drive_spawned_vehicles = on
