@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23.2"
+local SCRIPT_VERSION = "0.23.3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -206,7 +206,10 @@ for lang_id, language_key in pairs(translations.GAME_LANGUAGE_IDS) do
             if (not existing_translation) or existing_translation == english_string or existing_translation == LANG_STRING_NOT_FOUND then
                 --debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
                 if label_id > 0 then
-                    lang.translate(label_id, translated_string)
+                    local translate_status, translate_response = pcall(lang.translate, label_id, translated_string)
+                    if not translate_status then
+                        debug_log("Failed to add translation '"..english_string.."' as label "..label_id)
+                    end
                 else
                     --debug_log("Cannot translate internal label")
                 end
