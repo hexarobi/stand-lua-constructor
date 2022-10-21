@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23.1"
+local SCRIPT_VERSION = "0.23.2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -426,7 +426,7 @@ local function save_original_player_skin()
     original_player_skin.root = original_player_skin
     original_player_skin.parent = original_player_skin
     constructor_lib.serialize_ped_attributes(original_player_skin)
-    debug_log("Saved original player skin "..inspect(original_player_skin))
+    --debug_log("Saved original player skin "..inspect(original_player_skin))
 end
 
 local function get_player_construct()
@@ -782,13 +782,13 @@ local function save_vehicle(construct)
     if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
     if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
-    local file = io.open(filepath, "wb")
-    if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
     local content = soup.json.encode(constructor_lib.serialize_attachment(construct))
     if content == "" or (not string.starts(content, "{")) then
         util.toast("Cannot save vehicle: Error serializing.", TOAST_ALL)
         return
     end
+    local file = io.open(filepath, "wb")
+    if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
     file:write(content)
     file:close()
     util.toast("Saved ".. construct.name)
@@ -1241,6 +1241,43 @@ local function add_prop_search_results(attachment, query, page_size, page_number
         add_prop_search_results(attachment, query, page_size, page_number+1)
     end)
 end
+
+---
+--- Download and Extract Curated Constructs
+---
+
+local function download_and_extract_curated_constructs()
+    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
+    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
+
+    util.toast("Downloading curated constructs...", TOAST_ALL)
+    auto_updater.run_auto_update({
+        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
+        script_relpath="store"..ZIP_FILE_STORE_PATH,
+        http_timeout=120000,
+    })
+
+    if not filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
+        error("Missing downloaded file "..DOWNLOADED_ZIP_FILE_PATH)
+    end
+    debug_log("Successfully downloaded curated constructs "..DOWNLOADED_ZIP_FILE_PATH, TOAST_ALL)
+
+    util.toast("Extracting curated constructs...", TOAST_ALL)
+    -- I could not find a way to extract a zip using simple lua. Running an OS command requires special user auth, but seems worth it.
+    -- To avoid requiring these permissions, comment out the following line. The only effect will be lack of auto-installing curated constructs.
+    util.i_really_need_manual_access_to_process_apis()
+    local CURATED_CONSTRUCTS_DIR = CONSTRUCTS_DIR..'\\Curated'
+    filesystem.mkdirs(CURATED_CONSTRUCTS_DIR)
+    local command = 'tar -C "'..CURATED_CONSTRUCTS_DIR..'" -xf "'..DOWNLOADED_ZIP_FILE_PATH..'" --strip-components=1'
+    debug_log("Running command: "..command)
+    if os.execute(command) then
+        util.toast("Successfully installed curated constructs!", TOAST_ALL)
+        menu.focus(menus.search_constructs)
+    else
+        util.toast("There was a problem extracting the curated constructs", TOAST_ALL)
+    end
+end
+
 
 local function make_wheels_invis(attachment)
 
@@ -1930,6 +1967,13 @@ end
 local load_constructs_root_menu_file
 menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {}, t("Load a previously saved or shared construct into the world"), function()
     menus.rebuild_load_construct_menu()
+    if #load_constructs_root_menu_file.menus == 0 then
+        util.toast("No constructs found!", TOAST_ALL)
+        menu.show_warning(menu.my_root(), CLICK_COMMAND, t("No constructs found! Would you like to download a curated collection of constructs? This includes popular vehicles, maps and skins to get started with Constructor."), function()
+            download_and_extract_curated_constructs()
+            menus.rebuild_load_construct_menu()
+        end)
+    end
 end)
 load_constructs_root_menu_file = {menu=menus.load_construct, name=t("Loaded Constructs Menu"), menus={}}
 
@@ -1955,42 +1999,11 @@ menu.text_input(menus.search_constructs, t("Search"), {"constructorsearch"}, t("
     end
 end)
 
---local zip = require("minizip")
---
---local function download_and_extract(download_config)
---
---    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
---
---    auto_updater.run_auto_update({
---        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
---        script_relpath="store"..ZIP_FILE_STORE_PATH,
---        http_timeout=30000,
---    })
---
---    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
---
---    if not filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
---        error("Missing downloaded file "..DOWNLOADED_ZIP_FILE_PATH)
---    end
---
---    util.toast("File downloaded "..DOWNLOADED_ZIP_FILE_PATH, TOAST_ALL)
---
---    util.toast("Unzipping", TOAST_ALL)
---    local z = zip.open(DOWNLOADED_ZIP_FILE_PATH, "r")
---    util.toast("Unzipped "..z.get_global_info(), TOAST_ALL)
---    z.close_file()
---end
-
 menus.load_construct_options = menu.list(menus.load_construct, t("Options"))
 menu.hyperlink(menus.load_construct_options, t("Open Constructs Folder"), "file:///"..CONSTRUCTS_DIR, t("Open constructs folder. Share your creations or add new creations here."))
-menu.hyperlink(menus.load_construct_options, t("Download Curated Constructs"), "https://github.com/hexarobi/stand-curated-constructs", t("Download a curated collection of constructs."))
--- TODO: Update curated
---menu.action(menus.load_construct_options, t("Update Curated Constructs"), {}, t("Download a curated collection of constructs."), function()
---    download_and_extract({
---        source_url="https://github.com/hexarobi/stand-curated-constructs/archive/refs/heads/main.zip",
---        destination_path=CONSTRUCTS_DIR.."/Curated"
---    })
---end)
+menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs from https://github.com/hexarobi/stand-curated-constructs"), function(click_type)
+    download_and_extract_curated_constructs()
+end)
 menu.toggle(menus.load_construct_options, t("Drive Spawned Vehicles"), {}, t("When spawning vehicles, automatically place you into the drivers seat."), function(on)
     config.drive_spawned_vehicles = on
 end, config.drive_spawned_vehicles)
@@ -2039,7 +2052,6 @@ end
 
 menus.rebuild_load_construct_menu = function()
     add_directory_to_load_constructs()
-    --add_directory_to_load_constructs(load_constructs_root_menu_file, CONSTRUCTS_DIR)
 end
 
 ---
@@ -2084,6 +2096,7 @@ end)
 ---
 --- Script Meta Menu
 ---
+
 local script_meta_menu = menu.list(menu.my_root(), t("Script Meta"))
 menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
