@@ -33,6 +33,7 @@ translations.LANGUAGE_NAMES = {
 }
 
 --- Chinese (Simplified)
+--- By       Zelda Two
 
 translations["zh"] = {
     ["More stable, but updated less often."] = "更稳定,但更新频率较低.",
@@ -90,6 +91,7 @@ translations["zh"] = {
     ["Attachment missing handle"] = "附件缺少手把",
     ["Rebuilding attachment menu "] = "重建附件菜单 ",
     ["Name"] = "名称",
+    ["Set name of the attachment"] = "设置此附件名称",
     ["Position"] = "位置",
     ["Offset"] = "偏移",
     ["X: Left / Right"] = "X: 左/右",
@@ -101,6 +103,7 @@ translations["zh"] = {
     ["Z: Yaw"] = "Z: 偏摆",
     ["World Position"] = "世界偏移",
     ["World Rotation"] = "世界旋转",
+    ["Hold SHIFT to fine tune"] = "按住SHIFT键进行微调",
     ["Options"] = "选项",
     ["Visible"] = "可见",
     ["Will the attachment be visible, or invisible"] = "附件是可见还是不可见",
@@ -138,7 +141,7 @@ translations["zh"] = {
     ["Break Door: Trunk"] = "拆除门: 后备箱",
     ["Break Door: Trunk2"] = "拆除门: 后备箱2",
     ["Remove door."] = "拆除门.",
-    ["Ped Options"] = "Ped人物选项",
+    ["Ped Options"] = "Ped选项",
     ["Can Rag Doll"] = "布娃娃",
     ["If enabled, the ped can go limp."] = "如果启用,ped将没有布娃娃系统.",
     ["Armor"] = "护甲",
@@ -165,13 +168,17 @@ translations["zh"] = {
     ["Making ped into "] = "将 ped 变成 ",
     ["More Options"] = "更多选项",
     ["LoD Distance"] = "LoD距离",
+    ["Level of Detail draw distance"] = "细节绘制距离",
     ["Blip"] = "图标",
     ["Blip Sprite"] = "地图图标",
+    ["Icon to show on mini map for this construct"] = "在小地图上显示该构造的图标",
     ["Blip Color"] = "图标颜色",
+    ["Mini map icon color"] = "小地图的图标颜色",
     ["Blip Reference"] = "图标参考",
+    ["Reference website for blip details"] = "参考网站地图图标的详细信息",
     ["Lights"] = "灯",
     ["Light On"] = "开灯",
-    ["If attachment is a light, it will be on and lit (many lights only work during night time"] = "如果附附件是灯,它是否会被打开(很多灯只会在晚上工作).",
+    ["If attachment is a light, it will be on and lit (many lights only work during night time)."] = "如果附附件是灯,它是否会被打开(很多灯只会在晚上工作).",
     ["Light Disabled"] = "禁用灯",
     ["If attachment is a light, it will be ALWAYS off, regardless of others settings."] = "如果附件是灯,它将被关闭,只要你开了这个无论这么设置都是关闭.",
     ["Proofs"] = "防护",
@@ -242,7 +249,8 @@ translations["zh"] = {
     ["Create a new Ped construct from exact name"] = "搜索创建一个新的人物模型",
     ["Load Construct"] = "加载构造体",
     ["Load a previously saved or shared construct into the world"] = "将保存或共享的构造加载到世界中",
-    ["Loaded Constructs"] = "加载构造菜单",
+    ["Loaded Constructs"] = "已加载的构造体",
+    ["View and edit already loaded constructs"] = "查看和编辑已经加载的构造",
     ["Search all your construct files"] = "搜索你的所有构造文件",
     ["Edit your search query"] = "编辑你的搜索",
     ["No results found"] = "没有搜索结果",
@@ -283,7 +291,7 @@ translations["zh"] = {
     ["Clean Reinstall"] = "清除重新安装",
     ["Force an update to the latest version, regardless of current version."] = "强制更新到最新版本,而不考虑当前版本.",
     ["Debug Mode"] = "调试模式",
-    ["Log additional details about Constructors actions."] = "记录关于构造者其他详细信息",
+    ["Log additional details about Constructors actions."] = "记录构造者调试信息到Log",
     ["Log Missing Translations"] = "记录缺失翻译",
     ["Log any newly found missing translations"] = "记录任何缺失的翻译",
     ["Github Source"] = "Github资源",
@@ -297,10 +305,7 @@ translations["zh"] = {
     ["Inspirations"] = "启示",
     ["Much of Constructor is based on code originally copied from Jackz Vehicle Builder and this script wouldn't be possible without it. Constructor is just my own copy of Jackz's amazing work. Thank you Jackz!"] = "大部分Constructor都是基于Jackz Vehicle Builder的代码,没有它.这个脚本就不可能实现.构造者只是我对Jackz惊人作品的复制品.谢谢你,Jackz！",
     ["LanceSpooner is also a huge inspiration to this script. Thanks Lance!"] = "构造者要感谢LanceSpooner的启发,谢谢你Lance！",
-    ["Translators"] = "翻译",
-    ["Log Missing Translations"] = "记录缺失翻译",
-    ["Log any newly found missing translations"] = "记录任何缺失的翻译",
-    ["Cutting edge updates, but less stable."] = "最新版本,但是不太稳定",
+    ["Translators"] = "翻译"
 }
 
 ---
@@ -308,3 +313,4 @@ translations["zh"] = {
 ---
 
 return translations
+
