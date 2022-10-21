@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.6"
+local SCRIPT_VERSION = "0.7"
 local convertor = {}
 
 ---
@@ -20,9 +20,9 @@ if not status_iniparser then error("Could not load iniparser lib. This should ha
 local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
 if not status_constructor_lib then error("Could not load constructor_lib. This should have been auto-installed.") end
 
---util.ensure_package_is_installed('lua/json')
---local status_json, json = pcall(require, "json")
---if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+util.ensure_package_is_installed('lua/json')
+local status_json, json = pcall(require, "json")
+if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
 ---
 --- Utils
@@ -313,11 +313,11 @@ end
 convertor.convert_json_to_construct_plan = function(construct_plan_file)
     local raw_data = read_file(construct_plan_file.filepath)
     if not raw_data or raw_data == "" then return end
-    local construct_plan = soup.json.decode(raw_data)
+    local construct_plan = json.decode(raw_data)
     convertor.convert_raw_construct_to_construct_plan(construct_plan)
     construct_plan.temp.source_file_type = "Construct"
     if construct_plan.version and string.find(construct_plan.version, "Jackz") then
-        debug_log("JSON data "..inspect(construct_plan))
+        --debug_log("JSON data "..inspect(construct_plan))
         construct_plan = convertor.convert_jackz_to_construct_plan(construct_plan)
     end
     return construct_plan
