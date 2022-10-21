@@ -305,6 +305,8 @@ translations["zh"] = {
     ["Inspirations"] = "启示",
     ["Much of Constructor is based on code originally copied from Jackz Vehicle Builder and this script wouldn't be possible without it. Constructor is just my own copy of Jackz's amazing work. Thank you Jackz!"] = "大部分Constructor都是基于Jackz Vehicle Builder的代码,没有它.这个脚本就不可能实现.构造者只是我对Jackz惊人作品的复制品.谢谢你,Jackz！",
     ["LanceSpooner is also a huge inspiration to this script. Thanks Lance!"] = "构造者要感谢LanceSpooner的启发,谢谢你Lance！",
+    ["Install Curated Constructs"] = "安装精选构造",
+    ["Download and install a curated collection of constructs from https://github.com/hexarobi/stand-curated-constructs"] = "从以下网站下载并安装精选的构造合集 https://github.com/hexarobi/stand-curated-constructs",
     ["Translators"] = "翻译"
 }
 
@@ -313,4 +315,5 @@ translations["zh"] = {
 ---
 
 return translations
+
 
