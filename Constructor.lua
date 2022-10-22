@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.23.2b1"
+local SCRIPT_VERSION = "0.25b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -145,7 +145,7 @@ CONSTRUCTOR_CONFIG = {
     preview_display_delay = 500,
     max_search_results = 100,
     selected_language = 1,
-    debug_mode = false,
+    debug_mode = true,
 }
 local config = CONSTRUCTOR_CONFIG
 
@@ -206,7 +206,10 @@ for lang_id, language_key in pairs(translations.GAME_LANGUAGE_IDS) do
             if (not existing_translation) or existing_translation == english_string or existing_translation == LANG_STRING_NOT_FOUND then
                 --debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
                 if label_id > 0 then
-                    lang.translate(label_id, translated_string)
+                    local translate_status, translate_response = pcall(lang.translate, label_id, translated_string)
+                    if not translate_status then
+                        debug_log("Failed to add translation '"..english_string.."' as label "..label_id)
+                    end
                 else
                     --debug_log("Cannot translate internal label")
                 end
@@ -782,13 +785,13 @@ local function save_vehicle(construct)
     if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
     if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
-    local file = io.open(filepath, "wb")
-    if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
     local content = soup.json.encode(constructor_lib.serialize_attachment(construct))
     if content == "" or (not string.starts(content, "{")) then
         util.toast("Cannot save vehicle: Error serializing.", TOAST_ALL)
         return
     end
+    local file = io.open(filepath, "wb")
+    if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
     file:write(content)
     file:close()
     util.toast("Saved ".. construct.name)
@@ -1037,6 +1040,7 @@ local function load_construct_plan_file(construct_plan_file)
     if construct_plan.name then construct_plan.name = construct_plan_file.filename end
     if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil) then
         util.toast(t("Failed to load construct from file ")..construct_plan_file.filepath, TOAST_ALL)
+        debug_log("Failed to load construct \nPlan:"..inspect(construct_plan_file).."\nLoaded construct plan "..inspect(construct_plan))
         return
     end
     if construct_plan_file.load_menu ~= nil then construct_plan.load_menu = construct_plan_file.load_menu end
@@ -1243,37 +1247,21 @@ local function add_prop_search_results(attachment, query, page_size, page_number
 end
 
 ---
---- Download and Extract Curated Constructs
+--- Curated Constructs Installer
 ---
 
-local function download_and_extract_curated_constructs()
-    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
-    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
-
-    util.toast("Downloading curated constructs...", TOAST_ALL)
-    auto_updater.run_auto_update({
-        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
-        script_relpath="store"..ZIP_FILE_STORE_PATH,
-        http_timeout=120000,
-    })
-
-    if not filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
-        error("Missing downloaded file "..DOWNLOADED_ZIP_FILE_PATH)
-    end
-    debug_log("Successfully downloaded curated constructs "..DOWNLOADED_ZIP_FILE_PATH, TOAST_ALL)
-
-    util.toast("Extracting curated constructs...", TOAST_ALL)
-    util.i_really_need_manual_access_to_process_apis()
-    local CURATED_CONSTRUCTS_DIR = CONSTRUCTS_DIR..'\\Curated'
-    filesystem.mkdirs(CURATED_CONSTRUCTS_DIR)
-    local command = 'tar -C "'..CURATED_CONSTRUCTS_DIR..'" -xf "'..DOWNLOADED_ZIP_FILE_PATH..'" --strip-components=1'
-    debug_log("Running command: "..command)
-    if os.execute(command) then
-        util.toast("Successfully installed curated constructs!", TOAST_ALL)
-        menu.focus(menus.search_constructs)
-    else
-        util.toast("There was a problem extracting the curated constructs", TOAST_ALL)
-    end
+local function install_curated_constructs()
+    local to_path = filesystem.scripts_dir().."/Constructs Installer.lua"
+    local write_file = io.open(to_path, "wb")
+    if write_file == nil then util.toast("Error writing to "..to_path..".") end
+    write_file:write(constants.CONSTRUCTS_INSTALLER_SCRIPT)
+    write_file:close()
+    util.yield(100)
+    menu.focus(menu.ref_by_path("Stand>Lua Scripts"))
+    util.yield(100)
+    menu.focus(menu.ref_by_path("Stand>Lua Scripts>Repository"))
+    util.yield(100)
+    menu.trigger_commands("luaconstructsinstaller")
 end
 
 
@@ -1963,12 +1951,15 @@ local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
 end
 
 local load_constructs_root_menu_file
-menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {}, t("Load a previously saved or shared construct into the world"), function()
+menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {"constructorloadconstruct"}, t("Load a previously saved or shared construct into the world"), function()
     menus.rebuild_load_construct_menu()
     if #load_constructs_root_menu_file.menus == 0 then
         util.toast("No constructs found!", TOAST_ALL)
-        menu.show_warning(menu.my_root(), CLICK_COMMAND, t("No constructs found! Would you like to download a curated collection of constructs? This includes popular vehicles, maps and skins to get started with Constructor."), function()
-            download_and_extract_curated_constructs()
+        menu.show_warning(menu.my_root(), CLICK_COMMAND, t(
+                "No constructs found! Would you like to download a curated collection of constructs? "
+                .."This includes popular vehicles, maps and skins to get started with Constructor. "
+                .."Installer requires special permissions for direct access to system for unzipping."), function()
+            install_curated_constructs()
             menus.rebuild_load_construct_menu()
         end)
     end
@@ -1979,7 +1970,7 @@ menus.search_constructs = menu.list(menus.load_construct, t("Search"), {}, t("Se
     menu.show_command_box("constructorsearch ")
 end)
 local previous_search_results = {}
-menu.text_input(menus.search_constructs, t("Search"), {"constructorsearch"}, t("Edit your search query"), function(query)
+menus.load_construct_search = menu.text_input(menus.search_constructs, t("Search"), {"constructorsearch"}, t("Edit your search query"), function(query)
     for _, previous_search_result in pairs(previous_search_results) do
         pcall(menu.delete, previous_search_result.load_menu)
     end
@@ -2000,7 +1991,7 @@ end)
 menus.load_construct_options = menu.list(menus.load_construct, t("Options"))
 menu.hyperlink(menus.load_construct_options, t("Open Constructs Folder"), "file:///"..CONSTRUCTS_DIR, t("Open constructs folder. Share your creations or add new creations here."))
 menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs from https://github.com/hexarobi/stand-curated-constructs"), function(click_type)
-    download_and_extract_curated_constructs()
+    install_curated_constructs()
 end)
 menu.toggle(menus.load_construct_options, t("Drive Spawned Vehicles"), {}, t("When spawning vehicles, automatically place you into the drivers seat."), function(on)
     config.drive_spawned_vehicles = on
@@ -2066,9 +2057,7 @@ end
 ---
 
 local options_menu = menu.list(menu.my_root(), t("Options"))
-
 menu.divider(options_menu, t("Global Configs"))
-
 menu.slider(options_menu, t("Edit Offset Step"), {}, t("The amount of change each time you edit an attachment offset (hold SHIFT or L1 for fine tuning)"), 1, 50, config.edit_offset_step, 1, function(value)
     config.edit_offset_step = value
 end)
@@ -2084,6 +2073,15 @@ end)
 menu.toggle(options_menu, t("Delete All on Unload"), {}, t("Deconstruct all spawned constructs when unloading Constructor"), function(on)
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
+menu.toggle(options_menu, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
+    config.debug_mode = toggle
+end, config.debug_mode)
+if config.debug_mode then
+    menu.action(options_menu, t("Log Missing Translations"), {}, t("Log any newly found missing translations"), function()
+        log_missing_translations()
+    end)
+end
+
 menu.action(options_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris."), function()
     local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),500, "VEHICLE")
     local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),500, "OBJECT")
@@ -2094,6 +2092,7 @@ end)
 ---
 --- Script Meta Menu
 ---
+
 local script_meta_menu = menu.list(menu.my_root(), t("Script Meta"))
 menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
@@ -2113,17 +2112,6 @@ menu.action(script_meta_menu, t("Clean Reinstall"), {}, t("Force an update to th
     auto_update_config.clean_reinstall = true
     auto_updater.run_auto_update(auto_update_config)
 end)
-
-menu.toggle(script_meta_menu, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
-    config.debug_mode = toggle
-end, config.debug_mode)
-
-if config.debug_mode then
-    menu.action(script_meta_menu, "Log Missing Translations", {}, "Log any newly found missing translations", function()
-        log_missing_translations()
-    end)
-end
-
 menu.hyperlink(script_meta_menu, t("Github Source"), "https://github.com/hexarobi/stand-lua-constructor", t("View source files on Github"))
 menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/RF4N7cKz", t("Open Discord Server"))
 
