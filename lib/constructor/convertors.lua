@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.2"
+local SCRIPT_VERSION = "0.8.3"
 local convertor = {}
 
 ---
@@ -1081,10 +1081,14 @@ local function map_ini_vehicle_flavor_4(attachment, data, index)
     constructor_lib.default_vehicle_attributes(attachment)
     local vehicle_main = data["Vehicle"..index]
 
-    if vehicle_main["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = tonumber(vehicle_main["Dirt"]) end
+    if vehicle_main["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = clean_ini_number(vehicle_main["Dirt"]) end
     if vehicle_main["IsEngineOn"] ~= nil then attachment.vehicle_attributes.options.engine_running = toboolean(vehicle_main["IsEngineOn"]) end
-    if vehicle_main["HeadlightMultiplier"] ~= nil then attachment.vehicle_attributes.headlights.multiplier = tonumber(vehicle_main["HeadlightMultiplier"]) end
+    if vehicle_main["HeadlightMultiplier"] ~= nil then attachment.vehicle_attributes.headlights.multiplier = clean_ini_number(vehicle_main["HeadlightMultiplier"]) end
+    if vehicle_main["LightsState"] ~= nil then attachment.vehicle_attributes.options.lights_state = tonumber(vehicle_main["LightsState"]) end
+    if vehicle_main["InteriorLight"] ~= nil then attachment.vehicle_attributes.options.interior_light = tonumber(vehicle_main["InteriorLight "]) end
+    if vehicle_main["ScorchedRender"] ~= nil then attachment.vehicle_attributes.options.is_scorched = toboolean(vehicle_main["ScorchedRender"]) end
     if vehicle_main["Siren"] ~= nil then attachment.vehicle_attributes.options.siren = toboolean(vehicle_main["Siren"]) end
+    if vehicle_main["WindscreenDetached"] ~= nil then attachment.vehicle_attributes.options.is_windscreen_detached = toboolean(vehicle_main["WindscreenDetached"]) end
 
     if vehicle_main["Doorbroken0"] ~= nil then attachment.vehicle_attributes.doors.broken.frontleft = toboolean(vehicle_main["Doorbroken0"]) end
     if vehicle_main["Doorbroken1"] ~= nil then attachment.vehicle_attributes.doors.broken.frontright = toboolean(vehicle_main["Doorbroken1"]) end
