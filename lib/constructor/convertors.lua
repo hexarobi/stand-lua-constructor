@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.7"
+local SCRIPT_VERSION = "0.8"
 local convertor = {}
 
 ---
@@ -56,6 +56,17 @@ local function read_file(filepath)
     end
 end
 
+local function table_merge(t1, t2)
+    for k, v in pairs(t2) do
+        if (type(v) == "table") and (type(t1[k] or false) == "table") then
+            table_merge(t1[k], t2[k])
+        else
+            t1[k] = v
+        end
+    end
+    return t1
+end
+
 ---
 --- Constructor Format
 ---
@@ -63,6 +74,17 @@ end
 convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
     constructor_lib.set_attachment_defaults(construct_plan)
     construct_plan.temp.source_file_type = "Construct"
+    if construct_plan.type == "PED" and construct_plan.hash == nil and construct_plan.model == nil then
+        local current_player = {
+            type="PED",
+            handle=players.user_ped(),
+            hash = ENTITY.GET_ENTITY_MODEL(players.user_ped()),
+            model = util.reverse_joaat(construct_plan.hash),
+        }
+        constructor_lib.deserialize_ped_attributes(current_player)
+        table_merge(current_player, construct_plan)
+        return current_player
+    end
     return construct_plan
 end
 
@@ -592,7 +614,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
     local parser = xml2lua.parser(vehicle_handler)
     parser:parse(xmldata)
 
-    util.log("Parsed XML: "..inspect(vehicle_handler.root))
+    --debug_log("Parsed XML: "..inspect(vehicle_handler.root))
 
     if vehicle_handler.root.Vehicle ~= nil then
         construct_plan.type = "VEHICLE"
@@ -641,7 +663,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
 
     rearrange_by_initial_attachment(construct_plan)
 
-    debug_log("Loaded XML construct plan: "..inspect(construct_plan))
+    --debug_log("Loaded XML construct plan: "..inspect(construct_plan))
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load XML construct. Missing hash or model.", TOAST_ALL)
@@ -1006,6 +1028,16 @@ end
 --- INI Mapper Flavor #4
 ---
 
+local function clean_ini_number(value)
+    if value == nil then return value end
+    if type(value) == "string" then
+        value = value:gsub("%s+", "") -- trim spaces
+        value = value:gsub(",", ".") -- replace commas with decimals
+        value = tonumber(value)
+    end
+    return value
+end
+
 local function map_ini_attachment_flavor_4(attachment, data)
     if data["Hash"] ~= nil then attachment.hash = data["Hash"] end
     if attachment.model == nil and attachment.hash ~= nil then
@@ -1014,21 +1046,21 @@ local function map_ini_attachment_flavor_4(attachment, data)
     constructor_lib.set_attachment_defaults(attachment)
     if data["Name"] ~= nil then attachment.name = data["Name"] end
 
-    if data["PosX"] ~= nil then attachment.position.x = tonumber(data["PosX"]) end
-    if data["PosY"] ~= nil then attachment.position.y = tonumber(data["PosY"]) end
-    if data["PosZ"] ~= nil then attachment.position.z = tonumber(data["PosZ"]) end
+    if data["PosX"] ~= nil then attachment.position.x = clean_ini_number(data["PosX"]) end
+    if data["PosY"] ~= nil then attachment.position.y = clean_ini_number(data["PosY"]) end
+    if data["PosZ"] ~= nil then attachment.position.z = clean_ini_number(data["PosZ"]) end
 
-    if data["RotX"] ~= nil then attachment.world_rotation.x = tonumber(data["RotX"]) end
-    if data["RotY"] ~= nil then attachment.world_rotation.y = tonumber(data["RotY"]) end
-    if data["RotZ"] ~= nil then attachment.world_rotation.z = tonumber(data["RotZ"]) end
+    if data["RotX"] ~= nil then attachment.world_rotation.x = clean_ini_number(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.world_rotation.y = clean_ini_number(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.world_rotation.z = clean_ini_number(data["RotZ"]) end
 
-    if data["OffsetX"] ~= nil then attachment.offset.x = tonumber(data["OffsetX"]) end
-    if data["OffsetY"] ~= nil then attachment.offset.y = tonumber(data["OffsetY"]) end
-    if data["OffsetZ"] ~= nil then attachment.offset.z = tonumber(data["OffsetZ"]) end
+    if data["OffsetX"] ~= nil then attachment.offset.x = clean_ini_number(data["OffsetX"]) end
+    if data["OffsetY"] ~= nil then attachment.offset.y = clean_ini_number(data["OffsetY"]) end
+    if data["OffsetZ"] ~= nil then attachment.offset.z = clean_ini_number(data["OffsetZ"]) end
 
-    if data["Pitch"] ~= nil then attachment.rotation.x = tonumber(data["Pitch"]) end
-    if data["Roll"] ~= nil then attachment.rotation.y = tonumber(data["Roll"]) end
-    if data["Yaw"] ~= nil then attachment.rotation.z = tonumber(data["Yaw"]) end
+    if data["Pitch"] ~= nil then attachment.rotation.x = clean_ini_number(data["Pitch"]) end
+    if data["Roll"] ~= nil then attachment.rotation.y = clean_ini_number(data["Roll"]) end
+    if data["Yaw"] ~= nil then attachment.rotation.z = clean_ini_number(data["Yaw"]) end
 
     if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
     if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
@@ -1399,7 +1431,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
         return
     end
 
-    debug_log("Parsed INI: "..inspect(data))
+    --debug_log("Parsed INI: "..inspect(data))
 
     construct_plan.temp.ini_flavor = get_ini_flavor(data)
     if not construct_plan.temp.ini_flavor then
@@ -1410,7 +1442,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
     map_ini_data(construct_plan, data)
     rearrange_by_initial_attachment(construct_plan)
 
-    debug_log("Loaded INI construct plan: "..inspect(construct_plan))
+    --debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load INI construct. Missing hash or model.", TOAST_ALL)
