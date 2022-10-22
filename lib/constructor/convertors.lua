@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.1"
+local SCRIPT_VERSION = "0.8.2"
 local convertor = {}
 
 ---
@@ -1431,7 +1431,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
         return
     end
 
-    debug_log("Parsed INI: "..inspect(data))
+    --debug_log("Parsed INI: "..inspect(data))
 
     construct_plan.temp.ini_flavor = get_ini_flavor(data)
     if not construct_plan.temp.ini_flavor then
@@ -1442,7 +1442,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
     map_ini_data(construct_plan, data)
     rearrange_by_initial_attachment(construct_plan)
 
-    debug_log("Loaded INI construct plan: "..inspect(construct_plan))
+    --debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load INI construct. Missing hash or model.", TOAST_ALL)
