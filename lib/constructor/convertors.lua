@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.6"
+local SCRIPT_VERSION = "0.8"
 local convertor = {}
 
 ---
@@ -20,9 +20,9 @@ if not status_iniparser then error("Could not load iniparser lib. This should ha
 local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
 if not status_constructor_lib then error("Could not load constructor_lib. This should have been auto-installed.") end
 
---util.ensure_package_is_installed('lua/json')
---local status_json, json = pcall(require, "json")
---if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+util.ensure_package_is_installed('lua/json')
+local status_json, json = pcall(require, "json")
+if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
 ---
 --- Utils
@@ -56,6 +56,17 @@ local function read_file(filepath)
     end
 end
 
+local function table_merge(t1, t2)
+    for k, v in pairs(t2) do
+        if (type(v) == "table") and (type(t1[k] or false) == "table") then
+            table_merge(t1[k], t2[k])
+        else
+            t1[k] = v
+        end
+    end
+    return t1
+end
+
 ---
 --- Constructor Format
 ---
@@ -63,6 +74,17 @@ end
 convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
     constructor_lib.set_attachment_defaults(construct_plan)
     construct_plan.temp.source_file_type = "Construct"
+    if construct_plan.type == "PED" and construct_plan.hash == nil and construct_plan.model == nil then
+        local current_player = {
+            type="PED",
+            handle=players.user_ped(),
+            hash = ENTITY.GET_ENTITY_MODEL(players.user_ped()),
+            model = util.reverse_joaat(construct_plan.hash),
+        }
+        constructor_lib.deserialize_ped_attributes(current_player)
+        table_merge(current_player, construct_plan)
+        return current_player
+    end
     return construct_plan
 end
 
@@ -313,11 +335,11 @@ end
 convertor.convert_json_to_construct_plan = function(construct_plan_file)
     local raw_data = read_file(construct_plan_file.filepath)
     if not raw_data or raw_data == "" then return end
-    local construct_plan = soup.json.decode(raw_data)
+    local construct_plan = json.decode(raw_data)
     convertor.convert_raw_construct_to_construct_plan(construct_plan)
     construct_plan.temp.source_file_type = "Construct"
     if construct_plan.version and string.find(construct_plan.version, "Jackz") then
-        debug_log("JSON data "..inspect(construct_plan))
+        --debug_log("JSON data "..inspect(construct_plan))
         construct_plan = convertor.convert_jackz_to_construct_plan(construct_plan)
     end
     return construct_plan
@@ -592,7 +614,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
     local parser = xml2lua.parser(vehicle_handler)
     parser:parse(xmldata)
 
-    util.log("Parsed XML: "..inspect(vehicle_handler.root))
+    --debug_log("Parsed XML: "..inspect(vehicle_handler.root))
 
     if vehicle_handler.root.Vehicle ~= nil then
         construct_plan.type = "VEHICLE"
@@ -641,7 +663,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
 
     rearrange_by_initial_attachment(construct_plan)
 
-    debug_log("Loaded XML construct plan: "..inspect(construct_plan))
+    --debug_log("Loaded XML construct plan: "..inspect(construct_plan))
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load XML construct. Missing hash or model.", TOAST_ALL)
@@ -1006,29 +1028,41 @@ end
 --- INI Mapper Flavor #4
 ---
 
+local function clean_ini_number(value)
+    if value == nil then return value end
+    if type(value) == "string" then
+        value = value:gsub("%s+", "") -- trim spaces
+        value = value:gsub(",", ".") -- replace commas with decimals
+        value = tonumber(value)
+    end
+    return value
+end
+
 local function map_ini_attachment_flavor_4(attachment, data)
     if data["Hash"] ~= nil then attachment.hash = data["Hash"] end
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
     constructor_lib.set_attachment_defaults(attachment)
+    debug_log("Mapping attachment "..inspect(attachment))
+    debug_log("Data "..inspect(data))
     if data["Name"] ~= nil then attachment.name = data["Name"] end
 
-    if data["PosX"] ~= nil then attachment.position.x = tonumber(data["PosX"]) end
-    if data["PosY"] ~= nil then attachment.position.y = tonumber(data["PosY"]) end
-    if data["PosZ"] ~= nil then attachment.position.z = tonumber(data["PosZ"]) end
+    if data["PosX"] ~= nil then attachment.position.x = clean_ini_number(data["PosX"]) end
+    if data["PosY"] ~= nil then attachment.position.y = clean_ini_number(data["PosY"]) end
+    if data["PosZ"] ~= nil then attachment.position.z = clean_ini_number(data["PosZ"]) end
 
-    if data["RotX"] ~= nil then attachment.world_rotation.x = tonumber(data["RotX"]) end
-    if data["RotY"] ~= nil then attachment.world_rotation.y = tonumber(data["RotY"]) end
-    if data["RotZ"] ~= nil then attachment.world_rotation.z = tonumber(data["RotZ"]) end
+    if data["RotX"] ~= nil then attachment.world_rotation.x = clean_ini_number(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.world_rotation.y = clean_ini_number(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.world_rotation.z = clean_ini_number(data["RotZ"]) end
 
-    if data["OffsetX"] ~= nil then attachment.offset.x = tonumber(data["OffsetX"]) end
-    if data["OffsetY"] ~= nil then attachment.offset.y = tonumber(data["OffsetY"]) end
-    if data["OffsetZ"] ~= nil then attachment.offset.z = tonumber(data["OffsetZ"]) end
+    if data["OffsetX"] ~= nil then attachment.offset.x = clean_ini_number(data["OffsetX"]) end
+    if data["OffsetY"] ~= nil then attachment.offset.y = clean_ini_number(data["OffsetY"]) end
+    if data["OffsetZ"] ~= nil then attachment.offset.z = clean_ini_number(data["OffsetZ"]) end
 
-    if data["Pitch"] ~= nil then attachment.rotation.x = tonumber(data["Pitch"]) end
-    if data["Roll"] ~= nil then attachment.rotation.y = tonumber(data["Roll"]) end
-    if data["Yaw"] ~= nil then attachment.rotation.z = tonumber(data["Yaw"]) end
+    if data["Pitch"] ~= nil then attachment.rotation.x = clean_ini_number(data["Pitch"]) end
+    if data["Roll"] ~= nil then attachment.rotation.y = clean_ini_number(data["Roll"]) end
+    if data["Yaw"] ~= nil then attachment.rotation.z = clean_ini_number(data["Yaw"]) end
 
     if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
     if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
@@ -1166,12 +1200,14 @@ local function map_ini_data_flavor_4(construct_plan, data)
             map_ini_vehicle_extras_flavor_4(construct_plan, data.Vehicle0Extras)
         end
         for vehicle_index = 1, tonumber(data.AllVehicles.Count) - 1 do
+            debug_log("Processing vehicle "..tostring(vehicle_index))
             local attached_vehicle = data["Vehicle"..vehicle_index]
             if attached_vehicle ~= nil then
                 local attachment = {}
                 attachment.type = "VEHICLE"
                 map_ini_attachment_flavor_4(attachment, attached_vehicle)
-                map_ini_vehicle_flavor_4(attachment, data, vehicle_index)
+                --map_ini_vehicle_flavor_4(attachment, data, vehicle_index)
+                debug_log("Mapped construct "..inspect(construct_plan))
                 if data["Vehicle"..vehicle_index.."Mods"] ~= nil then
                     map_ini_vehicle_mods_flavor_4(attachment, data["Vehicle"..vehicle_index.."Mods"])
                 end
@@ -1184,6 +1220,7 @@ local function map_ini_data_flavor_4(construct_plan, data)
                 table.insert(construct_plan.children, attachment)
             end
         end
+        --debug_log("Mapped construct "..inspect(construct_plan))
         for object_index = 1, tonumber(data.AllObjects.Count) - 1 do
             local attached_object = data["Object".. object_index]
             if attached_object ~= nil then
@@ -1399,7 +1436,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
         return
     end
 
-    debug_log("Parsed INI: "..inspect(data))
+    --debug_log("Parsed INI: "..inspect(data))
 
     construct_plan.temp.ini_flavor = get_ini_flavor(data)
     if not construct_plan.temp.ini_flavor then
@@ -1410,7 +1447,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
     map_ini_data(construct_plan, data)
     rearrange_by_initial_attachment(construct_plan)
 
-    debug_log("Loaded INI construct plan: "..inspect(construct_plan))
+    --debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load INI construct. Missing hash or model.", TOAST_ALL)
