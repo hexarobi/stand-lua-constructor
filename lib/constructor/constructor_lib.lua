@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.9b1"
+local SCRIPT_VERSION = "3.21.9b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -93,6 +93,21 @@ function table.array_remove(t, fnKeep)
     end
 
     return t;
+end
+
+constructor_lib.load_weapon_hash = function(hash)
+    debug_log("Requesting weapon asset "..hash)
+    WEAPON.REQUEST_WEAPON_ASSET(hash, 31, 0)
+    local counter = 0
+    while not WEAPON.HAS_WEAPON_ASSET_LOADED(hash) do
+        debug_log("Not yet loaded "..hash)
+        util.yield()
+        counter = counter + 1
+        if counter > 100 then
+            util.toast("Could not load weapon hash "..hash)
+            return
+        end
+    end
 end
 
 constructor_lib.load_hash = function(hash)
@@ -568,14 +583,30 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
         AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(vehicle.handle, true)
         AUDIO.TRIGGER_SIREN_AUDIO(vehicle.handle, true)
     end
-    VEHICLE.SET_VEHICLE_SIREN(vehicle.handle, vehicle.vehicle_attributes.options.emergency_lights or false)
-    VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle.handle, vehicle.vehicle_attributes.options.search_light or false, true)
-    AUDIO.SET_VEHICLE_RADIO_LOUD(vehicle.handle, vehicle.vehicle_attributes.options.radio_loud or false)
-    if vehicle.vehicle_attributes.options.license_plate_text ~= nil then
-        VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_text or "UNKNOWN")
+    if vehicle.vehicle_attributes.options.lights_state ~= nil then
+        VEHICLE.SET_VEHICLE_LIGHTS(vehicle.handle, vehicle.vehicle_attributes.options.lights_state)
     end
-    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_type or -1)
-
+    if vehicle.vehicle_attributes.options.interior_light ~= nil then
+        VEHICLE.SET_VEHICLE_INTERIORLIGHT(vehicle.handle, vehicle.vehicle_attributes.options.interior_light)
+    end
+    if vehicle.vehicle_attributes.options.is_windscreen_detached == true then
+        VEHICLE.POP_OUT_VEHICLE_WINDSCREEN(vehicle.handle)
+    end
+    if vehicle.vehicle_attributes.options.emergency_lights ~= nil then
+        VEHICLE.SET_VEHICLE_SIREN(vehicle.handle, vehicle.vehicle_attributes.options.emergency_lights)
+    end
+    if vehicle.vehicle_attributes.options.search_light ~= nil then
+        VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle.handle, vehicle.vehicle_attributes.options.search_light, true)
+    end
+    if vehicle.vehicle_attributes.options.radio_loud ~= nil then
+        AUDIO.SET_VEHICLE_RADIO_LOUD(vehicle.handle, vehicle.vehicle_attributes.options.radio_loud)
+    end
+    if vehicle.vehicle_attributes.options.license_plate_text ~= nil then
+        VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_text)
+    end
+    if vehicle.vehicle_attributes.options.license_plate_type ~= nil then
+        VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_type)
+    end
     if vehicle.vehicle_attributes.options.engine_running == true then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle.handle, true, true, false)
         VEHICLE.SET_VEHICLE_KEEP_ENGINE_ON_WHEN_ABANDONED(vehicle.handle, true)
@@ -623,10 +654,10 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.children == nil then attachment.children = {} end
     if attachment.temp == nil then attachment.temp = {} end
     if attachment.options == nil then attachment.options = {} end
-    if attachment.offset == nil then attachment.offset = { x = 0, y = 0, z = 0 } end
-    if attachment.rotation == nil then attachment.rotation = { x = 0, y = 0, z = 0 } end
-    if attachment.position == nil then attachment.position = { x = 0, y = 0, z = 0 } end
-    if attachment.world_rotation == nil then attachment.world_rotation = { x = 0, y = 0, z = 0 } end
+    if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
+    if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
+    if attachment.position == nil or attachment.position == {} then attachment.position = { x = 0, y = 0, z = 0 } end
+    if attachment.world_rotation == nil or attachment.world_rotation == {} then attachment.world_rotation = { x = 0, y = 0, z = 0 } end
     if attachment.heading == nil then
         attachment.heading = (attachment.root and attachment.root.heading or 0)
     end
@@ -934,16 +965,12 @@ constructor_lib.attach_attachment = function(attachment)
     if attachment.type == nil then attachment.type = constructor_lib.ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)] end
     if attachment.flash_start_on ~= nil then ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0) end
     if attachment.options.is_invincible ~= nil then ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, attachment.options.is_invincible) end
+    if attachment.options.is_scorched ~= nil then ENTITY.SET_ENTITY_RENDER_SCORCHED(attachment.handle, attachment.options.is_scorched) end
 
     constructor_lib.update_attachment(attachment)
     constructor_lib.update_attachment_position(attachment)
     constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
     constructor_lib.refresh_blip(attachment)
-
-    --if not attachment.is_preview then
-    --    -- Pause for a tick between each model load to avoid loading too many at once
-    --    --util.yield(2000)
-    --end
 
     debug_log("Done attaching "..tostring(attachment.name))
     return attachment
@@ -1209,6 +1236,7 @@ constructor_lib.serialize_ped_attributes = function(attachment)
 end
 
 constructor_lib.deserialize_ped_attributes = function(attachment)
+    if attachment.type ~= "PED" then return end
     debug_log("Deserializing ped attributes "..tostring(attachment.name))
     if attachment.ped_attributes == nil then return end
     if attachment.ped_attributes.can_rag_doll ~= nil then
@@ -1220,11 +1248,12 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
     end
     if attachment.ped_attributes.weapon_hash ~= nil then
         debug_log("Loading hash "..attachment.ped_attributes.weapon_hash)
-        --constructor_lib.load_hash(attachment.ped_attributes.weapon_hash)
+        constructor_lib.load_weapon_hash(attachment.ped_attributes.weapon_hash)
         debug_log("Setting current weapon "..attachment.ped_attributes.weapon_hash)
         --util.toast("Setting current weapon "..attachment.ped_attributes.weapon_hash, TOAST_ALL)
-        --WEAPON.GIVE_WEAPON_TO_PED(attachment.handle, attachment.ped_attributes.weapon_hash, 1, false, true)
-        --WEAPON.SET_CURRENT_PED_WEAPON(attachment.handle, attachment.ped_attributes.weapon_hash, true)
+        --util.yield(100)
+        WEAPON.GIVE_WEAPON_TO_PED(attachment.handle, attachment.ped_attributes.weapon_hash, 1, false, true)
+        WEAPON.SET_CURRENT_PED_WEAPON(attachment.handle, attachment.ped_attributes.weapon_hash, true)
     end
     --if attachment.ped_attributes.weapon then
     --end
