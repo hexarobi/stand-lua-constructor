@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.8"
+local SCRIPT_VERSION = "3.21.9b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -746,12 +746,8 @@ constructor_lib.update_attachment = function(attachment)
     if attachment.options.radio_loud ~= nil then AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud) end
     if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
 
-    --ENTITY.SET_ENTITY_ROTATION(attachment.handle, attachment.world_rotation.x, attachment.world_rotation.y, attachment.world_rotation.z, 2, true)
-
     if attachment.options.is_attached then
-        if attachment.type == "PED" and attachment.parent.is_player then
-            util.toast("Cannot attach ped to player. Spawning new ped "..tostring(attachment.name), TOAST_ALL)
-        else
+        if not (attachment.type == "PED" and attachment.parent.is_player) then
             if attachment == attachment.parent then
                 debug_log("Cannot attach attachment to itself "..tostring(attachment.name))
             else
@@ -764,8 +760,6 @@ constructor_lib.update_attachment = function(attachment)
                 )
             end
         end
-    --else
-    --    constructor_lib.update_attachment_position(attachment)
     end
 
     constructor_lib.update_ped_attachment(attachment)
@@ -812,11 +806,18 @@ end
 
 constructor_lib.load_hash_for_attachment = function(attachment)
     if not STREAMING.IS_MODEL_VALID(attachment.hash) then
-        if not STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) then
+        if STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) then
+            attachment.type = "VEHICLE"
+        elseif STREAMING.IS_MODEL_A_PED(attachment.hash) then
+            attachment.type = "PED"
+        else
             error("Error attaching: Invalid model: " .. attachment.model)
             return false
         end
-        attachment.type = "VEHICLE"
+        --if not (STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) or STREAMING.IS_MODEL_A_PED(attachment.hash)) then
+        --    error("Error attaching: Invalid model: " .. attachment.model)
+        --    return false
+        --end
     end
     constructor_lib.load_hash(attachment.hash)
     return true
@@ -827,20 +828,27 @@ constructor_lib.build_parent_child_relationship = function(parent_attachment, ch
     child_attachment.root = parent_attachment.root
 end
 
+constructor_lib.attach_player_ped = function(attachment)
+    if attachment.is_player then return end
+    if attachment.model then
+        debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
+        constructor_lib.load_hash(attachment.hash)
+        PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
+        util.yield(100) -- Need a delay for player model change to take effect and players.user_ped() to be new ped
+        attachment.handle = players.user_ped()
+    else
+        attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
+        attachment.model = util.reverse_joaat(attachment.hash)
+        attachment.handle = players.user_ped()
+    end
+    constructor_lib.deserialize_ped_attributes(attachment)
+end
+
+
 constructor_lib.attach_attachment = function(attachment)
     constructor_lib.set_attachment_defaults(attachment)
     if attachment.is_player and not attachment.is_preview then
-        if attachment.model then
-            debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
-            constructor_lib.load_hash(attachment.hash)
-            PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
-            util.yield(100)
-            attachment.handle = players.user_ped()
-        else
-            attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
-            attachment.model = util.reverse_joaat(attachment.hash)
-        end
-        constructor_lib.deserialize_ped_attributes(attachment)
+        constructor_lib.attach_player_ped(attachment)
         return
     else
         debug_log("Attaching "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
@@ -1010,7 +1018,7 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
     debug_log("Removing attachment from parent "..tostring(attachment.name))
     if attachment == attachment.parent then
         constructor_lib.remove_attachment(attachment)
-    else
+    elseif attachment.parent ~= nil then
         table.array_remove(attachment.parent.children, function(t, i)
             local child_attachment = t[i]
             if child_attachment.handle == attachment.handle then
@@ -1211,9 +1219,10 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
         debug_log("Setting weapon hash "..tostring(attachment.ped_attributes.weapon_hash))
     end
     if attachment.ped_attributes.weapon_hash ~= nil then
-        constructor_lib.load_hash(attachment.ped_attributes.weapon_hash)
+        debug_log("Loading hash "..attachment.ped_attributes.weapon_hash)
+        --constructor_lib.load_hash(attachment.ped_attributes.weapon_hash)
         debug_log("Setting current weapon "..attachment.ped_attributes.weapon_hash)
-        util.toast("Setting current weapon "..attachment.ped_attributes.weapon_hash, TOAST_ALL)
+        --util.toast("Setting current weapon "..attachment.ped_attributes.weapon_hash, TOAST_ALL)
         --WEAPON.GIVE_WEAPON_TO_PED(attachment.handle, attachment.ped_attributes.weapon_hash, 1, false, true)
         --WEAPON.SET_CURRENT_PED_WEAPON(attachment.handle, attachment.ped_attributes.weapon_hash, true)
     end
