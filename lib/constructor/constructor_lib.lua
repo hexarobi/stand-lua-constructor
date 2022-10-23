@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.8"
+local SCRIPT_VERSION = "3.21.9"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -568,14 +568,30 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
         AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(vehicle.handle, true)
         AUDIO.TRIGGER_SIREN_AUDIO(vehicle.handle, true)
     end
-    VEHICLE.SET_VEHICLE_SIREN(vehicle.handle, vehicle.vehicle_attributes.options.emergency_lights or false)
-    VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle.handle, vehicle.vehicle_attributes.options.search_light or false, true)
-    AUDIO.SET_VEHICLE_RADIO_LOUD(vehicle.handle, vehicle.vehicle_attributes.options.radio_loud or false)
-    if vehicle.vehicle_attributes.options.license_plate_text ~= nil then
-        VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_text or "UNKNOWN")
+    if vehicle.vehicle_attributes.options.lights_state ~= nil then
+        VEHICLE.SET_VEHICLE_LIGHTS(vehicle.handle, vehicle.vehicle_attributes.options.lights_state)
     end
-    VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_type or -1)
-
+    if vehicle.vehicle_attributes.options.interior_light ~= nil then
+        VEHICLE.SET_VEHICLE_INTERIORLIGHT(vehicle.handle, vehicle.vehicle_attributes.options.interior_light)
+    end
+    if vehicle.vehicle_attributes.options.is_windscreen_detached == true then
+        VEHICLE.POP_OUT_VEHICLE_WINDSCREEN(vehicle.handle)
+    end
+    if vehicle.vehicle_attributes.options.emergency_lights ~= nil then
+        VEHICLE.SET_VEHICLE_SIREN(vehicle.handle, vehicle.vehicle_attributes.options.emergency_lights)
+    end
+    if vehicle.vehicle_attributes.options.search_light ~= nil then
+        VEHICLE.SET_VEHICLE_SEARCHLIGHT(vehicle.handle, vehicle.vehicle_attributes.options.search_light, true)
+    end
+    if vehicle.vehicle_attributes.options.radio_loud ~= nil then
+        AUDIO.SET_VEHICLE_RADIO_LOUD(vehicle.handle, vehicle.vehicle_attributes.options.radio_loud)
+    end
+    if vehicle.vehicle_attributes.options.license_plate_text ~= nil then
+        VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_text)
+    end
+    if vehicle.vehicle_attributes.options.license_plate_type ~= nil then
+        VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_type)
+    end
     if vehicle.vehicle_attributes.options.engine_running == true then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle.handle, true, true, false)
         VEHICLE.SET_VEHICLE_KEEP_ENGINE_ON_WHEN_ABANDONED(vehicle.handle, true)
@@ -1010,7 +1026,7 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
     debug_log("Removing attachment from parent "..tostring(attachment.name))
     if attachment == attachment.parent then
         constructor_lib.remove_attachment(attachment)
-    else
+    elseif attachment.parent ~= nil then
         table.array_remove(attachment.parent.children, function(t, i)
             local child_attachment = t[i]
             if child_attachment.handle == attachment.handle then
