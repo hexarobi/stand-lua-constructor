@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.24"
+local SCRIPT_VERSION = "0.24.1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -241,7 +241,7 @@ local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.t
 
 pcall(menu.delete, loading_menu)
 
-local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION
+local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION .. " / " .. convertors.SCRIPT_VERSION
 
 ---
 --- Data
@@ -315,6 +315,17 @@ end
 
 function string.starts(String,Start)
     return string.sub(String,1,string.len(Start))==Start
+end
+
+local function table_merge(t1, t2)
+    for k, v in pairs(t2) do
+        if (type(v) == "table") and (type(t1[k] or false) == "table") then
+            table_merge(t1[k], t2[k])
+        else
+            t1[k] = v
+        end
+    end
+    return t1
 end
 
 -- From https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
@@ -581,6 +592,14 @@ local function get_construct_plan_description(construct_plan)
     return description_string
 end
 
+local function use_player_as_base(attachment)
+    if attachment.type ~= "PED" then return end
+    local player_preview = {handle=players.user_ped(), type="PED"}
+    constructor_lib.serialize_ped_attributes(player_preview)
+    player_preview.handle = nil
+    return table_merge(player_preview, attachment)
+end
+
 local function add_preview(construct_plan, preview_image_path)
     if config.show_previews == false then return end
     remove_preview()
@@ -833,6 +852,7 @@ local function spawn_construct_from_plan(construct_plan)
         end
         get_player_construct()
         player_construct = construct
+        use_player_as_base(construct)
     else
         calculate_camera_distance(construct)
         if not construct_plan.always_spawn_at_position then
@@ -2056,9 +2076,7 @@ end
 ---
 
 local options_menu = menu.list(menu.my_root(), t("Options"))
-
 menu.divider(options_menu, t("Global Configs"))
-
 menu.slider(options_menu, t("Edit Offset Step"), {}, t("The amount of change each time you edit an attachment offset (hold SHIFT or L1 for fine tuning)"), 1, 50, config.edit_offset_step, 1, function(value)
     config.edit_offset_step = value
 end)
@@ -2074,6 +2092,15 @@ end)
 menu.toggle(options_menu, t("Delete All on Unload"), {}, t("Deconstruct all spawned constructs when unloading Constructor"), function(on)
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
+menu.toggle(options_menu, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
+    config.debug_mode = toggle
+end, config.debug_mode)
+if config.debug_mode then
+    menu.action(options_menu, t("Log Missing Translations"), {}, t("Log any newly found missing translations"), function()
+        log_missing_translations()
+    end)
+end
+
 menu.action(options_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris."), function()
     local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),500, "VEHICLE")
     local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),500, "OBJECT")
@@ -2104,17 +2131,6 @@ menu.action(script_meta_menu, t("Clean Reinstall"), {}, t("Force an update to th
     auto_update_config.clean_reinstall = true
     auto_updater.run_auto_update(auto_update_config)
 end)
-
-menu.toggle(script_meta_menu, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
-    config.debug_mode = toggle
-end, config.debug_mode)
-
-if config.debug_mode then
-    menu.action(script_meta_menu, "Log Missing Translations", {}, "Log any newly found missing translations", function()
-        log_missing_translations()
-    end)
-end
-
 menu.hyperlink(script_meta_menu, t("Github Source"), "https://github.com/hexarobi/stand-lua-constructor", t("View source files on Github"))
 menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/RF4N7cKz", t("Open Discord Server"))
 
