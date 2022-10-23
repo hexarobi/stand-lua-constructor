@@ -1,8 +1,10 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.3"
-local convertor = {}
+local SCRIPT_VERSION = "0.8.4"
+local convertor = {
+    SCRIPT_VERSION = SCRIPT_VERSION
+}
 
 ---
 --- Dependencies
