@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.4"
+local SCRIPT_VERSION = "0.8.5"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -612,6 +612,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
     local construct_plan = table.table_copy(constructor_lib.construct_base)
     construct_plan.temp.source_file_type = "Menyoo XML"
 
+    xmldata = xmldata:gsub("<?xml 版本=\"1.0\"", "<?xml version=\"1.0\"")
     local vehicle_handler = xml2lua.TreeHandler:new()
     local parser = xml2lua.parser(vehicle_handler)
     parser:parse(xmldata)
