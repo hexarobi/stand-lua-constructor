@@ -1,8 +1,10 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.4"
-local convertor = {}
+local SCRIPT_VERSION = "0.8.5"
+local convertor = {
+    SCRIPT_VERSION = SCRIPT_VERSION
+}
 
 ---
 --- Dependencies
@@ -17,20 +19,20 @@ if not status_xml2lua then error("Could not load xml2lua lib. This should have b
 local status_iniparser, iniparser = pcall(require, "constructor/iniparser")
 if not status_iniparser then error("Could not load iniparser lib. This should have been auto-installed.") end
 
+local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
+if not status_constructor_lib then error("Could not load constructor_lib. This should have been auto-installed.") end
+
 util.ensure_package_is_installed('lua/json')
 local status_json, json = pcall(require, "json")
 if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
-
-local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
-if not status_constructor_lib then error("Could not load constructor_lib. This should have been auto-installed.") end
 
 ---
 --- Utils
 ---
 
 local function debug_log(message, additional_details)
-    if CONSTRUCTOR_DEBUG_MODE then
-        if CONSTRUCTOR_DEBUG_MODE == 2 and additional_details ~= nil then
+    if CONSTRUCTOR_CONFIG.debug_mode then
+        if CONSTRUCTOR_CONFIG.debug_mode == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
         util.log(message)
@@ -56,6 +58,17 @@ local function read_file(filepath)
     end
 end
 
+local function table_merge(t1, t2)
+    for k, v in pairs(t2) do
+        if (type(v) == "table") and (type(t1[k] or false) == "table") then
+            table_merge(t1[k], t2[k])
+        else
+            t1[k] = v
+        end
+    end
+    return t1
+end
+
 ---
 --- Constructor Format
 ---
@@ -63,6 +76,17 @@ end
 convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
     constructor_lib.set_attachment_defaults(construct_plan)
     construct_plan.temp.source_file_type = "Construct"
+    if construct_plan.type == "PED" and construct_plan.hash == nil and construct_plan.model == nil then
+        local current_player = {
+            type="PED",
+            handle=players.user_ped(),
+            hash = ENTITY.GET_ENTITY_MODEL(players.user_ped()),
+            model = util.reverse_joaat(construct_plan.hash),
+        }
+        constructor_lib.deserialize_ped_attributes(current_player)
+        table_merge(current_player, construct_plan)
+        return current_player
+    end
     return construct_plan
 end
 
@@ -312,12 +336,12 @@ end
 
 convertor.convert_json_to_construct_plan = function(construct_plan_file)
     local raw_data = read_file(construct_plan_file.filepath)
-    if not raw_data then return end
+    if not raw_data or raw_data == "" then return end
     local construct_plan = json.decode(raw_data)
     convertor.convert_raw_construct_to_construct_plan(construct_plan)
     construct_plan.temp.source_file_type = "Construct"
     if construct_plan.version and string.find(construct_plan.version, "Jackz") then
-        debug_log("JSON data "..inspect(construct_plan))
+        --debug_log("JSON data "..inspect(construct_plan))
         construct_plan = convertor.convert_jackz_to_construct_plan(construct_plan)
     end
     return construct_plan
@@ -588,11 +612,12 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
     local construct_plan = table.table_copy(constructor_lib.construct_base)
     construct_plan.temp.source_file_type = "Menyoo XML"
 
+    xmldata = xmldata:gsub("<?xml 版本=\"1.0\"", "<?xml version=\"1.0\"")
     local vehicle_handler = xml2lua.TreeHandler:new()
     local parser = xml2lua.parser(vehicle_handler)
     parser:parse(xmldata)
 
-    util.log("Parsed XML: "..inspect(vehicle_handler.root))
+    --debug_log("Parsed XML: "..inspect(vehicle_handler.root))
 
     if vehicle_handler.root.Vehicle ~= nil then
         construct_plan.type = "VEHICLE"
@@ -641,7 +666,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
 
     rearrange_by_initial_attachment(construct_plan)
 
-    debug_log("Loaded XML construct plan: "..inspect(construct_plan))
+    --debug_log("Loaded XML construct plan: "..inspect(construct_plan))
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load XML construct. Missing hash or model.", TOAST_ALL)
@@ -1006,6 +1031,16 @@ end
 --- INI Mapper Flavor #4
 ---
 
+local function clean_ini_number(value)
+    if value == nil then return value end
+    if type(value) == "string" then
+        value = value:gsub("%s+", "") -- trim spaces
+        value = value:gsub(",", ".") -- replace commas with decimals
+        value = tonumber(value)
+    end
+    return value
+end
+
 local function map_ini_attachment_flavor_4(attachment, data)
     if data["Hash"] ~= nil then attachment.hash = data["Hash"] end
     if attachment.model == nil and attachment.hash ~= nil then
@@ -1014,21 +1049,21 @@ local function map_ini_attachment_flavor_4(attachment, data)
     constructor_lib.set_attachment_defaults(attachment)
     if data["Name"] ~= nil then attachment.name = data["Name"] end
 
-    if data["PosX"] ~= nil then attachment.position.x = tonumber(data["PosX"]) end
-    if data["PosY"] ~= nil then attachment.position.y = tonumber(data["PosY"]) end
-    if data["PosZ"] ~= nil then attachment.position.z = tonumber(data["PosZ"]) end
+    if data["PosX"] ~= nil then attachment.position.x = clean_ini_number(data["PosX"]) end
+    if data["PosY"] ~= nil then attachment.position.y = clean_ini_number(data["PosY"]) end
+    if data["PosZ"] ~= nil then attachment.position.z = clean_ini_number(data["PosZ"]) end
 
-    if data["RotX"] ~= nil then attachment.world_rotation.x = tonumber(data["RotX"]) end
-    if data["RotY"] ~= nil then attachment.world_rotation.y = tonumber(data["RotY"]) end
-    if data["RotZ"] ~= nil then attachment.world_rotation.z = tonumber(data["RotZ"]) end
+    if data["RotX"] ~= nil then attachment.world_rotation.x = clean_ini_number(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.world_rotation.y = clean_ini_number(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.world_rotation.z = clean_ini_number(data["RotZ"]) end
 
-    if data["OffsetX"] ~= nil then attachment.offset.x = tonumber(data["OffsetX"]) end
-    if data["OffsetY"] ~= nil then attachment.offset.y = tonumber(data["OffsetY"]) end
-    if data["OffsetZ"] ~= nil then attachment.offset.z = tonumber(data["OffsetZ"]) end
+    if data["OffsetX"] ~= nil then attachment.offset.x = clean_ini_number(data["OffsetX"]) end
+    if data["OffsetY"] ~= nil then attachment.offset.y = clean_ini_number(data["OffsetY"]) end
+    if data["OffsetZ"] ~= nil then attachment.offset.z = clean_ini_number(data["OffsetZ"]) end
 
-    if data["Pitch"] ~= nil then attachment.rotation.x = tonumber(data["Pitch"]) end
-    if data["Roll"] ~= nil then attachment.rotation.y = tonumber(data["Roll"]) end
-    if data["Yaw"] ~= nil then attachment.rotation.z = tonumber(data["Yaw"]) end
+    if data["Pitch"] ~= nil then attachment.rotation.x = clean_ini_number(data["Pitch"]) end
+    if data["Roll"] ~= nil then attachment.rotation.y = clean_ini_number(data["Roll"]) end
+    if data["Yaw"] ~= nil then attachment.rotation.z = clean_ini_number(data["Yaw"]) end
 
     if data["Collision"] ~= nil then attachment.options.has_collision = toboolean(data["Collision"]) end
     if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
@@ -1049,10 +1084,14 @@ local function map_ini_vehicle_flavor_4(attachment, data, index)
     constructor_lib.default_vehicle_attributes(attachment)
     local vehicle_main = data["Vehicle"..index]
 
-    if vehicle_main["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = tonumber(vehicle_main["Dirt"]) end
+    if vehicle_main["Dirt"] ~= nil then attachment.vehicle_attributes.paint.dirt_level = clean_ini_number(vehicle_main["Dirt"]) end
     if vehicle_main["IsEngineOn"] ~= nil then attachment.vehicle_attributes.options.engine_running = toboolean(vehicle_main["IsEngineOn"]) end
-    if vehicle_main["HeadlightMultiplier"] ~= nil then attachment.vehicle_attributes.headlights.multiplier = tonumber(vehicle_main["HeadlightMultiplier"]) end
+    if vehicle_main["HeadlightMultiplier"] ~= nil then attachment.vehicle_attributes.headlights.multiplier = clean_ini_number(vehicle_main["HeadlightMultiplier"]) end
+    if vehicle_main["LightsState"] ~= nil then attachment.vehicle_attributes.options.lights_state = tonumber(vehicle_main["LightsState"]) end
+    if vehicle_main["InteriorLight"] ~= nil then attachment.vehicle_attributes.options.interior_light = tonumber(vehicle_main["InteriorLight "]) end
+    if vehicle_main["ScorchedRender"] ~= nil then attachment.vehicle_attributes.options.is_scorched = toboolean(vehicle_main["ScorchedRender"]) end
     if vehicle_main["Siren"] ~= nil then attachment.vehicle_attributes.options.siren = toboolean(vehicle_main["Siren"]) end
+    if vehicle_main["WindscreenDetached"] ~= nil then attachment.vehicle_attributes.options.is_windscreen_detached = toboolean(vehicle_main["WindscreenDetached"]) end
 
     if vehicle_main["Doorbroken0"] ~= nil then attachment.vehicle_attributes.doors.broken.frontleft = toboolean(vehicle_main["Doorbroken0"]) end
     if vehicle_main["Doorbroken1"] ~= nil then attachment.vehicle_attributes.doors.broken.frontright = toboolean(vehicle_main["Doorbroken1"]) end
@@ -1098,21 +1137,21 @@ local function map_ini_vehicle_flavor_4(attachment, data, index)
         if data["Vehicle"..index.."ExtraColors"].Pearl ~= nil then attachment.vehicle_attributes.paint.extra_colors.pearlescent = tonumber(data["Vehicle"..index.."ExtraColors"].Pearl) end
         if data["Vehicle"..index.."ExtraColors"].Wheel ~= nil then attachment.vehicle_attributes.paint.extra_colors.wheel = tonumber(data["Vehicle"..index.."ExtraColors"].Wheel) end
     end
-    if data["Vehicle"..index.."IsCustomPrimary"] ~= nil and toboolean(data["Vehicle"..index.."IsCustomPrimary"]["bool"]) == true then
-        if data["Vehicle"..index.."CustomPrimaryColor"] ~= nil then
-            attachment.vehicle_attributes.paint.primary.is_custom = true
-            if data["Vehicle"..index.."CustomPrimaryColor"].R ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.r = tonumber(data["Vehicle"..index.."CustomPrimaryColor"].R) end
-            if data["Vehicle"..index.."CustomPrimaryColor"].G ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.g = tonumber(data["Vehicle"..index.."CustomPrimaryColor"].G) end
-            if data["Vehicle"..index.."CustomPrimaryColor"].B ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.b = tonumber(data["Vehicle"..index.."CustomPrimaryColor"].B) end
-        end
+    if data["Vehicle"..index.."IsCustomPrimary"] ~= nil then
+        attachment.vehicle_attributes.paint.primary.is_custom = toboolean(data["Vehicle"..index.."IsCustomPrimary"])
     end
-    if data["Vehicle"..index.."IsCustomSecondary"] ~= nil and toboolean(data["Vehicle"..index.."IsCustomSecondary"]["bool"]) == true then
-        if data["Vehicle"..index.."CustomSecondaryColor"] ~= nil then
-            attachment.vehicle_attributes.paint.secondary.is_custom = true
-            if data["Vehicle"..index.."CustomSecondaryColor"].R ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.r = tonumber(data["Vehicle"..index.."CustomSecondaryColor"].R) end
-            if data["Vehicle"..index.."CustomSecondaryColor"].G ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.g = tonumber(data["Vehicle"..index.."CustomSecondaryColor"].G) end
-            if data["Vehicle"..index.."CustomSecondaryColor"].B ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.b = tonumber(data["Vehicle"..index.."CustomSecondaryColor"].B) end
-        end
+    if data["Vehicle"..index.."CustomPrimaryColor"] ~= nil then
+        if data["Vehicle"..index.."CustomPrimaryColor"].R ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.r = tonumber(data["Vehicle"..index.."CustomPrimaryColor"].R) end
+        if data["Vehicle"..index.."CustomPrimaryColor"].G ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.g = tonumber(data["Vehicle"..index.."CustomPrimaryColor"].G) end
+        if data["Vehicle"..index.."CustomPrimaryColor"].B ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.b = tonumber(data["Vehicle"..index.."CustomPrimaryColor"].B) end
+    end
+    if data["Vehicle"..index.."IsCustomSecondary"] ~= nil then
+        attachment.vehicle_attributes.paint.secondary.is_custom = toboolean(data["Vehicle"..index.."IsCustomSecondary"])
+    end
+    if data["Vehicle"..index.."CustomSecondaryColor"] ~= nil then
+        if data["Vehicle"..index.."CustomSecondaryColor"].R ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.r = tonumber(data["Vehicle"..index.."CustomSecondaryColor"].R) end
+        if data["Vehicle"..index.."CustomSecondaryColor"].G ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.g = tonumber(data["Vehicle"..index.."CustomSecondaryColor"].G) end
+        if data["Vehicle"..index.."CustomSecondaryColor"].B ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.b = tonumber(data["Vehicle"..index.."CustomSecondaryColor"].B) end
     end
     if data["Vehicle"..index.."WheelType"] ~= nil then
         if data["Vehicle"..index.."WheelType"].Index ~= nil then attachment.vehicle_attributes.wheels.wheel_type = tonumber(data["Vehicle"..index.."WheelType"].Index) end
@@ -1399,7 +1438,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
         return
     end
 
-    debug_log("Parsed INI: "..inspect(data))
+    --debug_log("Parsed INI: "..inspect(data))
 
     construct_plan.temp.ini_flavor = get_ini_flavor(data)
     if not construct_plan.temp.ini_flavor then
@@ -1410,7 +1449,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
     map_ini_data(construct_plan, data)
     rearrange_by_initial_attachment(construct_plan)
 
-    debug_log("Loaded INI construct plan: "..inspect(construct_plan))
+    --debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load INI construct. Missing hash or model.", TOAST_ALL)
