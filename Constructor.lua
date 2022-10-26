@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b3"
+local SCRIPT_VERSION = "0.25b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -576,9 +576,9 @@ local function get_construct_plan_description(construct_plan)
     debug_log("Building construct plan description "..tostring(construct_plan.name), construct_plan)
     local descriptions = {}
     if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
-    table.insert(descriptions, get_type(construct_plan))
-    if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, construct_plan.temp.source_file_type) end
-    if construct_plan.author ~= nil then table.insert(descriptions, "Created By: "..construct_plan.author) end
+    table.insert(descriptions, t(get_type(construct_plan)))
+    if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, t(construct_plan.temp.source_file_type)) end
+    if construct_plan.author ~= nil then table.insert(descriptions, t("Created By: ")..construct_plan.author) end
     if construct_plan.description ~= nil then table.insert(descriptions, construct_plan.description) end
     local counter = count_construct_children(construct_plan)
     if counter["TOTAL"] > 0 then
