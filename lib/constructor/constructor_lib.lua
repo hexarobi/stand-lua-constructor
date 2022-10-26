@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.9b2"
+local SCRIPT_VERSION = "3.21.9"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -93,21 +93,6 @@ function table.array_remove(t, fnKeep)
     end
 
     return t;
-end
-
-constructor_lib.load_weapon_hash = function(hash)
-    debug_log("Requesting weapon asset "..hash)
-    WEAPON.REQUEST_WEAPON_ASSET(hash, 31, 0)
-    local counter = 0
-    while not WEAPON.HAS_WEAPON_ASSET_LOADED(hash) do
-        debug_log("Not yet loaded "..hash)
-        util.yield()
-        counter = counter + 1
-        if counter > 100 then
-            util.toast("Could not load weapon hash "..hash)
-            return
-        end
-    end
 end
 
 constructor_lib.load_hash = function(hash)
@@ -673,7 +658,7 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options.is_networked == nil and (attachment.root ~= nil and not attachment.root.is_preview) then
         attachment.options.is_networked = true
     end
-    if attachment.options.is_mission_entity == nil then attachment.options.is_mission_entity = false end
+    if attachment.options.is_mission_entity == nil then attachment.options.is_mission_entity = true end
     if attachment.options.is_invincible == nil then attachment.options.is_invincible = false end
     if attachment.options.is_bullet_proof == nil then attachment.options.is_bullet_proof = false end
     if attachment.options.is_fire_proof == nil then attachment.options.is_fire_proof = false end
@@ -700,7 +685,8 @@ constructor_lib.set_attachment_defaults = function(attachment)
 end
 
 constructor_lib.set_preview_visibility = function(attachment)
-    local preview_alpha = attachment.alpha or 206
+    local preview_alpha = attachment.alpha
+    if preview_alpha == nil then preview_alpha = 206 end
     if attachment.options.is_visible == false then preview_alpha = 0 end
     ENTITY.SET_ENTITY_ALPHA(attachment.handle, preview_alpha, false)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
@@ -778,7 +764,9 @@ constructor_lib.update_attachment = function(attachment)
     if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
 
     if attachment.options.is_attached then
-        if not (attachment.type == "PED" and attachment.parent.is_player) then
+        if attachment.type == "PED" and attachment.parent.is_player then
+            util.toast("Cannot attach ped to player. Spawning new ped "..tostring(attachment.name), TOAST_ALL)
+        else
             if attachment == attachment.parent then
                 debug_log("Cannot attach attachment to itself "..tostring(attachment.name))
             else
@@ -798,7 +786,8 @@ end
 
 constructor_lib.update_attachment_position = function(attachment)
     --debug_log("Updating attachment position "..tostring(attachment.name))
-    if attachment == attachment.parent or not attachment.options.is_attached then
+    if attachment == attachment.parent or attachment.options.is_attached == false then
+        debug_log("Updating attachment world rotation "..tostring(attachment.name))
         ENTITY.SET_ENTITY_ROTATION(
                 attachment.handle,
                 attachment.world_rotation.x,
@@ -845,10 +834,6 @@ constructor_lib.load_hash_for_attachment = function(attachment)
             error("Error attaching: Invalid model: " .. attachment.model)
             return false
         end
-        --if not (STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) or STREAMING.IS_MODEL_A_PED(attachment.hash)) then
-        --    error("Error attaching: Invalid model: " .. attachment.model)
-        --    return false
-        --end
     end
     constructor_lib.load_hash(attachment.hash)
     return true
@@ -859,27 +844,20 @@ constructor_lib.build_parent_child_relationship = function(parent_attachment, ch
     child_attachment.root = parent_attachment.root
 end
 
-constructor_lib.attach_player_ped = function(attachment)
-    if attachment.is_player then return end
-    if attachment.model then
-        debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
-        constructor_lib.load_hash(attachment.hash)
-        PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
-        util.yield(100) -- Need a delay for player model change to take effect and players.user_ped() to be new ped
-        attachment.handle = players.user_ped()
-    else
-        attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
-        attachment.model = util.reverse_joaat(attachment.hash)
-        attachment.handle = players.user_ped()
-    end
-    constructor_lib.deserialize_ped_attributes(attachment)
-end
-
-
 constructor_lib.attach_attachment = function(attachment)
     constructor_lib.set_attachment_defaults(attachment)
     if attachment.is_player and not attachment.is_preview then
-        constructor_lib.attach_player_ped(attachment)
+        if attachment.model then
+            debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
+            constructor_lib.load_hash(attachment.hash)
+            PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
+            util.yield(100)
+            attachment.handle = players.user_ped()
+        else
+            attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
+            attachment.model = util.reverse_joaat(attachment.hash)
+        end
+        constructor_lib.deserialize_ped_attributes(attachment)
         return
     else
         debug_log("Attaching "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
@@ -939,9 +917,14 @@ constructor_lib.attach_attachment = function(attachment)
             pos = ENTITY.GET_ENTITY_COORDS(attachment.root.handle)
         end
         if is_networked then
-            -- breaks rotation!?!
-            --attachment.handle = NETWORK.OBJ_TO_NET(entities.create_object(attachment.hash, pos))
             attachment.handle = entities.create_object(attachment.hash, pos)
+            --attachment.temp.networked_handle = NETWORK.OBJ_TO_NET(attachment.handle)
+            --ENTITY.SET_ENTITY_SHOULD_FREEZE_WAITING_ON_COLLISION(attachment.handle, true)
+            --NETWORK.SET_NETWORK_ID_ALWAYS_EXISTS_FOR_PLAYER(attachment.temp.networked_handle, PLAYER.PLAYER_ID(), true)
+            --ENTITY.SET_ENTITY_LOAD_COLLISION_FLAG(attachment.handle, true, 1)
+            --NETWORK.SET_NETWORK_ID_EXISTS_ON_ALL_MACHINES(NETWORK.OBJ_TO_NET(attachment.handle), true);
+            ----NETWORK.SET_NETWORK_ID_CAN_MIGRATE(attachment.temp.networked_handle, false)
+            --NETWORK.SET_NETWORK_ID_CAN_MIGRATE(NETWORK.OBJ_TO_NET(attachment.handle), false)
         else
             attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(
                     attachment.hash,
@@ -960,17 +943,26 @@ constructor_lib.attach_attachment = function(attachment)
     if attachment.root.is_preview == true then constructor_lib.set_preview_visibility(attachment) end
 
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
+    constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
 
     if attachment.num_bones == nil or attachment.num_bones == 200 then attachment.num_bones = ENTITY.GET_ENTITY_BONE_COUNT(attachment.handle) end
     if attachment.type == nil then attachment.type = constructor_lib.ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)] end
     if attachment.flash_start_on ~= nil then ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.flash_start_on, 0) end
     if attachment.options.is_invincible ~= nil then ENTITY.SET_ENTITY_INVINCIBLE(attachment.handle, attachment.options.is_invincible) end
     if attachment.options.is_scorched ~= nil then ENTITY.SET_ENTITY_RENDER_SCORCHED(attachment.handle, attachment.options.is_scorched) end
+    if attachment.options.radio_loud ~= nil then AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud) end
+    if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
 
     constructor_lib.update_attachment(attachment)
     constructor_lib.update_attachment_position(attachment)
-    constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
     constructor_lib.refresh_blip(attachment)
+
+    --if attachment.type == "OBJECT" then
+    --    NETWORK.SET_NETWORK_ID_EXISTS_ON_ALL_MACHINES(NETWORK.OBJ_TO_NET(attachment.handle), true)
+    --    NETWORK.SET_NETWORK_ID_CAN_MIGRATE(NETWORK.OBJ_TO_NET(attachment.handle), false)
+    --end
+
+    --util.yield(10)
 
     debug_log("Done attaching "..tostring(attachment.name))
     return attachment
@@ -1236,7 +1228,6 @@ constructor_lib.serialize_ped_attributes = function(attachment)
 end
 
 constructor_lib.deserialize_ped_attributes = function(attachment)
-    if attachment.type ~= "PED" then return end
     debug_log("Deserializing ped attributes "..tostring(attachment.name))
     if attachment.ped_attributes == nil then return end
     if attachment.ped_attributes.can_rag_doll ~= nil then
@@ -1244,19 +1235,12 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
     end
     if attachment.ped_attributes.weapon_hash == nil and attachment.ped_attributes.weapon ~= nil then
         attachment.ped_attributes.weapon_hash = util.joaat(attachment.ped_attributes.weapon)
-        debug_log("Setting weapon hash "..tostring(attachment.ped_attributes.weapon_hash))
     end
     if attachment.ped_attributes.weapon_hash ~= nil then
-        debug_log("Loading hash "..attachment.ped_attributes.weapon_hash)
         constructor_lib.load_weapon_hash(attachment.ped_attributes.weapon_hash)
-        debug_log("Setting current weapon "..attachment.ped_attributes.weapon_hash)
-        --util.toast("Setting current weapon "..attachment.ped_attributes.weapon_hash, TOAST_ALL)
-        --util.yield(100)
         WEAPON.GIVE_WEAPON_TO_PED(attachment.handle, attachment.ped_attributes.weapon_hash, 1, false, true)
         WEAPON.SET_CURRENT_PED_WEAPON(attachment.handle, attachment.ped_attributes.weapon_hash, true)
     end
-    --if attachment.ped_attributes.weapon then
-    --end
     if attachment.ped_attributes.armour then
         PED.SET_PED_ARMOUR(attachment.handle, attachment.ped_attributes.armour)
     end
