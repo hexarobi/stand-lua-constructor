@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.5"
+local SCRIPT_VERSION = "0.8.4b2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -74,16 +74,17 @@ end
 ---
 
 convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
-    constructor_lib.set_attachment_defaults(construct_plan)
+    --constructor_lib.set_attachment_defaults(construct_plan)
+    if construct_plan.temp == nil then construct_plan.temp = {} end
     construct_plan.temp.source_file_type = "Construct"
     if construct_plan.type == "PED" and construct_plan.hash == nil and construct_plan.model == nil then
+        local current_player_hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
         local current_player = {
-            type="PED",
-            handle=players.user_ped(),
-            hash = ENTITY.GET_ENTITY_MODEL(players.user_ped()),
-            model = util.reverse_joaat(construct_plan.hash),
+            handle = players.user_ped(),
+            hash = current_player_hash,
+            model = util.reverse_joaat(current_player_hash),
         }
-        constructor_lib.deserialize_ped_attributes(current_player)
+        --constructor_lib.deserialize_ped_attributes(current_player)
         table_merge(current_player, construct_plan)
         return current_player
     end
@@ -612,7 +613,6 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
     local construct_plan = table.table_copy(constructor_lib.construct_base)
     construct_plan.temp.source_file_type = "Menyoo XML"
 
-    xmldata = xmldata:gsub("<?xml 版本=\"1.0\"", "<?xml version=\"1.0\"")
     local vehicle_handler = xml2lua.TreeHandler:new()
     local parser = xml2lua.parser(vehicle_handler)
     parser:parse(xmldata)

@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.24.1"
+local SCRIPT_VERSION = "0.25b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 local loading_menu = menu.divider(menu.my_root(), "Loading...")
@@ -145,7 +145,7 @@ CONSTRUCTOR_CONFIG = {
     preview_display_delay = 500,
     max_search_results = 100,
     selected_language = 1,
-    debug_mode = false,
+    debug_mode = true,
 }
 local config = CONSTRUCTOR_CONFIG
 
@@ -249,8 +249,7 @@ local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION .. " /
 local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
 filesystem.mkdirs(CONSTRUCTS_DIR)
 
--- TODO: Allow loading from Jackz builds
---local JACKZ_BUILD_DIR = filesystem.stand_dir() .. 'Builds\\'
+local JACKZ_BUILD_DIR = filesystem.stand_dir() .. 'Builds\\'
 
 local spawned_constructs = {}
 local last_spawned_construct
@@ -514,6 +513,8 @@ local function calculate_construct_size(construct, child_attachment)
     if child_attachment.offset == nil then child_attachment.offset = {x=0,y=0,z=0} end
     MISC.GET_MODEL_DIMENSIONS(child_attachment.hash, minVec, maxVec)
 
+    --debug_log("Calc size "..inspect(child_attachment))
+
     construct.dimensions.min_vec.x = math.min(construct.dimensions.min_vec.x, minVec:getX() + child_attachment.offset.x)
     construct.dimensions.min_vec.y = math.min(construct.dimensions.min_vec.y, minVec:getY() + child_attachment.offset.y)
     construct.dimensions.min_vec.z = math.min(construct.dimensions.min_vec.z, minVec:getZ() + child_attachment.offset.z)
@@ -575,9 +576,9 @@ local function get_construct_plan_description(construct_plan)
     debug_log("Building construct plan description "..tostring(construct_plan.name), construct_plan)
     local descriptions = {}
     if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
-    table.insert(descriptions, get_type(construct_plan))
-    if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, construct_plan.temp.source_file_type) end
-    if construct_plan.author ~= nil then table.insert(descriptions, "Created By: "..construct_plan.author) end
+    table.insert(descriptions, t(get_type(construct_plan)))
+    if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, t(construct_plan.temp.source_file_type)) end
+    if construct_plan.author ~= nil then table.insert(descriptions, t("Created By: ")..construct_plan.author) end
     if construct_plan.description ~= nil then table.insert(descriptions, construct_plan.description) end
     local counter = count_construct_children(construct_plan)
     if counter["TOTAL"] > 0 then
@@ -613,10 +614,11 @@ local function add_preview(construct_plan, preview_image_path)
     util.yield(config.preview_display_delay)
     if next_preview == construct_plan then
         local attachment = copy_construct_plan(construct_plan)
-        if attachment.name == nil then attachment.name = attachment.model end
+        if construct_plan.type == "PED" then attachment = use_player_as_base(attachment) end
         attachment.root = attachment
         attachment.parent = attachment
         attachment.is_preview = true
+        constructor_lib.set_attachment_defaults(attachment)
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
         current_preview = constructor_lib.attach_attachment_with_children(attachment)
@@ -1060,6 +1062,7 @@ local function load_construct_plan_file(construct_plan_file)
     if construct_plan.name then construct_plan.name = construct_plan_file.filename end
     if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil) then
         util.toast(t("Failed to load construct from file ")..construct_plan_file.filepath, TOAST_ALL)
+        debug_log("Failed to load construct \nPlan:"..inspect(construct_plan_file).."\nLoaded construct plan "..inspect(construct_plan))
         return
     end
     if construct_plan_file.load_menu ~= nil then construct_plan.load_menu = construct_plan_file.load_menu end
@@ -2022,14 +2025,22 @@ end, config.wear_spawned_peds)
 menu.divider(menus.load_construct, t("Browse"))
 
 local function add_directory_to_load_constructs(path, parent_construct_plan_file)
-    if path == nil then path = "" end
+    if path == nil then path = CONSTRUCTS_DIR end
     if parent_construct_plan_file == nil then parent_construct_plan_file = load_constructs_root_menu_file end
     if parent_construct_plan_file.menus == nil then parent_construct_plan_file.menus = {} end
     for _, construct_plan_menu in pairs(parent_construct_plan_file.menus) do
         pcall(menu.delete, construct_plan_menu)
     end
 
-    local construct_plan_files = load_construct_plans_files_from_dir(CONSTRUCTS_DIR..path)
+    if path == CONSTRUCTS_DIR and filesystem.exists(JACKZ_BUILD_DIR) then
+        local jackz_builds = {}
+        jackz_builds.menu = menu.list(load_constructs_root_menu_file.menu, "Jackz Builds", {}, "Builds from Jackz Vehicle Builder", function()
+            add_directory_to_load_constructs(JACKZ_BUILD_DIR, jackz_builds)
+        end)
+        table.insert(load_constructs_root_menu_file.menus, jackz_builds.menu)
+    end
+
+    local construct_plan_files = load_construct_plans_files_from_dir(path)
     for _, construct_plan_file in pairs(construct_plan_files) do
         if construct_plan_file.is_directory then
             construct_plan_file.menu = menu.list(parent_construct_plan_file.menu, construct_plan_file.name or "unknown", {}, "", function()
@@ -2059,7 +2070,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
 end
 
 menus.rebuild_load_construct_menu = function()
-    add_directory_to_load_constructs()
+    add_directory_to_load_constructs(CONSTRUCTS_DIR, load_constructs_root_menu_file)
 end
 
 ---
