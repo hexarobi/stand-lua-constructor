@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b5"
+local SCRIPT_VERSION = "0.25b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1524,6 +1524,24 @@ menus.rebuild_attachment_menu = function(attachment)
                 attachment.vehicle_attributes.doors.broken.trunk2 = true
                 constructor_lib.deserialize_vehicle_doors(attachment)
             end)
+
+            attachment.menus.windows = menu.list(attachment.menus.vehicle_options, "Windows Rolled Down", {}, "Roll  up and down windows")
+            for window_index = 1, 8 do
+                local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
+                menu.toggle(attachment.menus.windows, "Window Rolled Down: "..window_name, {}, "Roll down the window.", function(on)
+                    attachment.vehicle_attributes.windows.rolled_down[window_name] = on
+                    constructor_lib.deserialize_vehicle_windows(attachment)
+                end, attachment.vehicle_attributes.windows.rolled_down[window_name])
+            end
+
+            attachment.menus.windows = menu.list(attachment.menus.vehicle_options, "Windows Broken", {}, "Roll  up and down windows")
+            for window_index = 1, 8 do
+                local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
+                menu.toggle(attachment.menus.windows, "Window Broken: "..window_name, {}, "Break the window.", function(on)
+                    attachment.vehicle_attributes.windows.rolled_down[window_name] = on
+                    constructor_lib.deserialize_vehicle_windows(attachment)
+                end, attachment.vehicle_attributes.windows.rolled_down[window_name])
+            end
 
         end
 
