@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b4"
+local SCRIPT_VERSION = "0.25b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -418,7 +418,6 @@ end
 local function add_attachment_to_construct(attachment)
     debug_log("Adding attachment to construct "..tostring(attachment.name), attachment)
     constructor_lib.serialize_vehicle_attributes(attachment)
-    constructor_lib.serialize_ped_attributes(attachment)
     constructor_lib.add_attachment_to_construct(attachment)
     menus.rebuild_attachment_menu(attachment)
     attachment.parent.menus.refresh()
@@ -594,11 +593,14 @@ local function get_construct_plan_description(construct_plan)
 end
 
 local function use_player_as_base(attachment)
-    if attachment.type ~= "PED" then return end
-    local player_preview = {handle=players.user_ped(), type="PED"}
-    constructor_lib.serialize_ped_attributes(player_preview)
-    player_preview.handle = nil
-    return table_merge(player_preview, attachment)
+    if attachment.type ~= "PED" then return attachment end
+    if attachment.hash == nil and attachment.model == nil then
+        local player_preview = {handle=players.user_ped(), type="PED"}
+        constructor_lib.serialize_ped_attributes(player_preview)
+        player_preview.handle = nil
+        return table_merge(player_preview, attachment)
+    end
+    return attachment
 end
 
 local function add_preview(construct_plan, preview_image_path)
@@ -1196,7 +1198,6 @@ local function build_curated_attachments_menu(attachment, root_menu, curated_ite
 end
 
 local function rebuild_attachment_debug_menu(attachment, parent_menu)
-    if parent_menu == nil then parent_menu = attachment.root.menus.debug end
     --menu.readonly(parent_menu, "Copy Full Inspection", "foo")
     for key, value in pairs(attachment) do
         local field_type = type(value)
@@ -1667,6 +1668,11 @@ menus.rebuild_attachment_menu = function(attachment)
             constructor_lib.update_attachment(attachment)
         end)
 
+        attachment.menus.option_alpha = menu.slider(attachment.menus.more_options, t("Alpha"), {}, t("The amount of transparency the object has. Local only!"), 0, 255, attachment.options.alpha, 51, function(value)
+            attachment.options.alpha = value
+            constructor_lib.update_attachment(attachment)
+        end)
+
         -- Blip
         if attachment == attachment.parent then
             menu.divider(attachment.menus.more_options, t("Blip"))
@@ -1815,7 +1821,7 @@ menus.rebuild_attachment_menu = function(attachment)
         end)
 
         attachment.menus.debug = menu.list(attachment.menus.main, t("Debug Info"))
-        rebuild_attachment_debug_menu(attachment)
+        rebuild_attachment_debug_menu(attachment, attachment.menus.debug)
 
         attachment.menus.reconstruct_vehicle = menu.action(attachment.menus.main, t("Rebuild"), {}, t("Delete construct (if it still exists), then recreate a new one from scratch."), function()
             rebuild_attachment(attachment)
@@ -1844,7 +1850,7 @@ menus.rebuild_attachment_menu = function(attachment)
             debug_log("Refreshing attachment menu "..tostring(attachment.name))
             menu.set_menu_name(attachment.menus.main, attachment.name)
             menu.set_menu_name(attachment.menus.edit_attachments, t("Edit Attachments").." ("..#attachment.children..")")
-            rebuild_attachment_debug_menu(attachment)
+            rebuild_attachment_debug_menu(attachment, attachment.menus.debug)
             menus.rebuild_attachment_menu(attachment)
             menus.refresh_loaded_constructs()
             if updated_attachment ~= nil and updated_attachment.menus ~= nil then
@@ -2149,6 +2155,7 @@ menus.credits = menu.list(script_meta_menu, t("Credits"))
 menu.divider(menus.credits, t("Developers"))
 menu.readonly(menus.credits, "Hexarobi", t("Main developer"))
 menu.readonly(menus.credits, "BigTuna", t("Development, Testing, Suggestions and Support"))
+menu.readonly(menus.credits, "acjoker", t("Development, Ped Curation"))
 menu.divider(menus.credits, t("Inspirations"))
 menu.readonly(menus.credits, "Jackz Vehicle Builder", t("Much of Constructor is based on code originally copied from Jackz Vehicle Builder and this script wouldn't be possible without it. Constructor is just my own copy of Jackz's amazing work. Thank you Jackz!"))
 menu.readonly(menus.credits, "LanceSpooner", t("LanceSpooner is also a huge inspiration to this script. Thanks Lance!"))
