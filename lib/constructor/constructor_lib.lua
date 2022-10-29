@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.9"
+local SCRIPT_VERSION = "3.21.10b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -293,7 +293,6 @@ constructor_lib.serialize_vehicle_paint = function(vehicle)
     vehicle.vehicle_attributes.paint.livery_legacy = VEHICLE.GET_VEHICLE_LIVERY(vehicle.handle)
     vehicle.vehicle_attributes.paint.livery2_legacy = VEHICLE.GET_VEHICLE_LIVERY2(vehicle.handle)
 
-    memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
 constructor_lib.deserialize_vehicle_paint = function(vehicle)
@@ -410,7 +409,6 @@ constructor_lib.serialize_vehicle_neon = function(vehicle)
         VEHICLE.GET_VEHICLE_NEON_COLOUR(vehicle.handle, color.r, color.g, color.b)
         vehicle.vehicle_attributes.neon.color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     end
-    memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
 constructor_lib.deserialize_vehicle_neon = function(vehicle)
@@ -439,7 +437,6 @@ constructor_lib.serialize_vehicle_wheels = function(vehicle)
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, color.r, color.g, color.b)
     vehicle.vehicle_attributes.wheels.tire_smoke_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
-    memory.free(color.r) memory.free(color.g) memory.free(color.b)
 end
 
 constructor_lib.deserialize_vehicle_wheels = function(vehicle)
@@ -647,6 +644,7 @@ constructor_lib.set_attachment_defaults = function(attachment)
         attachment.heading = (attachment.root and attachment.root.heading or 0)
     end
     if attachment.options.is_visible == nil then attachment.options.is_visible = true end
+    if attachment.options.alpha == nil then attachment.options.alpha = 255 end
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
     if attachment.options.has_collision == nil then
         attachment.options.has_collision = true
@@ -735,13 +733,15 @@ constructor_lib.update_attachment = function(attachment)
     if attachment.is_preview then
         constructor_lib.set_preview_visibility(attachment)
     else
-        if attachment.options.alpha ~= nil and attachment.options.alpha < 255 then
+        if attachment.options.alpha ~= nil and attachment.options.alpha <= 255 then
             ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.options.alpha, false)
             --if attachment.options.alpha == 0 and attachment.options.is_visible == true then
             --    attachment.options.is_visible = false
             --end
         end
-        ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
+        if attachment.options.is_visible ~= nil then
+            ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
+        end
     end
 
     if attachment.options.is_dynamic ~= nil then ENTITY.SET_ENTITY_DYNAMIC(attachment.handle, attachment.options.is_dynamic) end
@@ -826,15 +826,15 @@ end
 
 constructor_lib.load_hash_for_attachment = function(attachment)
     if not STREAMING.IS_MODEL_VALID(attachment.hash) then
-        if STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) then
-            attachment.type = "VEHICLE"
-        elseif STREAMING.IS_MODEL_A_PED(attachment.hash) then
-            attachment.type = "PED"
-        else
-            error("Error attaching: Invalid model: " .. attachment.model)
-            return false
-        end
+        error("Error attaching: Invalid model: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]")
+        return false
     end
+    if STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) then
+        attachment.type = "VEHICLE"
+    elseif STREAMING.IS_MODEL_A_PED(attachment.hash) then
+        attachment.type = "PED"
+    end
+    debug_log("Loading hash: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]")
     constructor_lib.load_hash(attachment.hash)
     return true
 end
@@ -846,16 +846,15 @@ end
 
 constructor_lib.attach_attachment = function(attachment)
     constructor_lib.set_attachment_defaults(attachment)
-    if attachment.is_player and not attachment.is_preview then
-        if attachment.model then
+    if attachment.is_player and attachment.is_preview ~= true then
+        if attachment.model == nil and attachment.hash == nil then
+            attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
+            attachment.model = util.reverse_joaat(attachment.hash)
+        else
             debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
             constructor_lib.load_hash(attachment.hash)
             PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
-            util.yield(100)
             attachment.handle = players.user_ped()
-        else
-            attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
-            attachment.model = util.reverse_joaat(attachment.hash)
         end
         constructor_lib.deserialize_ped_attributes(attachment)
         return
@@ -891,7 +890,6 @@ constructor_lib.attach_attachment = function(attachment)
         end
         constructor_lib.deserialize_vehicle_attributes(attachment)
     elseif attachment.type == "PED" then
-        debug_log("Creating ped "..tostring(attachment.name))
         local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
         if is_networked then
             attachment.handle = entities.create_ped(1, attachment.hash, pos, attachment.heading)
@@ -1148,6 +1146,8 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes.doors == nil then vehicle.vehicle_attributes.doors = {} end
     if vehicle.vehicle_attributes.doors.broken == nil then vehicle.vehicle_attributes.doors.broken = {} end
     if vehicle.vehicle_attributes.doors.open == nil then vehicle.vehicle_attributes.doors.open = {} end
+    if vehicle.vehicle_attributes.windows == nil then vehicle.vehicle_attributes.windows = {} end
+    if vehicle.vehicle_attributes.windows.rolled_down == nil then vehicle.vehicle_attributes.windows.rolled_down = {} end
     if vehicle.vehicle_attributes.mods == nil then vehicle.vehicle_attributes.mods = {} end
 end
 
@@ -1207,11 +1207,22 @@ constructor_lib.default_ped_attributes = function(attachment)
     end
 end
 
+constructor_lib.serialize_hash_and_model = function(attachment)
+    if attachment.hash == nil and attachment.model ~= nil then
+        attachment.hash = util.joaat(attachment.model)
+    elseif attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    elseif attachment.hash == nil and attachment.model == nil and attachment.handle > 0 then
+        attachment.hash = ENTITY.GET_ENTITY_MODEL(attachment.handle)
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+end
+
 constructor_lib.serialize_ped_attributes = function(attachment)
     if attachment.type ~= "PED" then return end
     debug_log("Serializing ped attributes "..tostring(attachment.name))
     constructor_lib.default_ped_attributes(attachment)
-    attachment.hash = ENTITY.GET_ENTITY_MODEL(attachment.handle)
+    constructor_lib.serialize_hash_and_model(attachment)
     for index = 0, 9 do
         attachment.ped_attributes.props["_"..index] = {
             drawable_variation = PED.GET_PED_PROP_INDEX(attachment.handle, index),
@@ -1252,7 +1263,7 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
                 attachment.options.is_explosion_proof, attachment.options.is_melee_proof,
                 false, 0, false
         )
-    else
+    elseif attachment.options.is_on_fire == false then
         FIRE.STOP_ENTITY_FIRE(attachment.handle)
         ENTITY.SET_ENTITY_PROOFS(
                 attachment.handle,
