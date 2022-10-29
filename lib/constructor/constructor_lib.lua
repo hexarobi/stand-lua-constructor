@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.10b1"
+local SCRIPT_VERSION = "3.21.10b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -494,6 +494,52 @@ constructor_lib.deserialize_vehicle_doors = function(vehicle)
 
     if vehicle.vehicle_attributes.doors.lock_status ~= nil then
         VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle.handle, vehicle.vehicle_attributes.doors.lock_status)
+    end
+end
+
+constructor_lib.WINDOW_INDEX_NAMES = {
+    "frontleft",
+    "frontright",
+    "rearleft",
+    "rearright",
+    "front",
+    "rear",
+    "midleft",
+    "midright",
+}
+
+constructor_lib.serialize_vehicle_windows = function(vehicle)
+    if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
+    if vehicle.vehicle_attributes.windows == nil then vehicle.vehicle_attributes.windows = {} end
+    if vehicle.vehicle_attributes.windows.broken == nil then vehicle.vehicle_attributes.windows.broken = {} end
+    for window_index = 1, 8 do
+        local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
+        vehicle.vehicle_attributes.windows.broken[window_name] = VEHICLE.IS_VEHICLE_WINDOW_INTACT(vehicle.handle, window_index-1)
+    end
+end
+
+constructor_lib.deserialize_vehicle_windows = function(vehicle)
+    if vehicle.vehicle_attributes == nil then return end
+    if vehicle.vehicle_attributes.windows == nil then return end
+    for window_index = 1, 8 do
+        local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
+        local window_rolled_down = vehicle.vehicle_attributes.windows.rolled_down[window_name]
+        if window_rolled_down ~= nil then
+            if window_rolled_down then
+                VEHICLE.ROLL_DOWN_WINDOW(vehicle.handle, window_index-1)
+            else
+                VEHICLE.ROLL_UP_WINDOW(vehicle.handle, window_index-1)
+            end
+        end
+
+        local window_broken = vehicle.vehicle_attributes.windows.broken[window_name]
+        if window_broken ~= nil then
+            if window_broken then
+                VEHICLE.SMASH_VEHICLE_WINDOW(vehicle.handle, window_index-1)
+            else
+                VEHICLE.FIX_VEHICLE_WINDOW(vehicle.handle, window_index-1)
+            end
+        end
     end
 end
 
@@ -1148,6 +1194,7 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes.doors.open == nil then vehicle.vehicle_attributes.doors.open = {} end
     if vehicle.vehicle_attributes.windows == nil then vehicle.vehicle_attributes.windows = {} end
     if vehicle.vehicle_attributes.windows.rolled_down == nil then vehicle.vehicle_attributes.windows.rolled_down = {} end
+    if vehicle.vehicle_attributes.windows.broken == nil then vehicle.vehicle_attributes.windows.broken = {} end
     if vehicle.vehicle_attributes.mods == nil then vehicle.vehicle_attributes.mods = {} end
 end
 
@@ -1162,6 +1209,8 @@ constructor_lib.serialize_vehicle_attributes = function(vehicle)
     constructor_lib.serialize_vehicle_wheels(vehicle)
     constructor_lib.serialize_vehicle_headlights(vehicle)
     constructor_lib.serialize_vehicle_options(vehicle)
+    constructor_lib.serialize_vehicle_doors(vehicle)
+    constructor_lib.serialize_vehicle_windows(vehicle)
     constructor_lib.serialize_vehicle_mods(vehicle)
     constructor_lib.serialize_vehicle_extras(vehicle)
 end
@@ -1179,6 +1228,8 @@ constructor_lib.deserialize_vehicle_attributes = function(vehicle)
     constructor_lib.deserialize_vehicle_doors(vehicle)
     constructor_lib.deserialize_vehicle_headlights(vehicle)
     constructor_lib.deserialize_vehicle_options(vehicle)
+    constructor_lib.deserialize_vehicle_doors(vehicle)
+    constructor_lib.deserialize_vehicle_windows(vehicle)
     constructor_lib.deserialize_vehicle_mods(vehicle)
     constructor_lib.deserialize_vehicle_extras(vehicle)
 end
