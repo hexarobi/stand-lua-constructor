@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b8"
+local SCRIPT_VERSION = "0.25b9"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1571,9 +1571,11 @@ menus.rebuild_attachment_menu = function(attachment)
                         create_ped_weapon_menu(attachment, weapons_menu, item.items)
                     else
                         menu.action(root_menu, item.name, {}, "", function()
-                            attachment.ped_attributes.weapon_hash = nil
-                            attachment.ped_attributes.weapon = item.model:lower()
-                            util.toast("Setting weapon to "..attachment.ped_attributes.weapon)
+                            attachment.ped_attributes.weapon.hash = nil
+                            attachment.ped_attributes.weapon.model = item.model
+                            if item.component ~= nil then
+                                attachment.ped_attributes.weapon.component_model = item.component
+                            end
                             constructor_lib.deserialize_ped_attributes(attachment)
                         end)
                     end
