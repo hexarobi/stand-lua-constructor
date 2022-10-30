@@ -1,5 +1,5 @@
 -- GTA5 Constants
--- v1.2
+-- v1.3
 
 local constants = {}
 
@@ -699,5 +699,538 @@ end\
 util.yield(1)\
 download_and_extract_curated_constructs()\
 "
+
+constants.ped_weapons = {
+    {
+        name="Pistol",
+        is_folder = true,
+        items ={
+            {
+                name="Pistol",
+                model="weapon_pistol",
+                type="WEAPON",
+            },
+            {
+                name="Pistol (Luxury)",
+                model="weapon_pistol",
+                component="COMPONENT_PISTOL_VARMOD_LUXE",
+                type="WEAPON",
+            },
+            {
+                name="Combat Pistol",
+                model="COMPONENT_COMBATPISTOL_VARMOD_LOWRIDER",
+                type="WEAPON",
+            },
+            {
+                name="AP Pistol",
+                model="COMPONENT_APPISTOL_VARMOD_LUXE",
+                type="WEAPON",
+            },
+            {
+                name="Pistol .50",
+                model="COMPONENT_PISTOL50_VARMOD_LUXE",
+                type="WEAPON",
+            },
+            {
+                name="SNS Pistol",
+                model="COMPONENT_SNSPISTOL_VARMOD_LOWRIDER",
+                type="WEAPON",
+            },
+            {
+                name="Heavy Pistol",
+                model="COMPONENT_HEAVYPISTOL_VARMOD_LUXE",
+                type="WEAPON",
+            },
+            {
+                name="SNS Pistol Mk II",
+                model="WEAPON_SNSPISTOL_MK2",
+                type="WEAPON",
+            },
+            {
+                name="Up-n-Atomizer",
+                model="COMPONENT_RAYPISTOL_VARMOD_XMAS18",
+                type="WEAPON",
+            },
+            {
+                name="Heavy Revolver Mk II",
+                model="WEAPON_REVOLVER_MK2",
+                type="WEAPON",
+            },
+            {
+                name="Vintage Pistol",
+                model="WEAPON_VINTAGEPISTOL",
+                type="WEAPON",
+            },
+            {
+                name="Double-Action Revolver",
+                model="WEAPON_DOUBLEACTION",
+                type="WEAPON",
+            },
+            {
+                name="Ceramic Pistol",
+                model="WEAPON_CERAMICPISTOL",
+                type="WEAPON",
+            },
+            {
+                name="Perico Pistol",
+                model="WEAPON_GADGETPISTOL",
+                type="WEAPON",
+            },
+            {
+                name="Flare Gun",
+                model="WEAPON_FLAREGUN",
+                type="WEAPON",
+            },
+            {
+                name="Navy Revolver",
+                model="WEAPON_NAVYREVOLVER",
+                type="WEAPON",
+            },
+            {
+                name="Marksman Pistol",
+                model="WEAPON_MARKSMANPISTOL",
+                type="WEAPON",
+            },
+            {
+                name="Heavy Revolver",
+                model="COMPONENT_REVOLVER_VARMOD_BOSS",
+                type="WEAPON",
+            },
+            {
+                name="Pistol Mk II",
+                model="WEAPON_PISTOL_MK2",
+                type="WEAPON",
+            }
+        }
+    },
+    {
+        name="Sub Machine Gun",
+        is_folder = true,
+        items = {
+            {
+                name="Micro SMG",
+                model="COMPONENT_MICROSMG_VARMOD_LUXE",
+                type="WEAPON",
+            },
+            {
+                name="SMG",
+                model="COMPONENT_SMG_VARMOD_LUXE",
+                type="WEAPON",
+            },
+            {
+                name="Assault SMG",
+                model="COMPONENT_ASSAULTSMG_VARMOD_LOWRIDER",
+                type="WEAPON",
+            },
+            {
+                name="Combat PDW",
+                model="WEAPON_COMBATPDW",
+                type="WEAPON",
+            },
+            {
+                name="Machine Pistol",
+                model="WEAPON_MACHINEPISTOL",
+                type="WEAPON",
+            },
+            {
+                name="Mini SMG",
+                model="WEAPON_MINISMG",
+                type="WEAPON",
+            },
+            {
+                name="SMG Mk II",
+                model="WEAPON_SMG_MK2",
+                type="WEAPON",
+            },
+        }
+    },
+    {
+        name="Machine Gun (MG)",
+        is_folder = true,
+        items ={
+            {
+                name="MG",
+                model="COMPONENT_MG_VARMOD_LOWRIDER",
+                type="WEAPON",
+            },
+            {
+                name="Combat MG",
+                model="WEAPON_COMBATMG",
+                type="WEAPON",
+            },
+            {
+                name="Unholy Hellbringer",
+                model="WEAPON_RAYCARBINE",
+                type="WEAPON",
+            },
+            {
+                name="Gusenberg Sweeper",
+                model="WEAPON_GUSENBERG",
+                type="WEAPON",
+            },
+            {
+                name="Combat MG Mk II",
+                model="WEAPON_COMBATMG_MK2",
+                type="WEAPON",
+            },
+        }
+    },
+    {
+        name="Rifles",
+        is_folder = true,
+        items ={
+            {
+                name="Assault Rifle",
+                model="COMPONENT_ASSAULTRIFLE_VARMOD_LUXE",
+                type="WEAPON",
+            },
+            {
+                name="Carbine Rifle",
+                model="COMPONENT_CARBINERIFLE_VARMOD_LUXE",
+                type="WEAPON",
+            },
+            {
+                name="Advanced Rifle",
+                model="WEAPON_ADVANCEDRIFLE",
+                type="WEAPON",
+            },
+            {
+                name="Bullpup Rifle",
+                model="COMPONENT_BULLPUPRIFLE_VARMOD_LOW",
+                type="WEAPON",
+            },
+            {
+                name="Special Carbine",
+                model="COMPONENT_SPECIALCARBINE_VARMOD_LOWRIDER",
+                type="WEAPON",
+            },
+            {
+                name="Special Carbine Mk II",
+                model="WEAPON_SPECIALCARBINE_MK2",
+                type="WEAPON",
+            },
+            {
+                name="Bullpup Rifle Mk II",
+                model="WEAPON_BULLPUPRIFLE_MK2",
+                type="WEAPON",
+            },
+            {
+                name="Military Rifle",
+                model="WEAPON_MILITARYRIFLE",
+                type="WEAPON",
+            },
+            {
+                name="Compact Rifle",
+                model="WEAPON_COMPACTRIFLE",
+                type="WEAPON",
+            },
+            {
+                name="Carbine Rifle Mk II",
+                model="WEAPON_CARBINERIFLE_MK2",
+                type="WEAPON",
+            },
+            {
+                name="Assault Rifle Mk II",
+                model="WEAPON_ASSAULTRIFLE_MK2",
+                type="WEAPON",
+            },
+            {
+                name="Service Carbine",
+                model="WEAPON_TACTICALRIFLE",
+                type="WEAPON",
+            },
+            {
+                name="Heavy Rifle",
+                model="WEAPON_HEAVYRIFLE",
+                type="WEAPON",
+            },
+        }
+    },
+    {
+        name="Sniper",
+        is_folder = true,
+        items ={
+            {
+                name="Sniper Rifle",
+                model="WEAPON_SNIPERRIFLE",
+                type="WEAPON",
+            },
+            {
+                name="Heavy Sniper",
+                model="WEAPON_HEAVYSNIPER",
+                type="WEAPON",
+            },
+            {
+                name="Marksman Rifle Mk II",
+                model="WEAPON_MARKSMANRIFLE_MK2",
+                type="WEAPON",
+            },
+            {
+                name="Musket",
+                model="WEAPON_MUSKET",
+                type="WEAPON",
+            },
+            {
+                name="Marksman Rifle",
+                model="WEAPON_MARKSMANRIFLE",
+                type="WEAPON",
+            },
+            {
+                name="Heavy Sniper Mk II",
+                model="WEAPON_HEAVYSNIPER_MK2",
+                type="WEAPON",
+            },
+            {
+                name="Precision Rifle",
+                model="WEAPON_PRECISIONRIFLE",
+                type="WEAPON",
+            },
+        }
+    },
+    {
+        name="Melee",
+        is_folder = true,
+        items ={
+            {
+                name="Knife",
+                model="WEAPON_KNIFE",
+                type="WEAPON",
+            },
+            {
+                name="Nightstick",
+                model="WEAPON_NIGHTSTICK",
+                type="WEAPON",
+            },
+            {
+                name="Hammer",
+                model="WEAPON_HAMMER",
+                type="WEAPON",
+            },
+            {
+                name="Baseball Bat",
+                model="WEAPON_BAT",
+                type="WEAPON",
+            },
+            {
+                name="Golf Club",
+                model="WEAPON_GOLFCLUB",
+                type="WEAPON",
+            },
+            {
+                name="Crowbar",
+                model="WEAPON_CROWBAR",
+                type="WEAPON",
+            },
+            {
+                name="Bottle",
+                model="WEAPON_BOTTLE",
+                type="WEAPON",
+            },
+            {
+                name="Antique Cavalry Dagger",
+                model="WEAPON_DAGGER",
+                type="WEAPON",
+            },
+            {
+                name="Hatchet",
+                model="WEAPON_HATCHET",
+                type="WEAPON",
+            },
+            {
+                name="Machete",
+                model="WEAPON_MACHETE",
+                type="WEAPON",
+            },
+            {
+                name="Flashlight",
+                model="WEAPON_FLASHLIGHT",
+                type="WEAPON",
+            },
+            {
+                name="Switchblade",
+                model="COMPONENT_SWITCHBLADE_VARMOD_VAR1",
+                type="WEAPON",
+            },
+            {
+                name=" Battle Axe",
+                model="WEAPON_BATTLEAXE",
+                type="WEAPON",
+            },
+            {
+                name="Pipe Wrench",
+                model="WEAPON_WRENCH",
+                type="WEAPON",
+            },
+            {
+                name="Pool Cue ",
+                model="WEAPON_POOLCUE",
+                type="WEAPON",
+            },
+            {
+                name="Stone Hatchet",
+                model="WEAPON_STONE_HATCHET",
+                type="WEAPON",
+            },
+        }
+    },
+    {
+        name="Shotguns",
+        is_folder = true,
+        items ={
+            {
+                name="Pump Shotgun",
+                model="WEAPON_PUMPSHOTGUN",
+                type="WEAPON",
+            },
+            {
+                name="Sawed-Off Shotgun",
+                model="COMPONENT_SAWNOFFSHOTGUN_VARMOD_LUXE",
+                type="WEAPON",
+            },
+            {
+                name="Assault Shotgun",
+                model="WEAPON_ASSAULTSHOTGUN",
+                type="WEAPON",
+            },
+            {
+                name="Bullpup Shotgun",
+                model="WEAPON_BULLPUPSHOTGUN",
+                type="WEAPON",
+            },
+            {
+                name="Pump Shotgun Mk II",
+                model="WEAPON_PUMPSHOTGUN_MK2",
+                type="WEAPON",
+            },
+            {
+                name="Heavy Shotgun",
+                model="WEAPON_HEAVYSHOTGUN",
+                type="WEAPON",
+            },
+            {
+                name="Combat Shotgun",
+                model="WEAPON_COMBATSHOTGUN",
+                type="WEAPON",
+            },
+            {
+                name="Double Barrel Shotgun",
+                model="WEAPON_DBSHOTGUN",
+                type="WEAPON",
+            },
+            {
+                name="Sweeper Shotgun",
+                model="WEAPON_AUTOSHOTGUN",
+                type="WEAPON",
+            },
+        }
+    },
+    {
+        name="Heavy",
+        is_folder = true,
+        items ={
+            {
+                name="Grenade Launcher",
+                model="WEAPON_GRENADELAUNCHER",
+                type="WEAPON",
+            },
+            {
+                name="Tear Gas Launcher",
+                model="WEAPON_GRENADELAUNCHER_SMOKE",
+                type="WEAPON",
+            },
+            {
+                name="RPG",
+                model="WEAPON_RPG",
+                type="WEAPON",
+            },
+            {
+                name="Minigun",
+                model="WEAPON_MINIGUN",
+                type="WEAPON",
+            },
+            {
+                name="Widowmaker",
+                model="WEAPON_RAYMINIGUN",
+                type="WEAPON",
+            },
+            {
+                name="Homing Launcher",
+                model="WEAPON_HOMINGLAUNCHER",
+                type="WEAPON",
+            },
+            {
+                name="Firework Launcher",
+                model="WEAPON_FIREWORK",
+                type="WEAPON",
+            },
+            {
+                name="Railgun",
+                model="WEAPON_RAILGUN",
+                type="WEAPON",
+            },
+            {
+                name="Compact Grenade Launcher",
+                model="WEAPON_COMPACTLAUNCHER",
+                type="WEAPON",
+            },
+            {
+                name="Compact EMP Launcher",
+                model="WEAPON_EMPLAUNCHER",
+                type="WEAPON",
+            },
+        }
+    },
+    {
+        name="Throwables",
+        is_folder = true,
+        items ={
+            {
+                name="Grenade",
+                model="WEAPON_GRENADE",
+                type="WEAPON",
+            },
+            {
+                name="Sticky Bomb",
+                model="WEAPON_STICKYBOMB",
+                type="WEAPON",
+            },
+            {
+                name="Tear Gas",
+                model="WEAPON_SMOKEGRENADE",
+                type="WEAPON",
+            },
+            {
+                name="Molotov",
+                model="WEAPON_MOLOTOV",
+                type="WEAPON",
+            },
+            {
+                name="Baseball",
+                model="WEAPON_BALL",
+                type="WEAPON",
+            },
+            {
+                name="Flare",
+                model="WEAPON_FLARE",
+                type="WEAPON",
+            },
+            {
+                name="Snowball",
+                model="WEAPON_SNOWBALL",
+                type="WEAPON",
+            },
+            {
+                name="Proximity Mine",
+                model="WEAPON_PROXMINE",
+                type="WEAPON",
+            },
+            {
+                name="Pipe Bomb",
+                model="WEAPON_PIPEBOMB",
+                type="WEAPON",
+            },
+        }
+    }
+}
 
 return constants
