@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b7"
+local SCRIPT_VERSION = "0.25b8"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1563,7 +1563,26 @@ menus.rebuild_attachment_menu = function(attachment)
                 attachment.options.is_on_fire = on
                 constructor_lib.update_ped_attachment(attachment)
             end, attachment.options.is_on_fire)
-            -- TODO: Weapon picker
+
+            local function create_ped_weapon_menu(attachment, root_menu, items)
+                for _, item in pairs(items) do
+                    if item.is_folder == true then
+                        local weapons_menu = menu.list(root_menu, item.name)
+                        create_ped_weapon_menu(attachment, weapons_menu, item.items)
+                    else
+                        menu.action(root_menu, item.name, {}, "", function()
+                            attachment.ped_attributes.weapon_hash = nil
+                            attachment.ped_attributes.weapon = item.model:lower()
+                            util.toast("Setting weapon to "..attachment.ped_attributes.weapon)
+                            constructor_lib.deserialize_ped_attributes(attachment)
+                        end)
+                    end
+                end
+            end
+
+            attachment.menus.option_give_ped_weapon = menu.list(attachment.menus.ped_options, "Give Weapon", {}, "Give the ped a weapon.")
+            create_ped_weapon_menu(attachment, attachment.menus.option_give_ped_weapon, constants.ped_weapons)
+
 
             local function create_ped_component_menu(attachment, root_menu, index, name)
                 local component = attachment.ped_attributes.components["_".. index]
