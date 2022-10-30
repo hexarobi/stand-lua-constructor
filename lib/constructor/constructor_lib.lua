@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.10b4"
+local SCRIPT_VERSION = "3.21.10b5"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -514,7 +514,9 @@ constructor_lib.serialize_vehicle_windows = function(vehicle)
     if vehicle.vehicle_attributes.windows.broken == nil then vehicle.vehicle_attributes.windows.broken = {} end
     for window_index = 1, 8 do
         local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
-        vehicle.vehicle_attributes.windows.broken[window_name] = VEHICLE.IS_VEHICLE_WINDOW_INTACT(vehicle.handle, window_index-1)
+        if not VEHICLE.IS_VEHICLE_WINDOW_INTACT(vehicle.handle, window_index-1) then
+            vehicle.vehicle_attributes.windows.broken[window_name] = false
+        end
     end
 end
 
