@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.10b3"
+local SCRIPT_VERSION = "3.21.10b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -1242,6 +1242,7 @@ constructor_lib.default_ped_attributes = function(attachment)
     if attachment.ped_attributes.armor == nil then attachment.ped_attributes.armor = 0 end
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
     if attachment.ped_attributes.components == nil then attachment.ped_attributes.components = {} end
+    if attachment.ped_attributes.weapon == nil then attachment.ped_attributes.weapon = {} end
     for prop_index = 0, 9 do
         if attachment.ped_attributes.props["_"..prop_index] == nil then attachment.ped_attributes.props["_"..prop_index] = {} end
         if attachment.ped_attributes.props["_"..prop_index].drawable_variation == nil then attachment.ped_attributes.props["_"..prop_index].drawable_variation = -1 end
@@ -1290,20 +1291,34 @@ constructor_lib.serialize_ped_attributes = function(attachment)
     end
 end
 
+constructor_lib.deserialize_ped_weapon = function(attachment)
+    if attachment.ped_attributes.weapon == nil then return end
+    if attachment.ped_attributes.weapon.hash == nil and attachment.ped_attributes.weapon.model ~= nil then
+        attachment.ped_attributes.weapon.hash = util.joaat(attachment.ped_attributes.weapon.model)
+    end
+    if attachment.ped_attributes.weapon.component_hash == nil and attachment.ped_attributes.weapon.component_model ~= nil then
+        attachment.ped_attributes.weapon.component_hash = util.joaat(attachment.ped_attributes.weapon.component_model)
+    end
+    if attachment.ped_attributes.weapon.hash ~= nil then
+        WEAPON.GIVE_WEAPON_TO_PED(attachment.handle, attachment.ped_attributes.weapon.hash, 1, false, true)
+        WEAPON.SET_CURRENT_PED_WEAPON(attachment.handle, attachment.ped_attributes.weapon.hash, true)
+        if attachment.ped_attributes.weapon.component_hash ~= nil then
+            WEAPON.GIVE_WEAPON_COMPONENT_TO_PED(
+                attachment.handle,
+                attachment.ped_attributes.weapon.hash,
+                attachment.ped_attributes.weapon.component_hash
+            )
+        end
+    end
+end
+
 constructor_lib.deserialize_ped_attributes = function(attachment)
     debug_log("Deserializing ped attributes "..tostring(attachment.name))
     if attachment.ped_attributes == nil then return end
     if attachment.ped_attributes.can_rag_doll ~= nil then
         PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
     end
-    if attachment.ped_attributes.weapon_hash == nil and attachment.ped_attributes.weapon ~= nil then
-        attachment.ped_attributes.weapon_hash = util.joaat(attachment.ped_attributes.weapon)
-    end
-    if attachment.ped_attributes.weapon_hash ~= nil then
-        constructor_lib.load_weapon_hash(attachment.ped_attributes.weapon_hash)
-        WEAPON.GIVE_WEAPON_TO_PED(attachment.handle, attachment.ped_attributes.weapon_hash, 1, false, true)
-        WEAPON.SET_CURRENT_PED_WEAPON(attachment.handle, attachment.ped_attributes.weapon_hash, true)
-    end
+    constructor_lib.deserialize_ped_weapon(attachment)
     if attachment.ped_attributes.armour then
         PED.SET_PED_ARMOUR(attachment.handle, attachment.ped_attributes.armour)
     end
