@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.10b5"
+local SCRIPT_VERSION = "3.21.10b6"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -892,6 +892,34 @@ constructor_lib.build_parent_child_relationship = function(parent_attachment, ch
     child_attachment.root = parent_attachment.root
 end
 
+constructor_lib.set_attachment_visibility = function(attachment)
+    if attachment.options.is_visible ~= nil then
+        ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        constructor_lib.set_attachment_visibility(child_attachment)
+    end
+end
+
+constructor_lib.set_entity_as_networked = function(attachment, timeout)
+    local time <const> = util.current_time_millis() + (timeout or 1500)
+    while time > util.current_time_millis() and not NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(attachment.handle) do
+        NETWORK.NETWORK_REGISTER_ENTITY_AS_NETWORKED(attachment.handle)
+        util.yield(0)
+    end
+    return NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(attachment.handle)
+end
+
+-- Copied from Kek's
+constructor_lib.constantize_network_id = function(attachment)
+    constructor_lib.set_entity_as_networked(attachment, 25)
+    local net_id <const> = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(attachment.handle)
+    -- network.set_network_id_can_migrate(net_id, false) -- Caused players unable to drive vehicles
+    NETWORK.SET_NETWORK_ID_EXISTS_ON_ALL_MACHINES(net_id, true)
+    NETWORK.SET_NETWORK_ID_ALWAYS_EXISTS_FOR_PLAYER(net_id, players.user(), true)
+    return net_id
+end
+
 constructor_lib.attach_attachment = function(attachment)
     constructor_lib.set_attachment_defaults(attachment)
     if attachment.is_player and attachment.is_preview ~= true then
@@ -963,28 +991,24 @@ constructor_lib.attach_attachment = function(attachment)
         else
             pos = ENTITY.GET_ENTITY_COORDS(attachment.root.handle)
         end
-        if is_networked then
-            attachment.handle = entities.create_object(attachment.hash, pos)
-            --attachment.temp.networked_handle = NETWORK.OBJ_TO_NET(attachment.handle)
-            --ENTITY.SET_ENTITY_SHOULD_FREEZE_WAITING_ON_COLLISION(attachment.handle, true)
-            --NETWORK.SET_NETWORK_ID_ALWAYS_EXISTS_FOR_PLAYER(attachment.temp.networked_handle, PLAYER.PLAYER_ID(), true)
-            --ENTITY.SET_ENTITY_LOAD_COLLISION_FLAG(attachment.handle, true, 1)
-            --NETWORK.SET_NETWORK_ID_EXISTS_ON_ALL_MACHINES(NETWORK.OBJ_TO_NET(attachment.handle), true);
-            ----NETWORK.SET_NETWORK_ID_CAN_MIGRATE(attachment.temp.networked_handle, false)
-            --NETWORK.SET_NETWORK_ID_CAN_MIGRATE(NETWORK.OBJ_TO_NET(attachment.handle), false)
-        else
-            attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(
-                    attachment.hash,
-                    pos.x, pos.y, pos.z,
-                    is_networked,
-                    attachment.options.is_mission_entity,
-                    false
-            )
-        end
+        attachment.handle = OBJECT.CREATE_OBJECT_NO_OFFSET(
+                attachment.hash,
+                pos.x, pos.y, pos.z,
+                is_networked,
+                attachment.options.is_mission_entity,
+                false
+        )
     end
 
     if not attachment.handle then
         error(t("Error attaching attachment. Could not create handle."))
+    end
+
+    if is_networked then
+        ENTITY.SET_ENTITY_AS_MISSION_ENTITY(attachment.handle, false, true)
+        ENTITY.SET_ENTITY_SHOULD_FREEZE_WAITING_ON_COLLISION(attachment.handle, false)
+        constructor_lib.constantize_network_id(attachment)
+        NETWORK.SET_NETWORK_ID_CAN_MIGRATE(NETWORK.OBJ_TO_NET(attachment.handle), false)
     end
 
     if attachment.root.is_preview == true then constructor_lib.set_preview_visibility(attachment) end
