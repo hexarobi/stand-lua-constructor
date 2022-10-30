@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.4b2"
+local SCRIPT_VERSION = "0.8.4b3"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -67,6 +67,10 @@ local function table_merge(t1, t2)
         end
     end
     return t1
+end
+
+local function trim(string)
+    return string:gsub("%s+", "")
 end
 
 ---
@@ -1223,7 +1227,19 @@ local function map_ini_data_flavor_4(construct_plan, data)
                 table.insert(construct_plan.children, attachment)
             end
         end
-        for object_index = 1, tonumber(data.AllObjects.Count) - 1 do
+        for object_index = 0, tonumber(data.AllObjects.Count) - 1 do
+            local attached_object = data["Object".. object_index]
+            if attached_object ~= nil then
+                local attachment = {}
+                attachment.type = "OBJECT"
+                map_ini_attachment_flavor_4(attachment, attached_object)
+                table.insert(construct_plan.children, attachment)
+            end
+        end
+    elseif data.Object0 ~= nil and trim(data.Object0.AttachedToWhat) == "Self" then
+        construct_plan.type = "PED"
+        construct_plan.is_player = true
+        for object_index = 0, tonumber(data.AllObjects.Count) - 1 do
             local attached_object = data["Object".. object_index]
             if attached_object ~= nil then
                 local attachment = {}
@@ -1395,16 +1411,16 @@ end
 -- type 5 has AllObjects and AllVehicles (Boat-fsx.ini) (seems like theres an iniparser glitch in this one)
 -- type 6 is like type 2, but some keys are different, namely the numbers for attachments are called "Attached Object x" (Tankamid.ini)
 local function get_ini_flavor(data)
-    if data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT == nil and data.AllVehicles.Count == nil then
+    if data.Vehicle ~= nil and data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT == nil and data.AllVehicles.Count == nil then
         return 1
-    elseif data.Vehicle.model ~= nil and data['Attached Object 1'].model == nil then
+    elseif data.Vehicle ~= nil and data.Vehicle.model ~= nil and data['Attached Object 1'].model == nil then
         return 2
-    elseif data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT ~= nil then
+    elseif data.Vehicle ~= nil and data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT ~= nil then
         return 3
-    elseif data.AllObjects.Count ~= nil and data.AllVehicles.Count ~= nil and data.AllPeds.Count ~= nil then
+    elseif data.AllObjects ~= nil and data.AllObjects.Count ~= nil and data.AllVehicles.Count ~= nil and data.AllPeds.Count ~= nil then
         return 4
         -- no 5?
-    elseif data.Vehicle.model ~= nil and data['Attached Object 1'].model ~= nil then
+    elseif data.Vehicle ~= nil and data.Vehicle.model ~= nil and data['Attached Object 1'].model ~= nil then
         return 6
     end
 end
@@ -1438,6 +1454,8 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
         return
     end
 
+    setmetatable(data, nil)
+
     --debug_log("Parsed INI: "..inspect(data))
 
     construct_plan.temp.ini_flavor = get_ini_flavor(data)
@@ -1451,7 +1469,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
 
     --debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
-    if construct_plan.hash == nil and construct_plan.model == nil then
+    if construct_plan.hash == nil and construct_plan.model == nil and construct_plan.is_player ~= true then
         util.toast("Failed to load INI construct. Missing hash or model.", TOAST_ALL)
         util.log("Attempted construct plan: "..inspect(construct_plan))
         return
