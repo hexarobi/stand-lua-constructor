@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b6"
+local SCRIPT_VERSION = "0.25b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -142,9 +142,9 @@ CONSTRUCTOR_CONFIG = {
     deconstruct_all_spawned_constructs_on_unload = true,
     drive_spawned_vehicles = true,
     wear_spawned_peds = true,
+    focus_menu_on_spawned_constructs = true,
     preview_display_delay = 500,
     max_search_results = 100,
-    selected_language = 1,
     debug_mode = true,
 }
 local config = CONSTRUCTOR_CONFIG
@@ -873,7 +873,7 @@ local function spawn_construct_from_plan(construct_plan)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
     construct.menus.refresh()
-    if construct.root.menu_auto_focus ~= false then
+    if construct.root.menu_auto_focus ~= false and config.focus_menu_on_spawned_constructs ~= false then
         construct.menus.focus()
     end
     if construct.type == "VEHICLE" and config.drive_spawned_vehicles then
@@ -2127,6 +2127,10 @@ end)
 menu.toggle(options_menu, t("Delete All on Unload"), {}, t("Deconstruct all spawned constructs when unloading Constructor"), function(on)
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
+menu.toggle(options_menu, t("Focus Menu on Spawned Constructs"), {}, t("When spawning a construct, focus Stands menu on the newly spawned construct. Otherwise, stay in the Load Constructs menu."), function(on)
+    config.focus_menu_on_spawned_constructs = on
+end, config.focus_menu_on_spawned_constructs)
+
 menu.toggle(options_menu, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
     config.debug_mode = toggle
 end, config.debug_mode)
