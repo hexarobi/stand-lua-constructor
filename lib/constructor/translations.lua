@@ -308,6 +308,8 @@ translations["zh"] = {
     ["Install Curated Constructs"] = "安装精选构造",
     ["Download and install a curated collection of constructs from https://github.com/hexarobi/stand-curated-constructs"] = "从以下网站下载并安装精选的构造合集 https://github.com/hexarobi/stand-curated-constructs",
     ["Development, Ped Curation"] = "开发, Ped策划",
+    ["Focus Menu on Spawned Constructs"] = "生成构造自动切换",
+    ["When spawning a construct, focus Stands menu on the newly spawned construct. Otherwise, stay in the Load Constructs menu."] = "生成构造体时自动帮你切换到已加载的构造体菜单中",
     ["Translators"] = "翻译"
 }
 
