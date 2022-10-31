@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.10b6"
+local SCRIPT_VERSION = "3.21.10b7"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -781,11 +781,12 @@ constructor_lib.update_attachment = function(attachment)
     if attachment.is_preview then
         constructor_lib.set_preview_visibility(attachment)
     else
-        if attachment.options.alpha ~= nil and attachment.options.alpha <= 255 then
-            ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.options.alpha, false)
-            --if attachment.options.alpha == 0 and attachment.options.is_visible == true then
-            --    attachment.options.is_visible = false
-            --end
+        if attachment.options.alpha ~= nil then
+            if attachment.options.alpha < 255 then
+                ENTITY.SET_ENTITY_ALPHA(attachment.handle, attachment.options.alpha, false)
+            else
+                ENTITY.RESET_ENTITY_ALPHA(attachment.handle)
+            end
         end
         if attachment.options.is_visible ~= nil then
             ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
