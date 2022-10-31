@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.4b3"
+local SCRIPT_VERSION = "0.8.4b4"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -617,6 +617,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
     local construct_plan = table.table_copy(constructor_lib.construct_base)
     construct_plan.temp.source_file_type = "Menyoo XML"
 
+    xmldata = xmldata:gsub("<?xml 版本=\"1.0\"", "<?xml version=\"1.0\"")
     local vehicle_handler = xml2lua.TreeHandler:new()
     local parser = xml2lua.parser(vehicle_handler)
     parser:parse(xmldata)
@@ -1411,7 +1412,7 @@ end
 -- type 5 has AllObjects and AllVehicles (Boat-fsx.ini) (seems like theres an iniparser glitch in this one)
 -- type 6 is like type 2, but some keys are different, namely the numbers for attachments are called "Attached Object x" (Tankamid.ini)
 local function get_ini_flavor(data)
-    if data.Vehicle ~= nil and data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT == nil and data.AllVehicles.Count == nil then
+    if data.Vehicle ~= nil and data.Vehicle.Model == nil and data.Vehicle.PrimaryPaintT == nil and data.AllVehicles.Count == nil then
         return 1
     elseif data.Vehicle ~= nil and data.Vehicle.model ~= nil and data['Attached Object 1'].model == nil then
         return 2
