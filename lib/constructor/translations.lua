@@ -54,7 +54,7 @@ translations["zh"] = {
     ["Registered "] = "记录 ",
     ["Saving translation for "] = "保存翻译 ",
     ["Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433"] = "没有lib.确保已经下载 Stand > Lua Scripts > Repository > natives-1663599433",
-    ["Max table depth reached"] = "最大地下水位深度？",
+    ["Max table depth reached"] = "达到最大组合数量？",
     ["Adding attachment to construct "] = "添加附件到构造 ",
     ["Removing preview "] = "删除预览 ",
     ["Adding a preview "] = "添加预览",
@@ -252,7 +252,7 @@ translations["zh"] = {
     ["Loaded Constructs"] = "已加载的构造体",
     ["View and edit already loaded constructs"] = "查看和编辑已经加载的构造",
     ["Search all your construct files"] = "搜索你的所有构造文件",
-    ["Edit your search query"] = "编辑你的搜索",
+    ["Edit your search query"] = "搜索构造体",
     ["No results found"] = "没有搜索结果",
     ["Missing downloaded file "] = "缺少下载文件 ",
     ["File downloaded "] = "文件已下载 ",
@@ -307,6 +307,9 @@ translations["zh"] = {
     ["LanceSpooner is also a huge inspiration to this script. Thanks Lance!"] = "构造者要感谢LanceSpooner的启发,谢谢你Lance！",
     ["Install Curated Constructs"] = "安装精选构造",
     ["Download and install a curated collection of constructs from https://github.com/hexarobi/stand-curated-constructs"] = "从以下网站下载并安装精选的构造合集 https://github.com/hexarobi/stand-curated-constructs",
+    ["Development, Ped Curation"] = "开发, Ped策划",
+    ["Focus Menu on Spawned Constructs"] = "生成构造自动切换",
+    ["When spawning a construct, focus Stands menu on the newly spawned construct. Otherwise, stay in the Load Constructs menu."] = "生成构造体时自动帮你切换到已加载的构造体菜单中",
     ["Translators"] = "翻译"
 }
 
@@ -315,5 +318,6 @@ translations["zh"] = {
 ---
 
 return translations
+
 
 
