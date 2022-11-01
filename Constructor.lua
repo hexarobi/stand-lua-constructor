@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b9"
+local SCRIPT_VERSION = "0.25b10"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -688,7 +688,6 @@ local function get_aim_info()
         aim_info.health = ENTITY.GET_ENTITY_HEALTH(handle)
         aim_info.type = ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(handle)]
     end
-    memory.free(outptr)
     return aim_info
 end
 
@@ -845,8 +844,8 @@ end
 local function spawn_construct_from_plan(construct_plan)
     debug_log("Spawning construct from plan "..tostring(construct_plan.name), construct_plan)
     local construct = copy_construct_plan(construct_plan)
-    if construct_plan.type == "PED" and config.wear_spawned_peds then
-        construct.is_player = true
+    if construct_plan.type == "PED" and config.wear_spawned_peds then construct.is_player = true end
+    if construct.is_player then
         construct.handle = players.user_ped()
         if player_construct ~= nil then
             -- Delete current player construct
@@ -1424,7 +1423,7 @@ menus.rebuild_attachment_menu = function(attachment)
         --end)
         attachment.menus.option_visible = menu.toggle(attachment.menus.options, t("Visible"), {}, t("Will the attachment be visible, or invisible"), function(on)
             attachment.options.is_visible = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.set_attachment_visibility(attachment)
         end, attachment.options.is_visible)
         attachment.menus.option_collision = menu.toggle(attachment.menus.options, t("Collision"), {}, t("Will the attachment collide with things, or pass through them"), function(on)
             attachment.options.has_collision = on
@@ -1440,6 +1439,7 @@ menus.rebuild_attachment_menu = function(attachment)
         end, attachment.options.has_gravity)
         attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Frozen"), {}, t("Will the attachment be frozen in place, or allowed to move freely"), function(on)
             attachment.options.is_frozen = on
+            constructor_lib.update_attachment(attachment)
         end, attachment.options.is_frozen)
 
         ---
@@ -1465,6 +1465,10 @@ menus.rebuild_attachment_menu = function(attachment)
             menu.toggle(attachment.menus.vehicle_options, t("Siren Control"), {}, t("If enabled, and this vehicle has a siren, then siren controls will effect this vehicle. Has no effect on vehicles without a siren."), function(value)
                 attachment.options.has_siren = value
             end, attachment.options.has_siren)
+            menu.text_input(attachment.menus.vehicle_options, t("Engine Sound"), {"constructorenginesound"..attachment.handle}, t("Set vehicle engine sound from another vehicle name."), function(value)
+                attachment.vehicle_attributes.engine_sound = value
+                constructor_lib.deserialize_vehicle_options(attachment)
+            end)
 
             --menu.action(attachment.menus.options, t("Invis Wheels"), {}, "", function()
             --    make_wheels_invis(attachment)
@@ -1941,6 +1945,33 @@ menu.action(menus.create_new_construct, t("From Current"), { "constructcreatefro
     end
 end)
 
+menus.create_from_nearby_vehicle = menu.list(menus.create_new_construct, t("From Nearby"), { "constructcreatefromnearbyvehicle" }, t("Create a new construct based on nearby vehicle"), function()
+    local handles = entities.get_all_vehicles_as_handles()
+    local player_pos = ENTITY.GET_ENTITY_COORDS(PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()), 1)
+    for _, handle in handles do
+        local entity_pos = ENTITY.GET_ENTITY_COORDS(handle, 1)
+        local dist = SYSTEM.VDIST(player_pos.x, player_pos.y, player_pos.z, entity_pos.x, entity_pos.y, entity_pos.z)
+        if dist <= 50 then
+            local hash = ENTITY.GET_ENTITY_MODEL(handle)
+            local construct_plan = {
+                type="VEHICLE",
+                handle=handle,
+                hash=hash,
+                model=util.reverse_joaat(hash)
+            }
+            constructor_lib.set_attachment_defaults(construct_plan)
+            constructor_lib.serialize_vehicle_attributes(construct_plan)
+            local nearby_menu = menu.action(menus.create_from_nearby_vehicle, construct_plan.model, {}, "", function()
+                construct_plan.root = construct_plan
+                construct_plan.parent = construct_plan
+                build_construct_from_plan(construct_plan)
+            end)
+            menu.on_focus(nearby_menu, function(direction) if direction ~= 0 then add_preview(construct_plan) end end)
+            menu.on_blur(nearby_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+        end
+    end
+end)
+
 menu.text_input(menus.create_new_construct, t("From Vehicle Name"), { "constructcreatefromvehiclename"}, t("Create a new construct from an exact vehicle name"), function(value, click_type)
     if click_type ~= 1 then return end
     local construct_plan = {
@@ -1988,6 +2019,37 @@ menu.action(menus.create_new_construct, t("From Me"), { "constructcreatefromme"}
     constructor_lib.serialize_ped_attributes(player_construct)
     build_construct_from_plan(player_construct)
 end)
+
+--menus.create_from_nearby_ped = menu.list(menus.create_new_construct, t("From Nearby"), { "constructcreatefromnearbyped" }, t("Create a new construct based on nearby Pedestrian"), function()
+--    local handles = entities.get_all_peds_as_handles()
+--    local player_pos = ENTITY.GET_ENTITY_COORDS(PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()), 1)
+--    for _, handle in handles do
+--        local entity_pos = ENTITY.GET_ENTITY_COORDS(handle, 1)
+--        local dist = SYSTEM.VDIST(player_pos.x, player_pos.y, player_pos.z, entity_pos.x, entity_pos.y, entity_pos.z)
+--        if dist <= 50 then
+--            local hash = ENTITY.GET_ENTITY_MODEL(handle)
+--            local construct_plan = {
+--                type="PED",
+--                handle=handle,
+--                hash=hash,
+--                model=util.reverse_joaat(hash)
+--            }
+--            constructor_lib.set_attachment_defaults(construct_plan)
+--            constructor_lib.serialize_ped_attributes(construct_plan)
+--            local nearby_menu = menu.action(menus.create_from_nearby_ped, construct_plan.model, {}, "", function()
+--                construct_plan.root = construct_plan
+--                construct_plan.parent = construct_plan
+--                --build_construct_from_plan(construct_plan)
+--                add_spawned_construct(construct_plan)
+--                menus.refresh_loaded_constructs()
+--                menus.rebuild_attachment_menu(construct_plan)
+--                construct_plan.menus.refresh()
+--            end)
+--            menu.on_focus(nearby_menu, function(direction) if direction ~= 0 then add_preview(construct_plan) end end)
+--            menu.on_blur(nearby_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+--        end
+--    end
+--end)
 
 menu.text_input(menus.create_new_construct, t("From Ped Name"), {"constructorcreatepedfromname"}, t("Create a new Ped construct from exact name"), function(value)
     local construct_plan = {
