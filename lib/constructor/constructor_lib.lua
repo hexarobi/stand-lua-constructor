@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.10b7"
+local SCRIPT_VERSION = "3.21.10b8"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -612,6 +612,12 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(vehicle.handle, false)
         AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(vehicle.handle, true)
         AUDIO.TRIGGER_SIREN_AUDIO(vehicle.handle, true)
+    end
+    if vehicle.vehicle_attributes.engine_sound ~= nil then
+        local hash = util.joaat(vehicle.vehicle_attributes.engine_sound)
+        if STREAMING.IS_MODEL_VALID(hash) and VEHICLE.IS_THIS_MODEL_A_CAR(hash) then
+            AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
+        end
     end
     if vehicle.vehicle_attributes.options.lights_state ~= nil then
         VEHICLE.SET_VEHICLE_LIGHTS(vehicle.handle, vehicle.vehicle_attributes.options.lights_state)
