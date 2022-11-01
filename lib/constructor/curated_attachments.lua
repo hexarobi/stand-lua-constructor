@@ -1,5 +1,5 @@
 -- Curated Attachments
--- v1.3
+-- v1.4
 
 return {
     {
@@ -1480,6 +1480,172 @@ return {
                     },
 
                 }
+            },
+            {
+                name="Animals",
+                is_folder = true,
+                items = {
+                    {
+                        name="Boar",
+                        model="a_c_boar",
+                        type="PED",
+                    },
+                    {
+                        name="Cat",
+                        model="a_c_cat_01",
+                        type="PED",
+                    },
+                    {
+                        name="Chickenhawk",
+                        model="a_c_chickenhawk",
+                        type="PED",
+                    },
+                    {
+                        name="Chimp",
+                        model="a_c_chimp",
+                        type="PED",
+                    },
+                    {
+                        name="Chop",
+                        model="a_c_chop",
+                        type="PED",
+                    },
+                    {
+                        name="Cormorant",
+                        model="a_c_cormorant",
+                        type="PED",
+                    },
+                    {
+                        name="Cow",
+                        model="a_c_cow",
+                        type="PED",
+                    },
+                    {
+                        name="Coyote",
+                        model="a_c_coyote",
+                        type="PED",
+                    },
+                    {
+                        name="Crow",
+                        model="a_c_crow",
+                        type="PED",
+                    },
+                    {
+                        name="Deer",
+                        model="a_c_deer",
+                        type="PED",
+                    },
+                    {
+                        name="Dolphin",
+                        model="a_c_dolphin",
+                        type="PED",
+                    },
+                    {
+                        name="Fish",
+                        model="a_c_fish",
+                        type="PED",
+                    },
+                    {
+                        name="Hen",
+                        model="a_c_hen",
+                        type="PED",
+                    },
+                    {
+                        name="Humpback",
+                        model="a_c_humpback",
+                        type="PED",
+                    },
+                    {
+                        name="Husky",
+                        model="a_c_husky",
+                        type="PED",
+                    },
+                    {
+                        name="Killer Whale",
+                        model="a_c_killerwhale",
+                        type="PED",
+                    },
+                    {
+                        name="Mountain Lion",
+                        model="a_c_mtlion",
+                        type="PED",
+                    },
+                    {
+                        name="Pig",
+                        model="a_c_pig",
+                        type="PED",
+                    },
+                    {
+                        name="Pigeon",
+                        model="a_c_pigeon",
+                        type="PED",
+                    },
+                    {
+                        name="Poodle",
+                        model="a_c_poodle",
+                        type="PED",
+                    },
+                    {
+                        name="Pug",
+                        model="a_c_pug",
+                        type="PED",
+                    },
+                    {
+                        name="Rabbit",
+                        model="a_c_rabbit_01",
+                        type="PED",
+                    },
+                    {
+                        name="Rat",
+                        model="a_c_rat",
+                        type="PED",
+                    },
+                    {
+                        name="Golden Retriever",
+                        model="a_c_retriever",
+                        type="PED",
+                    },
+                    {
+                        name="Rhesus Monkey",
+                        model="a_c_rhesus",
+                        type="PED",
+                    },
+                    {
+                        name="Rottweiler",
+                        model="a_c_rottweiler",
+                        type="PED",
+                    },
+                    {
+                        name="Seagull",
+                        model="a_c_seagull",
+                        type="PED",
+                    },
+                    {
+                        name="Hammerhead Shark",
+                        model="a_c_sharkhammer",
+                        type="PED",
+                    },
+                    {
+                        name="Tiger Shark",
+                        model="a_c_sharktiger",
+                        type="PED",
+                    },
+                    {
+                        name="English Shephard",
+                        model="a_c_shepherd",
+                        type="PED",
+                    },
+                    {
+                        name="Stingray",
+                        model="a_c_stingray",
+                        type="PED",
+                    },
+                    {
+                        name="West Highland Terrier",
+                        model="a_c_westy",
+                        type="PED",
+                    },
+                },
             },
             {
                 name="Cutscene",
