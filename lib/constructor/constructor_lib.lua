@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.10b8"
+local SCRIPT_VERSION = "3.21.10b9"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -95,11 +95,12 @@ function table.array_remove(t, fnKeep)
     return t;
 end
 
-constructor_lib.load_hash = function(hash)
+constructor_lib.load_hash = function(hash, timeout)
+    if timeout == nil then timeout = 3000 end
     STREAMING.REQUEST_MODEL(hash)
-    while not STREAMING.HAS_MODEL_LOADED(hash) do
-        util.yield()
-    end
+    local end_time = util.current_time_millis() + timeout
+    repeat util.yield() until STREAMING.HAS_MODEL_LOADED(hash) or util.current_time_millis() >= end_time
+    return STREAMING.HAS_MODEL_LOADED(hash)
 end
 
 constructor_lib.spawn_vehicle_for_player = function(pid, model_name)
@@ -692,6 +693,7 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options == nil then attachment.options = {} end
     if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
+    if attachment.rotation_axis == nil then attachment.rotation_axis = 2 end
     if attachment.position == nil or attachment.position == {} then attachment.position = { x = 0, y = 0, z = 0 } end
     if attachment.world_rotation == nil or attachment.world_rotation == {} then attachment.world_rotation = { x = 0, y = 0, z = 0 } end
     if attachment.heading == nil then
@@ -830,7 +832,7 @@ constructor_lib.update_attachment = function(attachment)
                         attachment.handle, attachment.parent.handle, attachment.options.bone_index,
                         attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
                         attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                        false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, 2, true
+                        false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, attachment.rotation_axis, true
                 )
             end
         end
