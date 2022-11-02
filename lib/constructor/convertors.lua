@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.4b6"
+local SCRIPT_VERSION = "0.8.4b7"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -539,6 +539,9 @@ end
 
 local function map_placement_options(attachment, placement)
     if attachment.options == nil then attachment.options = {} end
+    if attachment.type == "OBJECT" then
+        attachment.options.is_frozen = true
+    end
     if placement.FrozenPos ~= nil then attachment.options.is_frozen = toboolean(placement.FrozenPos) end
     if placement.OpacityLevel ~= nil then attachment.options.alpha = tonumber(placement.OpacityLevel) end
     if placement.LodDistance ~= nil then attachment.options.lod_distance = tonumber(placement.LodDistance) end
@@ -646,15 +649,11 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
                 map_placement(construct_plan, placement)
                 if construct_plan.type == "OBJECT" then
                     construct_plan.always_spawn_at_position = true
-                    construct_plan.options.is_frozen = true
                 end
             else
                 local attachment = {}
                 map_placement(attachment, placement)
                 if construct_plan.always_spawn_at_position == true then attachment.options.is_attached = false end
-                if construct_plan.type == "OBJECT" then
-                    construct_plan.options.is_frozen = true
-                end
                 table.insert(construct_plan.children, attachment)
             end
         end
