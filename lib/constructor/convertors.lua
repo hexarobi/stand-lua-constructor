@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.4b4"
+local SCRIPT_VERSION = "0.8.4b5"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -644,11 +644,17 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
         for _, placement in pairs(placements) do
             if construct_plan.model == nil then
                 map_placement(construct_plan, placement)
-                if construct_plan.type == "OBJECT" then construct_plan.always_spawn_at_position = true end
+                if construct_plan.type == "OBJECT" then
+                    construct_plan.always_spawn_at_position = true
+                    construct_plan.options.is_frozen = true
+                end
             else
                 local attachment = {}
                 map_placement(attachment, placement)
                 if construct_plan.always_spawn_at_position == true then attachment.options.is_attached = false end
+                if construct_plan.type == "OBJECT" then
+                    construct_plan.options.is_frozen = true
+                end
                 table.insert(construct_plan.children, attachment)
             end
         end
@@ -1061,6 +1067,9 @@ local function map_ini_attachment_flavor_4(attachment, data)
     if data["RotX"] ~= nil then attachment.world_rotation.x = clean_ini_number(data["RotX"]) end
     if data["RotY"] ~= nil then attachment.world_rotation.y = clean_ini_number(data["RotY"]) end
     if data["RotZ"] ~= nil then attachment.world_rotation.z = clean_ini_number(data["RotZ"]) end
+
+    -- Ini flavor 4 uses rotation axis 0
+    attachment.rotation_axis = 0
 
     if data["OffsetX"] ~= nil then attachment.offset.x = clean_ini_number(data["OffsetX"]) end
     if data["OffsetY"] ~= nil then attachment.offset.y = clean_ini_number(data["OffsetY"]) end
