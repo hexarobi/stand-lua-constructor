@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.4b8"
+local SCRIPT_VERSION = "0.8.4b9"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -1250,7 +1250,7 @@ local function map_ini_data_flavor_4(construct_plan, data)
         end
         for object_index = 0, tonumber(data.AllObjects.Count) - 1 do
             local attached_object = data["Object".. object_index]
-            if attached_object ~= nil and (attached_object.Model ~= nil and attached_object.Model > 0) then
+            if attached_object ~= nil and attached_object.Hash > 0 then
                 local attachment = {}
                 attachment.type = "OBJECT"
                 map_ini_attachment_flavor_4(attachment, attached_object)
@@ -1262,7 +1262,7 @@ local function map_ini_data_flavor_4(construct_plan, data)
         construct_plan.is_player = true
         for object_index = 0, tonumber(data.AllObjects.Count) - 1 do
             local attached_object = data["Object".. object_index]
-            if attached_object ~= nil and (attached_object.Model ~= nil and attached_object.Model > 0) then
+            if attached_object ~= nil and attached_object.Hash > 0 then
                 local attachment = {}
                 attachment.type = "OBJECT"
                 map_ini_attachment_flavor_4(attachment, attached_object)
