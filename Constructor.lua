@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b11"
+local SCRIPT_VERSION = "0.25b12"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1468,7 +1468,7 @@ menus.rebuild_attachment_menu = function(attachment)
             menu.text_input(attachment.menus.vehicle_options, t("Engine Sound"), {"constructorenginesound"..attachment.handle}, t("Set vehicle engine sound from another vehicle name."), function(value)
                 attachment.vehicle_attributes.engine_sound = value
                 constructor_lib.deserialize_vehicle_options(attachment)
-            end, attachment.vehicle_attributes.engine_sound)
+            end, attachment.vehicle_attributes.engine_sound or "")
 
             --menu.action(attachment.menus.options, t("Invis Wheels"), {}, "", function()
             --    make_wheels_invis(attachment)
@@ -2293,14 +2293,11 @@ end
 --- Run
 ---
 
-local function constructor_tick()
-    aim_info_tick()
-    update_preview_tick()
-    sensitivity_modifier_check_tick()
-    update_constructs_tick()
-    draw_editing_attachment_bounding_box_tick()
-end
-util.create_tick_handler(constructor_tick)
+util.create_tick_handler(aim_info_tick)
+util.create_tick_handler(update_preview_tick)
+util.create_tick_handler(sensitivity_modifier_check_tick)
+util.create_tick_handler(update_constructs_tick)
+util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
 
 --util.create_tick_handler(function()
 --    ped_animation_tick()
