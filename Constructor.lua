@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b10"
+local SCRIPT_VERSION = "0.25b11"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -625,7 +625,7 @@ local function add_preview(construct_plan, preview_image_path)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
         current_preview = constructor_lib.attach_attachment_with_children(attachment)
         if construct_plan.load_menu then
-            menu.set_help_text(construct_plan.load_menu, get_construct_plan_description(current_preview))
+            pcall(menu.set_help_text, construct_plan.load_menu, get_construct_plan_description(current_preview))
         end
         if next_preview ~= construct_plan then
             remove_preview(current_preview)
@@ -1447,7 +1447,7 @@ menus.rebuild_attachment_menu = function(attachment)
         ---
 
         if attachment.type == "VEHICLE" then
-            attachment.menus.vehicle_options = menu.list(attachment.menus.options, t("Vehicle Options"))
+            attachment.menus.vehicle_options = menu.list(attachment.menus.options, t("Vehicle Options"), {}, t("Additional options available for all vehicle entities"))
             menu.toggle_loop(attachment.menus.vehicle_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
                 attachment.options.engine_running = true
                 VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
@@ -1468,7 +1468,7 @@ menus.rebuild_attachment_menu = function(attachment)
             menu.text_input(attachment.menus.vehicle_options, t("Engine Sound"), {"constructorenginesound"..attachment.handle}, t("Set vehicle engine sound from another vehicle name."), function(value)
                 attachment.vehicle_attributes.engine_sound = value
                 constructor_lib.deserialize_vehicle_options(attachment)
-            end)
+            end, attachment.vehicle_attributes.engine_sound)
 
             --menu.action(attachment.menus.options, t("Invis Wheels"), {}, "", function()
             --    make_wheels_invis(attachment)
@@ -1489,7 +1489,7 @@ menus.rebuild_attachment_menu = function(attachment)
                 constructor_lib.deserialize_vehicle_wheels(attachment)
             end, attachment.vehicle_attributes.wheels.bulletproof_tires)
 
-            attachment.menus.tires_burst = menu.list(attachment.menus.vehicle_options, "Burst Tires", {}, "Are tires burst")
+            attachment.menus.tires_burst = menu.list(attachment.menus.vehicle_options, t("Burst Tires"), {}, t("Are tires burst"))
             if attachment.vehicle_attributes.wheels.tires_burst == nil then attachment.vehicle_attributes.wheels.tires_burst = {} end
             for _, tire_position in pairs(constants.tire_position_names) do
                 menu.toggle(attachment.menus.tires_burst, tire_position.name, {}, "", function(value)
@@ -1499,49 +1499,49 @@ menus.rebuild_attachment_menu = function(attachment)
                 end, attachment.vehicle_attributes.wheels.tires_burst["_"..tire_position.index])
             end
 
-            attachment.menus.broken_doors = menu.list(attachment.menus.vehicle_options, "Broken Doors", {}, "Remove doors and trunks")
-            attachment.menus.option_doors_broken_frontleft = menu.action(attachment.menus.broken_doors, "Break Door: Front Left", {}, "Remove door.", function()
+            attachment.menus.broken_doors = menu.list(attachment.menus.vehicle_options, t("Broken Doors"), {}, t("Remove doors and trunks"))
+            attachment.menus.option_doors_broken_frontleft = menu.action(attachment.menus.broken_doors, t("Break Door: Front Left"), {}, t("Remove door."), function()
                 attachment.vehicle_attributes.doors.broken.frontleft = true
                 constructor_lib.deserialize_vehicle_doors(attachment)
             end)
-            attachment.menus.option_doors_broken_backleft = menu.action(attachment.menus.broken_doors, "Break Door: Back Left", {}, "Remove door.", function()
+            attachment.menus.option_doors_broken_backleft = menu.action(attachment.menus.broken_doors, t("Break Door: Back Left"), {}, t("Remove door."), function()
                 attachment.vehicle_attributes.doors.broken.backleft = true
                 constructor_lib.deserialize_vehicle_doors(attachment)
             end)
-            attachment.menus.option_doors_broken_frontright = menu.action(attachment.menus.broken_doors, "Break Door: Front Right", {}, "Remove door.", function()
+            attachment.menus.option_doors_broken_frontright = menu.action(attachment.menus.broken_doors, t("Break Door: Front Right"), {}, t("Remove door."), function()
                 attachment.vehicle_attributes.doors.broken.frontright = true
                 constructor_lib.deserialize_vehicle_doors(attachment)
             end)
-            attachment.menus.option_doors_broken_backright = menu.action(attachment.menus.broken_doors, "Break Door: Back Right", {}, "Remove door.", function()
+            attachment.menus.option_doors_broken_backright = menu.action(attachment.menus.broken_doors, t("Break Door: Back Right"), {}, t("Remove door."), function()
                 attachment.vehicle_attributes.doors.broken.backright = true
                 constructor_lib.deserialize_vehicle_doors(attachment)
             end)
-            attachment.menus.option_doors_broken_hood = menu.action(attachment.menus.broken_doors, "Break Door: Hood", {}, "Remove door.", function()
+            attachment.menus.option_doors_broken_hood = menu.action(attachment.menus.broken_doors, t("Break Door: Hood"), {}, t("Remove door."), function()
                 attachment.vehicle_attributes.doors.broken.hood = true
                 constructor_lib.deserialize_vehicle_doors(attachment)
             end)
-            attachment.menus.option_doors_broken_trunk = menu.action(attachment.menus.broken_doors, "Break Door: Trunk", {}, "Remove door.", function()
+            attachment.menus.option_doors_broken_trunk = menu.action(attachment.menus.broken_doors, t("Break Door: Trunk"), {}, t("Remove door."), function()
                 attachment.vehicle_attributes.doors.broken.trunk = true
                 constructor_lib.deserialize_vehicle_doors(attachment)
             end)
-            attachment.menus.option_doors_broken_trunk2 = menu.action(attachment.menus.broken_doors, "Break Door: Trunk2", {}, "Remove door.", function()
+            attachment.menus.option_doors_broken_trunk2 = menu.action(attachment.menus.broken_doors, t("Break Door: Trunk2"), {}, t("Remove door."), function()
                 attachment.vehicle_attributes.doors.broken.trunk2 = true
                 constructor_lib.deserialize_vehicle_doors(attachment)
             end)
 
-            attachment.menus.windows = menu.list(attachment.menus.vehicle_options, "Windows Rolled Down", {}, "Roll  up and down windows")
+            attachment.menus.windows = menu.list(attachment.menus.vehicle_options, t("Windows Rolled Down"), {}, t("Roll up and down windows"))
             for window_index = 1, 8 do
                 local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
-                menu.toggle(attachment.menus.windows, "Window Rolled Down: "..window_name, {}, "Roll down the window.", function(on)
+                menu.toggle(attachment.menus.windows, t("Window Rolled Down: ")..window_name, {}, t("Roll down the window."), function(on)
                     attachment.vehicle_attributes.windows.rolled_down[window_name] = on
                     constructor_lib.deserialize_vehicle_windows(attachment)
                 end, attachment.vehicle_attributes.windows.rolled_down[window_name])
             end
 
-            attachment.menus.windows = menu.list(attachment.menus.vehicle_options, "Windows Broken", {}, "Roll  up and down windows")
+            attachment.menus.windows = menu.list(attachment.menus.vehicle_options, t("Windows Broken"), {}, t("Roll up and down windows"))
             for window_index = 1, 8 do
                 local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
-                menu.toggle(attachment.menus.windows, "Window Broken: "..window_name, {}, "Break the window.", function(on)
+                menu.toggle(attachment.menus.windows, t("Window Broken: ")..window_name, {}, t("Break the window."), function(on)
                     attachment.vehicle_attributes.windows.rolled_down[window_name] = on
                     constructor_lib.deserialize_vehicle_windows(attachment)
                 end, attachment.vehicle_attributes.windows.rolled_down[window_name])
@@ -1554,16 +1554,16 @@ menus.rebuild_attachment_menu = function(attachment)
         ---
 
         if attachment.type == "PED" then
-            attachment.menus.ped_options = menu.list(attachment.menus.options, "Ped Options")
-            attachment.menus.option_ped_can_rag_doll = menu.toggle(attachment.menus.ped_options, "Can Rag Doll", {}, "If enabled, the ped can go limp.", function(value)
+            attachment.menus.ped_options = menu.list(attachment.menus.options, t("Ped Options"), {}, t("Additional options available for Ped entities."))
+            attachment.menus.option_ped_can_rag_doll = menu.toggle(attachment.menus.ped_options, t("Can Rag Doll"), {}, t("If enabled, the ped can go limp."), function(value)
                 attachment.ped_attributes.can_rag_doll = value
                 constructor_lib.deserialize_ped_attributes(attachment)
             end, attachment.ped_attributes.can_rag_doll)
-            attachment.menus.option_ped_armor = menu.slider(attachment.menus.ped_options, "Armor", {}, "How much armor does the ped have.", 0, attachment.ped_attributes.armor, 100, 1, function(value)
+            attachment.menus.option_ped_armor = menu.slider(attachment.menus.ped_options, t("Armor"), {}, t("How much armor does the ped have."), 0, attachment.ped_attributes.armor, 100, 1, function(value)
                 attachment.ped_attributes.armor = value
                 constructor_lib.deserialize_ped_attributes(attachment)
             end)
-            attachment.menus.option_on_fire = menu.toggle(attachment.menus.ped_options, "On Fire", {}, "Will the ped be burning on fire, or not", function(on)
+            attachment.menus.option_on_fire = menu.toggle(attachment.menus.ped_options, t("On Fire"), {}, t("Will the ped be burning on fire, or not"), function(on)
                 attachment.options.is_on_fire = on
                 constructor_lib.update_ped_attachment(attachment)
             end, attachment.options.is_on_fire)
@@ -1586,9 +1586,8 @@ menus.rebuild_attachment_menu = function(attachment)
                 end
             end
 
-            attachment.menus.option_give_ped_weapon = menu.list(attachment.menus.ped_options, "Give Weapon", {}, "Give the ped a weapon.")
+            attachment.menus.option_give_ped_weapon = menu.list(attachment.menus.ped_options, t("Give Weapon"), {}, t("Give the ped a weapon."))
             create_ped_weapon_menu(attachment, attachment.menus.option_give_ped_weapon, constants.ped_weapons)
-
 
             local function create_ped_component_menu(attachment, root_menu, index, name)
                 local component = attachment.ped_attributes.components["_".. index]
@@ -1622,14 +1621,14 @@ menus.rebuild_attachment_menu = function(attachment)
                 end)
             end
 
-            menu.divider(attachment.menus.ped_options, t("Clothes"))
+            attachment.menus.ped_options_clothes = menu.list(attachment.menus.ped_options, t("Clothes"))
             for _, ped_component in pairs(constants.ped_components) do
-                create_ped_component_menu(attachment, attachment.menus.ped_options, ped_component.index, ped_component.name)
+                create_ped_component_menu(attachment, attachment.menus.ped_options_clothes, ped_component.index, ped_component.name)
             end
 
-            menu.divider(attachment.menus.ped_options, t("Props"))
+            attachment.menus.ped_options_props = menu.list(attachment.menus.ped_options, t("Props"))
             for _, ped_prop in pairs(constants.ped_props) do
-                create_ped_prop_menu(attachment, attachment.menus.ped_options, ped_prop.index, ped_prop.name)
+                create_ped_prop_menu(attachment, attachment.menus.ped_options_props, ped_prop.index, ped_prop.name)
             end
         end
 
@@ -1637,10 +1636,10 @@ menus.rebuild_attachment_menu = function(attachment)
         --- Attachment Options
         ---
 
-        attachment.menus.attachment_options = menu.list(attachment.menus.options, t("Attachment Options"))
         if attachment ~= attachment.parent then
+             attachment.menus.attachment_options = menu.list(attachment.menus.options, t("Attachment Options"), {}, t("Additional options available for all entities attached to a parent object."))
 
-            attachment.menus.option_attached = menu.toggle(attachment.menus.attachment_options, t("Attached"), {}, t("Is this child physically attached to the parent, or does it move freely on its own."), function(on)
+             attachment.menus.option_attached = menu.toggle(attachment.menus.attachment_options, t("Attached"), {}, t("Is this child physically attached to the parent, or does it move freely on its own."), function(on)
                 attachment.options.is_attached = on
                 constructor_lib.update_attachment(attachment)
             end, attachment.options.is_attached)
@@ -1683,29 +1682,29 @@ menus.rebuild_attachment_menu = function(attachment)
             end)
 
         end
-        menu.action(attachment.menus.attachment_options, t("Copy to Me"), {}, t("Attach a copy of this object to your Ped."), function()
-            get_player_construct()
-            local attachment_copy = constructor_lib.serialize_attachment(attachment)
-            debug_log("Copying attachment "..attachment_copy.name)
-            if attachment == attachment.parent and attachment.type == "PED" then
-                debug_log("Making ped into "..attachment_copy.name)
-                -- Transform into root model
-                attachment_copy.handle=players.user_ped()
-                attachment_copy.type="PED"
-                attachment_copy.name=attachment_copy.name.." (Player Skin)"
-                attachment_copy.is_player=true
-                attachment_copy.parent = attachment_copy
-                attachment_copy.root = attachment_copy
-            else
-                attachment_copy.parent = player_construct
-                attachment_copy.root = player_construct
-                constructor_lib.update_attachment(attachment_copy)
-                table.insert(player_construct.children, attachment_copy)
-            end
-            rebuild_attachment(attachment_copy)
-        end)
+        --menu.action(attachment.menus.attachment_options, t("Copy to Me"), {}, t("Attach a copy of this object to your Ped."), function()
+        --    get_player_construct()
+        --    local attachment_copy = constructor_lib.serialize_attachment(attachment)
+        --    debug_log("Copying attachment "..attachment_copy.name)
+        --    if attachment == attachment.parent and attachment.type == "PED" then
+        --        debug_log("Making ped into "..attachment_copy.name)
+        --        -- Transform into root model
+        --        attachment_copy.handle=players.user_ped()
+        --        attachment_copy.type="PED"
+        --        attachment_copy.name=attachment_copy.name.." (Player Skin)"
+        --        attachment_copy.is_player=true
+        --        attachment_copy.parent = attachment_copy
+        --        attachment_copy.root = attachment_copy
+        --    else
+        --        attachment_copy.parent = player_construct
+        --        attachment_copy.root = player_construct
+        --        constructor_lib.update_attachment(attachment_copy)
+        --        table.insert(player_construct.children, attachment_copy)
+        --    end
+        --    rebuild_attachment(attachment_copy)
+        --end)
 
-        attachment.menus.more_options = menu.list(attachment.menus.options, t("More Options"))
+        attachment.menus.more_options = menu.list(attachment.menus.options, t("Entity Options"), {}, t("Additional options available for all entities."))
         attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, t("LoD Distance"), {"constructorsetloddistance"..attachment.handle}, t("Level of Detail draw distance"), 1, 9999999, attachment.options.lod_distance, 100, function(value)
             attachment.options.lod_distance = value
             constructor_lib.update_attachment(attachment)
