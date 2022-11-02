@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.4b9"
+local SCRIPT_VERSION = "0.8.4b10"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -1432,10 +1432,9 @@ end
 -- type 5 has AllObjects and AllVehicles (Boat-fsx.ini) (seems like theres an iniparser glitch in this one)
 -- type 6 is like type 2, but some keys are different, namely the numbers for attachments are called "Attached Object x" (Tankamid.ini)
 local function get_ini_flavor(data)
-    if data.Vehicle ~= nil and (data.Vehicle.Model ~= nil or data.Vehicle.model ~= nil)
-            and data.Vehicle.PrimaryPaintT == nil and (data.AllVehicles == nil or data.AllVehicles.Count == nil) then
+    if data.Vehicle ~= nil and data.Vehicle.Model ~= nil and data.Vehicle.PrimaryPaintT == nil and (data.AllVehicles == nil or data.AllVehicles.Count == nil) then
         return 1
-    elseif data.Vehicle ~= nil and data.Vehicle.model ~= nil and data['Attached Object 1'] ~= nil and data['Attached Object 1'].model == nil then
+    elseif data.Vehicle ~= nil and data.Vehicle.model ~= nil and data['Attached Object 1'] == nil and data['1'] ~= nil then
         return 2
     elseif data.Vehicle ~= nil and data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT ~= nil then
         return 3
