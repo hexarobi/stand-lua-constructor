@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b16"
+local SCRIPT_VERSION = "0.25b17"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -45,32 +45,34 @@ if auto_updater == true then error("Invalid auto-updater lib. Please delete your
 --- Auto-Update
 ---
 
+local default_check_interval = 604800
 local auto_update_config = {
     source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua",
     script_relpath=SCRIPT_RELPATH,
     switch_to_branch=selected_branch,
     verify_file_begins_with="--",
+    check_interval=86400,
     dependencies={
         {
             name="inspect",
             source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
             script_relpath="lib/inspect.lua",
             verify_file_begins_with="local",
-            check_interval=2592000,
+            check_interval=default_check_interval,
         },
         {
             name="xml2lua",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
             script_relpath="lib/constructor/xml2lua.lua",
             verify_file_begins_with="--",
-            check_interval=2592000,
+            check_interval=default_check_interval,
         },
         {
             name="constants",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
             script_relpath="lib/constructor/constants.lua",
             verify_file_begins_with="--",
-            check_interval=2592000,
+            check_interval=default_check_interval,
         },
         {
             name="constructor_lib",
@@ -78,7 +80,7 @@ local auto_update_config = {
             script_relpath="lib/constructor/constructor_lib.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
-            check_interval=2592000,
+            check_interval=default_check_interval,
         },
         {
             name="iniparser",
@@ -86,7 +88,7 @@ local auto_update_config = {
             script_relpath="lib/constructor/iniparser.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
-            check_interval=2592000,
+            check_interval=default_check_interval,
         },
         {
             name="convertors",
@@ -94,34 +96,34 @@ local auto_update_config = {
             script_relpath="lib/constructor/convertors.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
-            check_interval=2592000,
+            check_interval=default_check_interval,
         },
         {
             name="curated_attachments",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
             script_relpath="lib/constructor/curated_attachments.lua",
             verify_file_begins_with="--",
-            check_interval=2592000,
+            check_interval=default_check_interval,
         },
         {
             name="objects_complete",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
             script_relpath="lib/constructor/objects_complete.txt",
             verify_file_begins_with="ba_prop_glass_garage_opaque",
-            check_interval=2592000,
+            check_interval=default_check_interval,
         },
         {
             name="constructor_logo",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
             script_relpath="lib/constructor/constructor_logo.png",
-            check_interval=2592000,
+            check_interval=default_check_interval,
         },
         {
             name="translations",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
             script_relpath="lib/constructor/translations.lua",
             verify_file_begins_with="--",
-            check_interval=2592000,
+            check_interval=default_check_interval,
         },
     }
 }
