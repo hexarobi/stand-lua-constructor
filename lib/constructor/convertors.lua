@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.4b10"
+local SCRIPT_VERSION = "0.8.4b11"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -539,9 +539,6 @@ end
 
 local function map_placement_options(attachment, placement)
     if attachment.options == nil then attachment.options = {} end
-    if attachment.type == "OBJECT" then
-        attachment.options.is_frozen = true
-    end
     if placement.FrozenPos ~= nil then attachment.options.is_frozen = toboolean(placement.FrozenPos) end
     if placement.OpacityLevel ~= nil then attachment.options.alpha = tonumber(placement.OpacityLevel) end
     if placement.LodDistance ~= nil then attachment.options.lod_distance = tonumber(placement.LodDistance) end
@@ -745,10 +742,8 @@ local function map_ini_vehicle_flavor_1(attachment, data)
 
     for index = 0, 49 do
         local field = data[tostring(index)]
-        if (index >= 17 and index <= 22) then
-            if field == nil and data["TOGGLE_"..index] ~= nil then
-                field = data["TOGGLE_"..index]
-            end
+        if (index >= 17 and index <= 22) and field == nil and data["TOGGLE_"..index] ~= nil then
+            field = data["TOGGLE_"..index]
         end
         if field ~= nil then
             if (index >= 17 and index <= 22) then
