@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b12"
+local SCRIPT_VERSION = "0.25b13"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -56,18 +56,21 @@ local auto_update_config = {
             source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
             script_relpath="lib/inspect.lua",
             verify_file_begins_with="local",
+            check_interval=2592000,
         },
         {
             name="xml2lua",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
             script_relpath="lib/constructor/xml2lua.lua",
             verify_file_begins_with="--",
+            check_interval=2592000,
         },
         {
             name="constants",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
             script_relpath="lib/constructor/constants.lua",
             verify_file_begins_with="--",
+            check_interval=2592000,
         },
         {
             name="constructor_lib",
@@ -75,6 +78,7 @@ local auto_update_config = {
             script_relpath="lib/constructor/constructor_lib.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
+            check_interval=2592000,
         },
         {
             name="iniparser",
@@ -82,6 +86,7 @@ local auto_update_config = {
             script_relpath="lib/constructor/iniparser.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
+            check_interval=2592000,
         },
         {
             name="convertors",
@@ -89,29 +94,34 @@ local auto_update_config = {
             script_relpath="lib/constructor/convertors.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
+            check_interval=2592000,
         },
         {
             name="curated_attachments",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
             script_relpath="lib/constructor/curated_attachments.lua",
             verify_file_begins_with="--",
+            check_interval=2592000,
         },
         {
             name="objects_complete",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
             script_relpath="lib/constructor/objects_complete.txt",
             verify_file_begins_with="ba_prop_glass_garage_opaque",
+            check_interval=2592000,
         },
         {
             name="constructor_logo",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
             script_relpath="lib/constructor/constructor_logo.png",
+            check_interval=2592000,
         },
         {
             name="translations",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
             script_relpath="lib/constructor/translations.lua",
             verify_file_begins_with="--",
+            check_interval=2592000,
         },
     }
 }
@@ -1447,6 +1457,7 @@ menus.rebuild_attachment_menu = function(attachment)
         ---
 
         if attachment.type == "VEHICLE" then
+            if attachment.vehicle_attributes == nil then attachment.vehicle_attributes = {} end
             attachment.menus.vehicle_options = menu.list(attachment.menus.options, t("Vehicle Options"), {}, t("Additional options available for all vehicle entities"))
             menu.toggle_loop(attachment.menus.vehicle_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
                 attachment.options.engine_running = true
@@ -1998,6 +2009,15 @@ menu.action(menus.create_new_construct, t("From New Construction Cone"), { "cons
     build_construct_from_plan(construct_plan)
 end)
 
+menus.create_from_object_search_results = {}
+menus.create_from_object_search = menu.list(menus.create_new_construct, t("From Object Name"), {}, t("Create a new stationary construct from an exact object name"), function()
+    menu.show_command_box("constructorcreatefromobjectname ")
+end)
+menu.text_input(menus.create_from_object_search, t("Search"), {"constructorcreatefromobjectname"}, "", function (query)
+    clear_menu_list(menus.create_from_object_search_results)
+    add_prop_search_results(attachment, query)
+end)
+
 menu.text_input(menus.create_new_construct, t("From Object Name"), { "constructcreatestructurefromobjectname"}, t("Create a new stationary construct from an exact object name"), function(value)
     local construct_plan = {
         model = value,
@@ -2127,6 +2147,9 @@ end, config.drive_spawned_vehicles)
 menu.toggle(menus.load_construct_options, t("Wear Spawned Peds"), {}, t("When spawning peds, replace your player skin with the ped."), function(on)
     config.wear_spawned_peds = on
 end, config.wear_spawned_peds)
+menu.toggle(menus.load_construct_options, t("Focus Menu on Spawned Constructs"), {}, t("When spawning a construct, focus Stands menu on the newly spawned construct. Otherwise, stay in the Load Constructs menu."), function(on)
+    config.focus_menu_on_spawned_constructs = on
+end, config.focus_menu_on_spawned_constructs)
 
 menu.divider(menus.load_construct, t("Browse"))
 
