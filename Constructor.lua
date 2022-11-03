@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b15"
+local SCRIPT_VERSION = "0.25b16"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1791,6 +1791,11 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.options.alpha = value
             constructor_lib.update_attachment(attachment)
         end)
+
+        attachment.menus.option_mission_entity = menu.toggle(attachment.menus.more_options, t("Mission Entity"), {}, t("If attachment is treated as a mission entity."), function(on)
+            attachment.options.is_mission_entity = on
+            constructor_lib.update_attachment(attachment)
+        end, attachment.options.is_mission_entity)
 
         -- Blip
         if attachment == attachment.parent then
