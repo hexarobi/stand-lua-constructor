@@ -1258,34 +1258,6 @@ local function rebuild_reattach_to_menu(attachment, current, path, depth)
     end
 end
 
---local search_params = {
---    query_function=function(search_params)
---        local results = {}
---        for prop in io.lines(PROPS_PATH) do
---            local i, j = prop:find(search_params.query)
---            if i then
---                table.insert(results, { prop = prop, distance = j - i })
---            end
---        end
---        table.sort(results, function(a, b) return a.distance > b.distance end)
---        return results
---    end,
---    action_function=function(search_params, item)
---        local model = item.prop
---        local search_result_menu = menu.action(search_params.menus.root, model, {}, "", function()
---            build_construct_from_plan({
---                root = search_params.attachment.root,
---                parent = search_params.attachment,
---                name = item.prop,
---                model = item.prop,
---            })
---        end)
---        menu.on_focus(search_result_menu, function(direction) if direction ~= 0 then add_preview({ model=model}) end end)
---        menu.on_blur(search_result_menu, function(direction) if direction ~= 0 then remove_preview() end end)
---        return search_result_menu
---    end,
---}
-
 local function search(search_params)
     if search_params.page_size == nil then search_params.page_size = 30 end
     if search_params.page_number == nil then search_params.page_number = 0 end
@@ -1306,32 +1278,6 @@ local function search(search_params)
     end)
     table.insert(search_params.results, search_params.menus.search_add_more)
 end
-
---local function add_prop_search_results(attachment, query, page_size, page_number)
---    if page_size == nil then page_size = 30 end
---    if page_number == nil then page_number = 0 end
---    local results = search_props(query)
---    for i = (page_size*page_number)+1, page_size*(page_number+1) do
---        if results[i] then
---            local model = results[i].prop
---            local search_result_attachment_menu = menu.action(attachment.menus.search_add_prop, model, {}, "", function()
---                build_construct_from_plan({
---                    root = attachment.root,
---                    parent = attachment,
---                    name = results[i].prop,
---                    model = results[i].prop,
---                })
---            end)
---            menu.on_focus(search_result_attachment_menu, function(direction) if direction ~= 0 then add_preview({model=model}) end end)
---            menu.on_blur(search_result_attachment_menu, function(direction) if direction ~= 0 then remove_preview() end end)
---            table.insert(attachment.temp.prop_search_results, search_result_attachment_menu)
---        end
---    end
---    if attachment.menus.search_add_more ~= nil then menu.delete(attachment.menus.search_add_more) end
---    attachment.menus.search_add_more = menu.action(attachment.menus.search_add_prop, t("Load More"), {}, "", function()
---        add_prop_search_results(attachment, query, page_size, page_number+1)
---    end)
---end
 
 ---
 --- Curated Constructs Installer
