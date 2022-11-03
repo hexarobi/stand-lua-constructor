@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.5"
+local SCRIPT_VERSION = "0.8.4"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -69,21 +69,26 @@ local function table_merge(t1, t2)
     return t1
 end
 
+local function trim(string)
+    return string:gsub("%s+", "")
+end
+
 ---
 --- Constructor Format
 ---
 
 convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
-    constructor_lib.set_attachment_defaults(construct_plan)
+    --constructor_lib.set_attachment_defaults(construct_plan)
+    if construct_plan.temp == nil then construct_plan.temp = {} end
     construct_plan.temp.source_file_type = "Construct"
     if construct_plan.type == "PED" and construct_plan.hash == nil and construct_plan.model == nil then
+        local current_player_hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
         local current_player = {
-            type="PED",
-            handle=players.user_ped(),
-            hash = ENTITY.GET_ENTITY_MODEL(players.user_ped()),
-            model = util.reverse_joaat(construct_plan.hash),
+            handle = players.user_ped(),
+            hash = current_player_hash,
+            model = util.reverse_joaat(current_player_hash),
         }
-        constructor_lib.deserialize_ped_attributes(current_player)
+        --constructor_lib.deserialize_ped_attributes(current_player)
         table_merge(current_player, construct_plan)
         return current_player
     end
@@ -639,7 +644,9 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
         for _, placement in pairs(placements) do
             if construct_plan.model == nil then
                 map_placement(construct_plan, placement)
-                if construct_plan.type == "OBJECT" then construct_plan.always_spawn_at_position = true end
+                if construct_plan.type == "OBJECT" then
+                    construct_plan.always_spawn_at_position = true
+                end
             else
                 local attachment = {}
                 map_placement(attachment, placement)
@@ -735,6 +742,9 @@ local function map_ini_vehicle_flavor_1(attachment, data)
 
     for index = 0, 49 do
         local field = data[tostring(index)]
+        if (index >= 17 and index <= 22) and field == nil and data["TOGGLE_"..index] ~= nil then
+            field = data["TOGGLE_"..index]
+        end
         if field ~= nil then
             if (index >= 17 and index <= 22) then
                 attachment.vehicle_attributes.mods["_"..index] = toboolean(field)
@@ -746,6 +756,9 @@ local function map_ini_vehicle_flavor_1(attachment, data)
 
     for index = 0, 14 do
         local field = data["extra"..index]
+        if field == nil and data["Extra_"..index] ~= nil then
+            field = data["Extra_"..index]
+        end
         if field ~= nil then
             attachment.vehicle_attributes.extras["_"..index] = toboolean(field)
         end
@@ -754,14 +767,18 @@ end
 
 local function map_ini_attachment_flavor_1(attachment, data)
     if data["Model"] ~= nil then attachment.hash = data["Model"] end
+    if data["model"] ~= nil then attachment.hash = data["model"] end
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
     constructor_lib.set_attachment_defaults(attachment)
 
     if data["X"] ~= nil then attachment.offset.x = tonumber(data["X"]) end
+    if data["x"] ~= nil then attachment.offset.x = tonumber(data["x"]) end
     if data["Y"] ~= nil then attachment.offset.y = tonumber(data["Y"]) end
+    if data["y"] ~= nil then attachment.offset.x = tonumber(data["y"]) end
     if data["Z"] ~= nil then attachment.offset.z = tonumber(data["Z"]) end
+    if data["z"] ~= nil then attachment.offset.x = tonumber(data["z"]) end
 
     if data["RotX"] ~= nil then attachment.rotation.x = tonumber(data["RotX"]) end
     if data["RotY"] ~= nil then attachment.rotation.y = tonumber(data["RotY"]) end
@@ -788,7 +805,7 @@ local function map_ini_data_flavor_1(construct_plan, data)
         --end
         for attachment_index = 0, MAX_NUM_ATTACHMENTS do
             local attached_object = data[tostring(attachment_index)]
-            if attached_object ~= nil and attached_object.Model then
+            if attached_object ~= nil and (attached_object.Model or attached_object.model) then
                 local attachment = {}
                 map_ini_attachment_flavor_1(attachment, attached_object)
                 table.insert(construct_plan.children, attachment)
@@ -1017,7 +1034,7 @@ local function map_ini_data_flavor_3(construct_plan, data)
         map_ini_vehicle_toggles_flavor_3(construct_plan, data.Vehicle)
         for attachment_index = 0, MAX_NUM_ATTACHMENTS do
             local attached_object = data[tostring(attachment_index)]
-            if attached_object ~= nil and attached_object.Model then
+            if attached_object ~= nil and attached_object.Model > 0 then
                 local attachment = {}
                 attachment.type = "OBJECT"
                 map_ini_attachment_flavor_3(attachment, attached_object)
@@ -1056,6 +1073,9 @@ local function map_ini_attachment_flavor_4(attachment, data)
     if data["RotX"] ~= nil then attachment.world_rotation.x = clean_ini_number(data["RotX"]) end
     if data["RotY"] ~= nil then attachment.world_rotation.y = clean_ini_number(data["RotY"]) end
     if data["RotZ"] ~= nil then attachment.world_rotation.z = clean_ini_number(data["RotZ"]) end
+
+    -- Ini flavor 4 uses rotation axis 0
+    attachment.rotation_axis = 0
 
     if data["OffsetX"] ~= nil then attachment.offset.x = clean_ini_number(data["OffsetX"]) end
     if data["OffsetY"] ~= nil then attachment.offset.y = clean_ini_number(data["OffsetY"]) end
@@ -1223,9 +1243,21 @@ local function map_ini_data_flavor_4(construct_plan, data)
                 table.insert(construct_plan.children, attachment)
             end
         end
-        for object_index = 1, tonumber(data.AllObjects.Count) - 1 do
+        for object_index = 0, tonumber(data.AllObjects.Count) - 1 do
             local attached_object = data["Object".. object_index]
-            if attached_object ~= nil then
+            if attached_object ~= nil and attached_object.Hash > 0 then
+                local attachment = {}
+                attachment.type = "OBJECT"
+                map_ini_attachment_flavor_4(attachment, attached_object)
+                table.insert(construct_plan.children, attachment)
+            end
+        end
+    elseif data.Object0 ~= nil and trim(data.Object0.AttachedToWhat) == "Self" then
+        construct_plan.type = "PED"
+        construct_plan.is_player = true
+        for object_index = 0, tonumber(data.AllObjects.Count) - 1 do
+            local attached_object = data["Object".. object_index]
+            if attached_object ~= nil and attached_object.Hash > 0 then
                 local attachment = {}
                 attachment.type = "OBJECT"
                 map_ini_attachment_flavor_4(attachment, attached_object)
@@ -1395,16 +1427,16 @@ end
 -- type 5 has AllObjects and AllVehicles (Boat-fsx.ini) (seems like theres an iniparser glitch in this one)
 -- type 6 is like type 2, but some keys are different, namely the numbers for attachments are called "Attached Object x" (Tankamid.ini)
 local function get_ini_flavor(data)
-    if data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT == nil and data.AllVehicles.Count == nil then
+    if data.Vehicle ~= nil and data.Vehicle.Model ~= nil and data.Vehicle.PrimaryPaintT == nil and (data.AllVehicles == nil or data.AllVehicles.Count == nil) then
         return 1
-    elseif data.Vehicle.model ~= nil and data['Attached Object 1'].model == nil then
+    elseif data.Vehicle ~= nil and data.Vehicle.model ~= nil and data['Attached Object 1'] == nil and data['1'] ~= nil then
         return 2
-    elseif data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT ~= nil then
+    elseif data.Vehicle ~= nil and data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT ~= nil then
         return 3
-    elseif data.AllObjects.Count ~= nil and data.AllVehicles.Count ~= nil and data.AllPeds.Count ~= nil then
+    elseif data.AllObjects ~= nil and data.AllObjects.Count ~= nil and data.AllVehicles.Count ~= nil and data.AllPeds.Count ~= nil then
         return 4
         -- no 5?
-    elseif data.Vehicle.model ~= nil and data['Attached Object 1'].model ~= nil then
+    elseif data.Vehicle ~= nil and data.Vehicle.model ~= nil and data['Attached Object 1'] ~= nil and data['Attached Object 1'].model ~= nil then
         return 6
     end
 end
@@ -1438,6 +1470,8 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
         return
     end
 
+    setmetatable(data, nil)
+
     --debug_log("Parsed INI: "..inspect(data))
 
     construct_plan.temp.ini_flavor = get_ini_flavor(data)
@@ -1451,7 +1485,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
 
     --debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
-    if construct_plan.hash == nil and construct_plan.model == nil then
+    if construct_plan.hash == nil and construct_plan.model == nil and construct_plan.is_player ~= true then
         util.toast("Failed to load INI construct. Missing hash or model.", TOAST_ALL)
         util.log("Attempted construct plan: "..inspect(construct_plan))
         return
