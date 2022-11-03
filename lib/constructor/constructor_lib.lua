@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.10b9"
+local SCRIPT_VERSION = "3.21.10b10"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -724,6 +724,9 @@ constructor_lib.set_attachment_defaults = function(attachment)
     if attachment.options.is_dynamic == nil then attachment.options.is_dynamic = true end
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
     if attachment.options.is_attached == nil then attachment.options.is_attached = (attachment ~= attachment.parent) end
+    if attachment.options.is_frozen == nil and attachment.options.is_attached ~= true then
+        attachment.options.is_frozen = true
+    end
     if attachment == attachment.parent then
         if attachment.blip_sprite == nil then attachment.blip_sprite = 1 end
         if attachment.blip_color == nil then attachment.blip_color = 2 end
@@ -835,6 +838,13 @@ constructor_lib.update_attachment = function(attachment)
                         false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, attachment.rotation_axis, true
                 )
             end
+        end
+    else
+        if attachment.options.is_frozen ~= nil then
+            ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
+        end
+        if attachment.options.is_frozen and attachment.options.has_collision ~= nil then
+            ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
         end
     end
 
@@ -1037,14 +1047,7 @@ constructor_lib.attach_attachment = function(attachment)
     constructor_lib.update_attachment_position(attachment)
     constructor_lib.refresh_blip(attachment)
 
-    --if attachment.type == "OBJECT" then
-    --    NETWORK.SET_NETWORK_ID_EXISTS_ON_ALL_MACHINES(NETWORK.OBJ_TO_NET(attachment.handle), true)
-    --    NETWORK.SET_NETWORK_ID_CAN_MIGRATE(NETWORK.OBJ_TO_NET(attachment.handle), false)
-    --end
-
-    --util.yield(10)
-
-    debug_log("Done attaching "..tostring(attachment.name))
+    --debug_log("Done attaching "..tostring(attachment.name))
     return attachment
 end
 
