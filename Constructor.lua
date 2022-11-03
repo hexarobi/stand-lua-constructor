@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25b13"
+local SCRIPT_VERSION = "0.25b14"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -729,15 +729,21 @@ end
 
 local function set_attachment_edit_menu_sensitivity(attachment, offset_step, rotation_step)
     if (attachment.menus ~= nil and attachment.menus.edit_position_x ~= nil) then
-        menu.set_step_size(attachment.menus.edit_position_x, offset_step)
-        menu.set_step_size(attachment.menus.edit_position_y, offset_step)
-        menu.set_step_size(attachment.menus.edit_position_z, offset_step)
-        menu.set_step_size(attachment.menus.edit_offset_x, offset_step)
-        menu.set_step_size(attachment.menus.edit_offset_y, offset_step)
-        menu.set_step_size(attachment.menus.edit_offset_z, offset_step)
-        menu.set_step_size(attachment.menus.edit_rotation_x, rotation_step)
-        menu.set_step_size(attachment.menus.edit_rotation_y, rotation_step)
-        menu.set_step_size(attachment.menus.edit_rotation_z, rotation_step)
+        if attachment == attachment.root then
+            menu.set_step_size(attachment.menus.edit_position_x, offset_step)
+            menu.set_step_size(attachment.menus.edit_position_y, offset_step)
+            menu.set_step_size(attachment.menus.edit_position_z, offset_step)
+            menu.set_step_size(attachment.menus.edit_world_rotation_x, rotation_step)
+            menu.set_step_size(attachment.menus.edit_world_rotation_y, rotation_step)
+            menu.set_step_size(attachment.menus.edit_world_rotation_z, rotation_step)
+        else
+            menu.set_step_size(attachment.menus.edit_offset_x, offset_step)
+            menu.set_step_size(attachment.menus.edit_offset_y, offset_step)
+            menu.set_step_size(attachment.menus.edit_offset_z, offset_step)
+            menu.set_step_size(attachment.menus.edit_rotation_x, rotation_step)
+            menu.set_step_size(attachment.menus.edit_rotation_y, rotation_step)
+            menu.set_step_size(attachment.menus.edit_rotation_z, rotation_step)
+        end
     end
     for _, child_attachment in pairs(attachment.children) do
         set_attachment_edit_menu_sensitivity(child_attachment, offset_step, rotation_step)
@@ -1252,6 +1258,54 @@ local function rebuild_reattach_to_menu(attachment, current, path, depth)
     end
 end
 
+local search_params = {
+    query_function=function(search_params)
+        local results = {}
+        for prop in io.lines(PROPS_PATH) do
+            local i, j = prop:find(search_params.query)
+            if i then
+                table.insert(results, { prop = prop, distance = j - i })
+            end
+        end
+        table.sort(results, function(a, b) return a.distance > b.distance end)
+        return results
+    end,
+    action_function=function(search_params, item)
+        local model = item.prop
+        local search_result_menu = menu.action(search_params.menus.root, model, {}, "", function()
+            build_construct_from_plan({
+                root = search_params.attachment.root,
+                parent = search_params.attachment,
+                name = item.prop,
+                model = item.prop,
+            })
+        end)
+        menu.on_focus(search_result_menu, function(direction) if direction ~= 0 then add_preview({ model=model}) end end)
+        menu.on_blur(search_result_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+        return search_result_menu
+    end,
+}
+
+local function search(search_params)
+    if search_params.page_size == nil then search_params.page_size = 30 end
+    if search_params.page_number == nil then search_params.page_number = 0 end
+    if search_params.menus == nil then search_params.menus = {} end
+    if search_params.results == nil then search_params.results = {} end
+    local results = search_params.query_function(search_params)
+    for i = (search_params.page_size*search_params.page_number)+1, search_params.page_size*(search_params.page_number+1) do
+        if results[i] then
+            local search_result_menu = search_params.action_function(search_params, results[i])
+            table.insert(search_params.results, search_result_menu)
+        end
+    end
+    if search_params.menus.search_add_more ~= nil then menu.delete(search_params.menus.search_add_more) end
+    search_params.menus.search_add_more = menu.action(search_params.menus.root, t("Load More"), {}, "", function()
+        local more_search_params = table.copy(search_params)
+        more_search_params.page_number = more_search_params.page_number + 1
+        search(more_search_params)
+    end)
+end
+
 local function add_prop_search_results(attachment, query, page_size, page_number)
     if page_size == nil then page_size = 30 end
     if page_number == nil then page_number = 0 end
@@ -1364,62 +1418,73 @@ menus.rebuild_attachment_menu = function(attachment)
         ---
 
         attachment.menus.position = menu.list(attachment.menus.main, t("Position"))
+        if attachment ~= attachment.root then
 
-        menu.divider(attachment.menus.position, t("Offset"))
-        attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.handle.."x"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
-            attachment.offset.x = value / 100
-            constructor_lib.move_attachment(attachment)
-        end)
-        attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.handle.."y"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
-            attachment.offset.y = value / -100
-            constructor_lib.move_attachment(attachment)
-        end)
-        attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.handle.."z"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
-            attachment.offset.z = value / -100
-            constructor_lib.move_attachment(attachment)
-        end)
+            menu.divider(attachment.menus.position, t("Offset"))
+            attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.handle.."x"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
+                attachment.offset.x = value / 100
+                constructor_lib.move_attachment(attachment)
+            end)
+            attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.handle.."y"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
+                attachment.offset.y = value / -100
+                constructor_lib.move_attachment(attachment)
+            end)
+            attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.handle.."z"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
+                attachment.offset.z = value / -100
+                constructor_lib.move_attachment(attachment)
+            end)
 
-        menu.divider(attachment.menus.position, t("Rotation"))
-        attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.handle.."x"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
-            attachment.rotation.x = value
-            constructor_lib.move_attachment(attachment)
-        end)
-        attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.handle.."y"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
-            attachment.rotation.y = value
-            constructor_lib.move_attachment(attachment)
-        end)
-        attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.handle.."z"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
-            attachment.rotation.z = value
-            constructor_lib.move_attachment(attachment)
-        end)
+            menu.divider(attachment.menus.position, t("Rotation"))
+            attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.handle.."x"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
+                attachment.rotation.x = value
+                constructor_lib.move_attachment(attachment)
+            end)
+            attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.handle.."y"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
+                attachment.rotation.y = value
+                constructor_lib.move_attachment(attachment)
+            end)
+            attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.handle.."z"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
+                attachment.rotation.z = value
+                constructor_lib.move_attachment(attachment)
+            end)
 
-        menu.divider(attachment.menus.position, t("World Position"))
-        attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.handle.."x"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
-            attachment.position.x = value / 100
-            constructor_lib.move_attachment(attachment)
-        end)
-        attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.handle.."y"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
-            attachment.position.y = value / -100
-            constructor_lib.move_attachment(attachment)
-        end)
-        attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.handle.."z"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
-            attachment.position.z = value / -100
-            constructor_lib.move_attachment(attachment)
-        end)
+        else
 
-        menu.divider(attachment.menus.position, t("World Rotation"))
-        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.handle.."x"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
-            attachment.world_rotation.x = value
-            constructor_lib.move_attachment(attachment)
-        end)
-        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.handle.."y"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
-            attachment.world_rotation.y = value
-            constructor_lib.move_attachment(attachment)
-        end)
-        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.handle.."z"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
-            attachment.world_rotation.z = value
-            constructor_lib.move_attachment(attachment)
-        end)
+            menu.divider(attachment.menus.position, t("World Position"))
+            attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.handle.."x"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
+                attachment.position.x = value / 100
+                constructor_lib.move_attachment(attachment)
+            end)
+            attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.handle.."y"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
+                attachment.position.y = value / -100
+                constructor_lib.move_attachment(attachment)
+            end)
+            attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.handle.."z"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
+                attachment.position.z = value / -100
+                constructor_lib.move_attachment(attachment)
+            end)
+
+            menu.divider(attachment.menus.position, t("World Rotation"))
+            attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.handle.."x"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
+                attachment.world_rotation.x = value
+                constructor_lib.move_attachment(attachment)
+            end)
+            attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.handle.."y"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
+                attachment.world_rotation.y = value
+                constructor_lib.move_attachment(attachment)
+            end)
+            attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.handle.."z"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
+                attachment.world_rotation.z = value
+                constructor_lib.move_attachment(attachment)
+            end)
+
+            menu.divider(attachment.menus.position, t("Options"))
+            attachment.menus.option_position_frozen = menu.toggle(attachment.menus.position, t("Frozen"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
+                attachment.options.is_frozen = on
+                constructor_lib.update_attachment(attachment)
+            end, attachment.options.is_frozen)
+
+        end
 
         ---
         --- Options Menu
@@ -1447,7 +1512,7 @@ menus.rebuild_attachment_menu = function(attachment)
             attachment.options.has_gravity = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.has_gravity)
-        attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Frozen"), {}, t("Will the attachment be frozen in place, or allowed to move freely"), function(on)
+        attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Frozen"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
             attachment.options.is_frozen = on
             constructor_lib.update_attachment(attachment)
         end, attachment.options.is_frozen)
@@ -2010,21 +2075,43 @@ menu.action(menus.create_new_construct, t("From New Construction Cone"), { "cons
 end)
 
 menus.create_from_object_search_results = {}
-menus.create_from_object_search = menu.list(menus.create_new_construct, t("From Object Name"), {}, t("Create a new stationary construct from an exact object name"), function()
+menus.create_from_object_search = menu.list(menus.create_new_construct, t("From Object Name"), {}, t("Create a new map by searching for a object"), function()
     menu.show_command_box("constructorcreatefromobjectname ")
 end)
 menu.text_input(menus.create_from_object_search, t("Search"), {"constructorcreatefromobjectname"}, "", function (query)
     clear_menu_list(menus.create_from_object_search_results)
-    add_prop_search_results(attachment, query)
-end)
-
-menu.text_input(menus.create_new_construct, t("From Object Name"), { "constructcreatestructurefromobjectname"}, t("Create a new stationary construct from an exact object name"), function(value)
-    local construct_plan = {
-        model = value,
-    }
-    construct_plan.root = construct_plan
-    construct_plan.parent = construct_plan
-    build_construct_from_plan(construct_plan)
+    search({
+        query=query,
+        menus={
+            root=menus.create_from_object_search,
+        },
+        query_function=function(search_params)
+            local results = {}
+            for prop in io.lines(PROPS_PATH) do
+                local i, j = prop:find(search_params.query)
+                if i then
+                    table.insert(results, { prop = prop, distance = j - i })
+                end
+            end
+            table.sort(results, function(a, b) return a.distance > b.distance end)
+            return results
+        end,
+        action_function=function(search_params, item)
+            local model = item.prop
+            local search_result_menu = menu.action(search_params.menus.root, model, {}, "", function()
+                local construct_plan = {
+                    name = item.prop,
+                    model = item.prop,
+                }
+                construct_plan.root = construct_plan
+                construct_plan.parent = construct_plan
+                build_construct_from_plan(construct_plan)
+            end)
+            menu.on_focus(search_result_menu, function(direction) if direction ~= 0 then add_preview({ model=model}) end end)
+            menu.on_blur(search_result_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+            return search_result_menu
+        end,
+    })
 end)
 
 menu.divider(menus.create_new_construct, t("Ped (Player Skin)"))
@@ -2038,37 +2125,6 @@ menu.action(menus.create_new_construct, t("From Me"), { "constructcreatefromme"}
     constructor_lib.serialize_ped_attributes(player_construct)
     build_construct_from_plan(player_construct)
 end)
-
---menus.create_from_nearby_ped = menu.list(menus.create_new_construct, t("From Nearby"), { "constructcreatefromnearbyped" }, t("Create a new construct based on nearby Pedestrian"), function()
---    local handles = entities.get_all_peds_as_handles()
---    local player_pos = ENTITY.GET_ENTITY_COORDS(PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()), 1)
---    for _, handle in handles do
---        local entity_pos = ENTITY.GET_ENTITY_COORDS(handle, 1)
---        local dist = SYSTEM.VDIST(player_pos.x, player_pos.y, player_pos.z, entity_pos.x, entity_pos.y, entity_pos.z)
---        if dist <= 50 then
---            local hash = ENTITY.GET_ENTITY_MODEL(handle)
---            local construct_plan = {
---                type="PED",
---                handle=handle,
---                hash=hash,
---                model=util.reverse_joaat(hash)
---            }
---            constructor_lib.set_attachment_defaults(construct_plan)
---            constructor_lib.serialize_ped_attributes(construct_plan)
---            local nearby_menu = menu.action(menus.create_from_nearby_ped, construct_plan.model, {}, "", function()
---                construct_plan.root = construct_plan
---                construct_plan.parent = construct_plan
---                --build_construct_from_plan(construct_plan)
---                add_spawned_construct(construct_plan)
---                menus.refresh_loaded_constructs()
---                menus.rebuild_attachment_menu(construct_plan)
---                construct_plan.menus.refresh()
---            end)
---            menu.on_focus(nearby_menu, function(direction) if direction ~= 0 then add_preview(construct_plan) end end)
---            menu.on_blur(nearby_menu, function(direction) if direction ~= 0 then remove_preview() end end)
---        end
---    end
---end)
 
 menu.text_input(menus.create_new_construct, t("From Ped Name"), {"constructorcreatepedfromname"}, t("Create a new Ped construct from exact name"), function(value)
     local construct_plan = {
@@ -2217,10 +2273,10 @@ end
 
 local options_menu = menu.list(menu.my_root(), t("Options"))
 menu.divider(options_menu, t("Global Configs"))
-menu.slider(options_menu, t("Edit Offset Step"), {}, t("The amount of change each time you edit an attachment offset (hold SHIFT or L1 for fine tuning)"), 1, 50, config.edit_offset_step, 1, function(value)
+menu.slider(options_menu, t("Edit Offset Step"), {}, t("The amount of change each time you edit an attachment offset (hold SHIFT for fine tuning)"), 1, 50, config.edit_offset_step, 1, function(value)
     config.edit_offset_step = value
 end)
-menu.slider(options_menu, t("Edit Rotation Step"), {}, t("The amount of change each time you edit an attachment rotation (hold SHIFT or L1 for fine tuning)"), 1, 30, config.edit_rotation_step, 1, function(value)
+menu.slider(options_menu, t("Edit Rotation Step"), {}, t("The amount of change each time you edit an attachment rotation (hold SHIFT for fine tuning)"), 1, 30, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
 menu.toggle(options_menu, t("Show Previews"), {}, t("Show previews when adding attachments"), function(on)
