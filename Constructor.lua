@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b1"
+local SCRIPT_VERSION = "0.26b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -59,6 +59,7 @@ local auto_update_config = {
             script_relpath="lib/inspect.lua",
             verify_file_begins_with="local",
             check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="xml2lua",
@@ -73,6 +74,7 @@ local auto_update_config = {
             script_relpath="lib/constructor/constants.lua",
             verify_file_begins_with="--",
             check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="constructor_lib",
@@ -81,6 +83,7 @@ local auto_update_config = {
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
             check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="iniparser",
@@ -97,6 +100,7 @@ local auto_update_config = {
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
             check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="curated_attachments",
@@ -104,6 +108,7 @@ local auto_update_config = {
             script_relpath="lib/constructor/curated_attachments.lua",
             verify_file_begins_with="--",
             check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="objects_complete",
@@ -124,20 +129,23 @@ local auto_update_config = {
             script_relpath="lib/constructor/translations.lua",
             verify_file_begins_with="--",
             check_interval=default_check_interval,
+            is_required=true,
         },
     }
 }
 auto_updater.run_auto_update(auto_update_config)
-local libs = {}
+
+-- Call require() on all required dependencies
 for _, dependency in pairs(auto_update_config.dependencies) do
-    libs[dependency.name] = dependency.loaded_lib
+    if dependency.is_required then
+        if dependency.loaded_lib == nil then
+            util.toast("Error loading lib "..dependency.name, TOAST_ALL)
+        else
+            local var_name = dependency.name
+            _G[var_name] = dependency.loaded_lib
+        end
+    end
 end
-local inspect = libs.inspect
-local constructor_lib = libs.constructor_lib
-local convertors = libs.convertors
-local constants = libs.constants
-local curated_attachments = libs.curated_attachments
-local translations = libs.translations
 
 ---
 --- Config
@@ -632,7 +640,7 @@ local function add_preview(construct_plan, preview_image_path)
         attachment.root = attachment
         attachment.parent = attachment
         attachment.is_preview = true
-        constructor_lib.set_attachment_defaults(attachment)
+        constructor_lib.default_entity_attributes(attachment)
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
         current_preview = constructor_lib.attach_attachment_with_children(attachment)
@@ -653,7 +661,7 @@ local function update_preview_tick()
     if current_preview ~= nil then
         current_preview.position = get_offset_from_camera(current_preview.camera_distance)
         current_preview.rotation.z = current_preview.rotation.z + 2
-        constructor_lib.update_attachment(current_preview)
+        constructor_lib.attach_entity(current_preview)
         constructor_lib.update_attachment_position(current_preview)
         constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
         constructor_lib.draw_bounding_box_with_dimensions(current_preview.handle, config.preview_bounding_box_color, current_preview.dimensions.min_vec, current_preview.dimensions.max_vec)
@@ -794,7 +802,7 @@ end
 
 local function add_spawned_construct(construct)
     debug_log("Adding spawned construct to list "..tostring(construct.name))
-    constructor_lib.set_attachment_defaults(construct)
+    constructor_lib.default_entity_attributes(construct)
     table.insert(spawned_constructs, construct)
     last_spawned_construct = construct
 end
@@ -1214,22 +1222,33 @@ local function build_curated_attachments_menu(attachment, root_menu, curated_ite
     end
 end
 
-local function rebuild_attachment_debug_menu(attachment, parent_menu)
-    --menu.readonly(parent_menu, "Copy Full Inspection", "foo")
-    for key, value in pairs(attachment) do
+local function build_attachment_debug_menu(attachment, item, parent_menu)
+    if item == nil then item = attachment end
+    if parent_menu == nil then parent_menu = attachment.menus.debug end
+    if attachment.temp.debug_menus == nil then attachment.temp.debug_menus = {} end
+    for key, value in pairs(item) do
         local field_type = type(value)
         local field_value = tostring(value)
-        if field_type == "table" and key == "parent" or key == "root" then
+        if field_type == "table" and (key == "parent" or key == "root" or key == "debug_menus") then
             field_value = tostring(value.handle)
             field_type = "number"
         end
+        local new_menu
         if field_type == "table" then
-            local new_menu = menu.list(parent_menu, key.." ("..#value..")")
-            rebuild_attachment_debug_menu(value, new_menu)
+            new_menu = menu.list(parent_menu, key)
+            build_attachment_debug_menu(attachment, value, new_menu)
         else
-            menu.readonly(parent_menu, key, field_value)
+            new_menu = menu.readonly(parent_menu, key, field_value)
         end
+        table.insert(attachment.temp.debug_menus, new_menu)
     end
+end
+
+local function rebuild_attachment_debug_menu(attachment)
+    if attachment.temp.debug_menus then
+        clear_menu_list(attachment.temp.debug_menus)
+    end
+    build_attachment_debug_menu(attachment)
 end
 
 local function rebuild_reattach_to_menu(attachment, current, path, depth)
@@ -1250,7 +1269,7 @@ local function rebuild_reattach_to_menu(attachment, current, path, depth)
             constructor_lib.detach_attachment(attachment)
             attachment.parent = current
             attachment.root = current.root
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
             table.insert(current.children, attachment)
             rebuild_attachment(attachment.root)
         end)
@@ -1386,7 +1405,7 @@ menus.rebuild_attachment_menu = function(attachment)
             menu.divider(attachment.menus.position, t("Options"))
             attachment.menus.option_position_frozen = menu.toggle(attachment.menus.position, t("Frozen"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
                 attachment.options.is_frozen = on
-                constructor_lib.update_attachment(attachment)
+                constructor_lib.attach_entity(attachment)
             end, attachment.options.is_frozen)
 
         end
@@ -1407,19 +1426,19 @@ menus.rebuild_attachment_menu = function(attachment)
         end, attachment.options.is_visible)
         attachment.menus.option_collision = menu.toggle(attachment.menus.options, t("Collision"), {}, t("Will the attachment collide with things, or pass through them"), function(on)
             attachment.options.has_collision = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.has_collision)
         attachment.menus.option_invincible = menu.toggle(attachment.menus.options, t("Invincible"), {}, t("Will the attachment be impervious to damage, or be damageable. AKA Godmode."), function(on)
             attachment.options.is_invincible = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.is_invincible)
         attachment.menus.option_gravity = menu.toggle(attachment.menus.options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
             attachment.options.has_gravity = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.has_gravity)
         attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Frozen"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
             attachment.options.is_frozen = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.is_frozen)
 
         ---
@@ -1435,7 +1454,7 @@ menus.rebuild_attachment_menu = function(attachment)
             end, function() attachment.options.engine_running = false end)
             menu.toggle(attachment.menus.vehicle_options, t("Radio Loud"), {}, t("If enabled, vehicle radio will play loud enough to be heard outside the vehicle."), function(toggle)
                 attachment.options.radio_loud = toggle
-                constructor_lib.update_attachment(attachment)
+                constructor_lib.attach_entity(attachment)
             end, attachment.options.radio_loud)
 
             menu.list_select(attachment.menus.vehicle_options, t("Sirens"), {}, "", { t("Off"), t("Lights Only"), t("Sirens and Lights") }, 1, function(value)
@@ -1529,6 +1548,109 @@ menus.rebuild_attachment_menu = function(attachment)
                 end, attachment.vehicle_attributes.windows.rolled_down[window_name])
             end
 
+            local particle_fxs = {
+                {
+                    name="Alien Impact",
+                    type="PARTICLE",
+                    particle_attributes={
+                        asset="scr_rcbarry1",
+                        effect_name="scr_alien_impact_bul",
+                        scale=1,
+                        loop_timer=50,
+                    },
+                },
+                {
+                    name="Clown Appears",
+                    type="PARTICLE",
+                    particle_attributes={
+                        asset="scr_rcbarry2",
+                        effect_name="scr_clown_appears",
+                        scale=0.3,
+                        loop_timer=500,
+                    }
+                },
+                {
+                    name="Blue Sparks",
+                    type="PARTICLE",
+                    particle_attributes={
+                        asset="core",
+                        effect_name="ent_dst_elec_fire_sp",
+                        scale=1,
+                        loop_timer=100,
+
+                    }
+                },
+                {
+                    name="Alien Disintegration",
+                    type="PARTICLE",
+                    particle_attributes={
+                        asset="scr_rcbarry1",
+                        effect_name="scr_alien_disintegrate",
+                        scale=0.1,
+                        loop_timer=400,
+
+                    }
+                },
+                {
+                    name="Firey Particles",
+                    type="PARTICLE",
+                    particle_attributes={
+                        asset="scr_rcbarry1",
+                        effect_name="scr_alien_teleport",
+                        scale=0.1,
+                        loop_timer=400,
+                    }
+                },
+            }
+
+
+            --local effects <const> = {
+            --    {"scr_rcbarry1", "scr_alien_impact_bul", 1.0, 50},
+            --    {"scr_rcbarry2", "scr_clown_appears", 0.3, 500},
+            --    {"core", "ent_dst_elec_fire_sp", 1.0, 100},
+            --    {"scr_rcbarry1", "scr_alien_disintegrate", 0.1, 400},
+            --    {"scr_rcbarry1", "scr_alien_teleport", 0.1, 400}
+            --}
+            --local selectedOpt = 1
+            --local lastEffect <const> = newTimer()
+            --
+            --
+            --menu.toggle_loop(vehicleOptions, translate("Vehicle Effects", "Vehicle Effects"), {}, "", function ()
+            --    local effect = effects[selectedOpt]
+            --    local vehicle = PED.GET_VEHICLE_PED_IS_IN(players.user_ped(), false)
+            --
+            --    if ENTITY.DOES_ENTITY_EXIST(vehicle) and not ENTITY.IS_ENTITY_DEAD(vehicle, false) and
+            --            VEHICLE.IS_VEHICLE_DRIVEABLE(vehicle, false) and lastEffect.elapsed() > effect[4] then
+            --        constructor_lib.load_particle_fx_asset(effect[1])
+            --        for _, boneName in pairs({"wheel_lf", "wheel_lr", "wheel_rf", "wheel_rr"}) do
+            --            local bone = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(vehicle, boneName)
+            --
+            --            GRAPHICS.USE_PARTICLE_FX_ASSET(effect[1])
+            --            GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
+            --                    effect[2],
+            --                    vehicle,
+            --                    0.0, 0.0, 0.0,
+            --                    0.0, 0.0, 0.0,
+            --                    bone,
+            --                    effect[3],
+            --                    false, false, false
+            --            )
+            --        end
+            --        lastEffect.reset()
+            --    end
+            --end)
+            --
+            --local options <const> = {
+            --    translate("Vehicle Effects", "Alien Impact"),
+            --    translate("Vehicle Effects", "Clown Appears"),
+            --    translate("Vehicle Effects", "Blue Sparks"),
+            --    translate("Vehicle Effects", "Alien Disintegration"),
+            --    translate("Vehicle Effects", "Firey Particles"),
+            --}
+            --menu.slider_text(vehicleOptions, translate("Vehicle Effects", "Set Vehicle Effect"), {}, "",
+            --        options, function (index) selectedOpt = index end)
+
+
         end
 
         ---
@@ -1547,7 +1669,7 @@ menus.rebuild_attachment_menu = function(attachment)
             end)
             attachment.menus.option_on_fire = menu.toggle(attachment.menus.ped_options, t("On Fire"), {}, t("Will the ped be burning on fire, or not"), function(on)
                 attachment.options.is_on_fire = on
-                constructor_lib.update_ped_attachment(attachment)
+                constructor_lib.deserialize_ped_attributes(attachment)
             end, attachment.options.is_on_fire)
 
             local function create_ped_weapon_menu(attachment, root_menu, items)
@@ -1623,7 +1745,7 @@ menus.rebuild_attachment_menu = function(attachment)
 
              attachment.menus.option_attached = menu.toggle(attachment.menus.attachment_options, t("Attached"), {}, t("Is this child physically attached to the parent, or does it move freely on its own."), function(on)
                 attachment.options.is_attached = on
-                constructor_lib.update_attachment(attachment)
+                constructor_lib.attach_entity(attachment)
             end, attachment.options.is_attached)
             attachment.menus.option_parent_attachment = menu.list(attachment.menus.attachment_options, t("Change Parent"), {}, t("Select a new parent for this child. Construct will be rebuilt to accommodate changes."), function()
                 rebuild_reattach_to_menu(attachment)
@@ -1631,7 +1753,7 @@ menus.rebuild_attachment_menu = function(attachment)
 
             attachment.menus.option_bone_index = menu.slider(attachment.menus.attachment_options, t("Bone Index"), {}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.options.bone_index or -1, 1, function(value)
                 attachment.options.bone_index = value
-                constructor_lib.update_attachment(attachment)
+                constructor_lib.attach_entity(attachment)
             end)
 
             attachment.menus.option_bone_index_picker = menu.list(attachment.menus.attachment_options, t("Bone Index Picker"), {}, t("Some common bones can be selected by name"))
@@ -1640,7 +1762,7 @@ menus.rebuild_attachment_menu = function(attachment)
                 for _, bone_name in pairs(bone_index_category.bone_names) do
                     menu.action(category_menu, bone_name, {}, "", function()
                         attachment.options.bone_index = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(attachment.parent.handle, bone_name)
-                        constructor_lib.update_attachment(attachment)
+                        constructor_lib.attach_entity(attachment)
                         menu.set_value(attachment.menus.option_bone_index, attachment.options.bone_index)
                         menu.focus(attachment.menus.option_bone_index)
                     end)
@@ -1649,7 +1771,7 @@ menus.rebuild_attachment_menu = function(attachment)
 
             attachment.menus.option_soft_pinning = menu.toggle(attachment.menus.attachment_options, t("Soft Pinning"), {}, t("Will the attachment detach when repaired"), function(on)
                 attachment.options.use_soft_pinning = on
-                constructor_lib.update_attachment(attachment)
+                constructor_lib.attach_entity(attachment)
             end, attachment.options.use_soft_pinning)
             attachment.menus.detach = menu.action(attachment.menus.attachment_options, t("Separate"), {}, t("Detach attachment from construct to create a new construct"), function()
                 local original_parent = attachment.parent
@@ -1668,17 +1790,17 @@ menus.rebuild_attachment_menu = function(attachment)
         attachment.menus.more_options = menu.list(attachment.menus.options, t("Entity Options"), {}, t("Additional options available for all entities."))
         attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, t("LoD Distance"), {"constructorsetloddistance"..attachment.handle}, t("Level of Detail draw distance"), 1, 9999999, attachment.options.lod_distance, 100, function(value)
             attachment.options.lod_distance = value
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end)
 
         attachment.menus.option_alpha = menu.slider(attachment.menus.more_options, t("Alpha"), {}, t("The amount of transparency the object has. Local only!"), 0, 255, attachment.options.alpha, 51, function(value)
             attachment.options.alpha = value
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end)
 
         attachment.menus.option_mission_entity = menu.toggle(attachment.menus.more_options, t("Mission Entity"), {}, t("If attachment is treated as a mission entity."), function(on)
             attachment.options.is_mission_entity = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.is_mission_entity)
 
         -- Blip
@@ -1699,30 +1821,30 @@ menus.rebuild_attachment_menu = function(attachment)
         menu.divider(attachment.menus.more_options, t("Lights"))
         attachment.menus.option_is_light_on = menu.toggle(attachment.menus.more_options, t("Light On"), {}, t("If attachment is a light, it will be on and lit (many lights only work during night time)."), function(on)
             attachment.options.is_light_on = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.is_light_on)
         attachment.menus.option_light_disabled = menu.toggle(attachment.menus.more_options, t("Light Disabled"), {}, t("If attachment is a light, it will be ALWAYS off, regardless of others settings."), function(on)
             attachment.options.is_light_disabled = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.is_light_disabled)
 
         -- Proofs
         menu.divider(attachment.menus.more_options, t("Proofs"))
         attachment.menus.option_is_bullet_proof = menu.toggle(attachment.menus.more_options, t("Bullet Proof"), {}, t("If attachment is impervious to damage from bullets."), function(on)
             attachment.options.is_bullet_proof = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.is_bullet_proof)
         attachment.menus.option_is_fire_proof = menu.toggle(attachment.menus.more_options, t("Fire Proof"), {}, t("If attachment is impervious to damage from fire."), function(on)
             attachment.options.is_fire_proof = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.is_fire_proof)
         attachment.menus.option_is_explosion_proof = menu.toggle(attachment.menus.more_options, t("Explosion Proof"), {}, t("If attachment is impervious to damage from explosions."), function(on)
             attachment.options.is_explosion_proof = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.is_explosion_proof)
         attachment.menus.option_is_melee_proof = menu.toggle(attachment.menus.more_options, t("Melee Proof"), {}, t("If attachment is impervious to damage from melee attacks."), function(on)
             attachment.options.is_melee_proof = on
-            constructor_lib.update_attachment(attachment)
+            constructor_lib.attach_entity(attachment)
         end, attachment.options.is_melee_proof)
 
         ---
@@ -1860,8 +1982,10 @@ menus.rebuild_attachment_menu = function(attachment)
             VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(attachment.handle, 5)
         end)
 
-        attachment.menus.debug = menu.list(attachment.menus.main, t("Debug Info"))
-        rebuild_attachment_debug_menu(attachment, attachment.menus.debug)
+        attachment.menus.debug = menu.list(attachment.menus.main, t("Debug Info"), {}, "", function()
+            rebuild_attachment_debug_menu(attachment)
+        end)
+        rebuild_attachment_debug_menu(attachment)
 
         attachment.menus.reconstruct_vehicle = menu.action(attachment.menus.main, t("Rebuild"), {}, t("Delete construct (if it still exists), then recreate a new one from scratch."), function()
             rebuild_attachment(attachment)
@@ -1890,7 +2014,6 @@ menus.rebuild_attachment_menu = function(attachment)
             debug_log("Refreshing attachment menu "..tostring(attachment.name))
             menu.set_menu_name(attachment.menus.main, attachment.name)
             menu.set_menu_name(attachment.menus.edit_attachments, t("Edit Attachments").." ("..#attachment.children..")")
-            rebuild_attachment_debug_menu(attachment, attachment.menus.debug)
             menus.rebuild_attachment_menu(attachment)
             menus.refresh_loaded_constructs()
             if updated_attachment ~= nil and updated_attachment.menus ~= nil then
@@ -1956,7 +2079,7 @@ menus.create_from_nearby_vehicle = menu.list(menus.create_new_construct, t("From
                 hash=hash,
                 model=util.reverse_joaat(hash)
             }
-            constructor_lib.set_attachment_defaults(construct_plan)
+            constructor_lib.default_entity_attributes(construct_plan)
             constructor_lib.serialize_vehicle_attributes(construct_plan)
             local nearby_menu = menu.action(menus.create_from_nearby_vehicle, construct_plan.model, {}, "", function()
                 construct_plan.root = construct_plan
