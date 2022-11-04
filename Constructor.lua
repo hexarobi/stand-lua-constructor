@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.25"
+local SCRIPT_VERSION = "0.26b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 local loading_menu = menu.divider(menu.my_root(), "Loading...")
@@ -157,7 +157,7 @@ CONSTRUCTOR_CONFIG = {
     focus_menu_on_spawned_constructs = true,
     preview_display_delay = 500,
     max_search_results = 100,
-    debug_mode = false,
+    debug_mode = true,
 }
 local config = CONSTRUCTOR_CONFIG
 
@@ -1299,50 +1299,6 @@ local function install_curated_constructs()
     menu.trigger_commands("luaconstructsinstaller")
 end
 
-
-local function make_wheels_invis(attachment)
-
-    local DBL_MAX = 1.79769e+308
-
-    VEHICLE.SET_VEHICLE_FORWARD_SPEED(attachment.handle, DBL_MAX*DBL_MAX)
-    util.yield(100)
-    VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, DBL_MAX*DBL_MAX)
-    VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, DBL_MAX*DBL_MAX)
-    --iLocal_176, 2, 0f, 0f, -0.1f, 0f, 0f, 0f, 0, 1, 1, 0, 0, 1
-    ENTITY.APPLY_FORCE_TO_ENTITY(attachment.handle, 2, 0.0, 0.0, -DBL_MAX*DBL_MAX, 0.0, 0.0, 0.0, 0, true, true, true, false, true)
-    util.yield(100)
-    VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, 1)
-    VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, 1)
-
-    --if (g_vehWheelsInvisForRussian.find(vehicle.Handle()) == g_vehWheelsInvisForRussian.end())
-    --g_vehWheelsInvisForRussian.insert(vehicle.Handle());
-    --
-    --vehicle.RequestControl(800);
-    --vehicle.SetForwardSpeed(DBL_MAX*DBL_MAX);
-    --WAIT(100);
-    --_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(vehicle.Handle(), DBL_MAX*DBL_MAX);
-    --_SET_VEHICLE_ENGINE_POWER_MULTIPLIER(vehicle.Handle(), DBL_MAX*DBL_MAX);
-    --vehicle.ApplyForceRelative(Vector3(0, 0, -DBL_MAX*DBL_MAX));
-    --WAIT(100);
-    --if (g_multList_rpm.count(vehicle.Handle()))
-    --{
-    --_SET_VEHICLE_ENGINE_POWER_MULTIPLIER(vehicle.Handle(), g_multList_rpm[vehicle.Handle()]);
-    --}
-    --else
-    --{
-    --_SET_VEHICLE_ENGINE_POWER_MULTIPLIER(vehicle.Handle(), 1.0f);
-    --}
-    --if (g_multList_torque.count(vehicle.Handle()))
-    --{
-    --_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(vehicle.Handle(), g_multList_torque[vehicle.Handle()]);
-    --}
-    --else
-    --{
-    --_SET_VEHICLE_ENGINE_TORQUE_MULTIPLIER(vehicle.Handle(), 1.0f);
-    --}
-
-end
-
 menus.rebuild_attachment_menu = function(attachment)
     if not attachment.handle then error("Attachment missing handle") end
     if attachment.menus == nil then
@@ -1495,9 +1451,10 @@ menus.rebuild_attachment_menu = function(attachment)
                 constructor_lib.deserialize_vehicle_options(attachment)
             end, attachment.vehicle_attributes.engine_sound or "")
 
-            --menu.action(attachment.menus.options, t("Invis Wheels"), {}, "", function()
-            --    make_wheels_invis(attachment)
-            --end)
+            menu.toggle(attachment.menus.vehicle_options, t("Invis Wheels"), {}, "If enabled, the vehicle wheels will be invisible", function(value)
+                attachment.vehicle_attributes.wheels.invisible_wheels = value
+                constructor_lib.deserialize_vehicle_wheels(attachment)
+            end, attachment.vehicle_attributes.wheels.invisible_wheels)
 
             menu.list_select(attachment.menus.vehicle_options, t("Door Lock Status"), {}, t("Vehicle door locks"), constants.door_lock_status, attachment.vehicle_attributes.doors.lock_status or 1, function(value)
                 attachment.vehicle_attributes.doors.lock_status = value
