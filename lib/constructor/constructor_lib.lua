@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.10"
+local SCRIPT_VERSION = "3.21.11b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -119,11 +119,27 @@ constructor_lib.spawn_vehicle_for_player = function(pid, model_name)
     end
 end
 
+constructor_lib.request_control_once = function(entity)
+    if not NETWORK.NETWORK_IS_IN_SESSION() then
+        return true
+    end
+    local netId = NETWORK.NETWORK_GET_NETWORK_ID_FROM_ENTITY(entity)
+    NETWORK.SET_NETWORK_ID_CAN_MIGRATE(netId, true)
+    return NETWORK.NETWORK_REQUEST_CONTROL_OF_ENTITY(entity)
+end
+
+constructor_lib.request_control = function(entity, timeout)
+    if not ENTITY.DOES_ENTITY_EXIST(entity) then
+        return false
+    end
+    local end_time = util.current_time_millis() + (timeout or 500)
+    repeat util.yield_once() until constructor_lib.request_control_once(entity) or util.current_time_millis() >= end_time
+    return constructor_lib.request_control_once(entity)
+end
 
 ---
 --- Draw Utils
 ---
-
 
 local minimum = memory.alloc()
 local maximum = memory.alloc()
@@ -430,6 +446,43 @@ constructor_lib.deserialize_vehicle_neon = function(vehicle)
     end
 end
 
+local function vehicle_wheels_invis(attachment)
+    local DBL_MAX = 1.79769e+308
+    constructor_lib.request_control(attachment.handle, 800)
+    VEHICLE.SET_VEHICLE_FORWARD_SPEED(attachment.handle, DBL_MAX*DBL_MAX)
+    SYSTEM.WAIT(100)
+    VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, DBL_MAX*DBL_MAX)
+    VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, DBL_MAX*DBL_MAX)
+    ENTITY.APPLY_FORCE_TO_ENTITY(attachment.handle, 1, 0.0, 0.0, -DBL_MAX*DBL_MAX, 0.0, 0.0, 0.0, 0, false, true, true, true, false, true)
+    SYSTEM.WAIT(100)
+    VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, 1)
+    VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, 1)
+end
+
+local function vehicle_wheels_uninvis(attachment)
+    constructor_lib.request_control(attachment.handle, 800)
+    for wheel_index = 0, 7 do
+        VEHICLE.SET_VEHICLE_TYRE_FIXED(attachment.handle, wheel_index)
+    end
+    VEHICLE.SET_VEHICLE_FIXED(attachment.handle)
+    VEHICLE.SET_VEHICLE_DEFORMATION_FIXED(attachment.handle)
+    VEHICLE.RESET_VEHICLE_WHEELS(attachment.handle)
+    VEHICLE.SET_VEHICLE_DIRT_LEVEL(attachment.handle, 0)
+    VEHICLE.SET_VEHICLE_ENGINE_CAN_DEGRADE(attachment.handle, 0)
+    VEHICLE.SET_VEHICLE_ENGINE_HEALTH(attachment.handle, 2000)
+    VEHICLE.SET_VEHICLE_PETROL_TANK_HEALTH(attachment.handle, 2000)
+    VEHICLE.SET_VEHICLE_BODY_HEALTH(attachment.handle, 2000)
+    VEHICLE.SET_VEHICLE_UNDRIVEABLE(attachment.handle, false)
+    VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, 1, 1)
+
+    VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, 0)
+    VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, 0)
+    SYSTEM.WAIT(100)
+    VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, 1)
+    VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, 1)
+end
+
+
 constructor_lib.serialize_vehicle_wheels = function(vehicle)
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.wheels == nil then vehicle.vehicle_attributes.wheels = {} end
@@ -457,6 +510,13 @@ constructor_lib.deserialize_vehicle_wheels = function(vehicle)
             else
                 VEHICLE.SET_VEHICLE_TYRE_FIXED(vehicle.handle, tire_position.index)
             end
+        end
+    end
+    if vehicle.vehicle_attributes.wheels.invisible_wheels ~= nil then
+        if vehicle.vehicle_attributes.wheels.invisible_wheels then
+            vehicle_wheels_invis(vehicle)
+        else
+            vehicle_wheels_uninvis(vehicle)
         end
     end
 end
@@ -900,6 +960,8 @@ constructor_lib.load_hash_for_attachment = function(attachment)
         attachment.type = "VEHICLE"
     elseif STREAMING.IS_MODEL_A_PED(attachment.hash) then
         attachment.type = "PED"
+    else
+        attachment.type = "OBJECT"
     end
     debug_log("Loading hash: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]")
     constructor_lib.load_hash(attachment.hash)
