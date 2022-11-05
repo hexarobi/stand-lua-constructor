@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b2"
+local SCRIPT_VERSION = "0.26b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -251,6 +251,10 @@ end
 ---
 --- Dependencies
 ---
+
+--util.ensure_package_is_installed('lua/json')
+--local status_json, json = pcall(require, "json")
+--if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
 util.ensure_package_is_installed('lua/natives-1663599433')
 util.require_natives(1663599433)
@@ -1204,6 +1208,24 @@ end
 --- Dynamic Menus
 ---
 
+local function build_curated_constructs_menu(root_menu, curated_item)
+    if curated_item.is_folder then
+        local child_menu = menu.list(root_menu, curated_item.name)
+        for _, child_item in pairs(curated_item.items) do
+            build_curated_constructs_menu(child_menu, child_item)
+        end
+    else
+        curated_item.load_menu = menu.action(root_menu, curated_item.name or "Unknown", {}, "", function()
+            local construct_plan = copy_construct_plan(curated_item)
+            construct_plan.root = construct_plan
+            construct_plan.parent = construct_plan
+            build_construct_from_plan(construct_plan)
+        end)
+        menu.on_focus(curated_item.load_menu, function(direction) if direction ~= 0 then add_preview(curated_item) end end)
+        menu.on_blur(curated_item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+    end
+end
+
 local function build_curated_attachments_menu(attachment, root_menu, curated_item)
     if curated_item.is_folder then
         local child_menu = menu.list(root_menu, curated_item.name)
@@ -1211,7 +1233,7 @@ local function build_curated_attachments_menu(attachment, root_menu, curated_ite
             build_curated_attachments_menu(attachment, child_menu, child_item)
         end
     else
-        curated_item.load_menu = menu.action(root_menu, curated_item.name, {}, "", function()
+        curated_item.load_menu = menu.action(root_menu, curated_item.name or "Unknown", {}, "", function()
             local child_attachment = copy_construct_plan(curated_item)
             child_attachment.root = attachment.root
             child_attachment.parent = attachment
@@ -2051,7 +2073,7 @@ menus.create_new_construct = menu.list(menu.my_root(), t("Create New Construct")
 
 menu.divider(menus.create_new_construct, t("Vehicle"))
 
-menu.action(menus.create_new_construct, t("From Current"), { "constructcreatefromvehicle" }, t("Create a new construct based on current (or last in) vehicle"), function()
+menu.action(menus.create_new_construct, t("From Current Vehicle"), { "constructcreatefromvehicle" }, t("Create a new construct based on current (or last in) vehicle"), function()
     local vehicle = entities.get_user_vehicle_as_handle()
     if vehicle == 0 then
         util.toast(t("Error: You must be (or recently been) in a vehicle to create a construct from it"))
@@ -2065,29 +2087,24 @@ menu.action(menus.create_new_construct, t("From Current"), { "constructcreatefro
     end
 end)
 
-menus.create_from_nearby_vehicle = menu.list(menus.create_new_construct, t("From Nearby"), { "constructcreatefromnearbyvehicle" }, t("Create a new construct based on nearby vehicle"), function()
-    local handles = entities.get_all_vehicles_as_handles()
-    local player_pos = ENTITY.GET_ENTITY_COORDS(PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()), 1)
-    for _, handle in handles do
-        local entity_pos = ENTITY.GET_ENTITY_COORDS(handle, 1)
-        local dist = SYSTEM.VDIST(player_pos.x, player_pos.y, player_pos.z, entity_pos.x, entity_pos.y, entity_pos.z)
-        if dist <= 50 then
-            local hash = ENTITY.GET_ENTITY_MODEL(handle)
-            local construct_plan = {
-                type="VEHICLE",
-                handle=handle,
-                hash=hash,
-                model=util.reverse_joaat(hash)
-            }
-            constructor_lib.default_entity_attributes(construct_plan)
-            constructor_lib.serialize_vehicle_attributes(construct_plan)
-            local nearby_menu = menu.action(menus.create_from_nearby_vehicle, construct_plan.model, {}, "", function()
-                construct_plan.root = construct_plan
-                construct_plan.parent = construct_plan
-                build_construct_from_plan(construct_plan)
-            end)
-            menu.on_focus(nearby_menu, function(direction) if direction ~= 0 then add_preview(construct_plan) end end)
-            menu.on_blur(nearby_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+--local function convert_vehicles_json_to_table()
+--    local file = io.open(filesystem.scripts_dir().."/lib/vehicles.json")
+--    local status, vehicles
+--    if file then
+--        local vehicles_file_data = file:read("*a")
+--        file:close()
+--        --debug_log("Vehicles data "..inspect(vehicles_file_data))
+--        status, vehicles = pcall(soup.json.decode, vehicles_file_data)
+--    end
+--    --debug_log("Vehicles  "..inspect(vehicles))
+--end
+
+menus.create_from_vehicle_list = menu.list(menus.create_new_construct, t("From Vehicle List"), {}, t("Create a new construct from a list of vehicles"), function()
+    for _, curated_section in pairs(curated_attachments) do
+        if curated_section.name == "Vehicles" then
+            for _, curated_item in pairs(curated_section.items) do
+                build_curated_constructs_menu(menus.create_from_vehicle_list, curated_item)
+            end
         end
     end
 end)
@@ -2120,7 +2137,7 @@ menu.action(menus.create_new_construct, t("From New Construction Cone"), { "cons
 end)
 
 menus.create_from_object_search_results = {}
-menus.create_from_object_search = menu.list(menus.create_new_construct, t("From Object Name"), {}, t("Create a new map by searching for a object"), function()
+menus.create_from_object_search = menu.list(menus.create_new_construct, t("From Object Search"), {}, t("Create a new map by searching for a object"), function()
     menu.show_command_box("constructorcreatefromobjectname ")
 end)
 menu.text_input(menus.create_from_object_search, t("Search"), {"constructorcreatefromobjectname"}, "", function (query)
@@ -2162,7 +2179,7 @@ end)
 
 menu.divider(menus.create_new_construct, t("Ped (Player Skin)"))
 
-menu.action(menus.create_new_construct, t("From Me"), { "constructcreatefromme"}, t("Create a new construct from your player Ped"), function()
+menu.action(menus.create_new_construct, t("From Current Ped"), { "constructcreatefromme"}, t("Create a new construct from your player Ped"), function()
     if player_construct ~= nil then
         util.toast(t("Player is already a construct"))
         return
@@ -2170,6 +2187,16 @@ menu.action(menus.create_new_construct, t("From Me"), { "constructcreatefromme"}
     get_player_construct()
     constructor_lib.serialize_ped_attributes(player_construct)
     build_construct_from_plan(player_construct)
+end)
+
+menus.create_from_ped_list = menu.list(menus.create_new_construct, t("From Ped List"), {}, t("Create a new construct from a list of peds"), function()
+    for _, curated_section in pairs(curated_attachments) do
+        if curated_section.name == "Peds" then
+            for _, curated_item in pairs(curated_section.items) do
+                build_curated_constructs_menu(menus.create_from_ped_list, curated_item)
+            end
+        end
+    end
 end)
 
 menu.text_input(menus.create_new_construct, t("From Ped Name"), {"constructorcreatepedfromname"}, t("Create a new Ped construct from exact name"), function(value)
