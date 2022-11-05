@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b4"
+local SCRIPT_VERSION = "0.26b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -165,6 +165,7 @@ CONSTRUCTOR_CONFIG = {
     focus_menu_on_spawned_constructs = true,
     preview_display_delay = 500,
     max_search_results = 100,
+    spawn_entity_delay = 10,
     debug_mode = true,
 }
 local config = CONSTRUCTOR_CONFIG
@@ -1875,7 +1876,7 @@ menus.rebuild_attachment_menu = function(attachment)
 
         --menu.divider(attachment.menus.main, t("Attachments"))
         --attachment.menus.attachments = menu.list(attachment.menus.main, t("Attachments"))
-        attachment.menus.add_attachment = menu.list(attachment.menus.main, t("Add Attachment"), {}, "")
+        attachment.menus.add_attachment = menu.list(attachment.menus.main, t("Add Attachment"), {}, t("Options for attaching other entities to this construct"))
 
         attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
         for _, curated_item in pairs(curated_attachments) do
@@ -2355,7 +2356,7 @@ end)
 menu.toggle(options_menu, t("Show Previews"), {}, t("Show previews when adding attachments"), function(on)
     config.show_previews = on
 end, config.show_previews)
-menu.slider(options_menu, t("Preview Display Delay"), {}, t("After browsing to a construct or attachment, wait this long before showing the preview."), 100, 1000, config.preview_display_delay, 50, function(value)
+menu.slider(options_menu, t("Preview Display Delay"), {"constructorpreviewdisplaydelay"}, t("After browsing to a construct or attachment, wait this long before showing the preview."), 100, 1000, config.preview_display_delay, 50, function(value)
     config.preview_display_delay = value
 end)
 menu.toggle(options_menu, t("Delete All on Unload"), {}, t("Deconstruct all spawned constructs when unloading Constructor"), function(on)
@@ -2364,6 +2365,9 @@ end, config.deconstruct_all_spawned_constructs_on_unload)
 menu.toggle(options_menu, t("Focus Menu on Spawned Constructs"), {}, t("When spawning a construct, focus Stands menu on the newly spawned construct. Otherwise, stay in the Load Constructs menu."), function(on)
     config.focus_menu_on_spawned_constructs = on
 end, config.focus_menu_on_spawned_constructs)
+menu.slider(options_menu, t("Spawn Entity Delay"), {"constructorspawnentitydelay"}, t("Pause after spawning any object. Useful for preventing issues when spawning large constructs with many objects."), 0, 500, config.spawn_entity_delay, 1, function(value)
+    config.spawn_entity_delay = value
+end)
 
 menu.toggle(options_menu, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
     config.debug_mode = toggle
