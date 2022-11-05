@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b3"
+local SCRIPT_VERSION = "0.26b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -111,11 +111,12 @@ local auto_update_config = {
             is_required=true,
         },
         {
-            name="objects_complete",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
-            script_relpath="lib/constructor/objects_complete.txt",
-            verify_file_begins_with="ba_prop_glass_garage_opaque",
+            name="translations",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
+            script_relpath="lib/constructor/translations.lua",
+            verify_file_begins_with="--",
             check_interval=default_check_interval,
+            is_required=true,
         },
         {
             name="constructor_logo",
@@ -124,12 +125,11 @@ local auto_update_config = {
             check_interval=default_check_interval,
         },
         {
-            name="translations",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
-            script_relpath="lib/constructor/translations.lua",
-            verify_file_begins_with="--",
+            name="objects_complete",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
+            script_relpath="lib/constructor/objects_complete.txt",
+            verify_file_begins_with="ba_prop_glass_garage_opaque",
             check_interval=default_check_interval,
-            is_required=true,
         },
     }
 }
