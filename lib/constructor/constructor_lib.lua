@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.11b2"
+local SCRIPT_VERSION = "3.21.11b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -364,6 +364,8 @@ constructor_lib.attach_attachment = function(attachment)
     constructor_lib.attach_entity(attachment)
     constructor_lib.update_attachment_position(attachment)
     constructor_lib.refresh_blip(attachment)
+
+    util.yield(CONSTRUCTOR_CONFIG.spawn_entity_delay)
 
     --debug_log("Done attaching "..tostring(attachment.name))
     return attachment
