@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.10"
+local SCRIPT_VERSION = "3.21.11"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -1017,17 +1017,16 @@ constructor_lib.attach_attachment = function(attachment)
                 attachment.options.is_mission_entity,
                 false
         )
+        if is_networked then
+            ENTITY.SET_ENTITY_AS_MISSION_ENTITY(attachment.handle, false, true)
+            ENTITY.SET_ENTITY_SHOULD_FREEZE_WAITING_ON_COLLISION(attachment.handle, false)
+            constructor_lib.constantize_network_id(attachment)
+            NETWORK.SET_NETWORK_ID_CAN_MIGRATE(NETWORK.OBJ_TO_NET(attachment.handle), false)
+        end
     end
 
     if not attachment.handle then
         error(t("Error attaching attachment. Could not create handle."))
-    end
-
-    if is_networked then
-        ENTITY.SET_ENTITY_AS_MISSION_ENTITY(attachment.handle, false, true)
-        ENTITY.SET_ENTITY_SHOULD_FREEZE_WAITING_ON_COLLISION(attachment.handle, false)
-        constructor_lib.constantize_network_id(attachment)
-        NETWORK.SET_NETWORK_ID_CAN_MIGRATE(NETWORK.OBJ_TO_NET(attachment.handle), false)
     end
 
     if attachment.root.is_preview == true then constructor_lib.set_preview_visibility(attachment) end
