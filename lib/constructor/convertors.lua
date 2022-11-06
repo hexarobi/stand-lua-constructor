@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.5b5"
+local SCRIPT_VERSION = "0.8.5b6"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -293,7 +293,7 @@ convertor.convert_jackz_to_construct_plan = function(jackz_build_data)
 
     --debug_log("Parsed Jackz Build Data: "..inspect(jackz_build_data))
 
-    local construct_plan = table.table_copy(constructor_lib.construct_base)
+    local construct_plan = constructor_lib.table_copy(constructor_lib.construct_base)
     construct_plan.temp.source_file_type = "Jackz Vehicle Builder"
     construct_plan.name = jackz_build_data.name
     construct_plan.author = jackz_build_data.author
@@ -621,7 +621,7 @@ local function map_placement(attachment, placement)
 end
 
 convertor.convert_xml_to_construct_plan = function(xmldata)
-    local construct_plan = table.table_copy(constructor_lib.construct_base)
+    local construct_plan = constructor_lib.table_copy(constructor_lib.construct_base)
     construct_plan.temp.source_file_type = "Menyoo XML"
 
     xmldata = xmldata:gsub("<?xml 版本=\"1.0\"", "<?xml version=\"1.0\"")
@@ -1562,7 +1562,7 @@ end
 ---
 
 convertor.convert_ini_to_construct_plan = function(construct_plan_file)
-    local construct_plan = table.table_copy(constructor_lib.construct_base)
+    local construct_plan = constructor_lib.table_copy(constructor_lib.construct_base)
 
     local status_ini_parse, data = pcall(iniparser.parse, construct_plan_file.filepath, "")
     if not status_ini_parse then
