@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.11b3"
+local SCRIPT_VERSION = "3.21.11b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -67,11 +67,27 @@ end
 --- Attachment Construction
 ---
 
-constructor_lib.default_entity_attributes = function(attachment)
-    debug_log("Defaulting attachment "..tostring(attachment.name))
+local unique_id_counter = 0
+local function get_unique_id()
+    unique_id_counter = unique_id_counter + 1
+    return unique_id_counter
+end
+
+constructor_lib.default_attachment_attributes = function(attachment)
+    debug_log("Defaulting attachment attributes "..tostring(attachment.name))
+    if attachment.id == nil then attachment.id = get_unique_id() end
     if attachment.children == nil then attachment.children = {} end
     if attachment.temp == nil then attachment.temp = {} end
-    if attachment.options == nil then attachment.options = {} end
+    if attachment.type == "PARTICLE" then
+        constructor_lib.default_particle_attributes(attachment)
+    else
+        constructor_lib.default_entity_attributes(attachment)
+    end
+
+end
+
+constructor_lib.default_entity_attributes = function(attachment)
+    debug_log("Defaulting entity attributes "..tostring(attachment.name))
     if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
     if attachment.rotation_axis == nil then attachment.rotation_axis = 2 end
@@ -80,6 +96,7 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.heading == nil then
         attachment.heading = (attachment.root and attachment.root.heading or 0)
     end
+    if attachment.options == nil then attachment.options = {} end
     if attachment.options.is_visible == nil then attachment.options.is_visible = true end
     if attachment.options.alpha == nil then attachment.options.alpha = 255 end
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
@@ -152,8 +169,10 @@ constructor_lib.deserialize_entity_attributes = function(attachment)
         AUDIO.TRIGGER_SIREN_AUDIO(attachment.handle, true)
         AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(attachment.handle, true)
     end
-    if attachment.options.is_bullet_proof ~= nil or attachment.options.is_fire_proof ~= nil
-            or attachment.options.is_explosion_proof ~= nil or attachment.options.is_melee_proof ~= nil then
+    if (attachment.options.is_bullet_proof ~= nil or attachment.options.is_fire_proof ~= nil
+        or attachment.options.is_explosion_proof ~= nil or attachment.options.is_melee_proof ~= nil)
+        and attachment.options.is_on_fire == nil
+    then
         ENTITY.SET_ENTITY_PROOFS(
                 attachment.handle,
                 attachment.options.is_bullet_proof, attachment.options.is_fire_proof,
@@ -191,6 +210,40 @@ constructor_lib.attach_entity = function(attachment)
             ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
         end
     end
+end
+
+constructor_lib.attach_particle = function(attachment)
+    if attachment.type ~= "PARTICLE" or attachment.particle_attributes == nil then return end
+    constructor_lib.default_particle_attributes(attachment)
+    constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
+    GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
+    GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
+            attachment.particle_attributes.effect_name,
+            attachment.parent.handle,
+            0.0, 0.0, 0.0,
+            0.0, 0.0, 0.0,
+            attachment.particle_attributes.bone_index,
+            attachment.particle_attributes.scale,
+            false, false, false
+    )
+
+    --    if ENTITY.DOES_ENTITY_EXIST(vehicle) and not ENTITY.IS_ENTITY_DEAD(vehicle, false) and
+    --            VEHICLE.IS_VEHICLE_DRIVEABLE(vehicle, false) and lastEffect.elapsed() > effect[4] then
+    --        constructor_lib.load_particle_fx_asset(effect[1])
+    --        for _, boneName in pairs({"wheel_lf", "wheel_lr", "wheel_rf", "wheel_rr"}) do
+    --            local bone = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(vehicle, boneName)
+    --
+    --            GRAPHICS.USE_PARTICLE_FX_ASSET(effect[1])
+    --            GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
+    --                    effect[2],
+    --                    vehicle,
+    --                    0.0, 0.0, 0.0,
+    --                    0.0, 0.0, 0.0,
+    --                    bone,
+    --                    effect[3],
+    --                    false, false, false
+    --            )
+    --        end
 end
 
 ---
@@ -272,8 +325,12 @@ constructor_lib.build_parent_child_relationship = function(parent_attachment, ch
     child_attachment.root = parent_attachment.root
 end
 
-constructor_lib.attach_attachment = function(attachment)
+constructor_lib.create_entity = function(attachment)
     constructor_lib.default_entity_attributes(attachment)
+    if attachment.type == "PARTICLE" then
+        constructor_lib.attach_particle(attachment)
+        return
+    end
     if attachment.is_player and attachment.is_preview ~= true then
         if attachment.model == nil and attachment.hash == nil then
             attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
@@ -350,13 +407,13 @@ constructor_lib.attach_attachment = function(attachment)
                 attachment.options.is_mission_entity,
                 false
         )
+        if is_networked then constructor_lib.make_entity_networked(attachment) end
     end
 
     if not attachment.handle then
         error(t("Error attaching attachment. Could not create handle."))
     end
 
-    if is_networked then constructor_lib.make_entity_networked(attachment) end
     if attachment.root.is_preview == true then constructor_lib.set_preview_visibility(attachment) end
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
     constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
@@ -373,7 +430,7 @@ end
 
 constructor_lib.reattach_attachment_with_children = function(attachment)
     debug_log("Reattaching attachment with children "..tostring(attachment.name))
-    constructor_lib.attach_attachment(attachment)
+    constructor_lib.create_entity(attachment)
     for _, child_attachment in pairs(attachment.children) do
         child_attachment.root = attachment.root
         child_attachment.parent = attachment
@@ -381,14 +438,14 @@ constructor_lib.reattach_attachment_with_children = function(attachment)
     end
 end
 
-constructor_lib.attach_attachment_with_children = function(new_attachment)
+constructor_lib.create_entity_with_children = function(new_attachment)
     debug_log("Attaching attachment with children "..tostring(new_attachment.name))
     for key, value in pairs(constructor_lib.construct_base) do
         if new_attachment[key] == nil then
             new_attachment[key] = (value)
         end
     end
-    local attachment = constructor_lib.attach_attachment(new_attachment)
+    local attachment = constructor_lib.create_entity(new_attachment)
     if not attachment then return end
     if attachment.children then
         for _, child_attachment in pairs(attachment.children) do
@@ -399,7 +456,7 @@ constructor_lib.attach_attachment_with_children = function(new_attachment)
             if child_attachment.reflection_axis then
                 constructor_lib.update_reflection_offsets(child_attachment)
             end
-            constructor_lib.attach_attachment_with_children(child_attachment)
+            constructor_lib.create_entity_with_children(child_attachment)
         end
     end
     return attachment
@@ -407,7 +464,7 @@ end
 
 constructor_lib.add_attachment_to_construct = function(attachment)
     debug_log("Adding attachment to construct "..tostring(attachment.name))
-    constructor_lib.attach_attachment_with_children(attachment)
+    constructor_lib.create_entity_with_children(attachment)
     table.insert(attachment.parent.children, attachment)
     attachment.root.menus.refresh(attachment)
 end
@@ -785,7 +842,7 @@ constructor_lib.serialize_hash_and_model = function(attachment)
         attachment.hash = util.joaat(attachment.model)
     elseif attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
-    elseif attachment.hash == nil and attachment.model == nil and attachment.handle > 0 then
+    elseif attachment.hash == nil and attachment.model == nil and attachment.handle ~= nil and attachment.handle > 0 then
         attachment.hash = ENTITY.GET_ENTITY_MODEL(attachment.handle)
         attachment.model = util.reverse_joaat(attachment.hash)
     end
@@ -1329,6 +1386,14 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
     if vehicle.vehicle_attributes.options.engine_health ~= nil then
         VEHICLE.SET_VEHICLE_ENGINE_HEALTH(vehicle.handle, vehicle.vehicle_attributes.options.engine_health)
     end
+end
+
+constructor_lib.default_particle_attributes = function(attachment)
+    if attachment.particle_attributes == nil then attachment.particle_attributes = {} end
+    if attachment.particle_attributes.bone_index == nil then attachment.particle_attributes.bone_index = 0 end
+    if attachment.particle_attributes.scale == nil then attachment.particle_attributes.scale = 1 end
+    if attachment.particle_attributes.offset == nil or attachment.particle_attributes.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
+    if attachment.particle_attributes.rotation == nil or attachment.particle_attributes.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
 end
 
 ---
