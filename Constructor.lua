@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b5"
+local SCRIPT_VERSION = "0.26b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -323,55 +323,6 @@ local SIRENS_ALL_ON = 3
 --- Utilities
 ---
 
-function table.table_copy(obj, depth)
-    if depth == nil then depth = 0 end
-    if depth > 1000 then error("Max table depth reached") end
-    depth = depth + 1
-    if type(obj) ~= 'table' then
-        return obj
-    end
-    local res = setmetatable({}, getmetatable(obj))
-    for k, v in pairs(obj) do
-        res[table.table_copy(k, depth)] = table.table_copy(v, depth)
-    end
-    return res
-end
-
-function string.starts(String,Start)
-    return string.sub(String,1,string.len(Start))==Start
-end
-
-local function table_merge(t1, t2)
-    for k, v in pairs(t2) do
-        if (type(v) == "table") and (type(t1[k] or false) == "table") then
-            table_merge(t1[k], t2[k])
-        else
-            t1[k] = v
-        end
-    end
-    return t1
-end
-
--- From https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
-local function array_remove(t, fnKeep)
-    local j, n = 1, #t;
-
-    for i=1,n do
-        if (fnKeep(t, i, j)) then
-            -- Move i's kept value to j's position, if it's not already there.
-            if (i ~= j) then
-                t[j] = t[i];
-                t[i] = nil;
-            end
-            j = j + 1; -- Increment position of where we'll place the next kept value.
-        else
-            t[i] = nil;
-        end
-    end
-
-    return t;
-end
-
 local function get_player_vehicle_handles()
     local player_vehicle_handles = {}
     for _, pid in pairs(players.list()) do
@@ -432,7 +383,7 @@ end
 local function copy_construct_plan(construct_plan)
     local is_root = construct_plan == construct_plan.parent
     clear_references(construct_plan)
-    local construct = table.table_copy(construct_plan)
+    local construct = constructor_lib.table_copy(construct_plan)
     if is_root then
         construct.root = construct
         construct.parent = construct
@@ -455,7 +406,7 @@ end
 
 local function save_original_player_skin()
     debug_log("Saving original player skin")
-    original_player_skin = table.table_copy(constructor_lib.construct_base)
+    original_player_skin = constructor_lib.table_copy(constructor_lib.construct_base)
     original_player_skin.handle = players.user_ped()
     original_player_skin.name = "Original Player Skin"
     original_player_skin.type = "PED"
@@ -469,7 +420,7 @@ end
 local function get_player_construct()
     if player_construct == nil then
         save_original_player_skin()
-        player_construct = table.table_copy(constructor_lib.construct_base)
+        player_construct = constructor_lib.table_copy(constructor_lib.construct_base)
         player_construct.handle=players.user_ped()
         player_construct.type="PED"
         player_construct.name="Player"
@@ -623,7 +574,7 @@ local function use_player_as_base(attachment)
         local player_preview = {handle=players.user_ped(), type="PED"}
         constructor_lib.serialize_ped_attributes(player_preview)
         player_preview.handle = nil
-        return table_merge(player_preview, attachment)
+        return constructor_lib.table_merge(player_preview, attachment)
     end
     return attachment
 end
@@ -645,7 +596,7 @@ local function add_preview(construct_plan, preview_image_path)
         attachment.root = attachment
         attachment.parent = attachment
         attachment.is_preview = true
-        constructor_lib.default_entity_attributes(attachment)
+        constructor_lib.default_attachment_attributes(attachment)
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
         current_preview = constructor_lib.attach_attachment_with_children(attachment)
@@ -807,7 +758,7 @@ end
 
 local function add_spawned_construct(construct)
     debug_log("Adding spawned construct to list "..tostring(construct.name))
-    constructor_lib.default_entity_attributes(construct)
+    constructor_lib.default_attachment_attributes(construct)
     table.insert(spawned_constructs, construct)
     last_spawned_construct = construct
 end
@@ -839,7 +790,7 @@ local function save_vehicle(construct)
     if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local content = soup.json.encode(constructor_lib.serialize_attachment(construct))
-    if content == "" or (not string.starts(content, "{")) then
+    if content == "" or (not constructor_lib.string_starts(content, "{")) then
         util.toast("Cannot save vehicle: Error serializing.", TOAST_ALL)
         return
     end
@@ -865,7 +816,7 @@ local function delete_construct(construct)
         constructor_lib.remove_attachment_from_parent(construct)
         entities.delete_by_handle(construct.handle)
     end
-    array_remove(spawned_constructs, function(t, i)
+    constructor_lib.array_remove(spawned_constructs, function(t, i)
         local spawned_construct = t[i]
         return spawned_construct ~= construct
     end)
@@ -982,7 +933,7 @@ local function activate_vehicle_sirens(parent_attachment)
     -- Vehicle sirens are networked silent without a ped, but adding a ped makes them audible to others
     for _, attachment in pairs(parent_attachment.children) do
         if attachment.type == "VEHICLE" and attachment.options.has_siren then
-            local child_attachment = constructor_lib.attach_attachment({
+            local child_attachment = constructor_lib.create_entity({
                 root=parent_attachment,
                 parent=attachment,
                 name=parent_attachment.name .. " Driver",
@@ -1297,7 +1248,7 @@ local function rebuild_reattach_to_menu(attachment, current, path, depth)
             rebuild_attachment(attachment.root)
         end)
         for _, child_attachment in pairs(current.children) do
-            rebuild_reattach_to_menu(attachment, child_attachment, table.table_copy(path), depth)
+            rebuild_reattach_to_menu(attachment, child_attachment, constructor_lib.table_copy(path), depth)
         end
     end
 end
@@ -1316,7 +1267,7 @@ local function search(search_params)
     end
     if search_params.menus.search_add_more ~= nil then menu.delete(search_params.menus.search_add_more) end
     search_params.menus.search_add_more = menu.action(search_params.menus.root, t("Load More"), {}, "", function()
-        local more_search_params = table.table_copy(search_params)
+        local more_search_params = constructor_lib.table_copy(search_params)
         more_search_params.page_number = more_search_params.page_number + 1
         search(more_search_params)
     end)
@@ -1342,7 +1293,7 @@ local function install_curated_constructs()
 end
 
 menus.rebuild_attachment_menu = function(attachment)
-    if not attachment.handle then error("Attachment missing handle") end
+    if (not attachment.handle) and  attachment.type ~= "PARTICLE" then error("Attachment missing handle") end
     if attachment.menus == nil then
         debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
         attachment.menus = {}
@@ -1571,109 +1522,6 @@ menus.rebuild_attachment_menu = function(attachment)
                 end, attachment.vehicle_attributes.windows.rolled_down[window_name])
             end
 
-            local particle_fxs = {
-                {
-                    name="Alien Impact",
-                    type="PARTICLE",
-                    particle_attributes={
-                        asset="scr_rcbarry1",
-                        effect_name="scr_alien_impact_bul",
-                        scale=1,
-                        loop_timer=50,
-                    },
-                },
-                {
-                    name="Clown Appears",
-                    type="PARTICLE",
-                    particle_attributes={
-                        asset="scr_rcbarry2",
-                        effect_name="scr_clown_appears",
-                        scale=0.3,
-                        loop_timer=500,
-                    }
-                },
-                {
-                    name="Blue Sparks",
-                    type="PARTICLE",
-                    particle_attributes={
-                        asset="core",
-                        effect_name="ent_dst_elec_fire_sp",
-                        scale=1,
-                        loop_timer=100,
-
-                    }
-                },
-                {
-                    name="Alien Disintegration",
-                    type="PARTICLE",
-                    particle_attributes={
-                        asset="scr_rcbarry1",
-                        effect_name="scr_alien_disintegrate",
-                        scale=0.1,
-                        loop_timer=400,
-
-                    }
-                },
-                {
-                    name="Firey Particles",
-                    type="PARTICLE",
-                    particle_attributes={
-                        asset="scr_rcbarry1",
-                        effect_name="scr_alien_teleport",
-                        scale=0.1,
-                        loop_timer=400,
-                    }
-                },
-            }
-
-
-            --local effects <const> = {
-            --    {"scr_rcbarry1", "scr_alien_impact_bul", 1.0, 50},
-            --    {"scr_rcbarry2", "scr_clown_appears", 0.3, 500},
-            --    {"core", "ent_dst_elec_fire_sp", 1.0, 100},
-            --    {"scr_rcbarry1", "scr_alien_disintegrate", 0.1, 400},
-            --    {"scr_rcbarry1", "scr_alien_teleport", 0.1, 400}
-            --}
-            --local selectedOpt = 1
-            --local lastEffect <const> = newTimer()
-            --
-            --
-            --menu.toggle_loop(vehicleOptions, translate("Vehicle Effects", "Vehicle Effects"), {}, "", function ()
-            --    local effect = effects[selectedOpt]
-            --    local vehicle = PED.GET_VEHICLE_PED_IS_IN(players.user_ped(), false)
-            --
-            --    if ENTITY.DOES_ENTITY_EXIST(vehicle) and not ENTITY.IS_ENTITY_DEAD(vehicle, false) and
-            --            VEHICLE.IS_VEHICLE_DRIVEABLE(vehicle, false) and lastEffect.elapsed() > effect[4] then
-            --        constructor_lib.load_particle_fx_asset(effect[1])
-            --        for _, boneName in pairs({"wheel_lf", "wheel_lr", "wheel_rf", "wheel_rr"}) do
-            --            local bone = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(vehicle, boneName)
-            --
-            --            GRAPHICS.USE_PARTICLE_FX_ASSET(effect[1])
-            --            GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
-            --                    effect[2],
-            --                    vehicle,
-            --                    0.0, 0.0, 0.0,
-            --                    0.0, 0.0, 0.0,
-            --                    bone,
-            --                    effect[3],
-            --                    false, false, false
-            --            )
-            --        end
-            --        lastEffect.reset()
-            --    end
-            --end)
-            --
-            --local options <const> = {
-            --    translate("Vehicle Effects", "Alien Impact"),
-            --    translate("Vehicle Effects", "Clown Appears"),
-            --    translate("Vehicle Effects", "Blue Sparks"),
-            --    translate("Vehicle Effects", "Alien Disintegration"),
-            --    translate("Vehicle Effects", "Firey Particles"),
-            --}
-            --menu.slider_text(vehicleOptions, translate("Vehicle Effects", "Set Vehicle Effect"), {}, "",
-            --        options, function (index) selectedOpt = index end)
-
-
         end
 
         ---
@@ -1877,6 +1725,18 @@ menus.rebuild_attachment_menu = function(attachment)
         --menu.divider(attachment.menus.main, t("Attachments"))
         --attachment.menus.attachments = menu.list(attachment.menus.main, t("Attachments"))
         attachment.menus.add_attachment = menu.list(attachment.menus.main, t("Add Attachment"), {}, t("Options for attaching other entities to this construct"))
+
+        attachment.menus.add_particle = menu.list(attachment.menus.add_attachment, t("Particle Effects"), {}, t("Browse a curated collection of particle effects"))
+        for _, particle in pairs(constants.particle_fxs) do
+            particle.load_menu = menu.action(attachment.menus.add_particle, particle.name, {}, "", function()
+                local particle_attachment = copy_construct_plan(particle)
+                particle_attachment.root = attachment.root
+                particle_attachment.parent = attachment
+                build_construct_from_plan(particle_attachment)
+            end)
+            --menu.on_focus(particle.load_menu, function(direction) if direction ~= 0 then add_preview(particle) end end)
+            --menu.on_blur(particle.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+        end
 
         attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
         for _, curated_item in pairs(curated_attachments) do
