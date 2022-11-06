@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.5b6"
+local SCRIPT_VERSION = "0.8.5b7"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -1433,11 +1433,13 @@ local function map_ini_vehicle_flavor_7(attachment, data)
     end
     if attachment.name == nil then attachment.name = attachment.model end
 
-    if data.isPrimaryColorCostum ~= nil then attachment.vehicle_attributes.paint.primary.IsPrimaryColourCustom = toboolean(data.isPrimaryColorCostum) end
+    if data.primaryIndex ~= nil then attachment.vehicle_attributes.paint.primary.vehicle_standard_color = tonumber(data.primaryIndex) end
+    if data.isPrimaryColorCostum ~= nil then attachment.vehicle_attributes.paint.primary.is_custom = toboolean(data.isPrimaryColorCostum) end
     if data.primary_r ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.r = tonumber(data.primary_r) end
     if data.primary_g ~= nil then  attachment.vehicle_attributes.paint.primary.custom_color.g = tonumber(data.primary_g) end
     if data.primary_b ~= nil then  attachment.vehicle_attributes.paint.primary.custom_color.b = tonumber(data.primary_b) end
-    if data.isSecondaryColorCostum ~= nil then attachment.vehicle_attributes.paint.primary.IsSecondaryColourCustom = toboolean(data.isSecondaryColorCostum) end
+    if data.secondaryIndex ~= nil then attachment.vehicle_attributes.paint.secondary.vehicle_standard_color = tonumber(data.secondaryIndex) end
+    if data.isSecondaryColorCostum ~= nil then attachment.vehicle_attributes.paint.secondary.is_custom = toboolean(data.isSecondaryColorCostum) end
     if data.secondary_r ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.r = tonumber(data.secondary_r) end
     if data.secondary_g ~= nil then  attachment.vehicle_attributes.paint.secondary.custom_color.g = tonumber(data.secondary_g) end
     if data.secondary_b ~= nil then  attachment.vehicle_attributes.paint.secondary.custom_color.b = tonumber(data.secondary_b) end
@@ -1461,11 +1463,10 @@ local function map_ini_vehicle_flavor_7(attachment, data)
     if data.plateIndex ~= nil then attachment.vehicle_attributes.options.license_plate_type = tonumber(data.plateIndex) end
     if data.plate ~= nil then attachment.vehicle_attributes.options.license_plate_text = data.plate end
     if data.bulletproof ~= nil then attachment.vehicle_attributes.wheels.bulletproof_tires = tonumber(data.bulletproof) end
-    --Unmapped:
-    -- data.hasDriftTires
-    -- data.primaryIndex
-    -- data.secondaryIndex
-    -- data.xenon -- i think xenon is a mod flag?
+    if data.hasDriftTires ~= nil then attachment.vehicle_attributes.wheels.drift_tires = toboolean(data.hasDriftTires) end
+
+    --Unmapped:[
+    -- data.xenon
     -- data.wheel_r data.wheel_g data.wheel_b
     -- data.model_r data.model_g data.model_b
     -- data.seat_r data.seat_g data.seat_b
