@@ -1422,6 +1422,94 @@ local function map_ini_data_flavor_6(construct_plan, data)
 end
 
 ---
+--- INI Mapper Flavor #7
+---
+
+local function map_ini_vehicle_flavor_7(attachment, data)
+    constructor_lib.default_vehicle_attributes(attachment)
+    if data["hash"] ~= nil then attachment.hash = data["hash"] end
+    if attachment.model == nil and attachment.hash ~= nil then
+        attachment.model = util.reverse_joaat(attachment.hash)
+    end
+    if attachment.name == nil then attachment.name = attachment.model end
+
+    if data.isPrimaryColorCostum ~= nil then attachment.vehicle_attributes.paint.primary.IsPrimaryColourCustom = toboolean(data.isPrimaryColorCostum) end
+    if data.primary_r ~= nil then attachment.vehicle_attributes.paint.primary.custom_color.r = tonumber(data.primary_r) end
+    if data.primary_g ~= nil then  attachment.vehicle_attributes.paint.primary.custom_color.g = tonumber(data.primary_g) end
+    if data.primary_b ~= nil then  attachment.vehicle_attributes.paint.primary.custom_color.b = tonumber(data.primary_b) end
+    if data.isSecondaryColorCostum ~= nil then attachment.vehicle_attributes.paint.primary.IsSecondaryColourCustom = toboolean(data.isSecondaryColorCostum) end
+    if data.secondary_r ~= nil then attachment.vehicle_attributes.paint.secondary.custom_color.r = tonumber(data.secondary_r) end
+    if data.secondary_g ~= nil then  attachment.vehicle_attributes.paint.secondary.custom_color.g = tonumber(data.secondary_g) end
+    if data.secondary_b ~= nil then  attachment.vehicle_attributes.paint.secondary.custom_color.b = tonumber(data.secondary_b) end
+    if data.pearl ~= nil then attachment.vehicle_attributes.paint.extra_colors.pearlescent = tonumber(data.pearl) end
+    if data.wheel ~= nil then attachment.vehicle_attributes.paint.extra_colors.wheel = tonumber(data.wheel) end
+    if data.wheelType ~= nil then attachment.vehicle_attributes.wheels.wheel_type = tonumber(data.wheelType) end
+    if data.neonLeft ~= nil then attachment.vehicle_attributes.neon.lights.left = tonumber(data.neonLeft) end
+    if data.neonRight ~= nil then attachment.vehicle_attributes.neon.lights.right = tonumber(data.neonRight) end
+    if data.neonFront ~= nil then attachment.vehicle_attributes.neon.lights.front = tonumber(data.neonFront) end
+    if data.neonBack ~= nil then attachment.vehicle_attributes.neon.lights.back = tonumber(data.neonBack) end
+    if data.neon_r ~= nil then attachment.vehicle_attributes.neon.color.r = tonumber(data.neon_r) end
+    if data.neon_g ~= nil then attachment.vehicle_attributes.neon.color.g = tonumber(data.neon_g) end
+    if data.neon_b ~= nil then attachment.vehicle_attributes.neon.color.b = tonumber(data.neon_b) end
+    if data.windowTint ~= nil then attachment.vehicle_attributes.options.window_tint = tonumber(data.windowTint) end
+    if data.headlightColor ~= nil then attachment.vehicle_attributes.headlights.headlights_color = tonumber(data.headlightColor) end
+    if data.hasTireSmoke ~= nil then 
+        attachment.vehicle_attributes.wheels.tire_smoke_color.r = tonumber(data.tyressmoke_r)
+        attachment.vehicle_attributes.wheels.tire_smoke_color.g = tonumber(data.tyressmoke_g)
+        attachment.vehicle_attributes.wheels.tire_smoke_color.b = tonumber(data.tyressmoke_b)
+    end
+    if data.plateIndex ~= nil then attachment.vehicle_attributes.options.license_plate_type = tonumber(data.plateIndex) end
+    if data.plate ~= nil then attachment.vehicle_attributes.options.license_plate_text = data.plate end
+    if data.bulletproof ~= nil then attachment.vehicle_attributes.wheels.bulletproof_tires = tonumber(data.bulletproof) end
+    --Unmapped:
+    -- data.hasDriftTires
+    -- data.primaryIndex
+    -- data.secondaryIndex
+    -- data.xenon -- i think xenon is a mod flag?
+    -- data.wheel_r data.wheel_g data.wheel_b
+    -- data.model_r data.model_g data.model_b
+    -- data.seat_r data.seat_g data.seat_b
+    -- data.bypass
+    -- data.spawnInVehicle
+end
+
+local function map_ini_vehicle_mods_flavor_7(attachment, data)
+    for index = 0, 49 do
+        if not (index >= 17 and index <= 22) then
+            attachment.vehicle_attributes.mods["_"..index] = tonumber(data[tostring("mod"..index)])
+        end
+    end
+end
+
+local function map_ini_vehicle_mod_toggles_flavor_7(attachment, data)
+    for index = 17, 22 do
+        attachment.vehicle_attributes.mods["_"..index] = toboolean(data[tostring("mod"..index)])
+    end
+end
+
+local function map_ini_vehicle_extras_flavor_7(attachment, data)
+    for index = 0, 14 do
+        if data[index] ~= nil then
+            attachment.vehicle_attributes.extras["_"..index] = toboolean(data["extra"..index])
+        end
+    end
+end
+
+local function map_ini_data_flavor_7(construct_plan, data)
+    if data.VEHICLE ~= nil then
+        construct_plan.type = "VEHICLE"
+        map_ini_vehicle_flavor_7(construct_plan, data.VEHICLE)
+        if data.MODS ~= nil then
+            map_ini_vehicle_mods_flavor_7(construct_plan, data.MODS)
+            map_ini_vehicle_mod_toggles_flavor_7(construct_plan, data.MODS)
+        end
+        if data.EXTRAS ~= nil then
+            map_ini_vehicle_extras_flavor_7(construct_plan, data.EXTRAS)
+        end
+    end
+end
+
+---
 --- INI Flavor Finder
 ---
 
@@ -1433,6 +1521,7 @@ end
 -- type 4 has an "AllObjects", "AllPeds", "AllVehicles" section in the ini (4tire_bike.ini)
 -- type 5 has AllObjects and AllVehicles (Boat-fsx.ini) (seems like theres an iniparser glitch in this one)
 -- type 6 is like type 2, but some keys are different, namely the numbers for attachments are called "Attached Object x" (Tankamid.ini)
+-- type 7 is 2Take1's format
 local function get_ini_flavor(data)
     if data.Vehicle ~= nil and data.Vehicle.Model ~= nil and data.Vehicle.PrimaryPaintT == nil and (data.AllVehicles == nil or data.AllVehicles.Count == nil) then
         return 1
@@ -1445,6 +1534,8 @@ local function get_ini_flavor(data)
         -- no 5?
     elseif data.Vehicle ~= nil and data.Vehicle.model ~= nil and data['Attached Object 1'] ~= nil and data['Attached Object 1'].model ~= nil then
         return 6
+    elseif data.VEHICLE ~= nil and data.VEHICLE.hash ~= nil and data.VEHICLE.isPrimaryColorCostum ~= nil then
+        return 7
     end
 end
 
@@ -1461,6 +1552,8 @@ local function map_ini_data(construct_plan, data)
         --    return map_ini_data_flavor_5(construct_plan, data)
     elseif construct_plan.temp.ini_flavor == 6 then
         return map_ini_data_flavor_6(construct_plan, data)
+    elseif construct_plan.temp.ini_flavor == 7 then
+        return map_ini_data_flavor_7(construct_plan, data)
     end
 end
 
