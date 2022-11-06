@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.5b1"
+local SCRIPT_VERSION = "0.8.5b2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -774,7 +774,7 @@ local function map_ini_attachment_flavor_1(attachment, data)
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
-    constructor_lib.default_entity_attributes(attachment)
+    constructor_lib.default_attachment_attributes(attachment)
 
     if data["X"] ~= nil then attachment.offset.x = tonumber(data["X"]) end
     if data["x"] ~= nil then attachment.offset.x = tonumber(data["x"]) end
@@ -919,7 +919,7 @@ local function map_ini_attachment_flavor_2(attachment, data)
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
-    constructor_lib.default_entity_attributes(attachment)
+    constructor_lib.default_attachment_attributes(attachment)
 
     if data["x"] ~= nil then attachment.offset.x = tonumber(data["x"]) end
     if data["y"] ~= nil then attachment.offset.y = tonumber(data["y"]) end
@@ -1018,7 +1018,7 @@ local function map_ini_attachment_flavor_3(attachment, data)
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
-    constructor_lib.default_entity_attributes(attachment)
+    constructor_lib.default_attachment_attributes(attachment)
 
     if data["X"] ~= nil then attachment.offset.x = tonumber(data["X"]) end
     if data["Y"] ~= nil then attachment.offset.y = tonumber(data["Y"]) end
@@ -1066,7 +1066,7 @@ local function map_ini_attachment_flavor_4(attachment, data)
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
-    constructor_lib.default_entity_attributes(attachment)
+    constructor_lib.default_attachment_attributes(attachment)
     if data["Name"] ~= nil then attachment.name = data["Name"] end
 
     if data["PosX"] ~= nil then attachment.position.x = clean_ini_number(data["PosX"]) end
@@ -1371,7 +1371,7 @@ local function map_ini_attachment_flavor_6(attachment, data)
     if attachment.model == nil and attachment.hash ~= nil then
         attachment.model = util.reverse_joaat(attachment.hash)
     end
-    constructor_lib.default_entity_attributes(attachment)
+    constructor_lib.default_attachment_attributes(attachment)
 
     if data["x offset"] ~= nil then attachment.offset.x = tonumber(data["x offset"]) end
     if data["y offset"] ~= nil then attachment.offset.y = tonumber(data["y offset"]) end
