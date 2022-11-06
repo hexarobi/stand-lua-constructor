@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.5b3"
+local SCRIPT_VERSION = "0.8.5b4"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -21,9 +21,6 @@ if not status_iniparser then error("Could not load iniparser lib. This should ha
 
 local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
 if not status_constructor_lib then error("Could not load constructor_lib. This should have been auto-installed.") end
-
-local status_constants, constants = pcall(require, "constructor/constants")
-if not status_constants then error("Could not load constants. This should have been auto-installed.") end
 
 util.ensure_package_is_installed('lua/json')
 local status_json, json = pcall(require, "json")
@@ -390,7 +387,7 @@ local function rearrange_by_initial_attachment(attachment, parent_attachment, ro
     if parent_attachment ~= nil and attachment.parents_initial_handle and (attachment.parents_initial_handle ~= parent_attachment.initial_handle) then
         local new_parent = find_attachment_by_initial_handle(root_attachment, attachment.parents_initial_handle)
         if new_parent then
-            constants.array_remove(parent_attachment.children, function(t, i)
+            constructor_lib.array_remove(parent_attachment.children, function(t, i)
                 local child_attachment = t[i]
                 return child_attachment ~= attachment
             end)
