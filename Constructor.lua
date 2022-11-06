@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b7"
+local SCRIPT_VERSION = "0.26b8"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1444,10 +1444,15 @@ menus.rebuild_attachment_menu = function(attachment)
                 constructor_lib.deserialize_vehicle_options(attachment)
             end, attachment.vehicle_attributes.engine_sound or "")
 
-            menu.toggle(attachment.menus.vehicle_options, t("Invis Wheels"), {}, "If enabled, the vehicle wheels will be invisible", function(value)
+            menu.toggle(attachment.menus.vehicle_options, t("Invisible Wheels"), {}, t("If enabled, the vehicle wheels will be invisible"), function(value)
                 attachment.vehicle_attributes.wheels.invisible_wheels = value
                 constructor_lib.deserialize_vehicle_wheels(attachment)
             end, attachment.vehicle_attributes.wheels.invisible_wheels)
+
+            menu.toggle(attachment.menus.vehicle_options, t("Drift Tires"), {}, t("If enabled, the vehicle tires will have low grip"), function(value)
+                attachment.vehicle_attributes.wheels.drift_tires = value
+                constructor_lib.deserialize_vehicle_wheels(attachment)
+            end, attachment.vehicle_attributes.wheels.drift_tires)
 
             menu.list_select(attachment.menus.vehicle_options, t("Door Lock Status"), {}, t("Vehicle door locks"), constants.door_lock_status, attachment.vehicle_attributes.doors.lock_status or 1, function(value)
                 attachment.vehicle_attributes.doors.lock_status = value
