@@ -197,11 +197,11 @@ translations["zh"] = {
     ["Search"] = "搜索",
     ["Search for a prop by name"] = "按名称搜索道具",
     ["Add by Name"] = "按名称添加",
-    ["Add an object, vehicle, or ped by exact name."] = "按确切名称添加物体，车辆或ped.",
+    ["Add an object, vehicle, or ped by exact name."] = "按名称添加物体，车辆或ped.",
     ["Object by Name"] = "按物体名称",
-    ["Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/"] = "按确切名称添加游戏内物体.要搜索物体，请尝试 https://gta-objects.xyz/",
+    ["Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/"] = "按名称添加游戏内物体.要搜索物体，请尝试 https://gta-objects.xyz/",
     ["Ped by Name"] = "按ped名称",
-    ["Add a vehicle by exact name."] = "按确切名称添加ped.",
+    ["Add a vehicle by exact name."] = "按名称添加",
     ["Open gta-objects.xyz"] = "打开 gta-objects.xyz",
     ["Website for browsing and searching for props"] = "用于浏览和搜索道具的网站",
     ["Add Attachment Gun"] = "添加附件枪",
@@ -269,9 +269,9 @@ translations["zh"] = {
     ["Browse"] = "浏览",
     ["Global Configs"] = "全局配置",
     ["Edit Offset Step"] = "编辑偏移量",
-    ["The amount of change each time you edit an attachment offset (hold SHIFT or L1 for fine tuning)"] = "每次编辑附件偏移时的变化量(按住 SHIFT 或 L1 进行微调)",
+    ["The amount of change each time you edit an attachment offset (hold SHIFT for fine tuning)"] = "每次编辑附件偏移时的变化量(按住SHIFT键进行微调)",
     ["Edit Rotation Step"] = "编辑旋转量",
-    ["The amount of change each time you edit an attachment rotation (hold SHIFT or L1 for fine tuning)"] = "每次编辑附件旋转时的变化量(按住 SHIFT 或 L1 进行微调)",
+    ["The amount of change each time you edit an attachment rotation (hold SHIFT for fine tuning)"] = "每次编辑附件旋转时的变化量(按住SHIFT键进行微调)",
     ["Show Previews"] = "显示预览",
     ["Show previews when adding attachments"] = "添加附件时显示预览",
     ["Preview Display Delay"] = "显示预览延迟",
@@ -310,6 +310,17 @@ translations["zh"] = {
     ["Development, Ped Curation"] = "开发, Ped策划",
     ["Focus Menu on Spawned Constructs"] = "生成构造自动切换",
     ["When spawning a construct, focus Stands menu on the newly spawned construct. Otherwise, stay in the Load Constructs menu."] = "生成构造体时自动帮你切换到已加载的构造体菜单中",
+    ["From Nearby"] = "附近载具",
+    ["Create a new construct based on nearby vehicle"] = "从附近载具创建新构造",
+    ["Entity Options"] = "实体选项",
+    ["Additional options available for all entities."] = "实体选择选",
+    ["Alpha"] = "透明度",
+    ["The amount of transparency the object has. Local only!"] = "该物体透明度.仅限本地!",
+    ["Mission Entity"] = "任务实体",
+    ["If attachment is treated as a mission entity."] = "附件被视为任务实体",
+    ["Give Weapon"] = "给予武器",
+    ["Give the ped a weapon."] = "给予该ped武器",
+    ["Vehicle by Name"] = "按载具名称",
     ["Translators"] = "翻译"
 }
 
@@ -318,6 +329,7 @@ translations["zh"] = {
 ---
 
 return translations
+
 
 
 
