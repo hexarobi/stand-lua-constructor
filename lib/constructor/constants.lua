@@ -1,7 +1,62 @@
--- GTA5 Constants
--- v1.4
+-- Constructor Constants
 
+local SCRIPT_VERSION = 0.26
 local constants = {}
+
+constants.particle_fxs = {
+    {
+        name="Alien Impact",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_rcbarry1",
+            effect_name="scr_alien_impact_bul",
+            scale=1,
+            loop_timer=50,
+        },
+    },
+    {
+        name="Clown Appears",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_rcbarry2",
+            effect_name="scr_clown_appears",
+            scale=0.3,
+            loop_timer=500,
+        }
+    },
+    {
+        name="Blue Sparks",
+        type="PARTICLE",
+        particle_attributes={
+            asset="core",
+            effect_name="ent_dst_elec_fire_sp",
+            scale=1,
+            loop_timer=100,
+
+        }
+    },
+    {
+        name="Alien Disintegration",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_rcbarry1",
+            effect_name="scr_alien_disintegrate",
+            scale=0.1,
+            loop_timer=400,
+
+        }
+    },
+    {
+        name="Firey Particles",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_rcbarry1",
+            effect_name="scr_alien_teleport",
+            scale=0.1,
+            loop_timer=400,
+        }
+    },
+}
 
 constants.ped_props = {
     {index=0, name="Hats"},
@@ -643,41 +698,6 @@ constants.bone_index_names = {
         },
     },
 }
-
-constants.table_copy = function(obj)
-    if type(obj) ~= 'table' then
-        return obj
-    end
-    local res = setmetatable({}, getmetatable(obj))
-    for k, v in pairs(obj) do
-        res[constants.table_copy(k)] = constants.table_copy(v)
-    end
-    return res
-end
-
-constants.string_starts = function(String,Start)
-    return string.sub(String,1,string.len(Start))==Start
-end
-
--- From https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
-constants.array_remove = function(t, fnKeep)
-    local j, n = 1, #t;
-
-    for i=1,n do
-        if (fnKeep(t, i, j)) then
-            -- Move i's kept value to j's position, if it's not already there.
-            if (i ~= j) then
-                t[j] = t[i];
-                t[i] = nil;
-            end
-            j = j + 1; -- Increment position of where we'll place the next kept value.
-        else
-            t[i] = nil;
-        end
-    end
-
-    return t;
-end
 
 constants.CONSTRUCTS_INSTALLER_SCRIPT = "-- Curated Constructs Installer\
 menu.divider(menu.my_root(), \"Downloading curated constructs.\")\
