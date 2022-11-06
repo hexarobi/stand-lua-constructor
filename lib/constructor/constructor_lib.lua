@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.26b7"
+local SCRIPT_VERSION = "3.26b8"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -96,6 +96,10 @@ constructor_lib.array_remove = function(t, fnKeep)
     end
 
     return t;
+end
+
+constructor_lib.is_attachment_entity = function(attachment)
+    return attachment.type ~= "PARTICLE"
 end
 
 ---
@@ -247,6 +251,23 @@ constructor_lib.attach_entity = function(attachment)
     end
 end
 
+constructor_lib.update_particle_tick = function(attachment)
+    if attachment.type ~= "PARTICLE" then return end
+    if util.current_time_millis() >= attachment.particle_attributes.refresh_time then
+        GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
+        GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
+                attachment.particle_attributes.effect_name,
+                attachment.parent.handle,
+                attachment.offset.x, attachment.offset.y, attachment.offset.z,
+                attachment.rotation.x, attachment.rotation.y, attachment.rotation.z,
+                attachment.particle_attributes.bone_index,
+                attachment.particle_attributes.scale,
+                false, false, false
+        )
+        attachment.particle_attributes.refresh_time = util.current_time_millis() + attachment.particle_attributes.loop_timer
+    end
+end
+
 constructor_lib.attach_particle = function(attachment)
     if attachment.type ~= "PARTICLE" or attachment.particle_attributes == nil then return end
     constructor_lib.default_particle_attributes(attachment)
@@ -255,12 +276,13 @@ constructor_lib.attach_particle = function(attachment)
     GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
             attachment.particle_attributes.effect_name,
             attachment.parent.handle,
-            0.0, 0.0, 0.0,
-            0.0, 0.0, 0.0,
+            attachment.offset.x, attachment.offset.y, attachment.offset.z,
+            attachment.rotation.x, attachment.rotation.y, attachment.rotation.z,
             attachment.particle_attributes.bone_index,
             attachment.particle_attributes.scale,
             false, false, false
     )
+    attachment.particle_attributes.refresh_time = util.current_time_millis() + attachment.particle_attributes.loop_timer
 
     --    if ENTITY.DOES_ENTITY_EXIST(vehicle) and not ENTITY.IS_ENTITY_DEAD(vehicle, false) and
     --            VEHICLE.IS_VEHICLE_DRIVEABLE(vehicle, false) and lastEffect.elapsed() > effect[4] then
@@ -520,7 +542,7 @@ constructor_lib.detach_attachment = function(attachment)
 end
 
 constructor_lib.remove_attachment = function(attachment)
-    debug_log("Reattaching attachment "..tostring(attachment.name))
+    debug_log("Removing attachment "..tostring(attachment.name))
     if not attachment then return end
     if attachment.children then
         constructor_lib.array_remove(attachment.children, function(t, i)
@@ -531,11 +553,13 @@ constructor_lib.remove_attachment = function(attachment)
     end
     if not attachment.is_player or attachment.is_preview then
         if attachment == attachment.parent and attachment.blip_handle then util.remove_blip(attachment.blip_handle) end
-        if not attachment.handle then
-            util.log("Cannot remove attachment. No valid handle found. "..tostring(attachment.name))
-            return
+        if constructor_lib.is_attachment_entity(attachment) then
+            if attachment.handle ~= nil and attachment.handle > 0 then
+                entities.delete_by_handle(attachment.handle)
+            else
+                util.log("Cannot remove attachment. No valid handle found. "..tostring(attachment.name))
+            end
         end
-        entities.delete_by_handle(attachment.handle)
         debug_log("Removed attachment. "..tostring(attachment.name))
     end
     if attachment.menus then
@@ -554,7 +578,7 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
     elseif attachment.parent ~= nil then
         constructor_lib.array_remove(attachment.parent.children, function(t, i)
             local child_attachment = t[i]
-            if child_attachment.handle == attachment.handle then
+            if child_attachment.id == attachment.id then
                 constructor_lib.remove_attachment(attachment)
                 return false
             end
@@ -606,6 +630,7 @@ constructor_lib.update_attachment_tick = function(attachment)
     if attachment.options.is_frozen ~= nil then
         ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
     end
+    constructor_lib.update_particle_tick(attachment)
 end
 
 ---
@@ -1427,6 +1452,8 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
 end
 
 constructor_lib.default_particle_attributes = function(attachment)
+    if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
+    if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
     if attachment.particle_attributes == nil then attachment.particle_attributes = {} end
     if attachment.particle_attributes.bone_index == nil then attachment.particle_attributes.bone_index = 0 end
     if attachment.particle_attributes.scale == nil then attachment.particle_attributes.scale = 1 end
