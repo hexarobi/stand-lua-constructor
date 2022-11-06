@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b6"
+local SCRIPT_VERSION = "0.26b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -599,7 +599,7 @@ local function add_preview(construct_plan, preview_image_path)
         constructor_lib.default_attachment_attributes(attachment)
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
-        current_preview = constructor_lib.attach_attachment_with_children(attachment)
+        current_preview = constructor_lib.create_entity_with_children(attachment)
         if construct_plan.load_menu then
             pcall(menu.set_help_text, construct_plan.load_menu, get_construct_plan_description(current_preview))
         end
