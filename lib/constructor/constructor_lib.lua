@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.26b6"
+local SCRIPT_VERSION = "3.26b7"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -1225,6 +1225,9 @@ constructor_lib.deserialize_vehicle_wheels = function(vehicle)
         else
             vehicle_wheels_uninvis(vehicle)
         end
+    end
+    if vehicle.vehicle_attributes.wheels.drift_tires ~= nil then
+        VEHICLE.SET_VEHICLE_REDUCE_GRIP(vehicle.handle, vehicle.vehicle_attributes.wheels.drift_tires)
     end
 end
 
