@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.21.11b4"
+local SCRIPT_VERSION = "3.26b5"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -61,6 +61,41 @@ local function debug_log(message, additional_details)
         end
         util.log("[constructor_lib] "..message)
     end
+end
+
+constructor_lib.table_copy = function(obj)
+    if type(obj) ~= 'table' then
+        return obj
+    end
+    local res = setmetatable({}, getmetatable(obj))
+    for k, v in pairs(obj) do
+        res[constructor_lib.table_copy(k)] = constructor_lib.table_copy(v)
+    end
+    return res
+end
+
+constructor_lib.string_starts = function(String,Start)
+    return string.sub(String,1,string.len(Start))==Start
+end
+
+-- From https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
+constructor_lib.array_remove = function(t, fnKeep)
+    local j, n = 1, #t;
+
+    for i=1,n do
+        if (fnKeep(t, i, j)) then
+            -- Move i's kept value to j's position, if it's not already there.
+            if (i ~= j) then
+                t[j] = t[i];
+                t[i] = nil;
+            end
+            j = j + 1; -- Increment position of where we'll place the next kept value.
+        else
+            t[i] = nil;
+        end
+    end
+
+    return t;
 end
 
 ---
@@ -476,7 +511,7 @@ end
 constructor_lib.detach_attachment = function(attachment)
     debug_log("Detaching attachment "..tostring(attachment.name))
     ENTITY.DETACH_ENTITY(attachment.handle, true, true)
-    constants.array_remove(attachment.parent.children, function(t, i)
+    constructor_lib.array_remove(attachment.parent.children, function(t, i)
         local child_attachment = t[i]
         return child_attachment ~= attachment
     end)
@@ -488,7 +523,7 @@ constructor_lib.remove_attachment = function(attachment)
     debug_log("Reattaching attachment "..tostring(attachment.name))
     if not attachment then return end
     if attachment.children then
-        constants.array_remove(attachment.children, function(t, i)
+        constructor_lib.array_remove(attachment.children, function(t, i)
             local child_attachment = t[i]
             constructor_lib.remove_attachment(child_attachment)
             return false
@@ -517,7 +552,7 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
     if attachment == attachment.parent then
         constructor_lib.remove_attachment(attachment)
     elseif attachment.parent ~= nil then
-        constants.array_remove(attachment.parent.children, function(t, i)
+        constructor_lib.array_remove(attachment.parent.children, function(t, i)
             local child_attachment = t[i]
             if child_attachment.handle == attachment.handle then
                 constructor_lib.remove_attachment(attachment)
@@ -538,7 +573,7 @@ constructor_lib.copy_construct_plan = function(construct_plan)
     local is_root = construct_plan == construct_plan.parent
     construct_plan.root = nil
     construct_plan.parent = nil
-    local construct = constants.table_copy(construct_plan)
+    local construct = constructor_lib.table_copy(construct_plan)
     if is_root then
         construct.root = construct
         construct.parent = construct
@@ -1546,7 +1581,7 @@ constructor_lib.copy_serializable = function(attachment)
             k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp" or k == "load_menu" or k == "menu_auto_focus"
             or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading"
         ) then
-            serializeable_attachment[k] = constants.table_copy(v)
+            serializeable_attachment[k] = constructor_lib.table_copy(v)
         end
     end
     return serializeable_attachment
