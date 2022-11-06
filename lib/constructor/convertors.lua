@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.5b2"
+local SCRIPT_VERSION = "0.8.5b3"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -44,6 +44,13 @@ end
 
 local function toboolean(value)
     return not (value == nil or value == false or value == "" or value == "false" or value == "0" or value == 0 or value == {})
+end
+
+local function parse_number(value)
+    if type(value) == "string" then
+        value = value:gsub("%s+", "")
+    end
+    return tonumber(value)
 end
 
 local function read_file(filepath)
@@ -921,13 +928,13 @@ local function map_ini_attachment_flavor_2(attachment, data)
     end
     constructor_lib.default_attachment_attributes(attachment)
 
-    if data["x"] ~= nil then attachment.offset.x = tonumber(data["x"]) end
-    if data["y"] ~= nil then attachment.offset.y = tonumber(data["y"]) end
-    if data["z"] ~= nil then attachment.offset.z = tonumber(data["z"]) end
+    if data["x"] ~= nil then attachment.offset.x = parse_number(data["x"]) end
+    if data["y"] ~= nil then attachment.offset.y = parse_number(data["y"]) end
+    if data["z"] ~= nil then attachment.offset.z = parse_number(data["z"]) end
 
-    if data["RotX"] ~= nil then attachment.rotation.x = tonumber(data["RotX"]) end
-    if data["RotY"] ~= nil then attachment.rotation.y = tonumber(data["RotY"]) end
-    if data["RotZ"] ~= nil then attachment.rotation.z = tonumber(data["RotZ"]) end
+    if data["RotX"] ~= nil then attachment.rotation.x = parse_number(data["RotX"]) end
+    if data["RotY"] ~= nil then attachment.rotation.y = parse_number(data["RotY"]) end
+    if data["RotZ"] ~= nil then attachment.rotation.z = parse_number(data["RotZ"]) end
 
     if data["collision"] ~= nil then attachment.options.has_collision = toboolean(data["collision"]) end
 end
@@ -1432,7 +1439,7 @@ end
 local function get_ini_flavor(data)
     if data.Vehicle ~= nil and data.Vehicle.Model ~= nil and data.Vehicle.PrimaryPaintT == nil and (data.AllVehicles == nil or data.AllVehicles.Count == nil) then
         return 1
-    elseif data.Vehicle ~= nil and data.Vehicle.model ~= nil and data['Attached Object 1'] == nil and data['1'] ~= nil then
+    elseif data.Vehicle ~= nil and data.Vehicle.model ~= nil and data['Attached Object 1'] == nil and (data['0'] ~= nil or data['1'] ~= nil) then
         return 2
     elseif data.Vehicle ~= nil and data.Vehicle.model == nil and data.Vehicle.PrimaryPaintT ~= nil then
         return 3
