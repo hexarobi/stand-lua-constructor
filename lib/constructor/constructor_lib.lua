@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.26b5"
+local SCRIPT_VERSION = "3.26b6"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -361,7 +361,7 @@ constructor_lib.build_parent_child_relationship = function(parent_attachment, ch
 end
 
 constructor_lib.create_entity = function(attachment)
-    constructor_lib.default_entity_attributes(attachment)
+    constructor_lib.default_attachment_attributes(attachment)
     if attachment.type == "PARTICLE" then
         constructor_lib.attach_particle(attachment)
         return
