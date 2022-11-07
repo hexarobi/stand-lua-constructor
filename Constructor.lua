@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b11"
+local SCRIPT_VERSION = "0.26b12"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -537,7 +537,7 @@ local function get_type(attachment)
 end
 
 local function count_construct_children(construct_plan, counter)
-    if counter == nil then counter = {["OBJECT"]=0, ["PED"]=0, ["VEHICLE"]=0, ["TOTAL"]=0} end
+    if counter == nil then counter = {["OBJECT"]=0, ["PED"]=0, ["VEHICLE"]=0, ["PARTICLE"]=0, ["TOTAL"]=0} end
     for _, child_attachment in pairs(construct_plan.children) do
         local child_type = get_type(child_attachment)
         if counter[child_type] == nil then error("Invalid type "..tostring(child_type)) end
