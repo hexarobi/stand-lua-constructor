@@ -1,6 +1,6 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = 0.26b2
+local SCRIPT_VERSION = "0.26b2"
 local constants = {}
 
 constants.particle_fxs = {
