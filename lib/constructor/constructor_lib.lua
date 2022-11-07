@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.26b8"
+local SCRIPT_VERSION = "3.26b9"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -251,11 +251,24 @@ constructor_lib.attach_entity = function(attachment)
     end
 end
 
-constructor_lib.update_particle_tick = function(attachment)
-    if attachment.type ~= "PARTICLE" then return end
-    if util.current_time_millis() >= attachment.particle_attributes.refresh_time then
-        GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
-        GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
+---
+--- Particle Effects
+---
+
+constructor_lib.default_particle_attributes = function(attachment)
+    if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
+    if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
+    if attachment.particle_attributes == nil then attachment.particle_attributes = {} end
+    if attachment.particle_attributes.bone_index == nil then attachment.particle_attributes.bone_index = 0 end
+    if attachment.particle_attributes.scale == nil then attachment.particle_attributes.scale = 1 end
+    if attachment.particle_attributes.color == nil or attachment.particle_attributes.color == {} then
+        attachment.particle_attributes.color = { r = 150, g = 150, b = 150, a = 150 }
+    end
+end
+
+constructor_lib.start_particle_fx = function(attachment)
+    if attachment.is_preview then
+        attachment.handle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(
                 attachment.particle_attributes.effect_name,
                 attachment.parent.handle,
                 attachment.offset.x, attachment.offset.y, attachment.offset.z,
@@ -264,6 +277,27 @@ constructor_lib.update_particle_tick = function(attachment)
                 attachment.particle_attributes.scale,
                 false, false, false
         )
+    else
+        attachment.handle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(
+                attachment.particle_attributes.effect_name,
+                attachment.parent.handle,
+                attachment.offset.x, attachment.offset.y, attachment.offset.z,
+                attachment.rotation.x, attachment.rotation.y, attachment.rotation.z,
+                attachment.particle_attributes.bone_index,
+                attachment.particle_attributes.scale,
+                false, false, false
+        )
+    end
+end
+
+constructor_lib.update_particle_tick = function(attachment)
+    if attachment.type ~= "PARTICLE" then return end
+    if (attachment.particle_attributes.refresh_time ~= nil and util.current_time_millis() >= attachment.particle_attributes.refresh_time)
+        or (attachment.particle_attributes.refresh_time == nil and
+        attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0)
+    then
+        GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
+        constructor_lib.start_particle_fx(attachment)
         attachment.particle_attributes.refresh_time = util.current_time_millis() + attachment.particle_attributes.loop_timer
     end
 end
@@ -272,35 +306,24 @@ constructor_lib.attach_particle = function(attachment)
     if attachment.type ~= "PARTICLE" or attachment.particle_attributes == nil then return end
     constructor_lib.default_particle_attributes(attachment)
     constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
-    GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
-    GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
-            attachment.particle_attributes.effect_name,
-            attachment.parent.handle,
-            attachment.offset.x, attachment.offset.y, attachment.offset.z,
-            attachment.rotation.x, attachment.rotation.y, attachment.rotation.z,
-            attachment.particle_attributes.bone_index,
-            attachment.particle_attributes.scale,
-            false, false, false
-    )
-    attachment.particle_attributes.refresh_time = util.current_time_millis() + attachment.particle_attributes.loop_timer
+    if attachment.particle_attributes.loop_timer then
+        attachment.particle_attributes.refresh_time = util.current_time_millis()
+    else
+        GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
+        constructor_lib.start_particle_fx(attachment)
+    end
+    constructor_lib.deserialize_particle_attributes(attachment)
+end
 
-    --    if ENTITY.DOES_ENTITY_EXIST(vehicle) and not ENTITY.IS_ENTITY_DEAD(vehicle, false) and
-    --            VEHICLE.IS_VEHICLE_DRIVEABLE(vehicle, false) and lastEffect.elapsed() > effect[4] then
-    --        constructor_lib.load_particle_fx_asset(effect[1])
-    --        for _, boneName in pairs({"wheel_lf", "wheel_lr", "wheel_rf", "wheel_rr"}) do
-    --            local bone = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(vehicle, boneName)
-    --
-    --            GRAPHICS.USE_PARTICLE_FX_ASSET(effect[1])
-    --            GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
-    --                    effect[2],
-    --                    vehicle,
-    --                    0.0, 0.0, 0.0,
-    --                    0.0, 0.0, 0.0,
-    --                    bone,
-    --                    effect[3],
-    --                    false, false, false
-    --            )
-    --        end
+constructor_lib.deserialize_particle_attributes = function(attachment)
+    if attachment.particle_attributes.scale ~= nil then
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_SCALE(attachment.handle, attachment.particle_attributes.scale)
+    end
+    if attachment.particle_attributes.color ~= nil then
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_COLOUR(attachment.handle,
+                attachment.particle_attributes.color.r, attachment.particle_attributes.color.g, attachment.particle_attributes.color.b, 0)
+        GRAPHICS.SET_PARTICLE_FX_LOOPED_ALPHA(attachment.handle, attachment.particle_attributes.color.a)
+    end
 end
 
 ---
@@ -1449,16 +1472,6 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
     if vehicle.vehicle_attributes.options.engine_health ~= nil then
         VEHICLE.SET_VEHICLE_ENGINE_HEALTH(vehicle.handle, vehicle.vehicle_attributes.options.engine_health)
     end
-end
-
-constructor_lib.default_particle_attributes = function(attachment)
-    if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
-    if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
-    if attachment.particle_attributes == nil then attachment.particle_attributes = {} end
-    if attachment.particle_attributes.bone_index == nil then attachment.particle_attributes.bone_index = 0 end
-    if attachment.particle_attributes.scale == nil then attachment.particle_attributes.scale = 1 end
-    if attachment.particle_attributes.offset == nil or attachment.particle_attributes.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
-    if attachment.particle_attributes.rotation == nil or attachment.particle_attributes.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
 end
 
 ---
