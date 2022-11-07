@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b14"
+local SCRIPT_VERSION = "0.26b15"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1394,7 +1394,7 @@ local function add_attachment_options_menu(attachment)
             attachment.options.has_gravity = on
             constructor_lib.attach_entity(attachment)
         end, attachment.options.has_gravity)
-        attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Frozen"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
+        attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
             attachment.options.is_frozen = on
             constructor_lib.attach_entity(attachment)
         end, attachment.options.is_frozen)
