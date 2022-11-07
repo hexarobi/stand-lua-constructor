@@ -1,6 +1,6 @@
--- GTA5 Constants
--- v1.4
+-- Constructor Constants
 
+local SCRIPT_VERSION = "0.26"
 local constants = {}
 
 constants.ped_props = {
@@ -643,41 +643,6 @@ constants.bone_index_names = {
         },
     },
 }
-
-constants.table_copy = function(obj)
-    if type(obj) ~= 'table' then
-        return obj
-    end
-    local res = setmetatable({}, getmetatable(obj))
-    for k, v in pairs(obj) do
-        res[constants.table_copy(k)] = constants.table_copy(v)
-    end
-    return res
-end
-
-constants.string_starts = function(String,Start)
-    return string.sub(String,1,string.len(Start))==Start
-end
-
--- From https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
-constants.array_remove = function(t, fnKeep)
-    local j, n = 1, #t;
-
-    for i=1,n do
-        if (fnKeep(t, i, j)) then
-            -- Move i's kept value to j's position, if it's not already there.
-            if (i ~= j) then
-                t[j] = t[i];
-                t[i] = nil;
-            end
-            j = j + 1; -- Increment position of where we'll place the next kept value.
-        else
-            t[i] = nil;
-        end
-    end
-
-    return t;
-end
 
 constants.CONSTRUCTS_INSTALLER_SCRIPT = "-- Curated Constructs Installer\
 menu.divider(menu.my_root(), \"Downloading curated constructs.\")\
