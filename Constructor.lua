@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b13"
+local SCRIPT_VERSION = "0.26b14"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1403,19 +1403,19 @@ local function add_attachment_options_menu(attachment)
     if attachment.type == "PARTICLE" then
         attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.options, t("Scale"), {"constructorscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
             attachment.particle_attributes.scale = value / 100
-            constructor_lib.attach_particle(attachment)
+            constructor_lib.update_particle(attachment)
         end)
         attachment.menus.option_particle_bone_index = menu.slider(attachment.menus.options, t("Bone Index"), {}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.particle_attributes.bone_index or -1, 1, function(value)
             attachment.particle_attributes.bone_index = value
-            constructor_lib.attach_particle(attachment)
+            constructor_lib.update_particle(attachment)
         end)
         attachment.menus.option_particle_loop_timer = menu.slider(attachment.menus.options, t("Loop Timer"), {}, t("How often should the effect repeat. If this is 0 then it should try to loop forever."), 0, 60000, attachment.particle_attributes.loop_timer or 0, 1, function(value)
             attachment.particle_attributes.loop_timer = value
-            constructor_lib.attach_particle(attachment)
+            constructor_lib.update_particle(attachment)
         end)
         attachment.menus.option_particle_color = menu.colour(attachment.menus.options, "Particle Color", {}, "", attachment.particle_attributes.color, true, function(color)
             attachment.particle_attributes.color = color
-            constructor_lib.attach_particle(attachment)
+            constructor_lib.update_particle(attachment)
         end)
     end
 
