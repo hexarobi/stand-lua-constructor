@@ -1,18 +1,30 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = 0.26
+local SCRIPT_VERSION = 0.26b2
 local constants = {}
 
 constants.particle_fxs = {
     {
-        name="Alien Impact",
+        name="Fire",
         type="PARTICLE",
         particle_attributes={
-            asset="scr_rcbarry1",
-            effect_name="scr_alien_impact_bul",
-            scale=1,
-            loop_timer=50,
-        },
+            asset="core",
+            effect_name="fire_wrecked_plane_cockpit",
+        }
+    },
+    {
+        name="Smoke",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_as_trans",
+            effect_name="scr_as_trans_smoke",
+            color = {
+                r=100,
+                g=100,
+                b=100,
+                a=100,
+            }
+        }
     },
     {
         name="Clown Appears",
@@ -23,6 +35,16 @@ constants.particle_fxs = {
             scale=0.3,
             loop_timer=500,
         }
+    },
+    {
+        name="Alien Impact",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_rcbarry1",
+            effect_name="scr_alien_impact_bul",
+            scale=1,
+            loop_timer=50,
+        },
     },
     {
         name="Blue Sparks",
@@ -54,6 +76,254 @@ constants.particle_fxs = {
             effect_name="scr_alien_teleport",
             scale=0.1,
             loop_timer=400,
+        }
+    },
+    {
+        name="Fireworks Burst",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_indep_fireworks",
+            effect_name="scr_indep_firework_shotburst",
+        }
+    },
+    {
+        name="Flare Smoke Trail",
+        type="PARTICLE",
+        particle_attributes={
+            asset="wpn_flare",
+            effect_name="proj_heist_flare_trail",
+        }
+    },
+    {
+        name="Flamethrower Loop",
+        type="PARTICLE",
+        particle_attributes={
+            asset="weap_xs_vehicle_weapons",
+            effect_name="muz_xs_turret_flamethrower_looping",
+        }
+    },
+    {
+        name="muz_xs_turret_flamethrower_looping_sf",
+        type="PARTICLE",
+        particle_attributes={
+            asset="weap_xs_vehicle_weapons",
+            effect_name="muz_xs_turret_flamethrower_looping_sf",
+        }
+    },
+    {
+        name="Turbulent Water",
+        type="PARTICLE",
+        particle_attributes={
+            asset="weap_sm_tula",
+            effect_name="veh_tula_turbulance_water",
+        }
+    },
+    {
+        name="Railgun Charge",
+        type="PARTICLE",
+        particle_attributes={
+            asset="veh_khanjali",
+            effect_name="muz_xm_khanjali_railgun_charge",
+        }
+    },
+    {
+        name="Oil Jack Fire",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_xs_props",
+            effect_name="scr_xs_oil_jack_fire",
+        }
+    },
+    {
+        name="scr_xs_sf_pit",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_xs_pits",
+            effect_name="scr_xs_sf_pit",
+        }
+    },
+    {
+        name="Small Fire Pit",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_xs_pits",
+            effect_name="scr_xs_fire_pit",
+        }
+    },
+    {
+        name="Large Fire Pit",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_xs_pits",
+            effect_name="scr_xs_fire_pit_long",
+        }
+    },
+    {
+        name="Electric Pit",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_xs_pits",
+            effect_name="scr_xs_sf_pit_long",
+        }
+    },
+    {
+        name="Money Rain",
+        type="PARTICLE",
+        particle_attributes={
+            asset="xcr_xs_celebration",
+            effect_name="scr_xs_money_rain",
+        }
+    },
+    {
+        name="Money Rain Celebration",
+        type="PARTICLE",
+        particle_attributes={
+            asset="xcr_xs_celebration",
+            effect_name="scr_xs_money_rain_celeb",
+        }
+    },
+    {
+        name="Champagne Spray",
+        type="PARTICLE",
+        particle_attributes={
+            asset="xcr_xs_celebration",
+            effect_name="scr_xs_champagne_spray",
+        }
+    },
+    {
+        name="Stromberg Scanner",
+        type="PARTICLE",
+        particle_attributes={
+            asset="xcr_xm_submarine",
+            effect_name="scr_xm_stromberg_scanner",
+        }
+    },
+    {
+        name="Plane Smoke Trail",
+        type="PARTICLE",
+        particle_attributes={
+            asset="xcr_xm_spybomb",
+            effect_name="scr_xm_spybomb_plane_smoke_trail",
+        }
+    },
+    {
+        name="Package Flare",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_xm_ht",
+            effect_name="scr_xm_ht_package_flare",
+        }
+    },
+    {
+        name="Electric Crackle",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_xm_farm",
+            effect_name="scr_xm_dst_elec_cracke",
+        }
+    },
+    {
+        name="Heat Camo",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_xm_heat",
+            effect_name="scr_xm_heat_camo",
+        }
+    },
+    {
+        name="Final Kill Thruster",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_xm_aq",
+            effect_name="scr_xm_aq_final_kill_thruster",
+        }
+    },
+    {
+        name="Weapon Highlight",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_sr_adversary",
+            effect_name="scr_sr_lg_weapon_highlight",
+        }
+    },
+    {
+        name="Recrash Rescue",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_recrash_rescue",
+            effect_name="scr_recrash_rescue",
+        }
+    },
+    {
+        name="Sparking Generator",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_reconstructionaccident",
+            effect_name="scr_sparking_generator",
+        }
+    },
+    {
+        name="Debris Trail",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_rcnigel2",
+            effect_name="scr_rcn2_debris_trail",
+        }
+    },
+    {
+        name="Alien Charging",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_rcbarry1",
+            effect_name="scr_alien_charging",
+        }
+    },
+    {
+        name="Alien Impact",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_rcbarry1",
+            effect_name="scr_alien_impact",
+        }
+    },
+    {
+        name="Fog Volume",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_jewelheist",
+            effect_name="scr_jewel_fog_volume",
+        }
+    },
+    {
+        name="Car Wash Jet",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_carwash",
+            effect_name="ent_amb_car_wash_jet",
+        }
+    },
+    {
+        name="Sauna Steam",
+        type="PARTICLE",
+        particle_attributes={
+            asset="cut_amb_tv",
+            effect_name="cs_amb_tv_sauna_steam",
+        }
+    },
+    {
+        name="Heli Wreck Fire",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_trevor2",
+            effect_name="scr_trev2_heli_wreck",
+        }
+    },
+    {
+        name="Fire Ring",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_stunts",
+            effect_name="scr_stunts_fire_ring",
         }
     },
 }
