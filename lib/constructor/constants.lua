@@ -1,6 +1,6 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.26b2"
+local SCRIPT_VERSION = "0.26b3"
 local constants = {}
 
 constants.particle_fxs = {
@@ -135,14 +135,6 @@ constants.particle_fxs = {
         }
     },
     {
-        name="scr_xs_sf_pit",
-        type="PARTICLE",
-        particle_attributes={
-            asset="scr_xs_pits",
-            effect_name="scr_xs_sf_pit",
-        }
-    },
-    {
         name="Small Fire Pit",
         type="PARTICLE",
         particle_attributes={
@@ -164,6 +156,14 @@ constants.particle_fxs = {
         particle_attributes={
             asset="scr_xs_pits",
             effect_name="scr_xs_sf_pit_long",
+        }
+    },
+    {
+        name="Large Electric Pit",
+        type="PARTICLE",
+        particle_attributes={
+            asset="scr_xs_pits",
+            effect_name="scr_xs_sf_pit",
         }
     },
     {
