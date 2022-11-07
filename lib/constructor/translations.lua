@@ -104,7 +104,7 @@ translations["zh"] = {
     ["World Position"] = "世界偏移",
     ["World Rotation"] = "世界旋转",
     ["Hold SHIFT to fine tune"] = "按住SHIFT键进行微调",
-    ["Options"] = "选项",
+    ["Options"] = "其他选项",
     ["Visible"] = "可见",
     ["Will the attachment be visible, or invisible"] = "附件是可见还是不可见",
     ["Collision"] = "碰撞",
@@ -208,10 +208,10 @@ translations["zh"] = {
     ["Anything you shoot with this enabled will be added to the current construct"] = "启用此功能射击的任何物体都将添加到当前构造中",
     ["Edit Attachments"] = "编辑附件",
     ["Clone"] = "克隆",
-    ["Clone (In Place)"] = "克隆 (位置)",
-    ["Clone Reflection: X:Left/Right"] = "克隆反射：X:左/右",
-    ["Clone Reflection: Y:Front/Back"] = "克隆反射：Y:前/后",
-    ["Clone Reflection: Z:Up/Down"] = "克隆反射：Z:上/下",
+    ["Clone (In Place)"] = "克隆 (原处)",
+    ["Clone Reflection: X:Left/Right"] = "克隆映像：X:左/右",
+    ["Clone Reflection: Y:Front/Back"] = "克隆映像：Y:前/后",
+    ["Clone Reflection: Z:Up/Down"] = "克隆映像：Z:上/下",
     ["Actions"] = "行动",
     ["Teleport"] = "传送",
     ["Teleport Into Vehicle"] = "传送到载具",
@@ -232,7 +232,7 @@ translations["zh"] = {
     ["Create New Construct"] = "创建新构造",
     ["Vehicle"] = "载具",
     ["From Current"] = "当前载具",
-    ["Create a new construct based on current (or last in) vehicle"] = "在当前载具(或最后一辆)进行构造",
+    ["Create a new construct based on current (or last in) vehicle"] = "在当前载具(或最后一辆)进行构建",
     ["Error: You must be (or recently been) in a vehicle to create a construct from it"] = "错误:你必须在坐过当前载具(或最后一辆)才能进行构造",
     ["From Vehicle Name"] = "载具名称",
     ["Create a new construct from an exact vehicle name"] = "从载具名称创建新构造",
@@ -245,13 +245,13 @@ translations["zh"] = {
     ["From Me"] = "构造自己",
     ["Create a new construct from your player Ped"] = "对当前模型进行自我构造",
     ["Player is already a construct"] = "玩家已经是一个构造体",
-    ["From Ped Name"] = "人物模型名称",
+    ["From Ped Name"] = "人物名称",
     ["Create a new Ped construct from exact name"] = "搜索创建一个新的人物模型",
     ["Load Construct"] = "加载构造体",
     ["Load a previously saved or shared construct into the world"] = "将保存或共享的构造加载到世界中",
-    ["Loaded Constructs"] = "已加载的构造体",
+    ["Loaded Constructs"] = "已加载构造",
     ["View and edit already loaded constructs"] = "查看和编辑已经加载的构造",
-    ["Search all your construct files"] = "搜索你的所有构造文件",
+    ["Search all your construct files"] = "搜索构造文件",
     ["Edit your search query"] = "搜索构造体",
     ["No results found"] = "没有搜索结果",
     ["Missing downloaded file "] = "缺少下载文件 ",
@@ -321,6 +321,20 @@ translations["zh"] = {
     ["Give Weapon"] = "给予武器",
     ["Give the ped a weapon."] = "给予该ped武器",
     ["Vehicle by Name"] = "按载具名称",
+    ["From Current Vehicle"] = "当前载具",
+    ["From Vehicle List"] = "载具列表",
+    ["Create a new construct from a list of vehicles"] = "从载具列表中搜索并生成",
+    ["From Object Search"] = "物体名称",
+    ["Create a new map by searching for a object"] = "从物体列表中搜索并生成",
+    ["From Current Ped"] = "自我构造",
+    ["From Ped List"] = "人物列表",
+    ["Create a new construct from a list of peds"] = "从人物列表中搜索并生成",
+    ["Spawn Entity Delay"] = "生成实体延迟",
+    ["Pause after spawning any object. Useful for preventing issues when spawning large constructs with many objects."] = "预览时开始创建的延迟.",
+    ["Freeze Position"] = "冻结位置",
+    ["Will the construct be frozen in place, or allowed to move freely"] = "构造是被冻结是否被冻结在原地.",
+    ["Particle Effects"] = "粒子特效",
+    ["Browse a curated collection of particle effects"] = "预览精品粒子特效",
     ["Translators"] = "翻译"
 }
 
@@ -329,6 +343,7 @@ translations["zh"] = {
 ---
 
 return translations
+
 
 
 
