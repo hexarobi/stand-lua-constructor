@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b15"
+local SCRIPT_VERSION = "0.26b16"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -593,7 +593,11 @@ local function add_preview(construct_plan, preview_image_path)
     util.yield(config.preview_display_delay)
     if next_preview == construct_plan then
         local attachment = copy_construct_plan(construct_plan)
-        if construct_plan.type == "PED" then attachment = use_player_as_base(attachment) end
+        if construct_plan.type == "PED" then
+            attachment = use_player_as_base(attachment)
+        elseif construct_plan.type == "PARTICLE" then
+            attachment = {model="ng_proc_cigbuts02a", children={attachment}}
+        end
         attachment.root = attachment
         attachment.parent = attachment
         attachment.is_preview = true
@@ -1750,18 +1754,6 @@ local function add_attachment_add_attachment_options(attachment)
     --menu.divider(attachment.menus.main, t("Attachments"))
     --attachment.menus.attachments = menu.list(attachment.menus.main, t("Attachments"))
     attachment.menus.add_attachment = menu.list(attachment.menus.main, t("Add Attachment"), {}, t("Options for attaching other entities to this construct"))
-
-    attachment.menus.add_particle = menu.list(attachment.menus.add_attachment, t("Particle Effects"), {}, t("Browse a curated collection of particle effects"))
-    for _, particle in pairs(constants.particle_fxs) do
-        particle.load_menu = menu.action(attachment.menus.add_particle, particle.name, {}, "", function()
-            local particle_attachment = copy_construct_plan(particle)
-            particle_attachment.root = attachment.root
-            particle_attachment.parent = attachment
-            build_construct_from_plan(particle_attachment)
-        end)
-        menu.on_focus(particle.load_menu, function(direction) if direction ~= 0 then add_preview({model="ng_proc_cigbuts02a", children={constructor_lib.table_copy(particle)}}) end end)
-        menu.on_blur(particle.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
-    end
 
     attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
     for _, curated_item in pairs(curated_attachments) do
