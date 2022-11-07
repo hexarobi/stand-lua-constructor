@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.26b10"
+local SCRIPT_VERSION = "3.26b11"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -262,7 +262,7 @@ constructor_lib.default_particle_attributes = function(attachment)
     if attachment.particle_attributes.bone_index == nil then attachment.particle_attributes.bone_index = 0 end
     if attachment.particle_attributes.scale == nil then attachment.particle_attributes.scale = 1 end
     if attachment.particle_attributes.color == nil or attachment.particle_attributes.color == {} then
-        attachment.particle_attributes.color = { r = 100, g = 100, b = 100, a = 100 }
+        attachment.particle_attributes.color = { r = 150, g = 150, b = 150, a = 150 }
     end
 end
 
