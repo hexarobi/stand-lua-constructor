@@ -8398,7 +8398,7 @@ local curated_attachments <const> = {
                 }
             },
             {
-                name="muz_xs_turret_flamethrower_looping_sf",
+                name="Flamethrower Loop #2",
                 type="PARTICLE",
                 particle_attributes={
                     asset="weap_xs_vehicle_weapons",
