@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.5b7"
+local SCRIPT_VERSION = "0.8.5b8"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -255,6 +255,21 @@ local function convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, att
 
 end
 
+local function convert_jackz_particle_to_attachment(jackz_object, attachment)
+    if attachment == nil then attachment = {} end
+    if attachment.particle_attributes == nil then attachment.particle_attributes = {} end
+    if jackz_object.name ~= nil then attachment.name = jackz_object.name end
+    if jackz_object.boneIndex ~= nil then attachment.particle_attributes.bone_index = jackz_object.boneIndex end
+    if jackz_object.scale ~= nil then attachment.particle_attributes.scale = jackz_object.scale end
+    if jackz_object.color ~= nil then attachment.particle_attributes.color = jackz_object.color end
+    if jackz_object.offset ~= nil then attachment.offset = jackz_object.offset end
+    if jackz_object.rotation ~= nil then attachment.rotation = jackz_object.rotation end
+    if jackz_object.particle ~= nil then
+        attachment.particle_attributes.asset = jackz_object.particle[1]
+        attachment.particle_attributes.effect_name = jackz_object.particle[2]
+    end
+end
+
 local function convert_jackz_object_to_attachment(jackz_object, jackz_save_data, attachment, type)
     if attachment == nil then attachment = {} end
     if attachment.children == nil then attachment.children = {} end
@@ -321,6 +336,13 @@ convertor.convert_jackz_to_construct_plan = function(jackz_build_data)
         for _, child_object in pairs(jackz_build_data.peds) do
             local child_attachment = {type="PED"}
             convert_jackz_object_to_attachment(child_object, nil, child_attachment, "PED")
+            table.insert(construct_plan.children, child_attachment)
+        end
+    end
+    if jackz_build_data.particles then
+        for _, child_object in pairs(jackz_build_data.particles) do
+            local child_attachment = {type="PARTICLE"}
+            convert_jackz_particle_to_attachment(child_object, child_attachment)
             table.insert(construct_plan.children, child_attachment)
         end
     end
