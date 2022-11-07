@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b12"
+local SCRIPT_VERSION = "0.26b13"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1403,19 +1403,19 @@ local function add_attachment_options_menu(attachment)
     if attachment.type == "PARTICLE" then
         attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.options, t("Scale"), {"constructorscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
             attachment.particle_attributes.scale = value / 100
-            constructor_lib.deserialize_particle_attributes(attachment)
+            constructor_lib.attach_particle(attachment)
         end)
         attachment.menus.option_particle_bone_index = menu.slider(attachment.menus.options, t("Bone Index"), {}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.particle_attributes.bone_index or -1, 1, function(value)
             attachment.particle_attributes.bone_index = value
-            constructor_lib.deserialize_particle_attributes(attachment)
+            constructor_lib.attach_particle(attachment)
         end)
         attachment.menus.option_particle_loop_timer = menu.slider(attachment.menus.options, t("Loop Timer"), {}, t("How often should the effect repeat. If this is 0 then it should try to loop forever."), 0, 60000, attachment.particle_attributes.loop_timer or 0, 1, function(value)
             attachment.particle_attributes.loop_timer = value
-            constructor_lib.deserialize_particle_attributes(attachment)
+            constructor_lib.attach_particle(attachment)
         end)
         attachment.menus.option_particle_color = menu.colour(attachment.menus.options, "Particle Color", {}, "", attachment.particle_attributes.color, true, function(color)
             attachment.particle_attributes.color = color
-            constructor_lib.deserialize_particle_attributes(attachment)
+            constructor_lib.attach_particle(attachment)
         end)
     end
 
@@ -2313,6 +2313,8 @@ menu.action(options_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby vehicles,
     local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),500, "VEHICLE")
     local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),500, "OBJECT")
     local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),500, "PED")
+    local player_pos = ENTITY.GET_ENTITY_COORDS(PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()), 1)
+    GRAPHICS.REMOVE_PARTICLE_FX_IN_RANGE(player_pos.x, player_pos.y, player_pos.z, 500)
     util.toast(t("Removed").." "..objects.." "..t("objects")..", "..vehicles.." "..t("vehicles")..t(", and ")..peds.." "..t("peds"), TOAST_ALL)
 end)
 
