@@ -623,6 +623,7 @@ local function update_preview_tick()
         constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
         constructor_lib.draw_bounding_box_with_dimensions(current_preview.handle, config.preview_bounding_box_color, current_preview.dimensions.min_vec, current_preview.dimensions.max_vec)
         constructor_lib.completely_disable_attachment_collision(current_preview)
+        constructor_lib.update_particles_tick(current_preview)
     end
     if image_preview ~= nil then
         directx.draw_texture(image_preview, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
@@ -815,9 +816,7 @@ local function delete_construct(construct)
         restore_original_player_skin()
     else
         constructor_lib.remove_attachment_from_parent(construct)
-        if construct.handle ~= nil and construct.handle > 0 then
-            entities.delete_by_handle(construct.handle)
-        end
+        --constructor_lib.delete_attachment(construct)
     end
     constructor_lib.array_remove(spawned_constructs, function(t, i)
         local spawned_construct = t[i]
@@ -1760,7 +1759,7 @@ local function add_attachment_add_attachment_options(attachment)
             particle_attachment.parent = attachment
             build_construct_from_plan(particle_attachment)
         end)
-        menu.on_focus(particle.load_menu, function(direction) if direction ~= 0 then add_preview({model="hei_prop_wall_light_10a_cr", children={constructor_lib.table_copy(particle)}}) end end)
+        menu.on_focus(particle.load_menu, function(direction) if direction ~= 0 then add_preview({model="ng_proc_cigbuts02a", children={constructor_lib.table_copy(particle)}}) end end)
         menu.on_blur(particle.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
     end
 
