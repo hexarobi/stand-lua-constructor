@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.26b9"
+local SCRIPT_VERSION = "3.26b10"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -262,13 +262,16 @@ constructor_lib.default_particle_attributes = function(attachment)
     if attachment.particle_attributes.bone_index == nil then attachment.particle_attributes.bone_index = 0 end
     if attachment.particle_attributes.scale == nil then attachment.particle_attributes.scale = 1 end
     if attachment.particle_attributes.color == nil or attachment.particle_attributes.color == {} then
-        attachment.particle_attributes.color = { r = 150, g = 150, b = 150, a = 150 }
+        attachment.particle_attributes.color = { r = 100, g = 100, b = 100, a = 100 }
     end
 end
 
 constructor_lib.start_particle_fx = function(attachment)
-    if attachment.is_preview then
-        attachment.handle = GRAPHICS.START_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(
+    --debug_log("Starting particle fx name="..attachment.name.." asset="..attachment.particle_attributes.asset.." effect="..attachment.particle_attributes.effect_name)
+    constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
+    GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
+    if attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0 then
+        attachment.handle = GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
                 attachment.particle_attributes.effect_name,
                 attachment.parent.handle,
                 attachment.offset.x, attachment.offset.y, attachment.offset.z,
@@ -290,28 +293,36 @@ constructor_lib.start_particle_fx = function(attachment)
     end
 end
 
+constructor_lib.is_particle_loop_due_for_refresh = function(attachment)
+    return (
+        attachment.particle_attributes.refresh_time ~= nil
+        and util.current_time_millis() >= attachment.particle_attributes.refresh_time
+    ) or (
+        attachment.particle_attributes.refresh_time == nil and
+        attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0
+    )
+end
+
 constructor_lib.update_particle_tick = function(attachment)
     if attachment.type ~= "PARTICLE" then return end
-    if (attachment.particle_attributes.refresh_time ~= nil and util.current_time_millis() >= attachment.particle_attributes.refresh_time)
-        or (attachment.particle_attributes.refresh_time == nil and
-        attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0)
-    then
-        GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
+    if constructor_lib.is_particle_loop_due_for_refresh(attachment) then
         constructor_lib.start_particle_fx(attachment)
+        constructor_lib.deserialize_particle_attributes(attachment)
         attachment.particle_attributes.refresh_time = util.current_time_millis() + attachment.particle_attributes.loop_timer
     end
 end
 
-constructor_lib.attach_particle = function(attachment)
-    if attachment.type ~= "PARTICLE" or attachment.particle_attributes == nil then return end
-    constructor_lib.default_particle_attributes(attachment)
-    constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
-    if attachment.particle_attributes.loop_timer then
-        attachment.particle_attributes.refresh_time = util.current_time_millis()
-    else
-        GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
-        constructor_lib.start_particle_fx(attachment)
+constructor_lib.update_particles_tick = function(attachment)
+    constructor_lib.update_particle_tick(attachment)
+    for _, child_attachment in pairs(attachment.children) do
+        constructor_lib.update_particles_tick(child_attachment)
     end
+end
+
+constructor_lib.attach_particle = function(attachment)
+    if attachment.type ~= "PARTICLE" then return end
+    constructor_lib.default_particle_attributes(attachment)
+    constructor_lib.start_particle_fx(attachment)
     constructor_lib.deserialize_particle_attributes(attachment)
 end
 
@@ -333,7 +344,7 @@ end
 constructor_lib.update_attachment_position = function(attachment)
     --debug_log("Updating attachment position "..tostring(attachment.name))
     if attachment == attachment.parent or attachment.options.is_attached == false then
-        debug_log("Updating attachment world rotation "..tostring(attachment.name))
+        --debug_log("Updating attachment world rotation "..tostring(attachment.name))
         ENTITY.SET_ENTITY_ROTATION(
                 attachment.handle,
                 attachment.world_rotation.x,
@@ -564,6 +575,16 @@ constructor_lib.detach_attachment = function(attachment)
     attachment.parent = attachment
 end
 
+constructor_lib.delete_attachment = function(attachment)
+    if attachment.handle ~= nil and attachment.handle > 0 then
+        if constructor_lib.is_attachment_entity(attachment) then
+            entities.delete_by_handle(attachment.handle)
+        elseif attachment.type == "PARTICLE" then
+            GRAPHICS.REMOVE_PARTICLE_FX(attachment.handle, true)
+        end
+    end
+end
+
 constructor_lib.remove_attachment = function(attachment)
     debug_log("Removing attachment "..tostring(attachment.name))
     if not attachment then return end
@@ -576,13 +597,7 @@ constructor_lib.remove_attachment = function(attachment)
     end
     if not attachment.is_player or attachment.is_preview then
         if attachment == attachment.parent and attachment.blip_handle then util.remove_blip(attachment.blip_handle) end
-        if constructor_lib.is_attachment_entity(attachment) then
-            if attachment.handle ~= nil and attachment.handle > 0 then
-                entities.delete_by_handle(attachment.handle)
-            else
-                util.log("Cannot remove attachment. No valid handle found. "..tostring(attachment.name))
-            end
-        end
+        constructor_lib.delete_attachment(attachment)
         debug_log("Removed attachment. "..tostring(attachment.name))
     end
     if attachment.menus then
@@ -672,7 +687,7 @@ constructor_lib.load_particle_fx_asset = function(asset, timeout)
     if timeout == nil then timeout = 3000 end
     STREAMING.REQUEST_NAMED_PTFX_ASSET(asset)
     local end_time = util.current_time_millis() + timeout
-    repeat util.yield() until STREAMING.REQUEST_NAMED_PTFX_ASSET(asset) or util.current_time_millis() >= end_time
+    repeat util.yield() until STREAMING.HAS_NAMED_PTFX_ASSET_LOADED(asset) or util.current_time_millis() >= end_time
     return STREAMING.REQUEST_NAMED_PTFX_ASSET(asset)
 end
 
