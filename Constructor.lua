@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b17"
+local SCRIPT_VERSION = "0.26"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 2
+local SELECTED_BRANCH_INDEX = 1
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 local loading_menu = menu.divider(menu.my_root(), "Loading...")
@@ -167,7 +167,7 @@ CONSTRUCTOR_CONFIG = {
     preview_display_delay = 500,
     max_search_results = 100,
     spawn_entity_delay = 10,
-    debug_mode = true,
+    debug_mode = false,
 }
 local config = CONSTRUCTOR_CONFIG
 
