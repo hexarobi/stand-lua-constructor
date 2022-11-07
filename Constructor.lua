@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b10"
+local SCRIPT_VERSION = "0.26b11"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1402,13 +1402,21 @@ local function add_attachment_options_menu(attachment)
     end
 
     if attachment.type == "PARTICLE" then
-        attachment.menus.edit_scale = menu.slider(attachment.menus.options, t("Scale"), {"constructorscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
+        attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.options, t("Scale"), {"constructorscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
             attachment.particle_attributes.scale = value / 100
-            constructor_lib.move_attachment(attachment)
+            constructor_lib.deserialize_particle_attributes(attachment)
         end)
-        attachment.menus.option_bone_index = menu.slider(attachment.menus.options, t("Bone Index"), {}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.particle_attributes.bone_index or -1, 1, function(value)
+        attachment.menus.option_particle_bone_index = menu.slider(attachment.menus.options, t("Bone Index"), {}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.particle_attributes.bone_index or -1, 1, function(value)
             attachment.particle_attributes.bone_index = value
-            constructor_lib.attach_entity(attachment)
+            constructor_lib.deserialize_particle_attributes(attachment)
+        end)
+        attachment.menus.option_particle_loop_timer = menu.slider(attachment.menus.options, t("Loop Timer"), {}, t("How often should the effect repeat. If this is 0 then it should try to loop forever."), 0, 60000, attachment.particle_attributes.loop_timer or 0, 1, function(value)
+            attachment.particle_attributes.loop_timer = value
+            constructor_lib.deserialize_particle_attributes(attachment)
+        end)
+        attachment.menus.option_particle_color = menu.colour(attachment.menus.options, "Particle Color", {}, "", attachment.particle_attributes.color, true, function(color)
+            attachment.particle_attributes.color = color
+            constructor_lib.deserialize_particle_attributes(attachment)
         end)
     end
 
@@ -1752,8 +1760,8 @@ local function add_attachment_add_attachment_options(attachment)
             particle_attachment.parent = attachment
             build_construct_from_plan(particle_attachment)
         end)
-        --menu.on_focus(particle.load_menu, function(direction) if direction ~= 0 then add_preview(particle) end end)
-        --menu.on_blur(particle.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+        menu.on_focus(particle.load_menu, function(direction) if direction ~= 0 then add_preview({model="hei_prop_wall_light_10a_cr", children={constructor_lib.table_copy(particle)}}) end end)
+        menu.on_blur(particle.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
     end
 
     attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
