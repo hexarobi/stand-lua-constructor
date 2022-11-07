@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26b16"
+local SCRIPT_VERSION = "0.26b17"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1890,6 +1890,37 @@ local function add_attachment_teleport_options(attachment)
 
 end
 
+local function add_attachment_info_menu(attachment)
+
+    attachment.menus.info = menu.list(attachment.menus.main, "Info")
+
+    attachment.menus.name = menu.text_input(attachment.menus.info, t("Name"), { "constructorsetattachmentname"..attachment.id}, t("Set name of the attachment"), function(value)
+        attachment.name = value
+        attachment.menus.refresh()
+    end, attachment.name)
+
+    if attachment == attachment.parent then
+
+        attachment.menus.info_author = menu.text_input(attachment.menus.info, t("Author"), { "constructorsetattachmentauthor"..attachment.id}, t("Set name of the player that created this construct"), function(value)
+            attachment.author = value
+            attachment.menus.refresh()
+        end, attachment.author or "")
+
+        attachment.menus.info_description = menu.text_input(attachment.menus.info, t("Description"), { "constructorsetattachmentdescription"..attachment.id}, t("Set text to describe this construct"), function(value)
+            attachment.description = value
+            attachment.menus.refresh()
+        end, attachment.description or "")
+
+    end
+
+
+    attachment.menus.debug = menu.list(attachment.menus.info, t("Debug Info"), {}, "", function()
+        rebuild_attachment_debug_menu(attachment)
+    end)
+    rebuild_attachment_debug_menu(attachment)
+
+end
+
 menus.rebuild_attachment_menu = function(attachment)
     if constructor_lib.is_attachment_entity(attachment) and (not attachment.handle) then error("Attachment missing handle") end
     if attachment.menus ~= nil then return end
@@ -1904,10 +1935,7 @@ menus.rebuild_attachment_menu = function(attachment)
     end
     attachment.menus.main = menu.list(parent_menu, attachment.name)
 
-    attachment.menus.name = menu.text_input(attachment.menus.main, t("Name"), { "constructorsetattachmentname"..attachment.id}, t("Set name of the attachment"), function(value)
-        attachment.name = value
-        attachment.menus.refresh()
-    end, attachment.name)
+    add_attachment_info_menu(attachment)
 
     add_attachment_position_menu(attachment)
 
@@ -1929,10 +1957,6 @@ menus.rebuild_attachment_menu = function(attachment)
         add_attachment_teleport_options(attachment)
     end
 
-    attachment.menus.debug = menu.list(attachment.menus.main, t("Debug Info"), {}, "", function()
-        rebuild_attachment_debug_menu(attachment)
-    end)
-    rebuild_attachment_debug_menu(attachment)
 
     attachment.menus.reconstruct_vehicle = menu.action(attachment.menus.main, t("Rebuild"), {}, t("Delete construct (if it still exists), then recreate a new one from scratch."), function()
         rebuild_attachment(attachment)
@@ -1965,7 +1989,7 @@ menus.rebuild_attachment_menu = function(attachment)
         menus.refresh_loaded_constructs()
         if updated_attachment ~= nil and updated_attachment.menus ~= nil then
             if updated_attachment.root.menu_auto_focus ~= false then
-                menu.focus(updated_attachment.menus.name)
+                menu.focus(updated_attachment.menus.info)
             end
         end
     end
@@ -1978,9 +2002,9 @@ menus.rebuild_attachment_menu = function(attachment)
         menus.rebuild_attachment_menu(attachment)
     end
     attachment.menus.focus = function()
-        if attachment.root.menu_auto_focus ~= false and attachment.menus.name ~= nil then
+        if attachment.root.menu_auto_focus ~= false and attachment.menus.info ~= nil then
             debug_log("Focusing on attachment menu "..tostring(attachment.name))
-            pcall(menu.focus, attachment.menus.name)
+            pcall(menu.focus, attachment.menus.info)
         end
     end
 
