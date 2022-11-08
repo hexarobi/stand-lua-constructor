@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b3"
+local SCRIPT_VERSION = "0.27b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -163,7 +163,7 @@ CONSTRUCTOR_CONFIG = {
     deconstruct_all_spawned_constructs_on_unload = true,
     drive_spawned_vehicles = true,
     wear_spawned_peds = true,
-    focus_menu_on_spawned_constructs = false,
+    focus_menu_on_spawned_constructs = true,
     preview_display_delay = 500,
     max_search_results = 100,
     spawn_entity_delay = 0,
@@ -881,7 +881,6 @@ end
 
 local function cleanup_constructs_handler()
     if config.deconstruct_all_spawned_constructs_on_unload then
-        debug_log("Clean up on close "..debug.traceback())
         config.is_final_cleanup = true
         for _, construct in pairs(spawned_constructs) do
             delete_construct(construct)
@@ -2006,8 +2005,12 @@ menus.rebuild_attachment_menu = function(attachment)
     end
     attachment.menus.focus = function()
         if config.focus_menu_on_spawned_constructs and attachment.root.menu_auto_focus ~= false and attachment.menus.info ~= nil then
-            debug_log("Focusing on attachment menu "..tostring(attachment.name))
-            pcall(menu.focus, attachment.menus.info)
+            if attachment.menus.info:isValid() then
+                debug_log("Focusing on attachment menu "..tostring(attachment.name))
+                pcall(menu.focus, attachment.menus.info)
+            else
+                debug_log("Invalid info menu. Cannot focus "..attachment.name)
+            end
         end
     end
 
@@ -2262,8 +2265,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     for _, construct_plan_file in pairs(construct_plan_files) do
         if not construct_plan_file.is_directory then
             if is_file_type_supported(construct_plan_file.ext) then
-                construct_plan_file.load_menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function(click_type)
-                    debug_log("Spawn menu action "..CLICK_MENU)
+                construct_plan_file.load_menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
                     remove_preview()
                     local construct_plan = load_construct_plan_file(construct_plan_file)
                     if construct_plan then
