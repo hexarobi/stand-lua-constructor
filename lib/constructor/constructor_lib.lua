@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.26"
+local SCRIPT_VERSION = "3.27b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -524,7 +524,9 @@ constructor_lib.create_entity = function(attachment)
     constructor_lib.update_attachment_position(attachment)
     constructor_lib.refresh_blip(attachment)
 
-    util.yield(CONSTRUCTOR_CONFIG.spawn_entity_delay)
+    if attachment.root.is_preview ~= true and CONSTRUCTOR_CONFIG.spawn_entity_delay > 0 then
+        util.yield(CONSTRUCTOR_CONFIG.spawn_entity_delay)
+    end
 
     --debug_log("Done attaching "..tostring(attachment.name))
     return attachment
@@ -590,6 +592,7 @@ constructor_lib.delete_attachment = function(attachment)
     if attachment.handle ~= nil and type(attachment.handle) == "number" and attachment.handle > 0 then
         if constructor_lib.is_attachment_entity(attachment) then
             entities.delete_by_handle(attachment.handle)
+            util.yield_once()
         elseif attachment.type == "PARTICLE" then
             GRAPHICS.REMOVE_PARTICLE_FX(attachment.handle, true)
         end
@@ -825,6 +828,7 @@ constructor_lib.set_preview_visibility = function(attachment)
     ENTITY.SET_ENTITY_ALPHA(attachment.handle, preview_alpha, false)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
     ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, true)
+    --ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, false)
 end
 
 ---
