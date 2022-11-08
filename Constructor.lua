@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b1"
+local SCRIPT_VERSION = "0.27b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -166,7 +166,7 @@ CONSTRUCTOR_CONFIG = {
     focus_menu_on_spawned_constructs = true,
     preview_display_delay = 500,
     max_search_results = 100,
-    spawn_entity_delay = 10,
+    spawn_entity_delay = 0,
     debug_mode = true,
 }
 local config = CONSTRUCTOR_CONFIG
@@ -1913,7 +1913,6 @@ local function add_attachment_info_menu(attachment)
 
     end
 
-
     attachment.menus.debug = menu.list(attachment.menus.info, t("Debug Info"), {}, "", function()
         rebuild_attachment_debug_menu(attachment)
     end)
@@ -2010,6 +2009,7 @@ menus.rebuild_attachment_menu = function(attachment)
 
     for _, child_attachment in pairs(attachment.children) do
         menus.rebuild_attachment_menu(child_attachment)
+        util.yield_once()
     end
 end
 
