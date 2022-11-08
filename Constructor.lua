@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b2"
+local SCRIPT_VERSION = "0.27b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -163,10 +163,12 @@ CONSTRUCTOR_CONFIG = {
     deconstruct_all_spawned_constructs_on_unload = true,
     drive_spawned_vehicles = true,
     wear_spawned_peds = true,
-    focus_menu_on_spawned_constructs = true,
+    focus_menu_on_spawned_constructs = false,
     preview_display_delay = 500,
     max_search_results = 100,
     spawn_entity_delay = 0,
+    is_final_cleanup = false,
+    clean_up_distance = 500,
     debug_mode = true,
 }
 local config = CONSTRUCTOR_CONFIG
@@ -879,7 +881,8 @@ end
 
 local function cleanup_constructs_handler()
     if config.deconstruct_all_spawned_constructs_on_unload then
-        debug_log("Clean up on close")
+        debug_log("Clean up on close "..debug.traceback())
+        config.is_final_cleanup = true
         for _, construct in pairs(spawned_constructs) do
             delete_construct(construct)
         end
@@ -1967,6 +1970,7 @@ menus.rebuild_attachment_menu = function(attachment)
     end, attachment.name)
     attachment.menus.delete = menu.action(attachment.menus.main, t("Delete"), {}, t("Delete construct and all attachments. Cannot be reconstructed unless saved."), function()
         if #attachment.children > 0 then
+            debug_log("Show warning "..attachment.name)
             menu.show_warning(attachment.menus.main, CLICK_COMMAND, t("Are you sure you want to delete this construct? ")..#attachment.children..t(" children will also be deleted."), function()
                 delete_construct(attachment)
             end)
@@ -2001,7 +2005,7 @@ menus.rebuild_attachment_menu = function(attachment)
         menus.rebuild_attachment_menu(attachment)
     end
     attachment.menus.focus = function()
-        if attachment.root.menu_auto_focus ~= false and attachment.menus.info ~= nil then
+        if config.focus_menu_on_spawned_constructs and attachment.root.menu_auto_focus ~= false and attachment.menus.info ~= nil then
             debug_log("Focusing on attachment menu "..tostring(attachment.name))
             pcall(menu.focus, attachment.menus.info)
         end
@@ -2258,7 +2262,8 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     for _, construct_plan_file in pairs(construct_plan_files) do
         if not construct_plan_file.is_directory then
             if is_file_type_supported(construct_plan_file.ext) then
-                construct_plan_file.load_menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
+                construct_plan_file.load_menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function(click_type)
+                    debug_log("Spawn menu action "..CLICK_MENU)
                     remove_preview()
                     local construct_plan = load_construct_plan_file(construct_plan_file)
                     if construct_plan then
@@ -2325,12 +2330,15 @@ if config.debug_mode then
     end)
 end
 
+menu.slider(options_menu, t("Clean Up Distance"), {"constructorcleanupdistance"}, t("How far away the cleanup command will reach to delete entities."), 0, 10000, config.clean_up_distance, 100, function(value)
+    config.clean_up_distance = value
+end)
 menu.action(options_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris."), function()
-    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),500, "VEHICLE")
-    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),500, "OBJECT")
-    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),500, "PED")
+    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),config.clean_up_distance, "VEHICLE")
+    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),config.clean_up_distance, "OBJECT")
+    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),config.clean_up_distance, "PED")
     local player_pos = ENTITY.GET_ENTITY_COORDS(PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()), 1)
-    GRAPHICS.REMOVE_PARTICLE_FX_IN_RANGE(player_pos.x, player_pos.y, player_pos.z, 500)
+    GRAPHICS.REMOVE_PARTICLE_FX_IN_RANGE(player_pos.x, player_pos.y, player_pos.z, config.clean_up_distance)
     util.toast(t("Removed").." "..objects.." "..t("objects")..", "..vehicles.." "..t("vehicles")..t(", and ")..peds.." "..t("peds"), TOAST_ALL)
 end)
 
@@ -2411,7 +2419,3 @@ util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
 --end)
 
 util.on_stop(cleanup_constructs_handler)
-
-util.create_tick_handler(function()
-    return true
-end)
