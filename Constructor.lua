@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b5"
+local SCRIPT_VERSION = "0.27b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -412,8 +412,8 @@ local function add_attachment_to_construct(attachment)
     constructor_lib.serialize_vehicle_attributes(attachment)
     constructor_lib.add_attachment_to_construct(attachment)
     menus.rebuild_attachment_menu(attachment)
-    attachment.parent.menus.refresh()
-    attachment.menus.focus()
+    attachment.parent.functions.refresh()
+    attachment.functions.focus()
 end
 
 ---
@@ -709,7 +709,7 @@ local function aim_info_tick()
                     hash=info.hash,
                     model=info.model,
                 })
-                config.add_attachment_gun_recipient.root.menus.refresh()
+                config.add_attachment_gun_recipient.root.functions.refresh()
             end
             was_key_down = true
         else
@@ -926,9 +926,9 @@ local function spawn_construct_from_plan(construct_plan)
     add_spawned_construct(construct)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
-    construct.menus.refresh()
+    construct.functions.refresh()
     if construct.root.menu_auto_focus ~= false and config.focus_menu_on_spawned_constructs ~= false then
-        construct.menus.focus()
+        construct.functions.focus()
     end
     if construct.type == "VEHICLE" and config.drive_spawned_vehicles and construct.options.spawn_for_player == nil then
         PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -1)
@@ -1202,7 +1202,9 @@ end
 
 local function clear_menu_list(t)
     for k, h in pairs(t) do
-        pcall(menu.delete, h)
+        if h:isValid() then
+            menu.delete(h)
+        end
         t[k] = nil
     end
 end
@@ -1737,9 +1739,9 @@ local function add_child_attachment_menu(attachment)
         table.insert(spawned_constructs, attachment)
         attachment.menus = nil
         menus.rebuild_attachment_menu(attachment)
-        original_parent.menus.refresh()
-        attachment.menus.refresh()
-        attachment.menus.focus()
+        original_parent.functions.refresh()
+        attachment.functions.refresh()
+        attachment.functions.focus()
         menus.refresh_loaded_constructs()
     end)
 
@@ -1966,19 +1968,19 @@ local function add_attachment_info_menu(attachment)
 
     attachment.menus.name = menu.text_input(attachment.menus.info, t("Name"), { "constructorsetattachmentname"..attachment.id}, t("Set name of the attachment"), function(value)
         attachment.name = value
-        attachment.menus.refresh()
+        attachment.functions.refresh()
     end, attachment.name)
 
     if attachment == attachment.parent then
 
         attachment.menus.info_author = menu.text_input(attachment.menus.info, t("Author"), { "constructorsetattachmentauthor"..attachment.id}, t("Set name of the player that created this construct"), function(value)
             attachment.author = value
-            attachment.menus.refresh()
+            attachment.functions.refresh()
         end, attachment.author or "")
 
         attachment.menus.info_description = menu.text_input(attachment.menus.info, t("Description"), { "constructorsetattachmentdescription"..attachment.id}, t("Set text to describe this construct"), function(value)
             attachment.description = value
-            attachment.menus.refresh()
+            attachment.functions.refresh()
         end, attachment.description or "")
 
     end
@@ -2033,7 +2035,7 @@ menus.rebuild_attachment_menu = function(attachment)
     attachment.menus.save = menu.text_input(attachment.menus.main, t("Save As"), { "constructorsaveas"..attachment.id}, t("Save construct to disk"), function(value)
         attachment.name = value
         save_vehicle(attachment)
-        attachment.menus.refresh()
+        attachment.functions.refresh()
     end, attachment.name)
     attachment.menus.delete = menu.action(attachment.menus.main, t("Delete"), {}, t("Delete construct and all attachments. Cannot be reconstructed unless saved."), function()
         if #attachment.children > 0 then
@@ -2051,31 +2053,22 @@ menus.rebuild_attachment_menu = function(attachment)
         menu.on_blur(menu_handle, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
     end
 
-    attachment.menus.refresh = function(updated_attachment)
+    if attachment.functions == nil then attachment.functions = {} end
+    attachment.functions.refresh = function(updated_attachment)
         debug_log("Refreshing attachment menu "..tostring(attachment.name))
         menu.set_menu_name(attachment.menus.main, attachment.name)
         menu.set_menu_name(attachment.menus.edit_attachments, t("Edit Attachments").." ("..#attachment.children..")")
         menus.rebuild_attachment_menu(attachment)
         menus.refresh_loaded_constructs()
-        if updated_attachment ~= nil and updated_attachment.menus ~= nil then
-            if updated_attachment.root.menu_auto_focus ~= false then
-                menu.focus(updated_attachment.menus.info)
-            end
+        if updated_attachment ~= nil and updated_attachment.functions ~= nil then
+            updated_attachment.functions.focus()
         end
     end
-    attachment.menus.rebuild = function()
-        debug_log("Rebuilding attachment menu "..tostring(attachment.name))
-        for _, menu_handle in pairs(attachment.menus) do
-            if type(menu_handle) == "number" then pcall(menu.delete, menu_handle) end
-        end
-        attachment.menus = nil
-        menus.rebuild_attachment_menu(attachment)
-    end
-    attachment.menus.focus = function()
+    attachment.functions.focus = function()
         if config.focus_menu_on_spawned_constructs and attachment.root.menu_auto_focus ~= false and attachment.menus.info ~= nil then
             if attachment.menus.info:isValid() then
                 debug_log("Focusing on attachment menu "..tostring(attachment.name))
-                pcall(menu.focus, attachment.menus.info)
+                menu.focus(attachment.menus.info)
             else
                 debug_log("Invalid info menu. Cannot focus "..attachment.name)
             end
@@ -2105,7 +2098,7 @@ menu.action(menus.create_new_construct, t("From Current Vehicle"), { "constructc
     local construct = create_construct_from_vehicle(vehicle)
     if construct then
         menus.rebuild_attachment_menu(construct)
-        construct.menus.refresh()
+        construct.functions.refresh()
         menu.focus(construct.menus.name)
     end
 end)
