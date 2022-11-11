@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.27b2"
+local SCRIPT_VERSION = "3.27b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -570,7 +570,7 @@ constructor_lib.add_attachment_to_construct = function(attachment)
     debug_log("Adding attachment to construct "..tostring(attachment.name))
     constructor_lib.create_entity_with_children(attachment)
     table.insert(attachment.parent.children, attachment)
-    attachment.root.menus.refresh(attachment)
+    attachment.root.functions.refresh(attachment)
 end
 
 ---
@@ -619,7 +619,10 @@ constructor_lib.remove_attachment = function(attachment)
         for _, attachment_menu in pairs(attachment.menus) do
             -- Sometimes these menu handles are invalid but I don't know why,
             -- so wrap them in pcall to avoid errors if delete fails
-            pcall(function() menu.delete(attachment_menu) end)
+            if attachment_menu:isValid() then
+                debug_log("Deleting attachment menu ".._.." "..tostring(attachment_menu))
+                menu.delete(attachment_menu)
+            end
         end
     end
 end
@@ -637,8 +640,8 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
             end
             return true
         end)
-        attachment.parent.menus.refresh()
-        attachment.parent.menus.focus()
+        attachment.parent.functions.refresh()
+        attachment.parent.functions.focus()
     end
 end
 
@@ -1096,6 +1099,7 @@ constructor_lib.serialize_vehicle_paint = function(vehicle)
     vehicle.vehicle_attributes.paint.livery_legacy = VEHICLE.GET_VEHICLE_LIVERY(vehicle.handle)
     vehicle.vehicle_attributes.paint.livery2_legacy = VEHICLE.GET_VEHICLE_LIVERY2(vehicle.handle)
 
+    --memory.free(color)
 end
 
 constructor_lib.deserialize_vehicle_paint = function(vehicle)
@@ -1212,6 +1216,7 @@ constructor_lib.serialize_vehicle_neon = function(vehicle)
         VEHICLE.GET_VEHICLE_NEON_COLOUR(vehicle.handle, color.r, color.g, color.b)
         vehicle.vehicle_attributes.neon.color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     end
+    --memory.free(color)
 end
 
 constructor_lib.deserialize_vehicle_neon = function(vehicle)
@@ -1277,6 +1282,7 @@ constructor_lib.serialize_vehicle_wheels = function(vehicle)
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, color.r, color.g, color.b)
     vehicle.vehicle_attributes.wheels.tire_smoke_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
+    --memory.free(color)
 end
 
 constructor_lib.deserialize_vehicle_wheels = function(vehicle)
