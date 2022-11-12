@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b7"
+local SCRIPT_VERSION = "0.27b9"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -277,7 +277,7 @@ if not status_natives then error("Could not natives lib. Make sure it is selecte
 
 local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
 
-pcall(menu.delete, loading_menu)
+if loading_menu:isValid() then menu.delete(loading_menu) end
 
 local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION .. " / " .. convertors.SCRIPT_VERSION
 
@@ -620,8 +620,8 @@ local function add_preview(construct_plan, preview_image_path)
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
         current_preview = constructor_lib.create_entity_with_children(attachment)
-        if construct_plan.load_menu then
-            pcall(menu.set_help_text, construct_plan.load_menu, get_construct_plan_description(current_preview))
+        if construct_plan.load_menu and construct_plan.load_menu:isValid() then
+            menu.set_help_text(construct_plan.load_menu, get_construct_plan_description(current_preview))
         end
         if next_preview ~= construct_plan then
             remove_preview(current_preview)
@@ -849,8 +849,11 @@ local function save_vehicle(construct)
     if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local serialized_construct = constructor_lib.serialize_attachment(construct)
-    --debug_log("Serialized construct "..inspect(serialized_construct))
-    local content = soup.json.encode(serialized_construct)
+    local encode_status, content = pcall(soup.json.encode, serialized_construct)
+    if not encode_status then
+        util.toast("Error encoding construct: "..content)
+        debug_log("Error encoding construct: "..content.." construct: "..inspect(serialized_construct))
+    end
     if content == "" or (not constructor_lib.string_starts(content, "{")) then
         util.toast("Cannot save vehicle: Error serializing.", TOAST_ALL)
         return
@@ -918,7 +921,7 @@ local function spawn_construct_from_plan(construct_plan)
     else
         set_spawned_construct_position(construct)
     end
-    if construct.options.spawn_for_player then remove_tracked_construct_for_player(construct.options.spawn_for_player) end
+    if construct.options and construct.options.spawn_for_player then remove_tracked_construct_for_player(construct.options.spawn_for_player) end
     construct.root = construct
     construct.parent = construct
     constructor_lib.reattach_attachment_with_children(construct)
@@ -1855,6 +1858,7 @@ local function add_attachment_add_attachment_options(attachment)
                 root=attachment.menus.search_add_prop,
             },
             query_function=function(search_params)
+                debug_log("Searching for attachment to "..attachment.name.." query: "..inspect(search_params))
                 local results = {}
                 for prop in io.lines(PROPS_PATH) do
                     local i, j = prop:find(search_params.query)
@@ -2277,7 +2281,9 @@ end)
 local previous_search_results = {}
 menus.load_construct_search = menu.text_input(menus.search_constructs, t("Search"), {"constructorsearch"}, t("Edit your search query"), function(query)
     for _, previous_search_result in pairs(previous_search_results) do
-        pcall(menu.delete, previous_search_result.load_menu)
+        if previous_search_result.load_menu and previous_search_result.load_menu:isValid() then
+            menu.delete(previous_search_result.load_menu)
+        end
     end
     previous_search_results = {}
     local results = search_constructs(CONSTRUCTS_DIR, query)
@@ -2315,7 +2321,9 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     if parent_construct_plan_file == nil then parent_construct_plan_file = load_constructs_root_menu_file end
     if parent_construct_plan_file.menus == nil then parent_construct_plan_file.menus = {} end
     for _, construct_plan_menu in pairs(parent_construct_plan_file.menus) do
-        pcall(menu.delete, construct_plan_menu)
+        if construct_plan_menu.load_menu and construct_plan_menu.load_menu:isValid() then
+            menu.delete(construct_plan_menu)
+        end
     end
 
     if path == CONSTRUCTS_DIR and filesystem.exists(JACKZ_BUILD_DIR) then
@@ -2402,52 +2410,54 @@ end
 --- Global Options Menu
 ---
 
-local options_menu = menu.list(menu.my_root(), t("Settings"), {}, t("Set global configuration options."))
+menus.settings_menu = menu.list(menu.my_root(), t("Settings"), {}, t("Set global configuration options."))
 
-menu.slider(options_menu, t("Edit Offset Step"), {}, t("The amount of change each time you edit an attachment offset (hold SHIFT for fine tuning)"), 1, 50, config.edit_offset_step, 1, function(value)
+menus.editing_settings = menu.list(menus.settings_menu, t("Editing"), {}, t("Set configuration options relating to editing constructs."))
+menu.slider(menus.editing_settings, t("Edit Offset Step"), {}, t("The amount of change each time you edit an attachment offset (hold SHIFT for fine tuning)"), 1, 50, config.edit_offset_step, 1, function(value)
     config.edit_offset_step = value
 end)
-menu.slider(options_menu, t("Edit Rotation Step"), {}, t("The amount of change each time you edit an attachment rotation (hold SHIFT for fine tuning)"), 1, 30, config.edit_rotation_step, 1, function(value)
+menu.slider(menus.editing_settings, t("Edit Rotation Step"), {}, t("The amount of change each time you edit an attachment rotation (hold SHIFT for fine tuning)"), 1, 30, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
 
-menu.toggle(options_menu, t("Show Previews"), {}, t("Show previews when adding attachments"), function(on)
+menus.preview_settings = menu.list(menus.settings_menu, t("Previews"), {}, t("Set configuration options relating to previewing constructs."))
+menu.toggle(menus.preview_settings, t("Show Previews"), {}, t("Show previews when adding attachments"), function(on)
     config.show_previews = on
 end, config.show_previews)
-menu.slider(options_menu, t("Preview Display Delay"), {"constructorpreviewdisplaydelay"}, t("After browsing to a construct or attachment, wait this long before showing the preview."), 100, 1000, config.preview_display_delay, 50, function(value)
+menu.slider(menus.preview_settings, t("Preview Display Delay"), {"constructorpreviewdisplaydelay"}, t("After browsing to a construct or attachment, wait this long before showing the preview."), 100, 1000, config.preview_display_delay, 50, function(value)
     config.preview_display_delay = value
 end)
-menu.toggle(options_menu, t("Delete All on Unload"), {}, t("Deconstruct all spawned constructs when unloading Constructor"), function(on)
+
+menus.spawn_settings = menu.list(menus.settings_menu, t("Spawn"), {}, t("Set configuration options relating to spawning constructs."))
+menu.toggle(menus.spawn_settings, t("Focus Menu on Spawned Constructs"), {}, t("When spawning a construct, focus Stands menu on the newly spawned construct. Otherwise, stay in the Load Constructs menu."), function(on)
+    config.focus_menu_on_spawned_constructs = on
+end, config.focus_menu_on_spawned_constructs)
+menu.slider(menus.spawn_settings, t("Spawn Entity Delay"), {"constructorspawnentitydelay"}, t("Pause after spawning any object. Useful for preventing issues when spawning large constructs with many objects."), 0, 500, config.spawn_entity_delay, 1, function(value)
+    config.spawn_entity_delay = value
+end)
+menu.text_input(menus.spawn_settings, t("Chat Spawnable Dir"), {"constructorspawnabledir"}, t("Set a Constructs sub-folder to be spawnable by name. Only available for users with permission to use Spawn Commands. See Online>Chat>Commands"), function(value)
+    config.chat_spawnable_dir = value
+end, config.chat_spawnable_dir)
+menu.slider(menus.spawn_settings, t("Constructs Allowed Per Player"), {"constructorspawnsallowedperplayer"}, t("The number of constructs any one player can spawn at a time. When a player tried to spawn additional constructs past this limit, the oldest spawned construct will be deleted."), 1, 5, config.num_allowed_spawned_constructs_per_player, 1, function(value)
+    config.num_allowed_spawned_constructs_per_player = value
+end)
+menu.toggle(menus.spawn_settings, t("Delete All on Unload"), {}, t("Deconstruct all spawned constructs when unloading Constructor"), function(on)
     config.deconstruct_all_spawned_constructs_on_unload = on
 end, config.deconstruct_all_spawned_constructs_on_unload)
 
-menu.toggle(options_menu, t("Focus Menu on Spawned Constructs"), {}, t("When spawning a construct, focus Stands menu on the newly spawned construct. Otherwise, stay in the Load Constructs menu."), function(on)
-    config.focus_menu_on_spawned_constructs = on
-end, config.focus_menu_on_spawned_constructs)
-menu.slider(options_menu, t("Spawn Entity Delay"), {"constructorspawnentitydelay"}, t("Pause after spawning any object. Useful for preventing issues when spawning large constructs with many objects."), 0, 500, config.spawn_entity_delay, 1, function(value)
-    config.spawn_entity_delay = value
-end)
-
-menu.text_input(options_menu, t("Chat Spawnable Dir"), {"constructorspawnabledir"}, t("Set a Constructs sub-folder to be spawnable by name. Only available for users with permission to use Spawn Commands. See Online>Chat>Commands"), function(value)
-    config.chat_spawnable_dir = value
-end, config.chat_spawnable_dir)
-menu.slider(options_menu, t("Constructs Allowed Per Players"), {"constructorspawnsallowedperplayer"}, t("The number of constructs any one player can spawn at a time. When a player tried to spawn additional constructs past this limit, the oldest spawned construct will be deleted."), 1, 5, config.num_allowed_spawned_constructs_per_player, 1, function(value)
-    config.num_allowed_spawned_constructs_per_player = value
-end)
-
-menu.toggle(options_menu, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
+menus.debug_settings = menu.list(menus.settings_menu, t("Debug"), {}, t("Set configuration options relating to debugging the menu."))
+menu.toggle(menus.debug_settings, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
     config.debug_mode = toggle
 end, config.debug_mode)
-if config.debug_mode then
-    menu.action(options_menu, t("Log Missing Translations"), {}, t("Log any newly found missing translations"), function()
-        log_missing_translations()
-    end)
-end
+menu.action(menus.debug_settings, t("Log Missing Translations"), {}, t("Log any newly found missing translations"), function()
+    log_missing_translations()
+end)
 
-menu.slider(options_menu, t("Clean Up Distance"), {"constructorcleanupdistance"}, t("How far away the cleanup command will reach to delete entities."), 0, 10000, config.clean_up_distance, 100, function(value)
+menu.divider(menus.settings_menu, t("Clean Up"))
+menu.slider(menus.settings_menu, t("Clean Up Distance"), {"constructorcleanupdistance"}, t("How far away the cleanup command will reach to delete entities."), 0, 10000, config.clean_up_distance, 100, function(value)
     config.clean_up_distance = value
 end)
-menu.action(options_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris."), function()
+menu.action(menus.settings_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris."), function()
     local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),config.clean_up_distance, "VEHICLE")
     local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),config.clean_up_distance, "OBJECT")
     local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),config.clean_up_distance, "PED")
