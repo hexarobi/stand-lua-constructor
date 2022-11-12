@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.27b5"
+local SCRIPT_VERSION = "3.27b6"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -608,7 +608,7 @@ constructor_lib.delete_attachment = function(attachment)
         if constructor_lib.is_attachment_entity(attachment) then
             debug_log("Deleting attachment "..attachment.name)
             entities.delete_by_handle(attachment.handle)
-            if not CONSTRUCTOR_CONFIG.is_final_cleanup then util.yield_once() end
+            --if not CONSTRUCTOR_CONFIG.is_final_cleanup then util.yield_once() end
         elseif attachment.type == "PARTICLE" then
             GRAPHICS.REMOVE_PARTICLE_FX(attachment.handle, true)
         end
@@ -1674,7 +1674,7 @@ constructor_lib.copy_serializable = function(attachment)
     for k, v in pairs(attachment) do
         if not (
             k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp" or k == "load_menu" or k == "menu_auto_focus"
-            or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading"
+            or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading" or k == "functions"
         ) then
             serializeable_attachment[k] = constructor_lib.table_copy(v)
         end
