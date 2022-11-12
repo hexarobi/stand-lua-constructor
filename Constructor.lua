@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b9"
+local SCRIPT_VERSION = "0.27b10"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -414,6 +414,15 @@ local function add_attachment_to_construct(attachment)
     menus.rebuild_attachment_menu(attachment)
     attachment.parent.functions.refresh()
     attachment.functions.focus()
+end
+
+local function clear_menu_list(t)
+    for k, h in pairs(t) do
+        if h:isValid() then
+            menu.delete(h)
+        end
+        t[k] = nil
+    end
 end
 
 ---
@@ -906,6 +915,7 @@ end
 local function spawn_construct_from_plan(construct_plan)
     debug_log("Spawning construct from plan "..tostring(construct_plan.name), construct_plan)
     local construct = copy_construct_plan(construct_plan)
+    constructor_lib.default_attachment_attributes(construct)
     if construct_plan.type == "PED" and config.wear_spawned_peds then construct.is_player = true end
     if construct.is_player then
         construct.handle = players.user_ped()
@@ -921,7 +931,7 @@ local function spawn_construct_from_plan(construct_plan)
     else
         set_spawned_construct_position(construct)
     end
-    if construct.options and construct.options.spawn_for_player then remove_tracked_construct_for_player(construct.options.spawn_for_player) end
+    if construct.options.spawn_for_player then remove_tracked_construct_for_player(construct.options.spawn_for_player) end
     construct.root = construct
     construct.parent = construct
     constructor_lib.reattach_attachment_with_children(construct)
@@ -1200,29 +1210,8 @@ local function search_constructs(directory, query, results)
 end
 
 ---
---- Prop Search
+--- Ped Animation
 ---
-
-local function search_props(query)
-    local results = {}
-    for prop in io.lines(PROPS_PATH) do
-        local i, j = prop:find(query)
-        if i then
-            table.insert(results, { prop = prop, distance = j - i })
-        end
-    end
-    table.sort(results, function(a, b) return a.distance > b.distance end)
-    return results
-end
-
-local function clear_menu_list(t)
-    for k, h in pairs(t) do
-        if h:isValid() then
-            menu.delete(h)
-        end
-        t[k] = nil
-    end
-end
 
 local function animate_peds(attachment)
     debug_log("Animating peds "..tostring(attachment.name), attachment)
