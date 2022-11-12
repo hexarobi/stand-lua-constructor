@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b12"
+local SCRIPT_VERSION = "0.27b13"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2349,7 +2349,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     if parent_construct_plan_file == nil then parent_construct_plan_file = load_constructs_root_menu_file end
     if parent_construct_plan_file.menus == nil then parent_construct_plan_file.menus = {} end
     for _, construct_plan_menu in pairs(parent_construct_plan_file.menus) do
-        if construct_plan_menu.load_menu and construct_plan_menu.load_menu:isValid() then
+        if construct_plan_menu and construct_plan_menu:isValid() then
             menu.delete(construct_plan_menu)
         end
     end
@@ -2529,7 +2529,7 @@ menu.divider(menus.credits, t("Inspirations"))
 menu.readonly(menus.credits, "Jackz Vehicle Builder", t("Much of Constructor is based on code originally copied from Jackz Vehicle Builder and this script wouldn't be possible without it. Constructor is just my own copy of Jackz's amazing work. Thank you Jackz!"))
 menu.readonly(menus.credits, "LanceSpooner", t("LanceSpooner is also a huge inspiration to this script. Thanks Lance!"))
 menu.divider(menus.credits, t("Translators"))
-menu.readonly(menus.credits, t("Chinese"), t("CqCq and Zelda Two"))
+menu.readonly(menus.credits, t("Chinese"), t("Zelda Two"))
 
 ---
 --- Startup Logo
