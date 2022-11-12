@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.27b4"
+local SCRIPT_VERSION = "3.27b5"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -96,6 +96,21 @@ constructor_lib.array_remove = function(t, fnKeep)
     end
 
     return t;
+end
+
+constructor_lib.table_merge = function(t1, t2)
+    for k, v in pairs(t2) do
+        if (type(v) == "table") and (type(t1[k] or false) == "table") then
+            constructor_lib.table_merge(t1[k], t2[k])
+        else
+            t1[k] = v
+        end
+    end
+    return t1
+end
+
+constructor_lib.trim = function(string)
+    return string:gsub("%s+", "")
 end
 
 constructor_lib.is_attachment_entity = function(attachment)
