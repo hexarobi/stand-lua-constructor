@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b11"
+local SCRIPT_VERSION = "0.27b12"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -463,13 +463,64 @@ local function restore_original_player_skin()
     end
 end
 
+local function use_player_as_base(attachment)
+    if attachment.type ~= "PED" then return attachment end
+    if attachment.hash == nil and attachment.model == nil then
+        local player_preview = {handle=players.user_ped(), type="PED"}
+        constructor_lib.serialize_ped_attributes(player_preview)
+        player_preview.handle = nil
+        return constructor_lib.table_merge(player_preview, attachment)
+    end
+    return attachment
+end
+
 ---
---- Preview
+--- Construct Plan Description
 ---
 
-local current_preview
-local next_preview
-local image_preview
+local function get_type(attachment)
+    local child_type = attachment.type
+    if child_type == nil then child_type = "OBJECT" end
+    return child_type
+end
+
+local function count_construct_children(construct_plan, counter)
+    if counter == nil then counter = {["OBJECT"]=0, ["PED"]=0, ["VEHICLE"]=0, ["PARTICLE"]=0, ["TOTAL"]=0} end
+    for _, child_attachment in pairs(construct_plan.children) do
+        local child_type = get_type(child_attachment)
+        if counter[child_type] == nil then error("Invalid type "..tostring(child_type)) end
+        counter[child_type] = counter[child_type] + 1
+        counter["TOTAL"] = counter["TOTAL"] + 1
+        count_construct_children(child_attachment, counter)
+    end
+    return counter
+end
+
+local function get_construct_plan_description(construct_plan)
+    debug_log("Building construct plan description "..tostring(construct_plan.name), construct_plan)
+    local descriptions = {}
+    if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
+    table.insert(descriptions, t(get_type(construct_plan)))
+    if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, t(construct_plan.temp.source_file_type)) end
+    if construct_plan.author ~= nil then table.insert(descriptions, t("Created By: ")..construct_plan.author) end
+    if construct_plan.description ~= nil then table.insert(descriptions, construct_plan.description) end
+    local counter = count_construct_children(construct_plan)
+    if counter["TOTAL"] > 0 then
+        table.insert(descriptions,
+                counter["TOTAL"].." "..t("attachments").." ("..counter["PED"].." "..t("peds")..", "..counter["OBJECT"].." "..t("objects")..", "..counter["VEHICLE"].." "..t("vehicles")..")")
+    end
+    if construct_plan.temp.filepath ~= nil then table.insert(descriptions, construct_plan.temp.filepath) end
+    local description_string = ""
+    for _, description in pairs(descriptions) do
+        description_string = description_string .. description .. "\n"
+    end
+    return description_string
+end
+
+---
+--- Preview Camera
+---
+
 local minVec = v3.new()
 local maxVec = v3.new()
 
@@ -534,17 +585,6 @@ local function calculate_construct_size(construct, child_attachment)
     construct.dimensions.h = (construct.dimensions.max_vec.z - construct.dimensions.min_vec.z)
 end
 
-local function remove_preview(construct_plan)
-    next_preview = nil
-    image_preview = nil
-    if construct_plan == nil then construct_plan = current_preview end
-    if construct_plan ~= nil then
-        debug_log("Removing preview "..tostring(construct_plan.name))
-        constructor_lib.remove_attachment(construct_plan)
-        current_preview = nil
-    end
-end
-
 local function calculate_camera_distance(attachment)
     if attachment.hash == nil then attachment.hash = util.joaat(attachment.model) end
     constructor_lib.load_hash_for_attachment(attachment)
@@ -554,59 +594,46 @@ local function calculate_camera_distance(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
-local function get_type(attachment)
-    local child_type = attachment.type
-    if child_type == nil then child_type = "OBJECT" end
-    return child_type
+---
+--- Preview
+---
+
+local spawned_previews = {}
+local current_preview
+local next_preview
+local image_preview
+
+local function cleanup_previews_tick()
+    --debug_log("Cleanup previews tick. Checking "..#spawned_previews.." spawned previews.")
+    constructor_lib.array_remove(spawned_previews, function(t, i)
+        local spawned_preview = t[i]
+        if spawned_preview ~= current_preview then
+            --debug_log("Removing preview "..tostring(spawned_preview.name))
+            constructor_lib.remove_attachment(spawned_preview)
+            return false
+        end
+        return true
+    end)
 end
 
-local function count_construct_children(construct_plan, counter)
-    if counter == nil then counter = {["OBJECT"]=0, ["PED"]=0, ["VEHICLE"]=0, ["PARTICLE"]=0, ["TOTAL"]=0} end
-    for _, child_attachment in pairs(construct_plan.children) do
-        local child_type = get_type(child_attachment)
-        if counter[child_type] == nil then error("Invalid type "..tostring(child_type)) end
-        counter[child_type] = counter[child_type] + 1
-        counter["TOTAL"] = counter["TOTAL"] + 1
-        count_construct_children(child_attachment, counter)
+local function remove_preview(construct_plan)
+    next_preview = nil
+    image_preview = nil
+    if construct_plan ~= nil  then
+        --debug_log("Removing preview "..tostring(construct_plan.name))
+        if current_preview == construct_plan then
+            current_preview = nil
+        end
+    else
+        current_preview = nil
     end
-    return counter
+    --debug_log("Current Preview. current_preview "..inspect(current_preview))
 end
 
-local function get_construct_plan_description(construct_plan)
-    debug_log("Building construct plan description "..tostring(construct_plan.name), construct_plan)
-    local descriptions = {}
-    if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
-    table.insert(descriptions, t(get_type(construct_plan)))
-    if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, t(construct_plan.temp.source_file_type)) end
-    if construct_plan.author ~= nil then table.insert(descriptions, t("Created By: ")..construct_plan.author) end
-    if construct_plan.description ~= nil then table.insert(descriptions, construct_plan.description) end
-    local counter = count_construct_children(construct_plan)
-    if counter["TOTAL"] > 0 then
-        table.insert(descriptions,
-                counter["TOTAL"].." "..t("attachments").." ("..counter["PED"].." "..t("peds")..", "..counter["OBJECT"].." "..t("objects")..", "..counter["VEHICLE"].." "..t("vehicles")..")")
-    end
-    if construct_plan.temp.filepath ~= nil then table.insert(descriptions, construct_plan.temp.filepath) end
-    local description_string = ""
-    for _, description in pairs(descriptions) do
-        description_string = description_string .. description .. "\n"
-    end
-    return description_string
-end
-
-local function use_player_as_base(attachment)
-    if attachment.type ~= "PED" then return attachment end
-    if attachment.hash == nil and attachment.model == nil then
-        local player_preview = {handle=players.user_ped(), type="PED"}
-        constructor_lib.serialize_ped_attributes(player_preview)
-        player_preview.handle = nil
-        return constructor_lib.table_merge(player_preview, attachment)
-    end
-    return attachment
-end
 
 local function add_preview(construct_plan, preview_image_path)
     if config.show_previews == false then return end
-    remove_preview()
+    remove_preview(construct_plan)
     if construct_plan == nil then return end
     debug_log("Adding preview for "..tostring(construct_plan.name), construct_plan)
     if construct_plan.always_spawn_at_position then
@@ -628,13 +655,15 @@ local function add_preview(construct_plan, preview_image_path)
         constructor_lib.default_attachment_attributes(attachment)
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
-        current_preview = constructor_lib.create_entity_with_children(attachment)
-        if construct_plan.load_menu and construct_plan.load_menu:isValid() then
-            menu.set_help_text(construct_plan.load_menu, get_construct_plan_description(current_preview))
+        local spawned_preview = constructor_lib.create_entity_with_children(attachment)
+        util.yield_once()
+        if next_preview == construct_plan then
+            current_preview = spawned_preview
+            if construct_plan.load_menu and construct_plan.load_menu:isValid() then
+                menu.set_help_text(construct_plan.load_menu, get_construct_plan_description(current_preview))
+            end
         end
-        if next_preview ~= construct_plan then
-            remove_preview(current_preview)
-        end
+        table.insert(spawned_previews, spawned_preview)
     end
 end
 
@@ -657,6 +686,7 @@ local function update_preview_tick()
     if image_preview ~= nil then
         directx.draw_texture(image_preview, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
     end
+    cleanup_previews_tick()
 end
 
 local function update_attachment_tick(attachment)
