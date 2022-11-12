@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b6"
+local SCRIPT_VERSION = "0.27b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1117,7 +1117,7 @@ local function load_construct_plan_file(construct_plan_file)
     end
     if not construct_plan then return end
     if construct_plan.name then construct_plan.name = construct_plan_file.filename end
-    if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil) then
+    if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil and not construct_plan.is_player) then
         util.toast(t("Failed to load construct from file ")..construct_plan_file.filepath, TOAST_ALL)
         debug_log("Failed to load construct \nPlan:"..inspect(construct_plan_file).."\nLoaded construct plan "..inspect(construct_plan))
         return
@@ -1151,6 +1151,18 @@ local function load_construct_plans_files_from_dir(directory)
                     ext=ext,
                     preview_image_path = directory .. "/" .. filename .. ".png",
                 }
+                table.insert(construct_plan_files, construct_plan_file)
+            end
+        end
+    end
+    return construct_plan_files
+end
+
+local function load_all_construct_plan_files_from_dir(directory)
+    local construct_plan_files = load_construct_plans_files_from_dir(directory)
+    for _, filepath in ipairs(filesystem.list_files(directory)) do
+        if filesystem.is_dir(filepath) then
+            for _, construct_plan_file in pairs(load_all_construct_plan_files_from_dir(filepath)) do
                 table.insert(construct_plan_files, construct_plan_file)
             end
         end
@@ -2355,7 +2367,7 @@ local player_menu_actions = function(pid)
     menus.constructor_player_menu = menu.divider(menu.player_root(pid), t("Constructor"))
 
     menus.spawn_commands = menu.list(menu.player_root(pid), t("Chat Spawn Commands"))
-    local construct_plan_files = load_construct_plans_files_from_dir(CONSTRUCTS_DIR.."/"..config.chat_spawnable_dir)
+    local construct_plan_files = load_all_construct_plan_files_from_dir(CONSTRUCTS_DIR.."/"..config.chat_spawnable_dir)
     for _, construct_plan_file in pairs(construct_plan_files) do
         if not construct_plan_file.is_directory and is_file_type_supported(construct_plan_file.ext) then
             menu.action(menus.spawn_commands, construct_plan_file.name, {construct_plan_file.name}, "", function()
