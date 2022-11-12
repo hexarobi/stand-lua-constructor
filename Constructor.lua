@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b10"
+local SCRIPT_VERSION = "0.27b11"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -754,21 +754,28 @@ local function set_attachment_edit_menu_sensitivity(attachment, offset_step, rot
     end
 end
 
-local is_fine_tune_sensitivity_active = false
+local edit_sensitivity_state = "normal"
 local function sensitivity_modifier_check_tick()
     if util.is_key_down(0x10) then
-        if is_fine_tune_sensitivity_active == false then
+        if edit_sensitivity_state ~= "fine" then
             for _, construct in pairs(spawned_constructs) do
                 set_attachment_edit_menu_sensitivity(construct, 1, 1)
             end
-            is_fine_tune_sensitivity_active = true
+            edit_sensitivity_state = "fine"
+        end
+    elseif util.is_key_down(0x11) then
+        if edit_sensitivity_state ~= "coarse" then
+            for _, construct in pairs(spawned_constructs) do
+                set_attachment_edit_menu_sensitivity(construct, config.edit_offset_step * 10, config.edit_rotation_step * 10)
+            end
+            edit_sensitivity_state = "coarse"
         end
     else
-        if is_fine_tune_sensitivity_active == true then
+        if edit_sensitivity_state ~= "normal" then
             for _, construct in pairs(spawned_constructs) do
                 set_attachment_edit_menu_sensitivity(construct, config.edit_offset_step, config.edit_rotation_step)
             end
-            is_fine_tune_sensitivity_active = false
+            edit_sensitivity_state = "normal"
         end
     end
 end
@@ -1376,34 +1383,36 @@ end
 --- Position Menu
 ---
 
+local EDIT_MENU_HELP = "Hold SHIFT to fine tune, or hold CONTROL to move ten steps at once."
+
 local function add_attachment_position_menu(attachment)
     attachment.menus.position = menu.list(attachment.menus.main, t("Position"))
     if attachment ~= attachment.root then
 
         menu.divider(attachment.menus.position, t("Offset"))
-        attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
+        attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
             attachment.offset.x = value / 100
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
+        attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
             attachment.offset.y = value / -100
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
+        attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
             attachment.offset.z = value / -100
             constructor_lib.move_attachment(attachment)
         end)
 
         menu.divider(attachment.menus.position, t("Rotation"))
-        attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
             attachment.rotation.x = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
             attachment.rotation.y = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
             attachment.rotation.z = value
             constructor_lib.move_attachment(attachment)
         end)
@@ -1411,29 +1420,29 @@ local function add_attachment_position_menu(attachment)
     else
 
         menu.divider(attachment.menus.position, t("World Position"))
-        attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
+        attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
             attachment.position.x = value / 100
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
+        attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
             attachment.position.y = value / -100
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
+        attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
             attachment.position.z = value / -100
             constructor_lib.move_attachment(attachment)
         end)
 
         menu.divider(attachment.menus.position, t("World Rotation"))
-        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
             attachment.world_rotation.x = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
             attachment.world_rotation.y = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
             attachment.world_rotation.z = value
             constructor_lib.move_attachment(attachment)
         end)
