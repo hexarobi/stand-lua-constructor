@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b14"
+local SCRIPT_VERSION = "0.27b15"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -864,7 +864,7 @@ local function create_construct_from_vehicle(vehicle_handle)
     for _, construct in pairs(spawned_constructs) do
         if construct.handle == vehicle_handle then
             util.toast("Vehicle is already a construct")
-            menu.focus(construct.menus.name)
+            menu.focus(construct.menus.info)
             return
         end
     end
@@ -2134,7 +2134,7 @@ menu.action(menus.create_new_construct, t("From Current Vehicle"), { "constructc
     if construct then
         menus.rebuild_attachment_menu(construct)
         construct.functions.refresh()
-        menu.focus(construct.menus.name)
+        menu.focus(construct.menus.info)
     end
 end)
 
