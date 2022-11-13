@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.5b9"
+local SCRIPT_VERSION = "0.8.5b10"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -70,20 +70,9 @@ end
 ---
 
 convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
-    --constructor_lib.set_attachment_defaults(construct_plan)
     if construct_plan.temp == nil then construct_plan.temp = {} end
     construct_plan.temp.source_file_type = "Construct"
-    if construct_plan.type == "PED" and construct_plan.hash == nil and construct_plan.model == nil then
-        local current_player_hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
-        local current_player = {
-            handle = players.user_ped(),
-            hash = current_player_hash,
-            model = util.reverse_joaat(current_player_hash),
-        }
-        --constructor_lib.deserialize_ped_attributes(current_player)
-        constructor_lib.table_merge(current_player, construct_plan)
-        return current_player
-    end
+    constructor_lib.use_player_ped_attributes_as_base(construct_plan)
     return construct_plan
 end
 
