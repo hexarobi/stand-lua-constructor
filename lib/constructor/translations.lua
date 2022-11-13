@@ -346,10 +346,17 @@ translations["zh"] = {
     ["Information and options about the Constructor script itself."] = "关于此脚本的相关信息和选项",
     ["Chat Spawnable Dir"] = "聊天生成目录",
     ["Set a Constructs sub-folder to be spawnable by name. Only available for users with permission to use Spawn Commands. See Online>Chat>Commands"] = "将Constructs子文件夹设置为名称生成.仅适用于有权使用“生成命令”的用户.请参见线上>聊天>命令",
-    ["Constructs Allowed Per Players"] = "构造体上限",
+    ["Constructs Allowed Per Player"] = "构造体上限",
     ["CqCq and Zelda Two"] = "Zelda Two",
     ["Chinese"] = "中文翻译",
     ["The number of constructs any one player can spawn at a time. When a player tried to spawn additional constructs past this limit, the oldest spawned construct will be deleted."] = "玩家可生成的构造数,当生成指定数后将删除老的构造.",
+    ["Editing"] = "编辑",
+    ["Set configuration options relating to editing constructs."] = "设置编辑与constructs有关的配置选项",
+    ["Previews"] = "预览",
+    ["Set configuration options relating to previewing constructs."] = "设置预览constructs有关的配置选项",
+    ["Debug"] = "调试",
+    ["Set configuration options relating to debugging the menu."] = "设置调试菜单有关的配置选项",
+    ["Set configuration options relating to spawning constructs."] = "设置生成constructs有关的配置选项",
     ["Translators"] = "翻译"
 }
 
@@ -358,6 +365,7 @@ translations["zh"] = {
 ---
 
 return translations
+
 
 
 
