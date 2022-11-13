@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.27b6"
+local SCRIPT_VERSION = "3.27b7"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -115,6 +115,22 @@ end
 
 constructor_lib.is_attachment_entity = function(attachment)
     return attachment.type ~= "PARTICLE"
+end
+
+constructor_lib.use_player_ped_attributes_as_base = function(attachment)
+    if attachment.type ~= "PED" then return attachment end
+    debug_log("Using player as base model="..tostring(attachment.model).." hash="..tostring(attachment.hash))
+    if attachment.hash == nil and attachment.model == nil then
+        debug_log("Using player as base for "..tostring(attachment.name))
+        if attachment.handle == nil then attachment.handle = players.user_ped() end
+        constructor_lib.serialize_hash_and_model(attachment)
+        local player_preview = {handle=players.user_ped(), type="PED"}
+        constructor_lib.serialize_ped_attributes(player_preview)
+        if attachment.ped_attributes == nil then attachment.ped_attributes = {} end
+        constructor_lib.table_merge(player_preview.ped_attributes, attachment.ped_attributes)
+        constructor_lib.table_merge(attachment.ped_attributes, player_preview.ped_attributes)
+        debug_log("Using player as base for "..inspect(attachment))
+    end
 end
 
 ---
