@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.26"
+local SCRIPT_VERSION = "0.27"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -68,6 +68,14 @@ local auto_update_config = {
             verify_file_begins_with="--",
             check_interval=default_check_interval,
         },
+        --{
+        --    name="json",
+        --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/json.lua",
+        --    script_relpath="lib/json.lua",
+        --    verify_file_begins_with="--",
+        --    check_interval=default_check_interval,
+        --    is_required=true,
+        --},
         {
             name="constants",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
@@ -166,7 +174,11 @@ CONSTRUCTOR_CONFIG = {
     focus_menu_on_spawned_constructs = true,
     preview_display_delay = 500,
     max_search_results = 100,
-    spawn_entity_delay = 10,
+    spawn_entity_delay = 0,
+    is_final_cleanup = false,
+    clean_up_distance = 500,
+    num_allowed_spawned_constructs_per_player = 1,
+    chat_spawnable_dir = "spawnable",
     debug_mode = false,
 }
 local config = CONSTRUCTOR_CONFIG
@@ -265,13 +277,16 @@ if not status_natives then error("Could not natives lib. Make sure it is selecte
 
 local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
 
-pcall(menu.delete, loading_menu)
+if loading_menu:isValid() then menu.delete(loading_menu) end
 
 local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION .. " / " .. convertors.SCRIPT_VERSION
 
 ---
 --- Data
 ---
+
+local constructor = {}
+
 local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
 filesystem.mkdirs(CONSTRUCTS_DIR)
 
@@ -397,8 +412,17 @@ local function add_attachment_to_construct(attachment)
     constructor_lib.serialize_vehicle_attributes(attachment)
     constructor_lib.add_attachment_to_construct(attachment)
     menus.rebuild_attachment_menu(attachment)
-    attachment.parent.menus.refresh()
-    attachment.menus.focus()
+    attachment.parent.functions.refresh()
+    attachment.functions.focus()
+end
+
+local function clear_menu_list(t)
+    for k, h in pairs(t) do
+        if h:isValid() then
+            menu.delete(h)
+        end
+        t[k] = nil
+    end
 end
 
 ---
@@ -440,12 +464,52 @@ local function restore_original_player_skin()
 end
 
 ---
---- Preview
+--- Construct Plan Description
 ---
 
-local current_preview
-local next_preview
-local image_preview
+local function get_type(attachment)
+    local child_type = attachment.type
+    if child_type == nil then child_type = "OBJECT" end
+    return child_type
+end
+
+local function count_construct_children(construct_plan, counter)
+    if counter == nil then counter = {["OBJECT"]=0, ["PED"]=0, ["VEHICLE"]=0, ["PARTICLE"]=0, ["TOTAL"]=0} end
+    for _, child_attachment in pairs(construct_plan.children) do
+        local child_type = get_type(child_attachment)
+        if counter[child_type] == nil then error("Invalid type "..tostring(child_type)) end
+        counter[child_type] = counter[child_type] + 1
+        counter["TOTAL"] = counter["TOTAL"] + 1
+        count_construct_children(child_attachment, counter)
+    end
+    return counter
+end
+
+local function get_construct_plan_description(construct_plan)
+    debug_log("Building construct plan description "..tostring(construct_plan.name), construct_plan)
+    local descriptions = {}
+    if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
+    table.insert(descriptions, t(get_type(construct_plan)))
+    if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, t(construct_plan.temp.source_file_type)) end
+    if construct_plan.author ~= nil then table.insert(descriptions, t("Created By: ")..construct_plan.author) end
+    if construct_plan.description ~= nil then table.insert(descriptions, construct_plan.description) end
+    local counter = count_construct_children(construct_plan)
+    if counter["TOTAL"] > 0 then
+        table.insert(descriptions,
+                counter["TOTAL"].." "..t("attachments").." ("..counter["PED"].." "..t("peds")..", "..counter["OBJECT"].." "..t("objects")..", "..counter["VEHICLE"].." "..t("vehicles")..")")
+    end
+    if construct_plan.temp.filepath ~= nil then table.insert(descriptions, construct_plan.temp.filepath) end
+    local description_string = ""
+    for _, description in pairs(descriptions) do
+        description_string = description_string .. description .. "\n"
+    end
+    return description_string
+end
+
+---
+--- Preview Camera
+---
+
 local minVec = v3.new()
 local maxVec = v3.new()
 
@@ -510,17 +574,6 @@ local function calculate_construct_size(construct, child_attachment)
     construct.dimensions.h = (construct.dimensions.max_vec.z - construct.dimensions.min_vec.z)
 end
 
-local function remove_preview(construct_plan)
-    next_preview = nil
-    image_preview = nil
-    if construct_plan == nil then construct_plan = current_preview end
-    if construct_plan ~= nil then
-        debug_log("Removing preview "..tostring(construct_plan.name))
-        constructor_lib.remove_attachment(construct_plan)
-        current_preview = nil
-    end
-end
-
 local function calculate_camera_distance(attachment)
     if attachment.hash == nil then attachment.hash = util.joaat(attachment.model) end
     constructor_lib.load_hash_for_attachment(attachment)
@@ -530,59 +583,48 @@ local function calculate_camera_distance(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
 end
 
-local function get_type(attachment)
-    local child_type = attachment.type
-    if child_type == nil then child_type = "OBJECT" end
-    return child_type
+---
+--- Preview
+---
+
+local spawned_previews = {}
+local current_preview
+local next_preview
+local image_preview
+
+local function cleanup_previews_tick()
+    --debug_log("Cleanup previews tick. Checking "..#spawned_previews.." spawned previews.")
+    constructor_lib.array_remove(spawned_previews, function(t, i)
+        local spawned_preview = t[i]
+        if spawned_preview ~= current_preview then
+            --debug_log("Removing preview "..tostring(spawned_preview.name))
+            constructor_lib.remove_attachment(spawned_preview)
+            return false
+        else
+            ENTITY.FREEZE_ENTITY_POSITION(spawned_preview.handle, true)
+        end
+        return true
+    end)
 end
 
-local function count_construct_children(construct_plan, counter)
-    if counter == nil then counter = {["OBJECT"]=0, ["PED"]=0, ["VEHICLE"]=0, ["PARTICLE"]=0, ["TOTAL"]=0} end
-    for _, child_attachment in pairs(construct_plan.children) do
-        local child_type = get_type(child_attachment)
-        if counter[child_type] == nil then error("Invalid type "..tostring(child_type)) end
-        counter[child_type] = counter[child_type] + 1
-        counter["TOTAL"] = counter["TOTAL"] + 1
-        count_construct_children(child_attachment, counter)
+local function remove_preview(construct_plan)
+    next_preview = nil
+    image_preview = nil
+    if construct_plan ~= nil  then
+        --debug_log("Removing preview "..tostring(construct_plan.name))
+        if current_preview == construct_plan then
+            current_preview = nil
+        end
+    else
+        current_preview = nil
     end
-    return counter
+    --debug_log("Current Preview. current_preview "..inspect(current_preview))
 end
 
-local function get_construct_plan_description(construct_plan)
-    debug_log("Building construct plan description "..tostring(construct_plan.name), construct_plan)
-    local descriptions = {}
-    if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
-    table.insert(descriptions, t(get_type(construct_plan)))
-    if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, t(construct_plan.temp.source_file_type)) end
-    if construct_plan.author ~= nil then table.insert(descriptions, t("Created By: ")..construct_plan.author) end
-    if construct_plan.description ~= nil then table.insert(descriptions, construct_plan.description) end
-    local counter = count_construct_children(construct_plan)
-    if counter["TOTAL"] > 0 then
-        table.insert(descriptions,
-                counter["TOTAL"].." "..t("attachments").." ("..counter["PED"].." "..t("peds")..", "..counter["OBJECT"].." "..t("objects")..", "..counter["VEHICLE"].." "..t("vehicles")..")")
-    end
-    if construct_plan.temp.filepath ~= nil then table.insert(descriptions, construct_plan.temp.filepath) end
-    local description_string = ""
-    for _, description in pairs(descriptions) do
-        description_string = description_string .. description .. "\n"
-    end
-    return description_string
-end
-
-local function use_player_as_base(attachment)
-    if attachment.type ~= "PED" then return attachment end
-    if attachment.hash == nil and attachment.model == nil then
-        local player_preview = {handle=players.user_ped(), type="PED"}
-        constructor_lib.serialize_ped_attributes(player_preview)
-        player_preview.handle = nil
-        return constructor_lib.table_merge(player_preview, attachment)
-    end
-    return attachment
-end
 
 local function add_preview(construct_plan, preview_image_path)
     if config.show_previews == false then return end
-    remove_preview()
+    remove_preview(construct_plan)
     if construct_plan == nil then return end
     debug_log("Adding preview for "..tostring(construct_plan.name), construct_plan)
     if construct_plan.always_spawn_at_position then
@@ -594,7 +636,7 @@ local function add_preview(construct_plan, preview_image_path)
     if next_preview == construct_plan then
         local attachment = copy_construct_plan(construct_plan)
         if construct_plan.type == "PED" then
-            attachment = use_player_as_base(attachment)
+            constructor_lib.use_player_ped_attributes_as_base(attachment)
         elseif construct_plan.type == "PARTICLE" then
             attachment = {model="ng_proc_cigbuts02a", children={attachment}}
         end
@@ -604,13 +646,15 @@ local function add_preview(construct_plan, preview_image_path)
         constructor_lib.default_attachment_attributes(attachment)
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
-        current_preview = constructor_lib.create_entity_with_children(attachment)
-        if construct_plan.load_menu then
-            pcall(menu.set_help_text, construct_plan.load_menu, get_construct_plan_description(current_preview))
+        local spawned_preview = constructor_lib.create_entity_with_children(attachment)
+        util.yield_once()
+        if next_preview == construct_plan then
+            current_preview = spawned_preview
+            if construct_plan.load_menu and construct_plan.load_menu:isValid() then
+                menu.set_help_text(construct_plan.load_menu, get_construct_plan_description(current_preview))
+            end
         end
-        if next_preview ~= construct_plan then
-            remove_preview(current_preview)
-        end
+        table.insert(spawned_previews, spawned_preview)
     end
 end
 
@@ -620,6 +664,7 @@ end
 
 local function update_preview_tick()
     if current_preview ~= nil then
+        --debug_log("Update preview tick")
         current_preview.position = get_offset_from_camera(current_preview.camera_distance)
         current_preview.rotation.z = current_preview.rotation.z + 2
         constructor_lib.attach_entity(current_preview)
@@ -632,9 +677,11 @@ local function update_preview_tick()
     if image_preview ~= nil then
         directx.draw_texture(image_preview, 0.10, 0.10, 0.5, 0.5, 0.5, 0.5, 0, 1, 1, 1, 1)
     end
+    cleanup_previews_tick()
 end
 
 local function update_attachment_tick(attachment)
+    --debug_log("Updating attachment tick "..attachment.name)
     constructor_lib.update_attachment_tick(attachment)
     for _, child_attachment in pairs(attachment.children) do
         update_attachment_tick(child_attachment)
@@ -670,12 +717,14 @@ local function get_aim_info()
         aim_info.health = ENTITY.GET_ENTITY_HEALTH(handle)
         aim_info.type = ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(handle)]
     end
+    --memory.free(outptr)
     return aim_info
 end
 
 local was_key_down = false
 local function aim_info_tick()
     if not config.add_attachment_gun_active then return end
+    --debug_log("Attachment gun tick")
     local info = get_aim_info()
     if info.handle ~= 0 then
         local text = "Shoot (or press J) to add " .. info.type .. " `" .. info.model .. "` to construct " .. config.add_attachment_gun_recipient.name
@@ -690,7 +739,7 @@ local function aim_info_tick()
                     hash=info.hash,
                     model=info.model,
                 })
-                config.add_attachment_gun_recipient.root.menus.refresh()
+                config.add_attachment_gun_recipient.root.functions.refresh()
             end
             was_key_down = true
         else
@@ -700,21 +749,25 @@ local function aim_info_tick()
 end
 
 local function set_attachment_edit_menu_sensitivity(attachment, offset_step, rotation_step)
-    if (attachment.menus ~= nil and attachment.menus.edit_position_x ~= nil) then
+    if attachment.menus ~= nil then
         if attachment == attachment.root then
-            menu.set_step_size(attachment.menus.edit_position_x, offset_step)
-            menu.set_step_size(attachment.menus.edit_position_y, offset_step)
-            menu.set_step_size(attachment.menus.edit_position_z, offset_step)
-            menu.set_step_size(attachment.menus.edit_world_rotation_x, rotation_step)
-            menu.set_step_size(attachment.menus.edit_world_rotation_y, rotation_step)
-            menu.set_step_size(attachment.menus.edit_world_rotation_z, rotation_step)
+            if attachment.menus.edit_position_x ~= nil then
+                menu.set_step_size(attachment.menus.edit_position_x, offset_step)
+                menu.set_step_size(attachment.menus.edit_position_y, offset_step)
+                menu.set_step_size(attachment.menus.edit_position_z, offset_step)
+                menu.set_step_size(attachment.menus.edit_world_rotation_x, rotation_step)
+                menu.set_step_size(attachment.menus.edit_world_rotation_y, rotation_step)
+                menu.set_step_size(attachment.menus.edit_world_rotation_z, rotation_step)
+            end
         else
-            menu.set_step_size(attachment.menus.edit_offset_x, offset_step)
-            menu.set_step_size(attachment.menus.edit_offset_y, offset_step)
-            menu.set_step_size(attachment.menus.edit_offset_z, offset_step)
-            menu.set_step_size(attachment.menus.edit_rotation_x, rotation_step)
-            menu.set_step_size(attachment.menus.edit_rotation_y, rotation_step)
-            menu.set_step_size(attachment.menus.edit_rotation_z, rotation_step)
+            if attachment.menus.edit_offset_x ~= nil then
+                menu.set_step_size(attachment.menus.edit_offset_x, offset_step)
+                menu.set_step_size(attachment.menus.edit_offset_y, offset_step)
+                menu.set_step_size(attachment.menus.edit_offset_z, offset_step)
+                menu.set_step_size(attachment.menus.edit_rotation_x, rotation_step)
+                menu.set_step_size(attachment.menus.edit_rotation_y, rotation_step)
+                menu.set_step_size(attachment.menus.edit_rotation_z, rotation_step)
+            end
         end
     end
     for _, child_attachment in pairs(attachment.children) do
@@ -722,29 +775,35 @@ local function set_attachment_edit_menu_sensitivity(attachment, offset_step, rot
     end
 end
 
-local is_fine_tune_sensitivity_active = false
+local edit_sensitivity_state = "normal"
 local function sensitivity_modifier_check_tick()
     if util.is_key_down(0x10) then
-        -- or PAD.IS_CONTROL_JUST_PRESSED(0, 37) then
-        --PAD.DISABLE_CONTROL_ACTION(0, 37)
-        if is_fine_tune_sensitivity_active == false then
+        if edit_sensitivity_state ~= "fine" then
             for _, construct in pairs(spawned_constructs) do
                 set_attachment_edit_menu_sensitivity(construct, 1, 1)
             end
-            is_fine_tune_sensitivity_active = true
+            edit_sensitivity_state = "fine"
+        end
+    elseif util.is_key_down(0x11) then
+        if edit_sensitivity_state ~= "coarse" then
+            for _, construct in pairs(spawned_constructs) do
+                set_attachment_edit_menu_sensitivity(construct, config.edit_offset_step * 10, config.edit_rotation_step * 10)
+            end
+            edit_sensitivity_state = "coarse"
         end
     else
-        if is_fine_tune_sensitivity_active == true then
+        if edit_sensitivity_state ~= "normal" then
             for _, construct in pairs(spawned_constructs) do
                 set_attachment_edit_menu_sensitivity(construct, config.edit_offset_step, config.edit_rotation_step)
             end
-            is_fine_tune_sensitivity_active = false
+            edit_sensitivity_state = "normal"
         end
     end
 end
 
 local function draw_editing_bounding_box(attachment)
     if attachment.is_editing and menu.is_open() then
+        --debug_log("Drawing bounding box tick "..attachment.name)
         constructor_lib.draw_bounding_box(attachment.handle, config.preview_bounding_box_color)
     end
     for _, child_attachment in pairs(attachment.children) do
@@ -759,6 +818,36 @@ local function draw_editing_attachment_bounding_box_tick()
 end
 
 ---
+--- Player Spawn Management
+
+local players_spawned_constructs = {}
+
+local function get_player_spawned_constructs(pid)
+    for _, player_spawned_construct in pairs(players_spawned_constructs) do
+        if player_spawned_construct.pid == pid then
+            return player_spawned_construct
+        end
+    end
+    local new_player_spawned_construct = {pid=pid, constructs={}}
+    table.insert(players_spawned_constructs, new_player_spawned_construct)
+    return new_player_spawned_construct
+end
+
+local function remove_tracked_construct_for_player(pid)
+    local player_spawned_constructs = get_player_spawned_constructs(pid)
+    if #player_spawned_constructs.constructs >= config.num_allowed_spawned_constructs_per_player then
+        constructor.delete_construct(player_spawned_constructs.constructs[1])
+        table.remove(player_spawned_constructs.constructs, 1)
+    end
+end
+
+local function track_construct_spawn_for_player(pid, construct)
+    local player_spawned_constructs = get_player_spawned_constructs(pid)
+    table.insert(player_spawned_constructs.constructs, construct)
+end
+
+
+---
 --- Construct Management
 ---
 
@@ -766,6 +855,7 @@ local function add_spawned_construct(construct)
     debug_log("Adding spawned construct to list "..tostring(construct.name))
     constructor_lib.default_attachment_attributes(construct)
     table.insert(spawned_constructs, construct)
+    if construct.options.spawn_for_player then track_construct_spawn_for_player(construct.options.spawn_for_player, construct) end
     last_spawned_construct = construct
 end
 
@@ -774,7 +864,7 @@ local function create_construct_from_vehicle(vehicle_handle)
     for _, construct in pairs(spawned_constructs) do
         if construct.handle == vehicle_handle then
             util.toast("Vehicle is already a construct")
-            menu.focus(construct.menus.name)
+            menu.focus(construct.menus.info)
             return
         end
     end
@@ -795,7 +885,12 @@ local function save_vehicle(construct)
     if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
     if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
-    local content = soup.json.encode(constructor_lib.serialize_attachment(construct))
+    local serialized_construct = constructor_lib.serialize_attachment(construct)
+    local encode_status, content = pcall(soup.json.encode, serialized_construct)
+    if not encode_status then
+        util.toast("Error encoding construct: "..content)
+        debug_log("Error encoding construct: "..content.." construct: "..inspect(serialized_construct))
+    end
     if content == "" or (not constructor_lib.string_starts(content, "{")) then
         util.toast("Cannot save vehicle: Error serializing.", TOAST_ALL)
         return
@@ -813,7 +908,7 @@ end
 --- Construct Spawners
 ---
 
-local function delete_construct(construct)
+constructor.delete_construct =  function(construct)
     debug_log("Deleting construct "..tostring(construct.name), construct)
     if construct.is_player then
         constructor_lib.remove_attachment_from_parent(construct)
@@ -829,43 +924,57 @@ local function delete_construct(construct)
     menus.refresh_loaded_constructs()
 end
 
-local function spawn_construct_from_plan(construct_plan)
-    debug_log("Spawning construct from plan "..tostring(construct_plan.name), construct_plan)
-    local construct = copy_construct_plan(construct_plan)
-    if construct_plan.type == "PED" and config.wear_spawned_peds then construct.is_player = true end
-    if construct.is_player then
-        construct.handle = players.user_ped()
-        if player_construct ~= nil then
-            -- Delete current player construct
-            delete_construct(player_construct)
-            restore_original_player_skin()
-            player_construct = nil
-        end
-        get_player_construct()
-        player_construct = construct
-        use_player_as_base(construct)
-    else
-        calculate_camera_distance(construct)
-        if not construct_plan.always_spawn_at_position then
+local function set_spawned_construct_position(construct)
+    calculate_camera_distance(construct)
+    if not construct.always_spawn_at_position then
+        if construct.options.spawn_for_player then
+            local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(construct.options.spawn_for_player)
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(target_ped, 0, construct.camera_distance - config.preview_camera_distance, 0)
+            construct.position = { x=pos.x, y=pos.y, z=pos.z }
+            construct.world_rotation = { x=0, y=0, z=ENTITY.GET_ENTITY_HEADING(target_ped) }
+        else
             construct.position = get_offset_from_camera(construct.camera_distance)
             local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
             construct.heading = ENTITY.GET_ENTITY_HEADING(target_ped)
         end
     end
+end
+
+local function spawn_construct_from_plan(construct_plan)
+    debug_log("Spawning construct from plan "..tostring(construct_plan.name), construct_plan)
+    local construct = copy_construct_plan(construct_plan)
+    constructor_lib.default_attachment_attributes(construct)
+    if construct_plan.type == "PED" and config.wear_spawned_peds then construct.is_player = true end
+    if construct.is_player then
+        --construct.handle = players.user_ped()
+        if player_construct ~= nil then
+            -- Delete current player construct
+            constructor.delete_construct(player_construct)
+            restore_original_player_skin()
+            player_construct = nil
+        end
+        get_player_construct()
+        player_construct = construct
+        constructor_lib.use_player_ped_attributes_as_base(construct)
+    else
+        set_spawned_construct_position(construct)
+    end
+    if construct.options.spawn_for_player then remove_tracked_construct_for_player(construct.options.spawn_for_player) end
     construct.root = construct
     construct.parent = construct
     constructor_lib.reattach_attachment_with_children(construct)
-    if not construct.handle then error("Failed to spawn construct from plan "..tostring(construct_plan.name)) end
+    if not construct.handle then error("Failed to spawn construct from plan "..tostring(construct.name)) end
     add_spawned_construct(construct)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
-    construct.menus.refresh()
+    construct.functions.refresh()
     if construct.root.menu_auto_focus ~= false and config.focus_menu_on_spawned_constructs ~= false then
-        construct.menus.focus()
+        construct.functions.focus()
     end
-    if construct.type == "VEHICLE" and config.drive_spawned_vehicles then
+    if construct.type == "VEHICLE" and config.drive_spawned_vehicles and construct.options.spawn_for_player == nil then
         PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -1)
     end
+    return construct
 end
 
 local function build_construct_from_plan(construct_plan)
@@ -879,9 +988,9 @@ end
 
 local function cleanup_constructs_handler()
     if config.deconstruct_all_spawned_constructs_on_unload then
-        debug_log("Clean up on close")
+        config.is_final_cleanup = true
         for _, construct in pairs(spawned_constructs) do
-            delete_construct(construct)
+            constructor.delete_construct(construct)
         end
     end
 end
@@ -890,7 +999,7 @@ local function rebuild_attachment(attachment)
     debug_log("Rebuilding "..tostring(attachment.name))
     attachment.root.menu_auto_focus = false
     local construct_plan = constructor_lib.clone_attachment(attachment)
-    delete_construct(attachment)
+    constructor.delete_construct(attachment)
     construct_plan.root.menu_auto_focus = true
     build_construct_from_plan(construct_plan)
 end
@@ -1049,7 +1158,7 @@ local function load_construct_plan_file(construct_plan_file)
     end
     if not construct_plan then return end
     if construct_plan.name then construct_plan.name = construct_plan_file.filename end
-    if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil) then
+    if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil and not construct_plan.is_player) then
         util.toast(t("Failed to load construct from file ")..construct_plan_file.filepath, TOAST_ALL)
         debug_log("Failed to load construct \nPlan:"..inspect(construct_plan_file).."\nLoaded construct plan "..inspect(construct_plan))
         return
@@ -1090,6 +1199,18 @@ local function load_construct_plans_files_from_dir(directory)
     return construct_plan_files
 end
 
+local function load_all_construct_plan_files_from_dir(directory)
+    local construct_plan_files = load_construct_plans_files_from_dir(directory)
+    for _, filepath in ipairs(filesystem.list_files(directory)) do
+        if filesystem.is_dir(filepath) then
+            for _, construct_plan_file in pairs(load_all_construct_plan_files_from_dir(filepath)) do
+                table.insert(construct_plan_files, construct_plan_file)
+            end
+        end
+    end
+    return construct_plan_files
+end
+
 local function search_constructs(directory, query, results)
     if results == nil then results = {} end
     if #results > config.max_search_results then return results end
@@ -1117,27 +1238,8 @@ local function search_constructs(directory, query, results)
 end
 
 ---
---- Prop Search
+--- Ped Animation
 ---
-
-local function search_props(query)
-    local results = {}
-    for prop in io.lines(PROPS_PATH) do
-        local i, j = prop:find(query)
-        if i then
-            table.insert(results, { prop = prop, distance = j - i })
-        end
-    end
-    table.sort(results, function(a, b) return a.distance > b.distance end)
-    return results
-end
-
-local function clear_menu_list(t)
-    for k, h in pairs(t) do
-        pcall(menu.delete, h)
-        t[k] = nil
-    end
-end
 
 local function animate_peds(attachment)
     debug_log("Animating peds "..tostring(attachment.name), attachment)
@@ -1145,7 +1247,7 @@ local function animate_peds(attachment)
         if attachment.ped_attributes.animation_dict then
             debug_log("Rebuilding ped "..attachment.name)
             local construct_plan = constructor_lib.clone_attachment(attachment)
-            delete_construct(attachment)
+            constructor.delete_construct(attachment)
             construct_plan.root.menu_auto_focus = false
             build_construct_from_plan(construct_plan)
             construct_plan.root.menu_auto_focus = true
@@ -1302,34 +1404,36 @@ end
 --- Position Menu
 ---
 
+local EDIT_MENU_HELP = "Hold SHIFT to fine tune, or hold CONTROL to move ten steps at once."
+
 local function add_attachment_position_menu(attachment)
     attachment.menus.position = menu.list(attachment.menus.main, t("Position"))
     if attachment ~= attachment.root then
 
         menu.divider(attachment.menus.position, t("Offset"))
-        attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
+        attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
             attachment.offset.x = value / 100
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
+        attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
             attachment.offset.y = value / -100
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
+        attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
             attachment.offset.z = value / -100
             constructor_lib.move_attachment(attachment)
         end)
 
         menu.divider(attachment.menus.position, t("Rotation"))
-        attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
             attachment.rotation.x = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
             attachment.rotation.y = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
             attachment.rotation.z = value
             constructor_lib.move_attachment(attachment)
         end)
@@ -1337,29 +1441,29 @@ local function add_attachment_position_menu(attachment)
     else
 
         menu.divider(attachment.menus.position, t("World Position"))
-        attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
+        attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
             attachment.position.x = value / 100
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
+        attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
             attachment.position.y = value / -100
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t("Hold SHIFT to fine tune"), -500000, 500000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
+        attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
             attachment.position.z = value / -100
             constructor_lib.move_attachment(attachment)
         end)
 
         menu.divider(attachment.menus.position, t("World Rotation"))
-        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
             attachment.world_rotation.x = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
             attachment.world_rotation.y = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t("Hold SHIFT to fine tune"), -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
             attachment.world_rotation.z = value
             constructor_lib.move_attachment(attachment)
         end)
@@ -1669,9 +1773,9 @@ local function add_child_attachment_menu(attachment)
         table.insert(spawned_constructs, attachment)
         attachment.menus = nil
         menus.rebuild_attachment_menu(attachment)
-        original_parent.menus.refresh()
-        attachment.menus.refresh()
-        attachment.menus.focus()
+        original_parent.functions.refresh()
+        attachment.functions.refresh()
+        attachment.functions.focus()
         menus.refresh_loaded_constructs()
     end)
 
@@ -1773,6 +1877,7 @@ local function add_attachment_add_attachment_options(attachment)
                 root=attachment.menus.search_add_prop,
             },
             query_function=function(search_params)
+                debug_log("Searching for attachment to "..attachment.name.." query: "..inspect(search_params))
                 local results = {}
                 for prop in io.lines(PROPS_PATH) do
                     local i, j = prop:find(search_params.query)
@@ -1826,6 +1931,8 @@ local function add_attachment_add_attachment_options(attachment)
         config.add_attachment_gun_active = on
         config.add_attachment_gun_recipient = attachment
     end, config.add_attachment_gun_active)
+
+    --attachment.menus.add_construct = menu.list(attachment.menus.add_attachment, t("Construct"), {}, t("Attach another construct to the current construct"))
 
 end
 
@@ -1896,23 +2003,22 @@ local function add_attachment_info_menu(attachment)
 
     attachment.menus.name = menu.text_input(attachment.menus.info, t("Name"), { "constructorsetattachmentname"..attachment.id}, t("Set name of the attachment"), function(value)
         attachment.name = value
-        attachment.menus.refresh()
+        attachment.functions.refresh()
     end, attachment.name)
 
     if attachment == attachment.parent then
 
         attachment.menus.info_author = menu.text_input(attachment.menus.info, t("Author"), { "constructorsetattachmentauthor"..attachment.id}, t("Set name of the player that created this construct"), function(value)
             attachment.author = value
-            attachment.menus.refresh()
+            attachment.functions.refresh()
         end, attachment.author or "")
 
         attachment.menus.info_description = menu.text_input(attachment.menus.info, t("Description"), { "constructorsetattachmentdescription"..attachment.id}, t("Set text to describe this construct"), function(value)
             attachment.description = value
-            attachment.menus.refresh()
+            attachment.functions.refresh()
         end, attachment.description or "")
 
     end
-
 
     attachment.menus.debug = menu.list(attachment.menus.info, t("Debug Info"), {}, "", function()
         rebuild_attachment_debug_menu(attachment)
@@ -1964,15 +2070,16 @@ menus.rebuild_attachment_menu = function(attachment)
     attachment.menus.save = menu.text_input(attachment.menus.main, t("Save As"), { "constructorsaveas"..attachment.id}, t("Save construct to disk"), function(value)
         attachment.name = value
         save_vehicle(attachment)
-        attachment.menus.refresh()
+        attachment.functions.refresh()
     end, attachment.name)
     attachment.menus.delete = menu.action(attachment.menus.main, t("Delete"), {}, t("Delete construct and all attachments. Cannot be reconstructed unless saved."), function()
         if #attachment.children > 0 then
+            debug_log("Show warning "..attachment.name)
             menu.show_warning(attachment.menus.main, CLICK_COMMAND, t("Are you sure you want to delete this construct? ")..#attachment.children..t(" children will also be deleted."), function()
-                delete_construct(attachment)
+                constructor.delete_construct(attachment)
             end)
         else
-            delete_construct(attachment)
+            constructor.delete_construct(attachment)
         end
     end)
 
@@ -1981,35 +2088,31 @@ menus.rebuild_attachment_menu = function(attachment)
         menu.on_blur(menu_handle, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
     end
 
-    attachment.menus.refresh = function(updated_attachment)
+    if attachment.functions == nil then attachment.functions = {} end
+    attachment.functions.refresh = function(updated_attachment)
         debug_log("Refreshing attachment menu "..tostring(attachment.name))
         menu.set_menu_name(attachment.menus.main, attachment.name)
         menu.set_menu_name(attachment.menus.edit_attachments, t("Edit Attachments").." ("..#attachment.children..")")
         menus.rebuild_attachment_menu(attachment)
         menus.refresh_loaded_constructs()
-        if updated_attachment ~= nil and updated_attachment.menus ~= nil then
-            if updated_attachment.root.menu_auto_focus ~= false then
-                menu.focus(updated_attachment.menus.info)
+        if updated_attachment ~= nil and updated_attachment.functions ~= nil then
+            updated_attachment.functions.focus()
+        end
+    end
+    attachment.functions.focus = function()
+        if config.focus_menu_on_spawned_constructs and attachment.root.menu_auto_focus ~= false and attachment.menus.info ~= nil then
+            if attachment.menus.info:isValid() then
+                debug_log("Focusing on attachment menu "..tostring(attachment.name))
+                menu.focus(attachment.menus.info)
+            else
+                debug_log("Invalid info menu. Cannot focus "..attachment.name)
             end
-        end
-    end
-    attachment.menus.rebuild = function()
-        debug_log("Rebuilding attachment menu "..tostring(attachment.name))
-        for _, menu_handle in pairs(attachment.menus) do
-            if type(menu_handle) == "number" then pcall(menu.delete, menu_handle) end
-        end
-        attachment.menus = nil
-        menus.rebuild_attachment_menu(attachment)
-    end
-    attachment.menus.focus = function()
-        if attachment.root.menu_auto_focus ~= false and attachment.menus.info ~= nil then
-            debug_log("Focusing on attachment menu "..tostring(attachment.name))
-            pcall(menu.focus, attachment.menus.info)
         end
     end
 
     for _, child_attachment in pairs(attachment.children) do
         menus.rebuild_attachment_menu(child_attachment)
+        util.yield_once()
     end
 end
 
@@ -2017,7 +2120,7 @@ end
 --- Create New Construct Menu
 ---
 
-menus.create_new_construct = menu.list(menu.my_root(), t("Create New Construct"))
+menus.create_new_construct = menu.list(menu.my_root(), t("Create New Construct"), {}, t("Create a new construct from a base vehicle, object, or ped. Then extend it with attachments. Finally save your creation and share it with others."))
 
 menu.divider(menus.create_new_construct, t("Vehicle"))
 
@@ -2030,8 +2133,8 @@ menu.action(menus.create_new_construct, t("From Current Vehicle"), { "constructc
     local construct = create_construct_from_vehicle(vehicle)
     if construct then
         menus.rebuild_attachment_menu(construct)
-        construct.menus.refresh()
-        menu.focus(construct.menus.name)
+        construct.functions.refresh()
+        menu.focus(construct.menus.info)
     end
 end)
 
@@ -2197,7 +2300,9 @@ end)
 local previous_search_results = {}
 menus.load_construct_search = menu.text_input(menus.search_constructs, t("Search"), {"constructorsearch"}, t("Edit your search query"), function(query)
     for _, previous_search_result in pairs(previous_search_results) do
-        pcall(menu.delete, previous_search_result.load_menu)
+        if previous_search_result.load_menu and previous_search_result.load_menu:isValid() then
+            menu.delete(previous_search_result.load_menu)
+        end
     end
     previous_search_results = {}
     local results = search_constructs(CONSTRUCTS_DIR, query)
@@ -2235,7 +2340,9 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     if parent_construct_plan_file == nil then parent_construct_plan_file = load_constructs_root_menu_file end
     if parent_construct_plan_file.menus == nil then parent_construct_plan_file.menus = {} end
     for _, construct_plan_menu in pairs(parent_construct_plan_file.menus) do
-        pcall(menu.delete, construct_plan_menu)
+        if construct_plan_menu and construct_plan_menu:isValid() then
+            menu.delete(construct_plan_menu)
+        end
     end
 
     if path == CONSTRUCTS_DIR and filesystem.exists(JACKZ_BUILD_DIR) then
@@ -2280,6 +2387,36 @@ menus.rebuild_load_construct_menu = function()
 end
 
 ---
+--- Player Menu
+---
+
+local player_menu_actions = function(pid)
+    menus.constructor_player_menu = menu.divider(menu.player_root(pid), t("Constructor"))
+
+    menus.spawn_commands = menu.list(menu.player_root(pid), t("Chat Spawn Commands"))
+    local construct_plan_files = load_all_construct_plan_files_from_dir(CONSTRUCTS_DIR.."/"..config.chat_spawnable_dir)
+    for _, construct_plan_file in pairs(construct_plan_files) do
+        if not construct_plan_file.is_directory and is_file_type_supported(construct_plan_file.ext) then
+            menu.action(menus.spawn_commands, construct_plan_file.name, {construct_plan_file.name}, "", function()
+                local construct_plan = load_construct_plan_file(construct_plan_file)
+                if construct_plan then
+                    construct_plan.root = construct_plan
+                    construct_plan.parent = construct_plan
+                    construct_plan.name = construct_plan.name .. " [".. PLAYER.GET_PLAYER_NAME(pid) .."]"
+                    construct_plan.options.spawn_for_player = pid
+                    construct_plan.menu_auto_focus = false
+                    build_construct_from_plan(construct_plan)
+                end
+            end, nil, nil, COMMANDPERM_SPAWN)
+        end
+    end
+
+end
+
+players.on_join(player_menu_actions)
+players.dispatch_on_join()
+
+---
 --- Loaded Constructs Menu
 ---
 
@@ -2292,45 +2429,59 @@ end
 --- Global Options Menu
 ---
 
-local options_menu = menu.list(menu.my_root(), t("Options"))
-menu.divider(options_menu, t("Global Configs"))
-menu.slider(options_menu, t("Edit Offset Step"), {}, t("The amount of change each time you edit an attachment offset (hold SHIFT for fine tuning)"), 1, 50, config.edit_offset_step, 1, function(value)
+menus.settings_menu = menu.list(menu.my_root(), t("Settings"), {}, t("Set global configuration options."))
+
+menus.editing_settings = menu.list(menus.settings_menu, t("Editing"), {}, t("Set configuration options relating to editing constructs."))
+menu.slider(menus.editing_settings, t("Edit Offset Step"), {}, t("The amount of change each time you edit an attachment offset (hold SHIFT for fine tuning)"), 1, 50, config.edit_offset_step, 1, function(value)
     config.edit_offset_step = value
 end)
-menu.slider(options_menu, t("Edit Rotation Step"), {}, t("The amount of change each time you edit an attachment rotation (hold SHIFT for fine tuning)"), 1, 30, config.edit_rotation_step, 1, function(value)
+menu.slider(menus.editing_settings, t("Edit Rotation Step"), {}, t("The amount of change each time you edit an attachment rotation (hold SHIFT for fine tuning)"), 1, 30, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
-menu.toggle(options_menu, t("Show Previews"), {}, t("Show previews when adding attachments"), function(on)
+
+menus.preview_settings = menu.list(menus.settings_menu, t("Previews"), {}, t("Set configuration options relating to previewing constructs."))
+menu.toggle(menus.preview_settings, t("Show Previews"), {}, t("Show previews when adding attachments"), function(on)
     config.show_previews = on
 end, config.show_previews)
-menu.slider(options_menu, t("Preview Display Delay"), {"constructorpreviewdisplaydelay"}, t("After browsing to a construct or attachment, wait this long before showing the preview."), 100, 1000, config.preview_display_delay, 50, function(value)
+menu.slider(menus.preview_settings, t("Preview Display Delay"), {"constructorpreviewdisplaydelay"}, t("After browsing to a construct or attachment, wait this long before showing the preview."), 100, 1000, config.preview_display_delay, 50, function(value)
     config.preview_display_delay = value
 end)
-menu.toggle(options_menu, t("Delete All on Unload"), {}, t("Deconstruct all spawned constructs when unloading Constructor"), function(on)
-    config.deconstruct_all_spawned_constructs_on_unload = on
-end, config.deconstruct_all_spawned_constructs_on_unload)
-menu.toggle(options_menu, t("Focus Menu on Spawned Constructs"), {}, t("When spawning a construct, focus Stands menu on the newly spawned construct. Otherwise, stay in the Load Constructs menu."), function(on)
+
+menus.spawn_settings = menu.list(menus.settings_menu, t("Spawn"), {}, t("Set configuration options relating to spawning constructs."))
+menu.toggle(menus.spawn_settings, t("Focus Menu on Spawned Constructs"), {}, t("When spawning a construct, focus Stands menu on the newly spawned construct. Otherwise, stay in the Load Constructs menu."), function(on)
     config.focus_menu_on_spawned_constructs = on
 end, config.focus_menu_on_spawned_constructs)
-menu.slider(options_menu, t("Spawn Entity Delay"), {"constructorspawnentitydelay"}, t("Pause after spawning any object. Useful for preventing issues when spawning large constructs with many objects."), 0, 500, config.spawn_entity_delay, 1, function(value)
+menu.slider(menus.spawn_settings, t("Spawn Entity Delay"), {"constructorspawnentitydelay"}, t("Pause after spawning any object. Useful for preventing issues when spawning large constructs with many objects."), 0, 500, config.spawn_entity_delay, 1, function(value)
     config.spawn_entity_delay = value
 end)
+menu.text_input(menus.spawn_settings, t("Chat Spawnable Dir"), {"constructorspawnabledir"}, t("Set a Constructs sub-folder to be spawnable by name. Only available for users with permission to use Spawn Commands. See Online>Chat>Commands"), function(value)
+    config.chat_spawnable_dir = value
+end, config.chat_spawnable_dir)
+menu.slider(menus.spawn_settings, t("Constructs Allowed Per Player"), {"constructorspawnsallowedperplayer"}, t("The number of constructs any one player can spawn at a time. When a player tried to spawn additional constructs past this limit, the oldest spawned construct will be deleted."), 1, 5, config.num_allowed_spawned_constructs_per_player, 1, function(value)
+    config.num_allowed_spawned_constructs_per_player = value
+end)
+menu.toggle(menus.spawn_settings, t("Delete All on Unload"), {}, t("Deconstruct all spawned constructs when unloading Constructor"), function(on)
+    config.deconstruct_all_spawned_constructs_on_unload = on
+end, config.deconstruct_all_spawned_constructs_on_unload)
 
-menu.toggle(options_menu, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
+menus.debug_settings = menu.list(menus.settings_menu, t("Debug"), {}, t("Set configuration options relating to debugging the menu."))
+menu.toggle(menus.debug_settings, t("Debug Mode"), {}, t("Log additional details about Constructors actions."), function(toggle)
     config.debug_mode = toggle
 end, config.debug_mode)
-if config.debug_mode then
-    menu.action(options_menu, t("Log Missing Translations"), {}, t("Log any newly found missing translations"), function()
-        log_missing_translations()
-    end)
-end
+menu.action(menus.debug_settings, t("Log Missing Translations"), {}, t("Log any newly found missing translations"), function()
+    log_missing_translations()
+end)
 
-menu.action(options_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris."), function()
-    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),500, "VEHICLE")
-    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),500, "OBJECT")
-    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),500, "PED")
+menu.divider(menus.settings_menu, t("Clean Up"))
+menu.slider(menus.settings_menu, t("Clean Up Distance"), {"constructorcleanupdistance"}, t("How far away the cleanup command will reach to delete entities."), 0, 10000, config.clean_up_distance, 100, function(value)
+    config.clean_up_distance = value
+end)
+menu.action(menus.settings_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby vehicles, objects and peds. Useful to delete any leftover construction debris."), function()
+    local vehicles = delete_entities_by_range(entities.get_all_vehicles_as_handles(),config.clean_up_distance, "VEHICLE")
+    local objects = delete_entities_by_range(entities.get_all_objects_as_handles(),config.clean_up_distance, "OBJECT")
+    local peds = delete_entities_by_range(entities.get_all_peds_as_handles(),config.clean_up_distance, "PED")
     local player_pos = ENTITY.GET_ENTITY_COORDS(PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user()), 1)
-    GRAPHICS.REMOVE_PARTICLE_FX_IN_RANGE(player_pos.x, player_pos.y, player_pos.z, 500)
+    GRAPHICS.REMOVE_PARTICLE_FX_IN_RANGE(player_pos.x, player_pos.y, player_pos.z, config.clean_up_distance)
     util.toast(t("Removed").." "..objects.." "..t("objects")..", "..vehicles.." "..t("vehicles")..t(", and ")..peds.." "..t("peds"), TOAST_ALL)
 end)
 
@@ -2338,7 +2489,7 @@ end)
 --- Script Meta Menu
 ---
 
-local script_meta_menu = menu.list(menu.my_root(), t("Script Meta"))
+local script_meta_menu = menu.list(menu.my_root(), t("Script Meta"), {}, t("Information and options about the Constructor script itself."))
 menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
 menu.list_select(script_meta_menu, t("Release Branch"), {}, t("Switch from main to dev to get cutting edge updates, but also potentially more bugs."), AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
@@ -2369,13 +2520,13 @@ menu.divider(menus.credits, t("Inspirations"))
 menu.readonly(menus.credits, "Jackz Vehicle Builder", t("Much of Constructor is based on code originally copied from Jackz Vehicle Builder and this script wouldn't be possible without it. Constructor is just my own copy of Jackz's amazing work. Thank you Jackz!"))
 menu.readonly(menus.credits, "LanceSpooner", t("LanceSpooner is also a huge inspiration to this script. Thanks Lance!"))
 menu.divider(menus.credits, t("Translators"))
-menu.readonly(menus.credits, t("Chinese"), t("CqCq and Zelda Two"))
+menu.readonly(menus.credits, t("Chinese"), t("Zelda Two"))
 
 ---
 --- Startup Logo
 ---
 
-if SCRIPT_MANUAL_START then
+if SCRIPT_MANUAL_START and not SCRIPT_SILENT_START then
     local logo = directx.create_texture(filesystem.scripts_dir() .. '/lib/constructor/constructor_logo.png')
     local fade_steps = 50
     -- Fade In
@@ -2411,7 +2562,3 @@ util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
 --end)
 
 util.on_stop(cleanup_constructs_handler)
-
-util.create_tick_handler(function()
-    return true
-end)

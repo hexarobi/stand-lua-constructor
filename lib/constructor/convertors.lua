@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.8.5b8"
+local SCRIPT_VERSION = "0.27"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -65,40 +65,14 @@ local function read_file(filepath)
     end
 end
 
-local function table_merge(t1, t2)
-    for k, v in pairs(t2) do
-        if (type(v) == "table") and (type(t1[k] or false) == "table") then
-            table_merge(t1[k], t2[k])
-        else
-            t1[k] = v
-        end
-    end
-    return t1
-end
-
-local function trim(string)
-    return string:gsub("%s+", "")
-end
-
 ---
 --- Constructor Format
 ---
 
 convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
-    --constructor_lib.set_attachment_defaults(construct_plan)
     if construct_plan.temp == nil then construct_plan.temp = {} end
     construct_plan.temp.source_file_type = "Construct"
-    if construct_plan.type == "PED" and construct_plan.hash == nil and construct_plan.model == nil then
-        local current_player_hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
-        local current_player = {
-            handle = players.user_ped(),
-            hash = current_player_hash,
-            model = util.reverse_joaat(current_player_hash),
-        }
-        --constructor_lib.deserialize_ped_attributes(current_player)
-        table_merge(current_player, construct_plan)
-        return current_player
-    end
+    constructor_lib.use_player_ped_attributes_as_base(construct_plan)
     return construct_plan
 end
 
@@ -1281,7 +1255,7 @@ local function map_ini_data_flavor_4(construct_plan, data)
                 table.insert(construct_plan.children, attachment)
             end
         end
-    elseif data.Object0 ~= nil and trim(data.Object0.AttachedToWhat) == "Self" then
+    elseif data.Object0 ~= nil and constructor_lib.trim(data.Object0.AttachedToWhat) == "Self" then
         construct_plan.type = "PED"
         construct_plan.is_player = true
         for object_index = 0, tonumber(data.AllObjects.Count) - 1 do

@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "3.26"
+local SCRIPT_VERSION = "0.27"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -98,8 +98,39 @@ constructor_lib.array_remove = function(t, fnKeep)
     return t;
 end
 
+constructor_lib.table_merge = function(t1, t2)
+    for k, v in pairs(t2) do
+        if (type(v) == "table") and (type(t1[k] or false) == "table") then
+            constructor_lib.table_merge(t1[k], t2[k])
+        else
+            t1[k] = v
+        end
+    end
+    return t1
+end
+
+constructor_lib.trim = function(string)
+    return string:gsub("%s+", "")
+end
+
 constructor_lib.is_attachment_entity = function(attachment)
     return attachment.type ~= "PARTICLE"
+end
+
+constructor_lib.use_player_ped_attributes_as_base = function(attachment)
+    if attachment.type ~= "PED" then return attachment end
+    debug_log("Using player as base model="..tostring(attachment.model).." hash="..tostring(attachment.hash))
+    if attachment.hash == nil and attachment.model == nil then
+        debug_log("Using player as base for "..tostring(attachment.name))
+        if attachment.handle == nil then attachment.handle = players.user_ped() end
+        constructor_lib.serialize_hash_and_model(attachment)
+        local player_preview = {handle=players.user_ped(), type="PED"}
+        constructor_lib.serialize_ped_attributes(player_preview)
+        if attachment.ped_attributes == nil then attachment.ped_attributes = {} end
+        constructor_lib.table_merge(player_preview.ped_attributes, attachment.ped_attributes)
+        constructor_lib.table_merge(attachment.ped_attributes, player_preview.ped_attributes)
+        debug_log("Using player as base for "..inspect(attachment))
+    end
 end
 
 ---
@@ -524,7 +555,9 @@ constructor_lib.create_entity = function(attachment)
     constructor_lib.update_attachment_position(attachment)
     constructor_lib.refresh_blip(attachment)
 
-    util.yield(CONSTRUCTOR_CONFIG.spawn_entity_delay)
+    if attachment.root.is_preview ~= true and CONSTRUCTOR_CONFIG.spawn_entity_delay > 0 then
+        util.yield(CONSTRUCTOR_CONFIG.spawn_entity_delay)
+    end
 
     --debug_log("Done attaching "..tostring(attachment.name))
     return attachment
@@ -568,7 +601,7 @@ constructor_lib.add_attachment_to_construct = function(attachment)
     debug_log("Adding attachment to construct "..tostring(attachment.name))
     constructor_lib.create_entity_with_children(attachment)
     table.insert(attachment.parent.children, attachment)
-    attachment.root.menus.refresh(attachment)
+    attachment.root.functions.refresh(attachment)
 end
 
 ---
@@ -589,7 +622,9 @@ end
 constructor_lib.delete_attachment = function(attachment)
     if attachment.handle ~= nil and type(attachment.handle) == "number" and attachment.handle > 0 then
         if constructor_lib.is_attachment_entity(attachment) then
+            debug_log("Deleting attachment "..attachment.name)
             entities.delete_by_handle(attachment.handle)
+            --if not CONSTRUCTOR_CONFIG.is_final_cleanup then util.yield_once() end
         elseif attachment.type == "PARTICLE" then
             GRAPHICS.REMOVE_PARTICLE_FX(attachment.handle, true)
         end
@@ -597,8 +632,8 @@ constructor_lib.delete_attachment = function(attachment)
 end
 
 constructor_lib.remove_attachment = function(attachment)
-    debug_log("Removing attachment "..tostring(attachment.name))
     if not attachment then return end
+    debug_log("Removing attachment "..tostring(attachment.name))
     if attachment.children then
         constructor_lib.array_remove(attachment.children, function(t, i)
             local child_attachment = t[i]
@@ -615,7 +650,10 @@ constructor_lib.remove_attachment = function(attachment)
         for _, attachment_menu in pairs(attachment.menus) do
             -- Sometimes these menu handles are invalid but I don't know why,
             -- so wrap them in pcall to avoid errors if delete fails
-            pcall(function() menu.delete(attachment_menu) end)
+            if attachment_menu:isValid() then
+                debug_log("Deleting attachment menu ".._.." "..tostring(attachment_menu))
+                menu.delete(attachment_menu)
+            end
         end
     end
 end
@@ -633,8 +671,8 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
             end
             return true
         end)
-        attachment.parent.menus.refresh()
-        attachment.parent.menus.focus()
+        attachment.parent.functions.refresh()
+        attachment.parent.functions.focus()
     end
 end
 
@@ -825,6 +863,7 @@ constructor_lib.set_preview_visibility = function(attachment)
     ENTITY.SET_ENTITY_ALPHA(attachment.handle, preview_alpha, false)
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
     ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, true)
+    --ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, false)
 end
 
 ---
@@ -1091,6 +1130,7 @@ constructor_lib.serialize_vehicle_paint = function(vehicle)
     vehicle.vehicle_attributes.paint.livery_legacy = VEHICLE.GET_VEHICLE_LIVERY(vehicle.handle)
     vehicle.vehicle_attributes.paint.livery2_legacy = VEHICLE.GET_VEHICLE_LIVERY2(vehicle.handle)
 
+    --memory.free(color)
 end
 
 constructor_lib.deserialize_vehicle_paint = function(vehicle)
@@ -1207,6 +1247,7 @@ constructor_lib.serialize_vehicle_neon = function(vehicle)
         VEHICLE.GET_VEHICLE_NEON_COLOUR(vehicle.handle, color.r, color.g, color.b)
         vehicle.vehicle_attributes.neon.color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     end
+    --memory.free(color)
 end
 
 constructor_lib.deserialize_vehicle_neon = function(vehicle)
@@ -1272,6 +1313,7 @@ constructor_lib.serialize_vehicle_wheels = function(vehicle)
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, color.r, color.g, color.b)
     vehicle.vehicle_attributes.wheels.tire_smoke_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
+    --memory.free(color)
 end
 
 constructor_lib.deserialize_vehicle_wheels = function(vehicle)
@@ -1648,7 +1690,7 @@ constructor_lib.copy_serializable = function(attachment)
     for k, v in pairs(attachment) do
         if not (
             k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp" or k == "load_menu" or k == "menu_auto_focus"
-            or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading"
+            or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading" or k == "functions"
         ) then
             serializeable_attachment[k] = constructor_lib.table_copy(v)
         end
