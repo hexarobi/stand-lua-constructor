@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27b13"
+local SCRIPT_VERSION = "0.27b14"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -463,17 +463,6 @@ local function restore_original_player_skin()
     end
 end
 
-local function use_player_as_base(attachment)
-    if attachment.type ~= "PED" then return attachment end
-    if attachment.hash == nil and attachment.model == nil then
-        local player_preview = {handle=players.user_ped(), type="PED"}
-        constructor_lib.serialize_ped_attributes(player_preview)
-        player_preview.handle = nil
-        return constructor_lib.table_merge(player_preview, attachment)
-    end
-    return attachment
-end
-
 ---
 --- Construct Plan Description
 ---
@@ -611,6 +600,8 @@ local function cleanup_previews_tick()
             --debug_log("Removing preview "..tostring(spawned_preview.name))
             constructor_lib.remove_attachment(spawned_preview)
             return false
+        else
+            ENTITY.FREEZE_ENTITY_POSITION(spawned_preview.handle, true)
         end
         return true
     end)
@@ -645,7 +636,7 @@ local function add_preview(construct_plan, preview_image_path)
     if next_preview == construct_plan then
         local attachment = copy_construct_plan(construct_plan)
         if construct_plan.type == "PED" then
-            attachment = use_player_as_base(attachment)
+            constructor_lib.use_player_ped_attributes_as_base(attachment)
         elseif construct_plan.type == "PARTICLE" then
             attachment = {model="ng_proc_cigbuts02a", children={attachment}}
         end
@@ -955,7 +946,7 @@ local function spawn_construct_from_plan(construct_plan)
     constructor_lib.default_attachment_attributes(construct)
     if construct_plan.type == "PED" and config.wear_spawned_peds then construct.is_player = true end
     if construct.is_player then
-        construct.handle = players.user_ped()
+        --construct.handle = players.user_ped()
         if player_construct ~= nil then
             -- Delete current player construct
             constructor.delete_construct(player_construct)
@@ -964,7 +955,7 @@ local function spawn_construct_from_plan(construct_plan)
         end
         get_player_construct()
         player_construct = construct
-        use_player_as_base(construct)
+        constructor_lib.use_player_ped_attributes_as_base(construct)
     else
         set_spawned_construct_position(construct)
     end
