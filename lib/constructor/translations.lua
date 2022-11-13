@@ -1,5 +1,6 @@
 -- Constructor Translations
--- v0.27b4
+
+local SCRIPT_VERSION = "0.27"
 local translations = {}
 
 translations.GAME_LANGUAGE_IDS = {
@@ -365,10 +366,3 @@ translations["zh"] = {
 ---
 
 return translations
-
-
-
-
-
-
-
