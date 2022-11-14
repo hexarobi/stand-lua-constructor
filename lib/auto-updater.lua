@@ -1,4 +1,4 @@
--- Auto-Updater v1.6.1
+-- Auto-Updater v1.6.2
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -315,6 +315,7 @@ util.create_thread(function()
         source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
         script_relpath="lib/auto-updater.lua",
         verify_file_begins_with="--",
+        check_interval = 86400,
     })
 end)
 
