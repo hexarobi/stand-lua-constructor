@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.27"
+local SCRIPT_VERSION = "0.28b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -161,7 +161,7 @@ constructor_lib.default_entity_attributes = function(attachment)
     debug_log("Defaulting entity attributes "..tostring(attachment.name))
     if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
-    if attachment.rotation_axis == nil then attachment.rotation_axis = 2 end
+    if attachment.rotation_order == nil then attachment.rotation_order = 2 end
     if attachment.position == nil or attachment.position == {} then attachment.position = { x = 0, y = 0, z = 0 } end
     if attachment.world_rotation == nil or attachment.world_rotation == {} then attachment.world_rotation = { x = 0, y = 0, z = 0 } end
     if attachment.heading == nil then
@@ -203,6 +203,13 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.name == nil then attachment.name = attachment.model end
     constructor_lib.default_vehicle_attributes(attachment)
     constructor_lib.default_ped_attributes(attachment)
+end
+
+constructor_lib.serialize_entity_attributes = function(attachment)
+    local pos = ENTITY.GET_WORLD_POSITION_OF_ENTITY_BONE(attachment.handle, 0)
+    attachment.position = {x=pos.x, y=pos.y, z=pos.z}
+    local rot = ENTITY.GET_ENTITY_ROTATION(attachment.handle, attachment.rotation_order)
+    attachment.world_rotation = {x=rot.x, y=rot.y, z=rot.z}
 end
 
 constructor_lib.deserialize_entity_attributes = function(attachment)
@@ -268,7 +275,7 @@ constructor_lib.attach_entity = function(attachment)
                         attachment.handle, attachment.parent.handle, attachment.options.bone_index,
                         attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
                         attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                        false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, attachment.rotation_axis, true
+                        false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, attachment.rotation_order, true
                 )
             end
         end
@@ -289,6 +296,7 @@ end
 constructor_lib.default_particle_attributes = function(attachment)
     if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
+    if attachment.rotation_order == nil then attachment.rotation_order = 2 end
     if attachment.particle_attributes == nil then attachment.particle_attributes = {} end
     if attachment.particle_attributes.bone_index == nil then attachment.particle_attributes.bone_index = 0 end
     if attachment.particle_attributes.scale == nil then attachment.particle_attributes.scale = 1 end
@@ -617,6 +625,8 @@ constructor_lib.detach_attachment = function(attachment)
     end)
     attachment.root = attachment
     attachment.parent = attachment
+    constructor_lib.default_attachment_attributes(attachment)
+    constructor_lib.serialize_entity_attributes(attachment)
 end
 
 constructor_lib.delete_attachment = function(attachment)
