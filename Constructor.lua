@@ -1425,16 +1425,22 @@ local function add_attachment_position_menu(attachment)
         end)
 
         menu.divider(attachment.menus.position, t("Rotation"))
-        attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
             attachment.rotation.x = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
             attachment.rotation.y = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
+        attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
             attachment.rotation.z = value
+            constructor_lib.move_attachment(attachment)
+        end)
+
+        menu.divider(attachment.menus.position, t("Options"))
+        attachment.menus.edit_rotation_order = menu.list_select(attachment.menus.position, t("Rotation Order"), {"constructorrotationorder"..attachment.id.."z"}, t("Set the order that rotations should be applied."), constants.rotation_orders, attachment.rotation_order, function(index, menu_name, previous_option, click_type)
+            attachment.rotation_order = constants.rotation_orders[index][4]
             constructor_lib.move_attachment(attachment)
         end)
 
@@ -1455,15 +1461,16 @@ local function add_attachment_position_menu(attachment)
         end)
 
         menu.divider(attachment.menus.position, t("World Rotation"))
-        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
             attachment.world_rotation.x = value
+            if attachment.world_rotation.x == -180 then attachment.world_rotation.x = 180 end
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
             attachment.world_rotation.y = value
             constructor_lib.move_attachment(attachment)
         end)
-        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -179, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
+        attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
             attachment.world_rotation.z = value
             constructor_lib.move_attachment(attachment)
         end)
@@ -2285,8 +2292,8 @@ menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {"construc
         util.toast("No constructs found!", TOAST_ALL)
         menu.show_warning(menu.my_root(), CLICK_COMMAND, t(
                 "No constructs found! Would you like to download a curated collection of constructs? "
-                .."This includes popular vehicles, maps and skins to get started with Constructor. "
-                .."Installer requires special permissions for direct access to system for unzipping."), function()
+                        .."This includes popular vehicles, maps and skins to get started with Constructor. "
+                        .."Installer requires special permissions for direct access to system for unzipping."), function()
             install_curated_constructs()
             menus.rebuild_load_construct_menu()
         end)
