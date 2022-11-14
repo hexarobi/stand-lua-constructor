@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.28b5"
+local SCRIPT_VERSION = "0.28b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -12,7 +12,8 @@ local AUTO_UPDATE_BRANCHES = {
 local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
-local loading_menu = menu.divider(menu.my_root(), "Loading...")
+local PLEASE_WAIT_LANG_ID = -2031313458
+local loading_menu = menu.divider(menu.my_root(), lang.get_string(PLEASE_WAIT_LANG_ID, lang.get_current()))
 
 ---
 --- Auto-Updater Lib Install
@@ -188,7 +189,6 @@ if loading_menu:isValid() then menu.delete(loading_menu) end
 --if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
 util.ensure_package_is_installed('lua/natives-1663599433')
---util.require_natives(1663599433)
 local status_natives, natives = pcall(require, "natives-1663599433")
 if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
 
@@ -244,71 +244,8 @@ end
 --- Translations
 ---
 
-local current_translations = {}
-local missing_translations = {}
-local LANG_STRING_NOT_FOUND = "/!\\ STRING NOT FOUND /!\\"
-
-function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
-    local translated_string = current_translations[text]
-    if translated_string ~= nil and translated_string ~= LANG_STRING_NOT_FOUND then
-        --debug_log("Found local translation for '"..text.."'")
-        return translated_string
-    end
-    local label_id = lang.find(text, "en")
-    if label_id then
-        --debug_log("Found global translation for '"..text.."'")
-        translated_string = lang.get_string(label_id, lang.get_current())
-        if translated_string ~= LANG_STRING_NOT_FOUND then
-            return translated_string
-        end
-    else
-        --debug_log("Missing translation: "..text)
-        missing_translations[text] = text
-    end
-    return text
-end
-
 -- Shorthand wrapper for translation function
-local function t(text)
-    return CONSTRUCTOR_TRANSLATE_FUNCTION(text)
-end
-
-for lang_id, language_key in pairs(translations.GAME_LANGUAGE_IDS) do
-    if translations[lang_id] ~= nil then
-        --debug_log("Processing translations language "..lang_id)
-        lang.set_translate(lang_id)
-        for english_string, translated_string in pairs(translations[lang_id]) do
-            local label_id = lang.find(english_string, "en")
-            --debug_log("Found label for '"..english_string.."' as label "..label_id)
-            if (not label_id) or label_id == 0 then
-                label_id = lang.register(english_string)
-                --debug_log("Registered '"..english_string.."' as label "..label_id)
-            end
-            local existing_translation = lang.get_string(label_id, lang_id)
-            if (not existing_translation) or existing_translation == english_string or existing_translation == LANG_STRING_NOT_FOUND then
-                --debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
-                if label_id > 0 then
-                    local translate_status, translate_response = pcall(lang.translate, label_id, translated_string)
-                    if not translate_status then
-                        debug_log("Failed to add translation '"..english_string.."' as label "..label_id)
-                    end
-                else
-                    --debug_log("Cannot translate internal label")
-                end
-                if lang_id == lang.get_current() then
-                    current_translations[english_string] = translated_string
-                end
-            else
-                --debug_log("Found translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..existing_translation.."'")
-            end
-        end
-    end
-end
-
-local function log_missing_translations()
-    util.toast("Missing translations", TOAST_ALL)
-    util.log(inspect(missing_translations))
-end
+local function t(text) return CONSTRUCTOR_TRANSLATE_FUNCTION(text) end
 
 ---
 --- Data
@@ -2508,7 +2445,7 @@ menu.toggle(menus.debug_settings, t("Debug Mode"), {}, t("Log additional details
     config.debug_mode = toggle
 end, config.debug_mode)
 menu.action(menus.debug_settings, t("Log Missing Translations"), {}, t("Log any newly found missing translations"), function()
-    log_missing_translations()
+    translations.log_missing_translations()
 end)
 
 menu.divider(menus.settings_menu, t("Clean Up"))
