@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.28b6"
+local SCRIPT_VERSION = "0.28b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -196,11 +196,16 @@ if not status_natives then error("Could not natives lib. Make sure it is selecte
 local missing_required_dependencies = {}
 for _, dependency in pairs(auto_update_config.dependencies) do
     if dependency.is_required then
+        local var_name = dependency.name
         if dependency.loaded_lib ~= nil then
-            local var_name = dependency.name
             _G[var_name] = dependency.loaded_lib
         else
-            table.insert(missing_required_dependencies, dependency.name)
+            local lib_require_status, loaded_lib = pcall(require, dependency.script_relpath:gsub("[.]lua$", ""))
+            if lib_require_status then
+                _G[var_name] = loaded_lib
+            else
+                table.insert(missing_required_dependencies, dependency.name)
+            end
         end
     end
 end
