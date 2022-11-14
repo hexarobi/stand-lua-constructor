@@ -1,4 +1,4 @@
--- Auto-Updater v1.5.2
+-- Auto-Updater v1.6.1
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -9,13 +9,15 @@
 --        script_relpath=SCRIPT_RELPATH,  -- Set by Stand automatically for root script file, or can be used for lib files
 --    })
 
+local debug_mode = false
+
 ---
 --- Dependencies
 ---
 
-util.ensure_package_is_installed('lua/json')
-local status_json, json = pcall(require, "json")
-if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+--util.ensure_package_is_installed('lua/json')
+--local status_json, json = pcall(require, "json")
+--if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
 ---
 --- Utilities
@@ -38,6 +40,12 @@ local function modify_github_url_branch(url, switch_to_branch)
     return root.."/"..switch_to_branch.."/"..path
 end
 
+local function debug_log(message)
+    if debug_mode then
+        util.log("[auto-updater] "..message)
+    end
+end
+
 ---
 --- Version File
 ---
@@ -45,7 +53,7 @@ end
 local function save_version_data(auto_update_config)
     local file = io.open(auto_update_config.version_file, "wb")
     if file == nil then util.toast("Error opening version file for writing: "..auto_update_config.version_file, TOAST_ALL) return end
-    file:write(json.encode(auto_update_config.version_data))
+    file:write(soup.json.encode(auto_update_config.version_data))
     file:close()
 end
 
@@ -54,7 +62,7 @@ local function load_version_data(auto_update_config)
     if file then
         local version = file:read()
         file:close()
-        local status, version_data = pcall(json.decode, version)
+        local status, version_data = pcall(soup.json.decode, version)
         if not status and type(version) == "string" then
             version_data = {version_id=version}
         end
@@ -122,7 +130,7 @@ local function expand_auto_update_config(auto_update_config)
         auto_update_config.source_url = modify_github_url_branch(auto_update_config.source_url, auto_update_config.switch_to_branch)
     end
     --if auto_update_config.restart_delay == nil then
-    --    auto_update_config.restart_delay = 500
+    --    auto_update_config.restart_delay = 100
     --end
     if auto_update_config.http_timeout == nil then
         auto_update_config.http_timeout = 30000
@@ -179,13 +187,15 @@ local function process_auto_update(auto_update_config)
         parse_script_version(auto_update_config, result)
         if headers then
             for header_key, header_value in pairs(headers) do
-                if header_key == "ETag" then
+                if header_key:lower() == "etag" then
                     update_version_id(auto_update_config, header_value)
                 end
             end
         end
         is_download_complete = true
-        util.toast("Updated "..auto_update_config.script_filename, TOAST_ALL)
+        if not auto_update_config.silent_updates then
+            util.toast("Updated "..auto_update_config.script_filename, TOAST_ALL)
+        end
     end, function()
         util.toast("Error updating "..auto_update_config.script_filename..": Update failed to download.", TOAST_ALL)
     end)
@@ -232,7 +242,7 @@ end
 
 function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
-    --util.toast("Running "..auto_update_config.script_filename.."...", TOAST_ALL)
+    debug_log("Running auto-update on "..auto_update_config.script_filename.."...", TOAST_ALL)
     if is_due_for_update_check(auto_update_config) then
         is_download_complete = nil
         util.create_thread(function()
@@ -244,11 +254,11 @@ function run_auto_update(auto_update_config)
             i = i + 1
         end
         if is_download_complete == nil then
-            util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout. This error can often be resolved by using Cloudflare DNS settings: 1.1.1.1 and 1.0.0.1 For more info visit http://1.1.1.1", TOAST_ALL)
+            util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout. This error can often be resolved by using Cloudflare DNS settings: 1.1.1.1 and 1.0.0.1 For more info visit http://1.1.1.1/dns/", TOAST_ALL)
             return false
         end
         if (auto_update_config.script_updated and not auto_update_config.is_dependency) and auto_update_config.auto_restart ~= false then
-            --util.toast("Restarting...", TOAST_ALL)
+            debug_log("Restarting...", TOAST_ALL)
             if auto_update_config.restart_delay then util.yield(auto_update_config.restart_delay) end
             util.restart_script()
             return
@@ -258,8 +268,9 @@ function run_auto_update(auto_update_config)
     if auto_update_config.dependencies ~= nil then
         for _, dependency in pairs(auto_update_config.dependencies) do
             dependency.is_dependency = true
+            if dependency.silent_updates == nil then dependency.silent_updates = auto_update_config.silent_updates end
             if (is_due_for_update_check(auto_update_config) or auto_update_config.script_updated or auto_update_config.version_data.fresh_update) then dependency.check_interval = 0 end
-            if dependency.script_relpath:match("(.*)[.]lua$") then
+            if dependency.is_required and dependency.script_relpath:match("(.*)[.]lua$") then
                 require_with_auto_update(dependency)
             else
                 run_auto_update(dependency)
@@ -268,7 +279,7 @@ function run_auto_update(auto_update_config)
         end
     end
     if (dependency_updated) and auto_update_config.auto_restart ~= false then
-        --util.toast("Dependency updated. Restarting...", TOAST_ALL)
+        debug_log("Dependency updated. Restarting...", TOAST_ALL)
         if auto_update_config.restart_delay then util.yield(auto_update_config.restart_delay) end
         util.restart_script()
         return
@@ -315,4 +326,3 @@ return {
     run_auto_update = run_auto_update,
     require_with_auto_update = require_with_auto_update,
 }
-
