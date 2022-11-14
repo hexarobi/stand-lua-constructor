@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.28b1"
+local SCRIPT_VERSION = "0.28b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -42,6 +42,36 @@ end
 if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
 
 ---
+--- Config
+---
+
+CONSTRUCTOR_CONFIG = {
+    source_code_branch = "main",
+    edit_offset_step = 10,
+    edit_rotation_step = 15,
+    add_attachment_gun_active = false,
+    show_previews = true,
+    preview_camera_distance = 3,
+    preview_bounding_box_color = {r=255,g=0,b=255,a=255},
+    deconstruct_all_spawned_constructs_on_unload = true,
+    drive_spawned_vehicles = true,
+    wear_spawned_peds = true,
+    focus_menu_on_spawned_constructs = true,
+    preview_display_delay = 500,
+    max_search_results = 100,
+    spawn_entity_delay = 0,
+    is_final_cleanup = false,
+    clean_up_distance = 500,
+    num_allowed_spawned_constructs_per_player = 1,
+    chat_spawnable_dir = "spawnable",
+    debug_mode = true,
+    auto_update = true,
+    auto_update_check_interval = 86400
+}
+-- Short local alias
+local config = CONSTRUCTOR_CONFIG
+
+---
 --- Auto-Update
 ---
 
@@ -51,7 +81,7 @@ local auto_update_config = {
     script_relpath=SCRIPT_RELPATH,
     switch_to_branch=selected_branch,
     verify_file_begins_with="--",
-    check_interval=86400,
+    check_interval=config.auto_update_check_interval,
     dependencies={
         {
             name="inspect",
@@ -142,46 +172,63 @@ local auto_update_config = {
         },
     }
 }
-auto_updater.run_auto_update(auto_update_config)
+local update_success
+if config.auto_update then
+    update_success = auto_updater.run_auto_update(auto_update_config)
+end
+
+if loading_menu:isValid() then menu.delete(loading_menu) end
+
+---
+--- Dependencies
+---
+
+--util.ensure_package_is_installed('lua/json')
+--local status_json, json = pcall(require, "json")
+--if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+
+util.ensure_package_is_installed('lua/natives-1663599433')
+util.require_natives(1663599433)
+local status_natives, natives = pcall(require, "natives-1663599433")
+if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
 
 -- Call require() on all required dependencies
+local missing_required_dependencies = {}
 for _, dependency in pairs(auto_update_config.dependencies) do
     if dependency.is_required then
-        if dependency.loaded_lib == nil then
-            util.toast("Error loading lib "..dependency.name, TOAST_ALL)
-        else
+        if dependency.loaded_lib ~= nil then
             local var_name = dependency.name
             _G[var_name] = dependency.loaded_lib
+        else
+            table.insert(missing_required_dependencies, dependency.name)
         end
     end
 end
 
----
---- Config
----
+if constructor_lib == nil then
+    if not update_success then
+        menu.readonly(menu.my_root(), "Error: Install Failed", "Auto-update failed and required files are missing. Please re-install from the project zip file")
+        menu.hyperlink(menu.my_root(), "Download Full Project Zip", "https://github.com/hexarobi/stand-lua-constructor")
+        error("Error: Install Failed. Auto-update failed and required files are missing. Please re-install from the project zip file @ https://github.com/hexarobi/stand-lua-constructor")
+    else
+        menu.readonly(menu.my_root(), "Error: Load Failed", "Required files are missing.")
+        if config.auto_update then
+            menu.hyperlink(menu.my_root(), "Discord Help", "https://discord.gg/2u5HbHPB9y")
+        else
+            menu.readonly(menu.my_root(), "Please Update", "Please clean reinstall or manually update from the project homepage.")
+            menu.action(menu.my_root(), "Clean Reinstall", {}, "Force an update to the latest version, regardless of current version.", function()
+                auto_update_config.clean_reinstall = true
+                auto_updater.run_auto_update(auto_update_config)
+            end)
+            menu.hyperlink(menu.my_root(), "Download Full Project Zip", "https://github.com/hexarobi/stand-lua-constructor")
+        end
+        error("Error: Load Failed. Auto-update successful but required files are missing. This is likely a bug. Please report this issue on Discord @ https://discord.gg/2u5HbHPB9y")
+    end
+end
 
-CONSTRUCTOR_CONFIG = {
-    source_code_branch = "main",
-    edit_offset_step = 10,
-    edit_rotation_step = 15,
-    add_attachment_gun_active = false,
-    show_previews = true,
-    preview_camera_distance = 3,
-    preview_bounding_box_color = {r=255,g=0,b=255,a=255},
-    deconstruct_all_spawned_constructs_on_unload = true,
-    drive_spawned_vehicles = true,
-    wear_spawned_peds = true,
-    focus_menu_on_spawned_constructs = true,
-    preview_display_delay = 500,
-    max_search_results = 100,
-    spawn_entity_delay = 0,
-    is_final_cleanup = false,
-    clean_up_distance = 500,
-    num_allowed_spawned_constructs_per_player = 1,
-    chat_spawnable_dir = "spawnable",
-    debug_mode = true,
-}
-local config = CONSTRUCTOR_CONFIG
+---
+--- Debug Log
+---
 
 local function debug_log(message, additional_details)
     if CONSTRUCTOR_CONFIG.debug_mode then
@@ -263,29 +310,13 @@ local function log_missing_translations()
 end
 
 ---
---- Dependencies
----
-
---util.ensure_package_is_installed('lua/json')
---local status_json, json = pcall(require, "json")
---if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
-
-util.ensure_package_is_installed('lua/natives-1663599433')
-util.require_natives(1663599433)
-local status_natives, natives = pcall(require, "natives-1663599433")
-if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
-
-local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
-
-if loading_menu:isValid() then menu.delete(loading_menu) end
-
-local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION .. " / " .. convertors.SCRIPT_VERSION
-
----
 --- Data
 ---
 
 local constructor = {}
+
+local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
+local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION .. " / " .. convertors.SCRIPT_VERSION
 
 local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
 filesystem.mkdirs(CONSTRUCTS_DIR)
@@ -2499,6 +2530,7 @@ end)
 local script_meta_menu = menu.list(menu.my_root(), t("Script Meta"), {}, t("Information and options about the Constructor script itself."))
 menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
+menu.toggle(script_meta_menu, t("Auto-Update"), {}, t("Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."), function()  end, config.auto_update)
 menu.list_select(script_meta_menu, t("Release Branch"), {}, t("Switch from main to dev to get cutting edge updates, but also potentially more bugs."), AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
     if click_type ~= 0 then return end
     auto_update_config.switch_to_branch = AUTO_UPDATE_BRANCHES[index][1]
