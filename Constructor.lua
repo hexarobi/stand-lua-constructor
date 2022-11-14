@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.28b4"
+local SCRIPT_VERSION = "0.28b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -188,7 +188,7 @@ if loading_menu:isValid() then menu.delete(loading_menu) end
 --if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
 util.ensure_package_is_installed('lua/natives-1663599433')
-util.require_natives(1663599433)
+--util.require_natives(1663599433)
 local status_natives, natives = pcall(require, "natives-1663599433")
 if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
 
