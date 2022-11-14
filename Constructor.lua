@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.28b2"
+local SCRIPT_VERSION = "0.28b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -85,7 +85,7 @@ local auto_update_config = {
     dependencies={
         {
             name="inspect",
-            source_url="https://raw.githubusercontent.com/kikito/inspect.lua/master/inspect.lua",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/inspect.lua",
             script_relpath="lib/inspect.lua",
             verify_file_begins_with="local",
             check_interval=default_check_interval,
@@ -205,11 +205,15 @@ for _, dependency in pairs(auto_update_config.dependencies) do
     end
 end
 
-if constructor_lib == nil then
+if #missing_required_dependencies > 0 then
+    local missing_files = ""
+    for _, missing_file in pairs(missing_required_dependencies) do
+        missing_files = missing_files..", "..missing_file
+    end
     if not update_success then
-        menu.readonly(menu.my_root(), "Error: Install Failed", "Auto-update failed and required files are missing. Please re-install from the project zip file")
+        menu.readonly(menu.my_root(), "Error: Install Failed", "Auto-update failed and required files are missing ("..missing_files..") Please re-install from the project zip file.")
         menu.hyperlink(menu.my_root(), "Download Full Project Zip", "https://github.com/hexarobi/stand-lua-constructor")
-        error("Error: Install Failed. Auto-update failed and required files are missing. Please re-install from the project zip file @ https://github.com/hexarobi/stand-lua-constructor")
+        error("Error: Install Failed. Auto-update failed and required files are missing ("..missing_files..") Please re-install from the project zip file @ https://github.com/hexarobi/stand-lua-constructor")
     else
         menu.readonly(menu.my_root(), "Error: Load Failed", "Required files are missing.")
         if config.auto_update then
