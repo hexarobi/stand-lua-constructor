@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.28b2"
+local SCRIPT_VERSION = "0.28b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION
@@ -14,10 +14,10 @@ local constructor_lib = {
 --- Dependencies
 ---
 
-util.ensure_package_is_installed('lua/natives-1663599433')
-util.require_natives(1663599433)
-local status_natives, natives = pcall(require, "natives-1663599433")
-if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
+--util.ensure_package_is_installed('lua/natives-1663599433')
+--util.require_natives(1663599433)
+--local status_natives, natives = pcall(require, "natives-1663599433")
+--if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
 
 local status_inspect, inspect = pcall(require, "inspect")
 if not status_inspect then error("Could not load inspect lib. This should have been auto-installed.") end
@@ -1494,7 +1494,7 @@ constructor_lib.serialize_vehicle_options = function(vehicle)
     vehicle.vehicle_attributes.options.bulletproof_tires = VEHICLE.GET_VEHICLE_TYRES_CAN_BURST(vehicle.handle)
     vehicle.vehicle_attributes.options.window_tint = VEHICLE.GET_VEHICLE_WINDOW_TINT(vehicle.handle)
     vehicle.vehicle_attributes.options.radio_loud = AUDIO.CAN_VEHICLE_RECEIVE_CB_RADIO(vehicle.handle)
-    --vehicle.vehicle_attributes.options.engine_running = VEHICLE.GET_IS_VEHICLE_ENGINE_RUNNING(vehicle.handle)
+    vehicle.vehicle_attributes.options.engine_running = VEHICLE.GET_IS_VEHICLE_ENGINE_RUNNING(vehicle.handle)
     vehicle.vehicle_attributes.options.siren = VEHICLE.IS_VEHICLE_SIREN_AUDIO_ON(vehicle.handle)
     vehicle.vehicle_attributes.options.emergency_lights = VEHICLE.IS_VEHICLE_SIREN_ON(vehicle.handle)
     vehicle.vehicle_attributes.options.search_light = VEHICLE.IS_VEHICLE_SEARCHLIGHT_ON(vehicle.handle)
