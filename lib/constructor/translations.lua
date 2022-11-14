@@ -356,6 +356,8 @@ translations["zh"] = {
     ["Previews"] = "预览",
     ["Set configuration options relating to previewing constructs."] = "设置预览constructs有关的配置选项",
     ["Debug"] = "调试",
+    ["Chat Spawn Commands"] = "聊天生成命令",
+    ["Hold SHIFT to fine tune, or hold CONTROL to move ten steps at once."] = "按住SHIFT键进行微调，或按住Ctrl键一次移动10倍.",
     ["Set configuration options relating to debugging the menu."] = "设置调试菜单有关的配置选项",
     ["Set configuration options relating to spawning constructs."] = "设置生成constructs有关的配置选项",
     ["Translators"] = "翻译"
@@ -366,3 +368,4 @@ translations["zh"] = {
 ---
 
 return translations
+
