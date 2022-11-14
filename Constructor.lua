@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.28b3"
+local SCRIPT_VERSION = "0.28b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -206,16 +206,13 @@ for _, dependency in pairs(auto_update_config.dependencies) do
 end
 
 if #missing_required_dependencies > 0 then
-    local missing_files = ""
-    for _, missing_file in pairs(missing_required_dependencies) do
-        missing_files = missing_files..", "..missing_file
-    end
+    local missing_files = table.concat(missing_required_dependencies, ", ")
     if not update_success then
         menu.readonly(menu.my_root(), "Error: Install Failed", "Auto-update failed and required files are missing ("..missing_files..") Please re-install from the project zip file.")
         menu.hyperlink(menu.my_root(), "Download Full Project Zip", "https://github.com/hexarobi/stand-lua-constructor")
         error("Error: Install Failed. Auto-update failed and required files are missing ("..missing_files..") Please re-install from the project zip file @ https://github.com/hexarobi/stand-lua-constructor")
     else
-        menu.readonly(menu.my_root(), "Error: Load Failed", "Required files are missing.")
+        menu.readonly(menu.my_root(), "Error: Load Failed", "Required files are missing. ("..missing_files..")")
         if config.auto_update then
             menu.hyperlink(menu.my_root(), "Discord Help", "https://discord.gg/2u5HbHPB9y")
         else
