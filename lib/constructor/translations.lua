@@ -1,6 +1,6 @@
 -- Constructor Translations
 
-local SCRIPT_VERSION = "0.28b1"
+local SCRIPT_VERSION = "0.28b2"
 local translations = {}
 
 ---
@@ -443,7 +443,9 @@ translations.lang["zh"] = {
     ["Hold SHIFT to fine tune, or hold CONTROL to move ten steps at once."] = "按住SHIFT键进行微调，或按住Ctrl键一次移动10倍.",
     ["Set configuration options relating to debugging the menu."] = "设置调试菜单有关的配置选项",
     ["Set configuration options relating to spawning constructs."] = "设置生成constructs有关的配置选项",
-    ["Translators"] = "翻译"
+    ["Translators"] = "翻译",
+    ["Auto-Update"] = "自动更新",
+    ["Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."] = "作者更新lua时会自动进行更新,如果你无法更新,请取消自动更新.",
 }
 
 ---
