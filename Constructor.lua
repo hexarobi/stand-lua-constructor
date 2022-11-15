@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.28b7"
+local SCRIPT_VERSION = "0.28b8"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -154,6 +154,7 @@ local auto_update_config = {
             name="translations",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
             script_relpath="lib/constructor/translations.lua",
+            switch_to_branch=selected_branch,
             verify_file_begins_with="--",
             check_interval=default_check_interval,
             is_required=true,
@@ -884,12 +885,9 @@ end
 
 constructor.delete_construct =  function(construct)
     debug_log("Deleting construct "..tostring(construct.name), construct)
+    constructor_lib.remove_attachment_from_parent(construct)
     if construct.is_player then
-        constructor_lib.remove_attachment_from_parent(construct)
         restore_original_player_skin()
-    else
-        constructor_lib.remove_attachment_from_parent(construct)
-        --constructor_lib.delete_attachment(construct)
     end
     constructor_lib.array_remove(spawned_constructs, function(t, i)
         local spawned_construct = t[i]
@@ -2538,8 +2536,15 @@ util.create_tick_handler(update_constructs_tick)
 util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
 
 --util.create_tick_handler(function()
---    ped_animation_tick()
---    util.yield(60000)
+--    debug_log("Ticking")
+--    --aim_info_tick()
+--    --update_preview_tick()
+--    --sensitivity_modifier_check_tick()
+--    --update_constructs_tick()
+--    --draw_editing_attachment_bounding_box_tick()
+--
+--    --ped_animation_tick()
+--    --util.yield(60000)
 --    return true
 --end)
 
