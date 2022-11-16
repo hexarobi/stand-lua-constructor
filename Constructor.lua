@@ -4,16 +4,13 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.28"
+local SCRIPT_VERSION = "0.29b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
 local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
-
-local PLEASE_WAIT_LANG_ID = -2031313458
-local loading_menu = menu.divider(menu.my_root(), lang.get_string(PLEASE_WAIT_LANG_ID, lang.get_current()))
 
 ---
 --- Auto-Updater Lib Install
@@ -178,8 +175,6 @@ local update_success
 if config.auto_update then
     update_success = auto_updater.run_auto_update(auto_update_config)
 end
-
-if loading_menu:isValid() then menu.delete(loading_menu) end
 
 ---
 --- Dependencies
