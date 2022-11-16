@@ -1,6 +1,6 @@
 -- Constructor Translations
 
-local SCRIPT_VERSION = "0.28b2"
+local SCRIPT_VERSION = "0.28"
 local translations = {}
 
 ---
