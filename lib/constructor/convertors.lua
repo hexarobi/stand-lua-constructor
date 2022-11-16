@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.27"
+local SCRIPT_VERSION = "0.28"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -69,9 +69,15 @@ end
 --- Constructor Format
 ---
 
+local function convert_legacy_construct(construct_plan)
+    -- 0.28 Renamed `rotation_axis` to `rotation_order`
+    if construct_plan.rotation_axis ~= nil then construct_plan.rotation_order = construct_plan.rotation_axis end
+end
+
 convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
     if construct_plan.temp == nil then construct_plan.temp = {} end
     construct_plan.temp.source_file_type = "Construct"
+    convert_legacy_construct(construct_plan)
     constructor_lib.use_player_ped_attributes_as_base(construct_plan)
     return construct_plan
 end
@@ -1078,7 +1084,7 @@ local function map_ini_attachment_flavor_4(attachment, data)
     if data["RotZ"] ~= nil then attachment.world_rotation.z = clean_ini_number(data["RotZ"]) end
 
     -- Ini flavor 4 uses rotation axis 0
-    attachment.rotation_axis = 0
+    attachment.rotation_order = 0
 
     if data["OffsetX"] ~= nil then attachment.offset.x = clean_ini_number(data["OffsetX"]) end
     if data["OffsetY"] ~= nil then attachment.offset.y = clean_ini_number(data["OffsetY"]) end

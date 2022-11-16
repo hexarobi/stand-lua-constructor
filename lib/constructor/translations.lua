@@ -1,7 +1,88 @@
 -- Constructor Translations
 
-local SCRIPT_VERSION = "0.27"
+local SCRIPT_VERSION = "0.28"
 local translations = {}
+
+---
+--- Debug Log
+---
+
+local function debug_log(message, additional_details)
+    if CONSTRUCTOR_CONFIG.debug_mode then
+        if CONSTRUCTOR_CONFIG.debug_mode == 2 and additional_details ~= nil then
+            message = message .. "\n" .. inspect(additional_details)
+        end
+        util.log("[constructor_translations] "..message)
+    end
+end
+
+---
+--- Translation Helpers
+---
+
+translations.lang = {}
+translations.current_translations = {}
+translations.missing_translations = {}
+local LANG_STRING_NOT_FOUND = "/!\\ STRING NOT FOUND /!\\"
+
+function CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+    local translated_string = translations.current_translations[text]
+    if translated_string ~= nil and translated_string ~= LANG_STRING_NOT_FOUND then
+        --debug_log("Found local translation for '"..text.."'")
+        return translated_string
+    end
+    local label_id = lang.find(text, "en")
+    if label_id then
+        --debug_log("Found global translation for '"..text.."'")
+        translated_string = lang.get_string(label_id, lang.get_current())
+        if translated_string ~= LANG_STRING_NOT_FOUND then
+            return translated_string
+        end
+    else
+        --debug_log("Missing translation: "..text)
+        translations.missing_translations[text] = text
+    end
+    return text
+end
+
+translations.inject_custom_translations = function()
+    for lang_id, language_key in pairs(translations.GAME_LANGUAGE_IDS) do
+        if translations.lang[lang_id] ~= nil then
+            --debug_log("Processing translations language "..lang_id)
+            lang.set_translate(lang_id)
+            for english_string, translated_string in pairs(translations.lang[lang_id]) do
+                local label_id = lang.find(english_string, "en")
+                --debug_log("Found label for '"..english_string.."' as label "..label_id)
+                if (not label_id) or label_id == 0 then
+                    label_id = lang.register(english_string)
+                    --debug_log("Registered '"..english_string.."' as label "..label_id)
+                end
+                local existing_translation = lang.get_string(label_id, lang_id)
+                if (not existing_translation) or existing_translation == english_string or existing_translation == LANG_STRING_NOT_FOUND then
+                    --debug_log("Adding translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..translated_string.."'  Existing translation: '"..existing_translation.."'")
+                    if label_id > 0 then
+                        local translate_status, translate_response = pcall(lang.translate, label_id, translated_string)
+                        if not translate_status then
+                            debug_log("Failed to add translation '"..english_string.."' as label "..label_id)
+                        end
+                    else
+                        --debug_log("Cannot translate internal label")
+                    end
+                    if lang_id == lang.get_current() then
+                        translations.current_translations[english_string] = translated_string
+                    end
+                else
+                    --debug_log("Found translation for "..lang_id.." '"..english_string.."' ["..label_id.."] as '"..existing_translation.."'")
+                end
+            end
+        end
+    end
+end
+
+translations.log_missing_translations = function()
+    util.toast("Logged "..#translations.missing_translations.." missing translations", TOAST_ALL)
+    util.log(inspect(translations.missing_translations))
+end
 
 translations.GAME_LANGUAGE_IDS = {
     ["en"] = "en-US",
@@ -32,10 +113,12 @@ translations.LANGUAGE_NAMES = {
     ["zh-CN"] = "Chinese (Simplified)"
 }
 
+translations.lang = {}
+
 --- Chinese (Simplified)
 --- By       Zelda Two
 
-translations["zh"] = {
+translations.lang["zh"] = {
     ["More stable, but updated less often."] = "更稳定,但更新频率较低.",
     ["Cutting edge updates, but less stable."] = "最新版本,但是不太稳定",
     ["Loading..."] = "加载...",
@@ -360,12 +443,15 @@ translations["zh"] = {
     ["Hold SHIFT to fine tune, or hold CONTROL to move ten steps at once."] = "按住SHIFT键进行微调，或按住Ctrl键一次移动10倍.",
     ["Set configuration options relating to debugging the menu."] = "设置调试菜单有关的配置选项",
     ["Set configuration options relating to spawning constructs."] = "设置生成constructs有关的配置选项",
-    ["Translators"] = "翻译"
+    ["Translators"] = "翻译",
+    ["Auto-Update"] = "自动更新",
+    ["Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."] = "作者更新lua时会自动进行更新,如果你无法更新,请取消自动更新.",
 }
 
 ---
 --- Return
 ---
 
+translations.inject_custom_translations()
 return translations
 
