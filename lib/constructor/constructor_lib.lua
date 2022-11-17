@@ -4,10 +4,11 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.28"
+local SCRIPT_VERSION = "0.29b2"
 
 local constructor_lib = {
-    LIB_VERSION = SCRIPT_VERSION
+    LIB_VERSION = SCRIPT_VERSION,
+    model_load_timeout = 3000,
 }
 
 ---
@@ -389,14 +390,14 @@ end
 
 constructor_lib.update_attachment_position = function(attachment)
     --debug_log("Updating attachment position "..tostring(attachment.name))
-    if attachment == attachment.parent or attachment.options.is_attached == false then
+    if attachment == attachment.parent or not attachment.options.is_attached then
         --debug_log("Updating attachment world rotation "..tostring(attachment.name))
         ENTITY.SET_ENTITY_ROTATION(
                 attachment.handle,
                 attachment.world_rotation.x,
                 attachment.world_rotation.y,
                 attachment.world_rotation.z,
-                2, true
+                attachment.rotation_order, true
         )
         if attachment.position ~= nil then
             if attachment.is_preview then
@@ -412,7 +413,7 @@ constructor_lib.update_attachment_position = function(attachment)
                         attachment.rotation.x,
                         attachment.rotation.y,
                         attachment.rotation.z,
-                        2, true
+                        attachment.rotation_order, true
                 )
             else
                 ENTITY.SET_ENTITY_COORDS(
@@ -472,21 +473,10 @@ constructor_lib.create_entity = function(attachment)
         constructor_lib.attach_particle(attachment)
         return
     end
-    if attachment.is_player and attachment.is_preview ~= true then
-        if attachment.model == nil and attachment.hash == nil then
-            attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
-            attachment.model = util.reverse_joaat(attachment.hash)
-        else
-            debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
-            constructor_lib.load_hash(attachment.hash)
-            PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
-            util.yield(100)
-            attachment.handle = players.user_ped()
-        end
-        constructor_lib.deserialize_ped_attributes(attachment)
-        return
-    else
-        debug_log("Attaching "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
+    debug_log("Attaching "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
+    if attachment.is_player and attachment.model == nil and attachment.hash == nil then
+        attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
+        attachment.model = util.reverse_joaat(attachment.hash)
     end
     if attachment.hash == nil and attachment.model == nil then
         error(t("Cannot create attachment").." "..tostring(attachment.name)..": "..t("Requires either a hash or a model"))
@@ -517,17 +507,27 @@ constructor_lib.create_entity = function(attachment)
         end
         constructor_lib.deserialize_vehicle_attributes(attachment)
     elseif attachment.type == "PED" then
-        local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
-        if is_networked then
-            attachment.handle = entities.create_ped(1, attachment.hash, pos, attachment.heading)
+        if attachment.is_player and not attachment.is_preview then
+            debug_log("Setting player model to "..tostring(attachment.model).." hash="..tostring(attachment.hash))
+            PLAYER.SET_PLAYER_MODEL(players.user(), attachment.hash)
+            local end_time = util.current_time_millis() + constructor_lib.model_load_timeout
+            repeat util.yield() until attachment.hash == ENTITY.GET_ENTITY_MODEL(players.user_ped()) or util.current_time_millis() >= end_time
+            attachment.handle = players.user_ped()
+            --constructor_lib.serialize_attachment(attachment)
+            constructor_lib.serialize_entity_attributes(attachment)
         else
-            attachment.handle = PED.CREATE_PED(
-                    1, attachment.hash,
-                    pos.x, pos.y, pos.z,
-                    attachment.heading,
-                    is_networked,
-                    attachment.options.is_mission_entity
-            )
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
+            if is_networked then
+                attachment.handle = entities.create_ped(1, attachment.hash, pos, attachment.heading)
+            else
+                attachment.handle = PED.CREATE_PED(
+                        1, attachment.hash,
+                        pos.x, pos.y, pos.z,
+                        attachment.heading,
+                        is_networked,
+                        attachment.options.is_mission_entity
+                )
+            end
         end
         if attachment.parent.type == "VEHICLE" and attachment.ped_attributes and attachment.ped_attributes.is_seated then
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, -1)
@@ -555,6 +555,7 @@ constructor_lib.create_entity = function(attachment)
         error(t("Error attaching attachment. Could not create handle."))
     end
 
+    ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, true)  --Freeze while spawning
     if attachment.root.is_preview == true then constructor_lib.set_preview_visibility(attachment) end
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
     constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
@@ -752,7 +753,7 @@ end
 
 constructor_lib.load_hash_for_attachment = function(attachment)
     if not STREAMING.IS_MODEL_VALID(attachment.hash) then
-        error("Error attaching: Invalid model: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]")
+        util.toast("Warning: Ignored invalid model: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]", TOAST_ALL)
         return false
     end
     if STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) then
@@ -1711,6 +1712,7 @@ end
 constructor_lib.serialize_attachment = function(attachment)
     debug_log("Serializing attachment "..tostring(attachment.name))
     if attachment.target_version == nil then attachment.target_version = constructor_lib.LIB_VERSION end
+    constructor_lib.serialize_entity_attributes(attachment)
     constructor_lib.serialize_vehicle_attributes(attachment)
     constructor_lib.serialize_ped_attributes(attachment)
     local serialized_attachment = constructor_lib.copy_serializable(attachment)
