@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29b1"
+local SCRIPT_VERSION = "0.29b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -271,14 +271,6 @@ local original_player_skin
 local player_construct
 
 --local example_construct = {
---    name="Police",
---    model="police",
---    handle=1234,
---    options = {},
---    children = {},
---}
---
---local example_construct = {
 --    name="My Construct",        -- Name for this attachment
 --    handle=5678,                -- Handle for this attachment (Nonserializable)
 --    root={},                  -- Pointer to root construct. Root will point to itself. (Nonserializable)
@@ -412,25 +404,41 @@ local function save_original_player_skin()
     --debug_log("Saved original player skin "..inspect(original_player_skin))
 end
 
-local function get_player_construct()
-    if player_construct == nil then
-        save_original_player_skin()
-        player_construct = constructor_lib.table_copy(constructor_lib.construct_base)
-        player_construct.handle=players.user_ped()
-        player_construct.type="PED"
-        player_construct.name="Player"
-        player_construct.is_player=true
-        player_construct.root = player_construct
-        player_construct.parent = player_construct
-    end
-    return player_construct
-end
-
 local function restore_original_player_skin()
     debug_log("Restoring original player skin")
     if original_player_skin ~= nil then
         constructor_lib.deserialize_ped_attributes(original_player_skin)
     end
+end
+
+local function save_player_construct(construct)
+    save_original_player_skin()
+    player_construct = construct
+end
+
+local function create_player_construct()
+    local new_player_construct = constructor_lib.table_copy(constructor_lib.construct_base)
+    new_player_construct.handle=players.user_ped()
+    new_player_construct.type="PED"
+    new_player_construct.name="Player"
+    new_player_construct.is_player=true
+    new_player_construct.root = new_player_construct
+    new_player_construct.parent = new_player_construct
+    save_player_construct(new_player_construct)
+end
+
+local function remove_player_construct()
+    if player_construct == nil then return end
+    constructor.delete_construct(player_construct)
+    restore_original_player_skin()
+    player_construct = nil
+end
+
+local function get_player_construct()
+    if player_construct == nil then
+        create_player_construct()
+    end
+    return player_construct
 end
 
 ---
@@ -617,6 +625,10 @@ local function add_preview(construct_plan, preview_image_path)
         calculate_camera_distance(attachment)
         attachment.position = get_offset_from_camera(attachment.camera_distance)
         local spawned_preview = constructor_lib.create_entity_with_children(attachment)
+        if not spawned_preview then
+            util.toast("There was a problem loading construct preview", TOAST_ALL)
+            return
+        end
         util.yield_once()
         if next_preview == construct_plan then
             current_preview = spawned_preview
@@ -883,6 +895,10 @@ constructor.delete_construct =  function(construct)
     constructor_lib.remove_attachment_from_parent(construct)
     if construct.is_player then
         restore_original_player_skin()
+        if player_construct ~= nil then
+            restore_original_player_skin()
+            player_construct = nil
+        end
     end
     constructor_lib.array_remove(spawned_constructs, function(t, i)
         local spawned_construct = t[i]
@@ -913,15 +929,8 @@ local function spawn_construct_from_plan(construct_plan)
     constructor_lib.default_attachment_attributes(construct)
     if construct_plan.type == "PED" and config.wear_spawned_peds then construct.is_player = true end
     if construct.is_player then
-        --construct.handle = players.user_ped()
-        if player_construct ~= nil then
-            -- Delete current player construct
-            constructor.delete_construct(player_construct)
-            restore_original_player_skin()
-            player_construct = nil
-        end
-        get_player_construct()
-        player_construct = construct
+        remove_player_construct()
+        save_player_construct(construct)
         constructor_lib.use_player_ped_attributes_as_base(construct)
     else
         set_spawned_construct_position(construct)
@@ -932,6 +941,10 @@ local function spawn_construct_from_plan(construct_plan)
     constructor_lib.reattach_attachment_with_children(construct)
     if not construct.handle then error("Failed to spawn construct from plan "..tostring(construct.name)) end
     add_spawned_construct(construct)
+    if not construct.options.is_frozen then
+        ENTITY.FREEZE_ENTITY_POSITION(construct.handle, false)  --Unfreeze after spawning
+    end
+    OBJECT.PLACE_OBJECT_ON_GROUND_OR_OBJECT_PROPERLY(construct.handle)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
     construct.functions.refresh()
@@ -1412,7 +1425,7 @@ local EDIT_MENU_HELP = "Hold SHIFT to fine tune, or hold CONTROL to move ten ste
 
 constructor.add_attachment_position_menu = function(attachment)
     attachment.menus.position = menu.list(attachment.menus.main, t("Position"), {}, t("Position and Rotation options"), function()
-        if attachment ~= attachment.root then
+        if attachment.options.is_attached then
 
             if attachment.menus.edit_offset_x ~= nil then return end
             menu.divider(attachment.menus.position, t("Offset"))
@@ -1443,12 +1456,6 @@ constructor.add_attachment_position_menu = function(attachment)
                 constructor_lib.move_attachment(attachment)
             end)
 
-            menu.divider(attachment.menus.position, t("Options"))
-            attachment.menus.edit_rotation_order = menu.list_select(attachment.menus.position, t("Rotation Order"), {"constructorrotationorder"..attachment.id.."z"}, t("Set the order that rotations should be applied."), constants.rotation_orders, attachment.rotation_order, function(index, menu_name, previous_option, click_type)
-                attachment.rotation_order = constants.rotation_orders[index][4]
-                constructor_lib.move_attachment(attachment)
-            end)
-
         else
 
             if attachment.menus.edit_position_x ~= nil then return end
@@ -1469,7 +1476,6 @@ constructor.add_attachment_position_menu = function(attachment)
             menu.divider(attachment.menus.position, t("World Rotation"))
             attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
                 attachment.world_rotation.x = value
-                if attachment.world_rotation.x == -180 then attachment.world_rotation.x = 180 end
                 constructor_lib.move_attachment(attachment)
             end)
             attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
@@ -1481,13 +1487,17 @@ constructor.add_attachment_position_menu = function(attachment)
                 constructor_lib.move_attachment(attachment)
             end)
 
-            menu.divider(attachment.menus.position, t("Options"))
-            attachment.menus.option_position_frozen = menu.toggle(attachment.menus.position, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
-                attachment.options.is_frozen = on
-                constructor_lib.attach_entity(attachment)
-            end, attachment.options.is_frozen)
-
         end
+
+        menu.divider(attachment.menus.position, t("Options"))
+        attachment.menus.edit_rotation_order = menu.list_select(attachment.menus.position, t("Rotation Order"), {"constructorrotationorder"..attachment.id.."z"}, t("Set the order that rotations should be applied."), constants.rotation_orders, attachment.rotation_order + 1, function(index, menu_name, previous_option, click_type)
+            attachment.rotation_order = constants.rotation_orders[index][4]
+            constructor_lib.move_attachment(attachment)
+        end)
+        attachment.menus.option_position_frozen = menu.toggle(attachment.menus.position, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
+            attachment.options.is_frozen = on
+            constructor_lib.attach_entity(attachment)
+        end, attachment.options.is_frozen)
     end)
 end
 
@@ -2541,7 +2551,7 @@ menu.action(script_meta_menu, t("Clean Reinstall"), {}, t("Force an update to th
     auto_updater.run_auto_update(auto_update_config)
 end)
 menu.hyperlink(script_meta_menu, t("Github Source"), "https://github.com/hexarobi/stand-lua-constructor", t("View source files on Github"))
-menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/RF4N7cKz", t("Open Discord Server"))
+menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/2u5HbHPB9y", t("Open Discord Server"))
 
 menus.credits = menu.list(script_meta_menu, t("Credits"))
 menu.divider(menus.credits, t("Developers"))
