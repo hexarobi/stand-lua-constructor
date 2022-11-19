@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29b2"
+local SCRIPT_VERSION = "0.29b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -311,7 +311,7 @@ constructor_lib.start_particle_fx = function(attachment)
     constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
     GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
     if attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0 then
-        attachment.handle = GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
+        attachment.handle = GRAPHICS.START_NETWORKED_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
                 attachment.particle_attributes.effect_name,
                 attachment.parent.handle,
                 attachment.offset.x, attachment.offset.y, attachment.offset.z,
