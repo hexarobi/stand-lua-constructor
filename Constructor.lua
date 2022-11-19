@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29b2"
+local SCRIPT_VERSION = "0.29b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -666,6 +666,7 @@ local function update_attachment_tick(attachment)
     --debug_log("Updating attachment tick "..attachment.name)
     constructor_lib.update_attachment_tick(attachment)
     for _, child_attachment in pairs(attachment.children) do
+        if child_attachment == attachment then error("Invalid child attachment") end
         update_attachment_tick(child_attachment)
     end
 end
@@ -753,6 +754,7 @@ local function set_attachment_edit_menu_sensitivity(attachment, offset_step, rot
         end
     end
     for _, child_attachment in pairs(attachment.children) do
+        if child_attachment == attachment then error("Invalid child attachment") end
         set_attachment_edit_menu_sensitivity(child_attachment, offset_step, rotation_step)
     end
 end
@@ -789,6 +791,7 @@ local function draw_editing_bounding_box(attachment)
         constructor_lib.draw_bounding_box(attachment.handle, config.preview_bounding_box_color)
     end
     for _, child_attachment in pairs(attachment.children) do
+        if child_attachment == attachment then error("Invalid child attachment") end
         draw_editing_bounding_box(child_attachment)
     end
 end
@@ -1425,7 +1428,7 @@ local EDIT_MENU_HELP = "Hold SHIFT to fine tune, or hold CONTROL to move ten ste
 
 constructor.add_attachment_position_menu = function(attachment)
     attachment.menus.position = menu.list(attachment.menus.main, t("Position"), {}, t("Position and Rotation options"), function()
-        if attachment.options.is_attached then
+        if attachment.options.is_attached or attachment.type == "PARTICLE" then
 
             if attachment.menus.edit_offset_x ~= nil then return end
             menu.divider(attachment.menus.position, t("Offset"))
@@ -1902,7 +1905,8 @@ constructor.add_attachment_add_attachment_options = function(attachment)
 
         if attachment.menus.curated_attachments ~= nil then return end
         attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
-        for _, curated_item in pairs(curated_attachments) do
+        for _, curated_item in pairs(constructor_lib.table_copy(curated_attachments)) do
+            --debug_log("Creating curated item menu "..inspect(curated_item))
             build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
         end
 
