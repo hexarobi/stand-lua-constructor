@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29b5"
+local SCRIPT_VERSION = "0.29b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1433,15 +1433,15 @@ constructor.add_attachment_position_menu = function(attachment)
 
             if attachment.menus.edit_offset_x ~= nil then return end
             menu.divider(attachment.menus.position, t("Offset"))
-            attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
+            attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
                 attachment.offset.x = value / 100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
                 attachment.offset.y = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
                 attachment.offset.z = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
@@ -1464,15 +1464,15 @@ constructor.add_attachment_position_menu = function(attachment)
 
             if attachment.menus.edit_position_x ~= nil then return end
             menu.divider(attachment.menus.position, t("World Position"))
-            attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
+            attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
                 attachment.position.x = value / 100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
                 attachment.position.y = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t(EDIT_MENU_HELP), -500000, 500000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
                 attachment.position.z = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
@@ -1503,6 +1503,8 @@ constructor.add_attachment_position_menu = function(attachment)
             constructor_lib.serialize_entity_attributes(attachment)
             constructor_lib.attach_entity(attachment)
         end, attachment.options.is_frozen)
+
+        menus.refresh_attachment_menu_is_editing(attachment)
     end)
 end
 
@@ -1573,6 +1575,7 @@ constructor.add_attachment_options_menu = function(attachment)
             constructor.add_attachment_entity_options(attachment)
         end
 
+        menus.refresh_attachment_menu_is_editing(attachment)
     end)
 end
 
@@ -1829,6 +1832,7 @@ constructor.add_child_attachment_menu = function(attachment)
             menus.refresh_loaded_constructs()
         end)
 
+        menus.refresh_attachment_menu_is_editing(attachment)
     end)
 end
 
@@ -1900,6 +1904,7 @@ constructor.add_attachment_entity_options = function(attachment)
             constructor_lib.attach_entity(attachment)
         end, attachment.options.is_melee_proof)
 
+        menus.refresh_attachment_menu_is_editing(attachment)
     end)
 end
 
@@ -2030,6 +2035,7 @@ constructor.add_attachment_clone_attachments_options = function(attachment)
             new_attachment.offset = {x=attachment.offset.x, y=attachment.offset.y, z=-attachment.offset.z}
             build_construct_from_plan(new_attachment)
         end)
+        menus.refresh_attachment_menu_is_editing(attachment)
     end)
 end
 
@@ -2057,6 +2063,7 @@ constructor.add_attachment_teleport_options = function(attachment)
             ENTITY.SET_ENTITY_ROTATION(attachment.handle, 0, 0, heading)
             VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(attachment.handle, 5)
         end)
+        menus.refresh_attachment_menu_is_editing(attachment)
     end)
 end
 
@@ -2099,6 +2106,13 @@ constructor.add_attachment_delete_attachment_option = function(attachment)
     end)
 end
 
+menus.refresh_attachment_menu_is_editing = function(attachment)
+    for _, menu_handle in pairs(attachment.menus) do
+        menu.on_focus(menu_handle, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
+        menu.on_blur(menu_handle, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
+    end
+end
+
 menus.rebuild_attachment_menu = function(attachment)
     if constructor_lib.is_attachment_entity(attachment) and (not attachment.handle) then error("Attachment missing handle") end
     if attachment.menus ~= nil then return end
@@ -2135,10 +2149,7 @@ menus.rebuild_attachment_menu = function(attachment)
     constructor.add_attachment_save_attachment_option(attachment)
     constructor.add_attachment_delete_attachment_option(attachment)
 
-    for _, menu_handle in pairs(attachment.menus) do
-        menu.on_focus(menu_handle, function(direction) if direction ~= 0 then attachment.is_editing = true end end)
-        menu.on_blur(menu_handle, function(direction) if direction ~= 0 then attachment.is_editing = false end end)
-    end
+    menus.refresh_attachment_menu_is_editing(attachment)
 
     if attachment.functions == nil then attachment.functions = {} end
     attachment.functions.refresh = function(updated_attachment)
