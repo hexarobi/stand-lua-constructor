@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29b6"
+local SCRIPT_VERSION = "0.29b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2041,12 +2041,13 @@ end
 
 constructor.add_attachment_teleport_options = function(attachment)
     attachment.menus.teleport = menu.list(attachment.menus.main, t("Teleport"), {}, t("Move your player to the construct, or vice versa."), function()
+        if attachment.menus.teleport_to_construct ~= nil then return end
         if attachment.type == "VEHICLE" then
             attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, t("Teleport Into Vehicle"), {}, t("Move your player into the vehicle driver seat"), function()
                 PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), attachment.handle, -1)
             end)
         end
-        attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, t("Teleport Me to Construct"), {}, t("Move your player nearby the construct, but not inside of it."), function()
+        attachment.menus.teleport_to_construct = menu.action(attachment.menus.teleport, t("Teleport Me to Construct"), {}, t("Move your player nearby the construct, but not inside of it."), function()
             local pos = ENTITY.GET_ENTITY_COORDS(attachment.handle)
             local vehicle = entities.get_user_vehicle_as_handle()
             if vehicle and PED.IS_PED_SITTING_IN_VEHICLE(players.user_ped(), vehicle) then
@@ -2056,7 +2057,7 @@ constructor.add_attachment_teleport_options = function(attachment)
                 ENTITY.SET_ENTITY_COORDS(players.user_ped(), pos.x, pos.y, pos.z)
             end
         end)
-        attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, t("Teleport Construct to Me"), {}, t("Move the construct to be nearby your player"), function()
+        attachment.menus.teleport_construct_to_me = menu.action(attachment.menus.teleport, t("Teleport Construct to Me"), {}, t("Move the construct to be nearby your player"), function()
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.0, 2.0, -2.5)
             local heading = ENTITY.GET_ENTITY_HEADING(players.user_ped())
             ENTITY.SET_ENTITY_COORDS(attachment.handle, pos.x, pos.y, pos.z)
