@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29b4"
+local SCRIPT_VERSION = "0.29b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1500,6 +1500,7 @@ constructor.add_attachment_position_menu = function(attachment)
         end)
         attachment.menus.option_position_frozen = menu.toggle(attachment.menus.position, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
             attachment.options.is_frozen = on
+            constructor_lib.serialize_entity_attributes(attachment)
             constructor_lib.attach_entity(attachment)
         end, attachment.options.is_frozen)
     end)
@@ -1532,6 +1533,7 @@ constructor.add_attachment_options_menu = function(attachment)
             end, attachment.options.has_gravity)
             attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
                 attachment.options.is_frozen = on
+                constructor_lib.serialize_entity_attributes(attachment)
                 constructor_lib.attach_entity(attachment)
             end, attachment.options.is_frozen)
         end
@@ -2605,6 +2607,7 @@ util.create_tick_handler(update_preview_tick)
 util.create_tick_handler(sensitivity_modifier_check_tick)
 util.create_tick_handler(update_constructs_tick)
 util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
+--util.create_tick_handler(ped_animation_tick)
 
 --util.create_tick_handler(function()
 --    debug_log("Ticking")
