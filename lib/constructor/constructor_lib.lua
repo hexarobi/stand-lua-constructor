@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29b4"
+local SCRIPT_VERSION = "0.29b5"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -311,7 +311,7 @@ constructor_lib.start_particle_fx = function(attachment)
     constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
     GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
     if attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0 then
-        attachment.handle = GRAPHICS.START_NETWORKED_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
+        attachment.handle = GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
                 attachment.particle_attributes.effect_name,
                 attachment.parent.handle,
                 attachment.offset.x, attachment.offset.y, attachment.offset.z,
@@ -392,13 +392,23 @@ constructor_lib.update_attachment_position = function(attachment)
     --debug_log("Updating attachment position "..tostring(attachment.name))
     if attachment == attachment.parent or not attachment.options.is_attached then
         --debug_log("Updating attachment world rotation "..tostring(attachment.name))
-        ENTITY.SET_ENTITY_ROTATION(
-                attachment.handle,
-                attachment.world_rotation.x,
-                attachment.world_rotation.y,
-                attachment.world_rotation.z,
-                attachment.rotation_order, true
-        )
+        if attachment.quaternion ~= nil then
+            ENTITY.SET_ENTITY_QUATERNION(
+                    attachment.handle,
+                    attachment.quaternion.x,
+                    attachment.quaternion.y,
+                    attachment.quaternion.z,
+                    attachment.quaternion.w
+            )
+        else
+            ENTITY.SET_ENTITY_ROTATION(
+                    attachment.handle,
+                    attachment.world_rotation.x,
+                    attachment.world_rotation.y,
+                    attachment.world_rotation.z,
+                    attachment.rotation_order, true
+            )
+        end
         if attachment.position ~= nil then
             if attachment.is_preview then
                 ENTITY.SET_ENTITY_COORDS_NO_OFFSET(
@@ -619,6 +629,7 @@ constructor_lib.add_attachment_to_construct = function(attachment)
     debug_log("Adding attachment to construct "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
     constructor_lib.create_entity_with_children(attachment)
     table.insert(attachment.parent.children, attachment)
+    constructor_lib.set_attachment_clear_all_internal_collisions(attachment.root)
     constructor_lib.validate_children(attachment.parent)
     attachment.root.functions.refresh(attachment)
 end
@@ -863,6 +874,14 @@ constructor_lib.set_attachment_internal_collisions = function(attachment, new_at
     if attachment.children ~= nil then
         for _, child_attachment in pairs(attachment.children) do
             constructor_lib.set_attachment_internal_collisions(child_attachment, new_attachment)
+        end
+    end
+end
+
+constructor_lib.set_attachment_clear_all_internal_collisions = function(attachment)
+    if attachment.children ~= nil then
+        for _, child_attachment in pairs(attachment.children) do
+            constructor_lib.set_attachment_internal_collisions(attachment, child_attachment)
         end
     end
 end
