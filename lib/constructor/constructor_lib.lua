@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29b3"
+local SCRIPT_VERSION = "0.29b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -606,10 +606,20 @@ constructor_lib.create_entity_with_children = function(new_attachment)
     return attachment
 end
 
+constructor_lib.validate_children = function(attachment)
+    for _, child_attachment in pairs(attachment.children) do
+        if child_attachment == attachment then
+            error("Invalid child attachment parent="..attachment.name.."["..attachment.id.."] child="..child_attachment.name.."["..child_attachment.id.."]")
+        end
+        constructor_lib.validate_children(child_attachment)
+    end
+end
+
 constructor_lib.add_attachment_to_construct = function(attachment)
-    debug_log("Adding attachment to construct "..tostring(attachment.name))
+    debug_log("Adding attachment to construct "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
     constructor_lib.create_entity_with_children(attachment)
     table.insert(attachment.parent.children, attachment)
+    constructor_lib.validate_children(attachment.parent)
     attachment.root.functions.refresh(attachment)
 end
 
@@ -648,6 +658,7 @@ constructor_lib.remove_attachment = function(attachment)
     if attachment.children then
         constructor_lib.array_remove(attachment.children, function(t, i)
             local child_attachment = t[i]
+            if child_attachment == attachment then error("Invalid child attachment") end
             constructor_lib.remove_attachment(child_attachment)
             return false
         end)
