@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29b3"
+local SCRIPT_VERSION = "0.29b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -237,7 +237,7 @@ local function debug_log(message, additional_details)
         if CONSTRUCTOR_CONFIG.debug_mode == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
-        util.log("[constructor_lib] "..message)
+        util.log("[Constructor] "..message)
     end
 end
 
@@ -366,6 +366,7 @@ local function copy_construct_plan(construct_plan)
         construct.root = construct
         construct.parent = construct
     end
+    constructor_lib.default_attachment_attributes(construct)
     return construct
 end
 
@@ -1563,6 +1564,13 @@ constructor.add_attachment_options_menu = function(attachment)
             constructor.add_attachment_ped_menu(attachment)
         end
 
+        if constructor_lib.is_attachment_entity(attachment) then
+            if attachment ~= attachment.parent then
+                constructor.add_child_attachment_menu(attachment)
+            end
+            constructor.add_attachment_entity_options(attachment)
+        end
+
     end)
 end
 
@@ -1905,8 +1913,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
 
         if attachment.menus.curated_attachments ~= nil then return end
         attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
-        for _, curated_item in pairs(constructor_lib.table_copy(curated_attachments)) do
-            --debug_log("Creating curated item menu "..inspect(curated_item))
+        for _, curated_item in pairs(curated_attachments) do
             build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
         end
 
@@ -2116,8 +2123,6 @@ menus.rebuild_attachment_menu = function(attachment)
     constructor.add_attachment_options_menu(attachment)
 
     if constructor_lib.is_attachment_entity(attachment) then
-        if attachment ~= attachment.parent then constructor.add_child_attachment_menu(attachment) end
-        constructor.add_attachment_entity_options(attachment)
         constructor.add_attachment_add_attachment_options(attachment)
         constructor.add_attachment_edit_attachments_options(attachment)
         constructor.add_attachment_clone_attachments_options(attachment)
