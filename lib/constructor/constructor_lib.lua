@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29"
+local SCRIPT_VERSION = "0.30b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -869,6 +869,16 @@ end
 --- Collision
 ---
 
+constructor_lib.clear_collisions_between_attachments = function(attachment, new_attachment)
+    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment.handle, new_attachment.handle)
+    if attachment.children ~= nil then
+        for _, child_attachment in pairs(attachment.children) do
+            constructor_lib.clear_collisions_between_attachments(child_attachment, new_attachment)
+        end
+    end
+end
+
+
 constructor_lib.set_attachment_internal_collisions = function(attachment, new_attachment)
     ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment.handle, new_attachment.handle)
     if attachment.children ~= nil then
@@ -879,9 +889,10 @@ constructor_lib.set_attachment_internal_collisions = function(attachment, new_at
 end
 
 constructor_lib.set_attachment_clear_all_internal_collisions = function(attachment)
+    constructor_lib.clear_collisions_between_attachments(attachment.root, attachment)
     if attachment.children ~= nil then
         for _, child_attachment in pairs(attachment.children) do
-            constructor_lib.set_attachment_internal_collisions(attachment, child_attachment)
+            constructor_lib.set_attachment_clear_all_internal_collisions(child_attachment)
         end
     end
 end
@@ -1310,6 +1321,7 @@ constructor_lib.deserialize_vehicle_neon = function(vehicle)
 end
 
 local function vehicle_wheels_invis(attachment)
+    debug_log("Making wheels invis "..attachment.name)
     local DBL_MAX = 1.79769e+308
     constructor_lib.request_control(attachment.handle, 800)
     VEHICLE.SET_VEHICLE_FORWARD_SPEED(attachment.handle, DBL_MAX*DBL_MAX)
@@ -1546,6 +1558,9 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
         if STREAMING.IS_MODEL_VALID(hash) and VEHICLE.IS_THIS_MODEL_A_CAR(hash) then
             AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
         end
+    end
+    if vehicle.vehicle_attributes.options.window_tint ~= nil then
+        VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle.handle, vehicle.vehicle_attributes.options.window_tint)
     end
     if vehicle.vehicle_attributes.options.lights_state ~= nil then
         VEHICLE.SET_VEHICLE_LIGHTS(vehicle.handle, vehicle.vehicle_attributes.options.lights_state)
