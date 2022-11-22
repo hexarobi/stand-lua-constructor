@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30b1"
+local SCRIPT_VERSION = "0.30b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -872,6 +872,7 @@ local function save_vehicle(construct)
     if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local serialized_construct = constructor_lib.serialize_attachment(construct)
+    --debug_log("Serialized construct "..inspect(serialized_construct))
     local encode_status, content = pcall(soup.json.encode, serialized_construct)
     if not encode_status then
         util.toast("Error encoding construct: "..content)
@@ -948,6 +949,7 @@ local function spawn_construct_from_plan(construct_plan)
     if not construct.options.is_frozen then
         ENTITY.FREEZE_ENTITY_POSITION(construct.handle, false)  --Unfreeze after spawning
     end
+    constructor_lib.deserialize_vehicle_attributes(construct)   -- Re-deserialize to make sure invis wheels are applied
     OBJECT.PLACE_OBJECT_ON_GROUND_OR_OBJECT_PROPERLY(construct.handle)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
