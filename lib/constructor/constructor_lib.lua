@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30b1"
+local SCRIPT_VERSION = "0.30b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -311,7 +311,7 @@ constructor_lib.start_particle_fx = function(attachment)
     constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
     GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
     if attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0 then
-        attachment.handle = GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
+        attachment.handle = GRAPHICS.START_NETWORKED_PARTICLE_FX_NON_LOOPED_ON_PED_BONE(
                 attachment.particle_attributes.effect_name,
                 attachment.parent.handle,
                 attachment.offset.x, attachment.offset.y, attachment.offset.z,
@@ -568,7 +568,7 @@ constructor_lib.create_entity = function(attachment)
     ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, true)  --Freeze while spawning
     if attachment.root.is_preview == true then constructor_lib.set_preview_visibility(attachment) end
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
-    constructor_lib.set_attachment_internal_collisions(attachment.root, attachment)
+    constructor_lib.clear_all_internal_collisions(attachment.root)
     constructor_lib.deserialize_entity_attributes(attachment)
     constructor_lib.attach_entity(attachment)
     constructor_lib.update_attachment_position(attachment)
@@ -629,8 +629,8 @@ constructor_lib.add_attachment_to_construct = function(attachment)
     debug_log("Adding attachment to construct "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
     constructor_lib.create_entity_with_children(attachment)
     table.insert(attachment.parent.children, attachment)
-    constructor_lib.set_attachment_clear_all_internal_collisions(attachment.root)
-    constructor_lib.validate_children(attachment.parent)
+    constructor_lib.validate_children(attachment.root)
+    constructor_lib.clear_all_internal_collisions(attachment.root)
     attachment.root.functions.refresh(attachment)
 end
 
@@ -869,30 +869,25 @@ end
 --- Collision
 ---
 
-constructor_lib.clear_collisions_between_attachments = function(attachment, new_attachment)
-    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment.handle, new_attachment.handle)
-    if attachment.children ~= nil then
-        for _, child_attachment in pairs(attachment.children) do
+constructor_lib.clear_collisions_between_attachments = function(current_attachment, new_attachment)
+    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(current_attachment.handle, new_attachment.handle)
+    if current_attachment.children ~= nil then
+        for _, child_attachment in pairs(current_attachment.children) do
             constructor_lib.clear_collisions_between_attachments(child_attachment, new_attachment)
         end
     end
 end
 
+constructor_lib.clear_all_internal_collisions = function(attachment)
 
-constructor_lib.set_attachment_internal_collisions = function(attachment, new_attachment)
-    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(attachment.handle, new_attachment.handle)
-    if attachment.children ~= nil then
-        for _, child_attachment in pairs(attachment.children) do
-            constructor_lib.set_attachment_internal_collisions(child_attachment, new_attachment)
-        end
+    constructor_lib.validate_children(attachment.parent)
+    if attachment.root ~= nil then
+        debug_log("Clearing internal collisions for "..attachment.name)
+        constructor_lib.clear_collisions_between_attachments(attachment.root, attachment)
     end
-end
-
-constructor_lib.set_attachment_clear_all_internal_collisions = function(attachment)
-    constructor_lib.clear_collisions_between_attachments(attachment.root, attachment)
     if attachment.children ~= nil then
         for _, child_attachment in pairs(attachment.children) do
-            constructor_lib.set_attachment_clear_all_internal_collisions(child_attachment)
+            constructor_lib.clear_all_internal_collisions(child_attachment)
         end
     end
 end
