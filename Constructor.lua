@@ -1597,7 +1597,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.attach_entity(attachment)
     end, attachment.options.radio_loud)
 
-    menu.slider(attachment.menus.vehicle_options, t("Steering Bias"), {"constructorsteeringbias"..attachment.id}, t("How dirty is the vehicle"), -1, 1, math.floor(attachment.vehicle_attributes.wheels.steering_bias or 0), 1, function(value)
+    menu.slider(attachment.menus.vehicle_options, t("Steering Bias"), {"constructorsteeringbias"..attachment.id}, t("Set wheel position. Must be driving to set, but will stay when you exit until someone else drives."), -1, 1, math.floor(attachment.vehicle_attributes.wheels.steering_bias or 0), 1, function(value)
         attachment.vehicle_attributes.wheels.steering_bias = value
         constructor_lib.deserialize_vehicle_wheels(attachment)
     end)
