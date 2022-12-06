@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30b5"
+local SCRIPT_VERSION = "0.30b6"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1591,6 +1591,9 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
     if vehicle.vehicle_attributes.options.engine_running == true then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle.handle, true, true, false)
         VEHICLE.SET_VEHICLE_KEEP_ENGINE_ON_WHEN_ABANDONED(vehicle.handle, true)
+        if (VEHICLE.GET_VEHICLE_CLASS(vehicle.handle) == 15 or VEHICLE.GET_VEHICLE_CLASS(vehicle.handle) == 16) then
+            VEHICLE.SET_HELI_BLADES_FULL_SPEED(vehicle.handle)
+        end
     end
     if vehicle.vehicle_attributes.options.doors_locked ~= nil then
         VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle.handle, vehicle.vehicle_attributes.options.doors_locked or false)
