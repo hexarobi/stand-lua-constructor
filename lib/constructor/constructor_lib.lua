@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30b3"
+local SCRIPT_VERSION = "0.30b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -472,6 +472,11 @@ end
 --- Adding
 ---
 
+constructor_lib.set_attachment_as_root = function(attachment)
+    attachment.parent = attachment
+    attachment.root = attachment
+end
+
 constructor_lib.build_parent_child_relationship = function(parent_attachment, child_attachment)
     child_attachment.parent = parent_attachment
     child_attachment.root = parent_attachment.root
@@ -568,7 +573,6 @@ constructor_lib.create_entity = function(attachment)
     ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, true)  --Freeze while spawning
     if attachment.root.is_preview == true then constructor_lib.set_preview_visibility(attachment) end
     STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(attachment.hash)
-    constructor_lib.clear_all_internal_collisions(attachment.root)
     constructor_lib.deserialize_entity_attributes(attachment)
     constructor_lib.attach_entity(attachment)
     constructor_lib.update_attachment_position(attachment)
@@ -872,7 +876,9 @@ end
 ---
 
 constructor_lib.clear_collisions_between_attachments = function(current_attachment, new_attachment)
-    ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(current_attachment.handle, new_attachment.handle)
+    if current_attachment.handle ~= new_attachment.handle then
+        ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(current_attachment.handle, new_attachment.handle)
+    end
     if current_attachment.children ~= nil then
         for _, child_attachment in pairs(current_attachment.children) do
             constructor_lib.clear_collisions_between_attachments(child_attachment, new_attachment)
@@ -881,12 +887,7 @@ constructor_lib.clear_collisions_between_attachments = function(current_attachme
 end
 
 constructor_lib.clear_all_internal_collisions = function(attachment)
-
-    constructor_lib.validate_children(attachment.parent)
-    if attachment.root ~= nil then
-        debug_log("Clearing internal collisions for "..attachment.name)
-        constructor_lib.clear_collisions_between_attachments(attachment.root, attachment)
-    end
+    constructor_lib.clear_collisions_between_attachments(attachment.root, attachment)
     if attachment.children ~= nil then
         for _, child_attachment in pairs(attachment.children) do
             constructor_lib.clear_all_internal_collisions(child_attachment)
