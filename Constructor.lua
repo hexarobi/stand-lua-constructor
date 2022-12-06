@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30b3"
+local SCRIPT_VERSION = "0.30b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1597,6 +1597,11 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.attach_entity(attachment)
     end, attachment.options.radio_loud)
 
+    menu.slider(attachment.menus.vehicle_options, t("Steering Bias"), {"constructorsteeringbias"..attachment.id}, t("How dirty is the vehicle"), -1, 1, math.floor(attachment.vehicle_attributes.wheels.steering_bias or 0), 1, function(value)
+        attachment.vehicle_attributes.wheels.steering_bias = value
+        constructor_lib.deserialize_vehicle_wheels(attachment)
+    end)
+
     menu.list_select(attachment.menus.vehicle_options, t("Sirens"), {}, "", { t("Off"), t("Lights Only"), t("Sirens and Lights") }, 1, function(value)
         local previous_siren_status = attachment.options.siren_status
         attachment.options.siren_status = value
@@ -1625,7 +1630,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_doors(attachment)
     end)
 
-    menu.slider(attachment.menus.vehicle_options, t("Dirt Level"), {"constructordirtlevel"..attachment.id.."z"}, t("How dirty is the vehicle"), 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
+    menu.slider(attachment.menus.vehicle_options, t("Dirt Level"), {"constructordirtlevel"..attachment.id}, t("How dirty is the vehicle"), 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
         attachment.vehicle_attributes.paint.dirt_level = value
         constructor_lib.deserialize_vehicle_paint(attachment)
     end)
