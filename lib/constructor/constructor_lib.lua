@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30b4"
+local SCRIPT_VERSION = "0.30b5"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -755,6 +755,10 @@ end
 constructor_lib.update_attachment_tick = function(attachment)
     if attachment.options ~= nil and attachment.options.is_frozen ~= nil then
         ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
+    end
+    if attachment.vehicle_attributes ~= nil and attachment.vehicle_attributes.wheels ~= nil
+            and attachment.vehicle_attributes.wheels.steering_bias ~= nil then
+        VEHICLE.SET_VEHICLE_STEER_BIAS(attachment.handle, attachment.vehicle_attributes.wheels.steering_bias)
     end
     constructor_lib.update_particle_tick(attachment)
 end
