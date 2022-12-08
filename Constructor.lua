@@ -187,7 +187,7 @@ end
 
 util.ensure_package_is_installed('lua/natives-1663599433')
 local status_natives, natives = pcall(require, "natives-1663599433")
-if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
+if not status_natives then error("Could not find natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433 if it is selected uncheck it and check it again") end
 
 -- Call require() on all required dependencies
 local missing_required_dependencies = {}
