@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.29"
+local SCRIPT_VERSION = "0.31b1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -39,15 +39,20 @@ local function debug_log(message, additional_details)
     end
 end
 
+local function trim(value)
+    if type(value) == "string" then
+        value = value:gsub("%s+", "")
+    end
+    return value
+end
+
 local function toboolean(value)
+    value = trim(value)
     return not (value == nil or value == false or value == "" or value == "false" or value == "0" or value == 0 or value == {})
 end
 
 local function parse_number(value)
-    if type(value) == "string" then
-        value = value:gsub("%s+", "")
-    end
-    return tonumber(value)
+    return tonumber(trim(value))
 end
 
 local function read_file(filepath)
@@ -1043,7 +1048,7 @@ local function map_ini_data_flavor_3(construct_plan, data)
         map_ini_vehicle_toggles_flavor_3(construct_plan, data.Vehicle)
         for attachment_index = 0, MAX_NUM_ATTACHMENTS do
             local attached_object = data[tostring(attachment_index)]
-            if attached_object ~= nil and attached_object.Model > 0 then
+            if attached_object ~= nil and attached_object.Model ~= 0 then
                 local attachment = {}
                 attachment.type = "OBJECT"
                 map_ini_attachment_flavor_3(attachment, attached_object)
@@ -1254,7 +1259,8 @@ local function map_ini_data_flavor_4(construct_plan, data)
         end
         for object_index = 0, tonumber(data.AllObjects.Count) - 1 do
             local attached_object = data["Object".. object_index]
-            if attached_object ~= nil and attached_object.Hash > 0 then
+            if attached_object ~= nil and attached_object.Hash ~= 0 then
+                debug_log("Processing object "..object_index)
                 local attachment = {}
                 attachment.type = "OBJECT"
                 map_ini_attachment_flavor_4(attachment, attached_object)
@@ -1266,7 +1272,7 @@ local function map_ini_data_flavor_4(construct_plan, data)
         construct_plan.is_player = true
         for object_index = 0, tonumber(data.AllObjects.Count) - 1 do
             local attached_object = data["Object".. object_index]
-            if attached_object ~= nil and attached_object.Hash > 0 then
+            if attached_object ~= nil and attached_object.Hash ~= 0 then
                 local attachment = {}
                 attachment.type = "OBJECT"
                 map_ini_attachment_flavor_4(attachment, attached_object)
