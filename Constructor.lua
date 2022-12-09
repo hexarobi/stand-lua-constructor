@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31b1"
+local SCRIPT_VERSION = "0.31b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -171,9 +171,9 @@ local auto_update_config = {
             check_interval=default_check_interval,
         },
         {
-            name="natives-1651208000",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1651208000.lua",
-            script_relpath="lib/natives-1651208000.lua",
+            name="natives-1663599433",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1663599433.lua",
+            script_relpath="lib/natives-1663599433.lua",
             verify_file_begins_with="--",
             is_required=true,
         },
