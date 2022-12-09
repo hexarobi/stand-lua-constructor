@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.29"
+local SCRIPT_VERSION = "0.30"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -64,7 +64,8 @@ CONSTRUCTOR_CONFIG = {
     chat_spawnable_dir = "spawnable",
     debug_mode = false,
     auto_update = true,
-    auto_update_check_interval = 86400
+    auto_update_check_interval = 86400,
+    freecam_speed = 1,
 }
 -- Short local alias
 local config = CONSTRUCTOR_CONFIG
@@ -872,6 +873,7 @@ local function save_vehicle(construct)
     if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local serialized_construct = constructor_lib.serialize_attachment(construct)
+    --debug_log("Serialized construct "..inspect(serialized_construct))
     local encode_status, content = pcall(soup.json.encode, serialized_construct)
     if not encode_status then
         util.toast("Error encoding construct: "..content)
@@ -945,9 +947,11 @@ local function spawn_construct_from_plan(construct_plan)
     constructor_lib.reattach_attachment_with_children(construct)
     if not construct.handle then error("Failed to spawn construct from plan "..tostring(construct.name)) end
     add_spawned_construct(construct)
+    constructor_lib.clear_all_internal_collisions(construct)
     if not construct.options.is_frozen then
         ENTITY.FREEZE_ENTITY_POSITION(construct.handle, false)  --Unfreeze after spawning
     end
+    constructor_lib.deserialize_vehicle_attributes(construct)   -- Re-deserialize to make sure invis wheels are applied
     OBJECT.PLACE_OBJECT_ON_GROUND_OR_OBJECT_PROPERLY(construct.handle)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
@@ -958,6 +962,7 @@ local function spawn_construct_from_plan(construct_plan)
     if construct.type == "VEHICLE" and config.drive_spawned_vehicles and construct.options.spawn_for_player == nil then
         PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -1)
     end
+    --constructor_lib.set_attachment_visibility(construct)
     return construct
 end
 
@@ -1494,10 +1499,6 @@ constructor.add_attachment_position_menu = function(attachment)
         end
 
         menu.divider(attachment.menus.position, t("Options"))
-        attachment.menus.edit_rotation_order = menu.list_select(attachment.menus.position, t("Rotation Order"), {"constructorrotationorder"..attachment.id.."z"}, t("Set the order that rotations should be applied."), constants.rotation_orders, attachment.rotation_order + 1, function(index, menu_name, previous_option, click_type)
-            attachment.rotation_order = constants.rotation_orders[index][4]
-            constructor_lib.move_attachment(attachment)
-        end)
         attachment.menus.option_position_frozen = menu.toggle(attachment.menus.position, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
             attachment.options.is_frozen = on
             constructor_lib.serialize_entity_attributes(attachment)
@@ -1597,6 +1598,11 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.attach_entity(attachment)
     end, attachment.options.radio_loud)
 
+    menu.slider(attachment.menus.vehicle_options, t("Steering Bias"), {"constructorsteeringbias"..attachment.id}, t("Set wheel position. Must be driving to set, but will stay when you exit until someone else drives."), -1, 1, math.floor(attachment.vehicle_attributes.wheels.steering_bias or 0), 1, function(value)
+        attachment.vehicle_attributes.wheels.steering_bias = value
+        constructor_lib.deserialize_vehicle_wheels(attachment)
+    end)
+
     menu.list_select(attachment.menus.vehicle_options, t("Sirens"), {}, "", { t("Off"), t("Lights Only"), t("Sirens and Lights") }, 1, function(value)
         local previous_siren_status = attachment.options.siren_status
         attachment.options.siren_status = value
@@ -1625,7 +1631,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_doors(attachment)
     end)
 
-    menu.slider(attachment.menus.vehicle_options, t("Dirt Level"), {"constructordirtlevel"..attachment.id.."z"}, t("How dirty is the vehicle"), 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
+    menu.slider(attachment.menus.vehicle_options, t("Dirt Level"), {"constructordirtlevel"..attachment.id}, t("How dirty is the vehicle"), 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
         attachment.vehicle_attributes.paint.dirt_level = value
         constructor_lib.deserialize_vehicle_paint(attachment)
     end)
@@ -1699,6 +1705,56 @@ end
 --- Ped Options Menu
 ---
 
+local function create_ped_weapon_menu(attachment, root_menu, items)
+    for _, item in pairs(items) do
+        if item.is_folder == true then
+            local weapons_menu = menu.list(root_menu, item.name)
+            create_ped_weapon_menu(attachment, weapons_menu, item.items)
+        else
+            menu.action(root_menu, item.name, {}, "", function()
+                attachment.ped_attributes.weapon.hash = nil
+                attachment.ped_attributes.weapon.model = item.model
+                if item.component ~= nil then
+                    attachment.ped_attributes.weapon.component_model = item.component
+                end
+                constructor_lib.deserialize_ped_attributes(attachment)
+            end)
+        end
+    end
+end
+
+local function create_ped_component_menu(attachment, root_menu, index, name)
+    local component = attachment.ped_attributes.components["_".. index]
+    attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {}, "", 0, component.num_drawable_variations, component.drawable_variation, 1, function(value)
+        component.drawable_variation = value
+        constructor_lib.deserialize_ped_attributes(attachment)
+        menu.set_max_value(attachment.menus["ped_components_drawable_"..index], component.num_drawable_variations)
+        component.texture_variation = 0
+        menu.set_value(attachment.menus["ped_components_texture_"..index], component.texture_variation)
+        menu.set_max_value(attachment.menus["ped_components_texture_"..index], component.num_texture_variations)
+    end)
+    attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, component.num_texture_variations, component.texture_variation, 1, function(value)
+        component.texture_variation = value
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end)
+end
+
+local function create_ped_prop_menu(attachment, root_menu, index, name)
+    local prop = attachment.ped_attributes.props["_".. index]
+    attachment.menus["ped_props_drawable_".. index] = menu.slider(root_menu, name, {}, "", -1, prop.num_drawable_variations, prop.drawable_variation, 1, function(value)
+        prop.drawable_variation = value
+        constructor_lib.deserialize_ped_attributes(attachment)
+        menu.set_max_value(attachment.menus["ped_props_drawable_".. index], prop.num_drawable_variations)
+        prop.texture_variation = 0
+        menu.set_value(attachment.menus["ped_props_texture_".. index], prop.texture_variation)
+        menu.set_max_value(attachment.menus["ped_props_texture_".. index], prop.num_texture_variations)
+    end)
+    attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, prop.num_texture_variations, prop.texture_variation, 1, function(value)
+        prop.texture_variation = value
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end)
+end
+
 constructor.add_attachment_ped_menu = function(attachment)
     if attachment.type ~= "PED" then return end
     if attachment.menus.ped_options ~= nil then return end
@@ -1716,58 +1772,8 @@ constructor.add_attachment_ped_menu = function(attachment)
         constructor_lib.deserialize_ped_attributes(attachment)
     end, attachment.options.is_on_fire)
 
-    local function create_ped_weapon_menu(attachment, root_menu, items)
-        for _, item in pairs(items) do
-            if item.is_folder == true then
-                local weapons_menu = menu.list(root_menu, item.name)
-                create_ped_weapon_menu(attachment, weapons_menu, item.items)
-            else
-                menu.action(root_menu, item.name, {}, "", function()
-                    attachment.ped_attributes.weapon.hash = nil
-                    attachment.ped_attributes.weapon.model = item.model
-                    if item.component ~= nil then
-                        attachment.ped_attributes.weapon.component_model = item.component
-                    end
-                    constructor_lib.deserialize_ped_attributes(attachment)
-                end)
-            end
-        end
-    end
-
     attachment.menus.option_give_ped_weapon = menu.list(attachment.menus.ped_options, t("Give Weapon"), {}, t("Give the ped a weapon."))
     create_ped_weapon_menu(attachment, attachment.menus.option_give_ped_weapon, constants.ped_weapons)
-
-    local function create_ped_component_menu(attachment, root_menu, index, name)
-        local component = attachment.ped_attributes.components["_".. index]
-        attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {}, "", 0, component.num_drawable_variations, component.drawable_variation, 1, function(value)
-            component.drawable_variation = value
-            constructor_lib.deserialize_ped_attributes(attachment)
-            menu.set_max_value(attachment.menus["ped_components_drawable_"..index], component.num_drawable_variations)
-            component.texture_variation = 0
-            menu.set_value(attachment.menus["ped_components_texture_"..index], component.texture_variation)
-            menu.set_max_value(attachment.menus["ped_components_texture_"..index], component.num_texture_variations)
-        end)
-        attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, component.num_texture_variations, component.texture_variation, 1, function(value)
-            component.texture_variation = value
-            constructor_lib.deserialize_ped_attributes(attachment)
-        end)
-    end
-
-    local function create_ped_prop_menu(attachment, root_menu, index, name)
-        local prop = attachment.ped_attributes.props["_".. index]
-        attachment.menus["ped_props_drawable_".. index] = menu.slider(root_menu, name, {}, "", -1, prop.num_drawable_variations, prop.drawable_variation, 1, function(value)
-            prop.drawable_variation = value
-            constructor_lib.deserialize_ped_attributes(attachment)
-            menu.set_max_value(attachment.menus["ped_props_drawable_".. index], prop.num_drawable_variations)
-            prop.texture_variation = 0
-            menu.set_value(attachment.menus["ped_props_texture_".. index], prop.texture_variation)
-            menu.set_max_value(attachment.menus["ped_props_texture_".. index], prop.num_texture_variations)
-        end)
-        attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, prop.num_texture_variations, prop.texture_variation, 1, function(value)
-            prop.texture_variation = value
-            constructor_lib.deserialize_ped_attributes(attachment)
-        end)
-    end
 
     attachment.menus.ped_options_clothes = menu.list(attachment.menus.ped_options, t("Clothes"))
     for _, ped_component in pairs(constants.ped_components) do
@@ -1796,6 +1802,10 @@ constructor.add_child_attachment_menu = function(attachment)
         end, attachment.options.is_attached)
         attachment.menus.option_parent_attachment = menu.list(attachment.menus.attachment_options, t("Change Parent"), {}, t("Select a new parent for this child. Construct will be rebuilt to accommodate changes."), function()
             rebuild_reattach_to_menu(attachment)
+        end)
+        attachment.menus.option_edit_rotation_order = menu.list_select(attachment.menus.attachment_options, t("Rotation Order"), {"constructorrotationorder"..attachment.id}, t("Set the order that rotations should be applied."), constants.rotation_orders, attachment.rotation_order + 1, function(index)
+            attachment.rotation_order = constants.rotation_orders[index][4]
+            constructor_lib.move_attachment(attachment)
         end)
 
         attachment.menus.option_bone_index = menu.slider(attachment.menus.attachment_options, t("Bone Index"), {}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.options.bone_index or -1, 1, function(value)
@@ -1860,6 +1870,10 @@ constructor.add_attachment_entity_options = function(attachment)
             constructor_lib.attach_entity(attachment)
         end, attachment.options.is_mission_entity)
 
+        attachment.menus.spawn_at_position = menu.toggle(attachment.menus.more_options, t("Always Spawn at Position"), {}, t("Will this construct always spawn at the same world position it's in now (for stationary maps) or in front of the player (for props or small structures)"), function(on)
+            attachment.always_spawn_at_position = on
+        end, attachment.always_spawn_at_position)
+
         -- Blip
         if attachment == attachment.parent then
             menu.divider(attachment.menus.more_options, t("Blip"))
@@ -1920,7 +1934,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
 
         if attachment.menus.curated_attachments ~= nil then return end
         attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
-        for _, curated_item in pairs(curated_attachments) do
+        for _, curated_item in pairs(constructor_lib.table_copy(curated_attachments)) do
             build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
         end
 
@@ -2549,6 +2563,109 @@ menu.action(menus.settings_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby ve
     util.toast(t("Removed").." "..objects.." "..t("objects")..", "..vehicles.." "..t("vehicles")..t(", and ")..peds.." "..t("peds"), TOAST_ALL)
 end)
 
+--local is_free_cam_active = false
+--local cam
+--menu.toggle(menus.settings_menu, "Free Cam", {}, "", function(on)
+--    if on then
+--        --natives.CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", player.get_player_coords(player.player_id()).x, player.get_player_coords(player.player_id()).y, player.get_player_coords(player.player_id()).z + 2.0, cam.get_gameplay_cam_rot().x, cam.get_gameplay_cam_rot().y, cam.get_gameplay_cam_rot().z, 70.0, false, false):__tointeger64()
+--        --natives.SET_CAM_ACTIVE(freecam_player_cam, true)
+--        --natives.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
+--
+--        util.toast("Camera on", TOAST_ALL)
+--        is_free_cam_active = true
+--        ENTITY.FREEZE_ENTITY_POSITION(players.user_ped(), true)
+--        local pos = players.get_position(players.user())
+--        cam = CAM.CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", pos.x, pos.y, pos.z + 2.0, -90.0, 0.0, 0.0, 70.0, false, false)
+--        CAM.SET_CAM_ACTIVE(cam, true)
+--        CAM.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
+--
+--    else
+--        is_free_cam_active = false
+--        ENTITY.FREEZE_ENTITY_POSITION(players.user_ped(), false)
+--        util.toast("Camera off", TOAST_ALL)
+--        CAM.RENDER_SCRIPT_CAMS(false, false, 1000, true, false, 0)
+--        CAM.DESTROY_CAM(cam, true)
+--    end
+--end)
+
+---
+--- Free Cam
+---
+
+--local world_up = v3.new(0, 0, 1)
+--local function get_cam_vectors()
+--    local cam_rot = CAM.GET_FINAL_RENDERED_CAM_ROT(2)
+--    local forward = v3.toDir(cam_rot)
+--    local right = v3.crossProduct(forward, world_up)
+--    right:normalise()
+--    local up = v3.crossProduct(right, forward)
+--    return forward, right, up
+--end
+
+--local function get_offset_from_cam_in_world_coords(Cam, Offset)
+--    local rot = CAM.GET_CAM_ROT(Cam, 2)
+--    local forward = rot:toDir()
+--    local rot_rads = v3(math.rad(rot.x), math.rad(rot.y), math.rad(rot.z))
+--    local num = math.cos(rot_rads.y)
+--    local right = v3(num * math.cos(-rot_rads.z), num * math.sin(rot_rads.z), math.sin(-rot_rads.y))
+--    local up = right:crossProduct(forward)
+--    local cam_offset = v3(right:mul(Offset.x), forward:mul(Offset.y), up:mul(Offset.z))
+--    return CAM.GET_CAM_COORD(Cam):add(cam_offset)
+--end
+--
+--local function render_free_camera(rotation)
+--    local direction = v3.toDir(v3(rotation))
+--
+--    --local inst = v3.new()
+--    debug_log("Cam direction "..inspect(direction))
+--    local camera_speed = (config.freecam_speed or 100) / 100
+--    local camera_vector = v3(CAM.GET_CAM_COORD(cam, 2))
+--    camera_vector:add(direction)
+--    camera_vector:mul(camera_speed)
+--    CAM.SET_CAM_COORD(cam, camera_vector:getX(), camera_vector:getY(), camera_vector:getZ())
+--end
+
+--constructor.update_free_cam_tick = function()
+--    if not is_free_cam_active then return true end
+--    ENTITY.FREEZE_ENTITY_POSITION(players.user_ped(), true)
+--
+--    local forward, right, up = get_cam_vectors()
+--
+--    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 32) then
+--        --local offset = get_offset_from_cam_in_world_coords(cam, {x=1,y=0,z=0})
+--        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
+--        local new_cam_pos = v3(cam_pos.x + forward.x, cam_pos.y + forward.y, cam_pos.z + forward.z)
+--        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+--    end
+--    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 33) then
+--        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
+--        local new_cam_pos = v3(cam_pos.x - forward.x, cam_pos.y - forward.y, cam_pos.z - forward.z)
+--        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+--    end
+--    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 34) then
+--        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
+--        local new_cam_pos = v3(cam_pos.x + right.x, cam_pos.y + right.y, cam_pos.z + right.z)
+--        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+--    end
+--    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 35) then
+--        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
+--        local new_cam_pos = v3(cam_pos.x - right.x, cam_pos.y - right.y, cam_pos.z - right.z)
+--        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+--    end
+--    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 36) then
+--        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
+--        local new_cam_pos = v3(cam_pos.x + up.x, cam_pos.y + up.y, cam_pos.z + up.z)
+--        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+--    end
+--    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 22) then
+--        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
+--        local new_cam_pos = v3(cam_pos.x - up.x, cam_pos.y - up.y, cam_pos.z - up.z)
+--        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+--    end
+--
+--    return true
+--end
+
 ---
 --- Script Meta Menu
 ---
@@ -2619,6 +2736,7 @@ util.create_tick_handler(update_preview_tick)
 util.create_tick_handler(sensitivity_modifier_check_tick)
 util.create_tick_handler(update_constructs_tick)
 util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
+--util.create_tick_handler(constructor.update_free_cam_tick)
 --util.create_tick_handler(ped_animation_tick)
 
 --util.create_tick_handler(function()
