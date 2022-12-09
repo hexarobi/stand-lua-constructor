@@ -170,6 +170,13 @@ local auto_update_config = {
             verify_file_begins_with="ba_prop_glass_garage_opaque",
             check_interval=default_check_interval,
         },
+        {
+            name="natives-1651208000",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1651208000.lua",
+            script_relpath="lib/natives-1651208000.lua",
+            verify_file_begins_with="--",
+            is_required=true,
+        },
     }
 }
 local update_success
@@ -187,7 +194,7 @@ end
 
 util.ensure_package_is_installed('lua/natives-1663599433')
 local status_natives, natives = pcall(require, "natives-1663599433")
-if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
+if not status_natives then error("Could not load natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
 
 -- Call require() on all required dependencies
 local missing_required_dependencies = {}
