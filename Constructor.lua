@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30b4"
+local SCRIPT_VERSION = "0.30"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 2
+local SELECTED_BRANCH_INDEX = 1
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
@@ -62,7 +62,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = true,
+    debug_mode = false,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -962,6 +962,7 @@ local function spawn_construct_from_plan(construct_plan)
     if construct.type == "VEHICLE" and config.drive_spawned_vehicles and construct.options.spawn_for_player == nil then
         PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -1)
     end
+    --constructor_lib.set_attachment_visibility(construct)
     return construct
 end
 
@@ -2562,30 +2563,30 @@ menu.action(menus.settings_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby ve
     util.toast(t("Removed").." "..objects.." "..t("objects")..", "..vehicles.." "..t("vehicles")..t(", and ")..peds.." "..t("peds"), TOAST_ALL)
 end)
 
-local is_free_cam_active = false
-local cam
-menu.toggle(menus.settings_menu, "Free Cam", {}, "", function(on)
-    if on then
-        --natives.CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", player.get_player_coords(player.player_id()).x, player.get_player_coords(player.player_id()).y, player.get_player_coords(player.player_id()).z + 2.0, cam.get_gameplay_cam_rot().x, cam.get_gameplay_cam_rot().y, cam.get_gameplay_cam_rot().z, 70.0, false, false):__tointeger64()
-        --natives.SET_CAM_ACTIVE(freecam_player_cam, true)
-        --natives.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
-
-        util.toast("Camera on", TOAST_ALL)
-        is_free_cam_active = true
-        ENTITY.FREEZE_ENTITY_POSITION(players.user_ped(), true)
-        local pos = players.get_position(players.user())
-        cam = CAM.CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", pos.x, pos.y, pos.z + 2.0, -90.0, 0.0, 0.0, 70.0, false, false)
-        CAM.SET_CAM_ACTIVE(cam, true)
-        CAM.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
-
-    else
-        is_free_cam_active = false
-        ENTITY.FREEZE_ENTITY_POSITION(players.user_ped(), false)
-        util.toast("Camera off", TOAST_ALL)
-        CAM.RENDER_SCRIPT_CAMS(false, false, 1000, true, false, 0)
-        CAM.DESTROY_CAM(cam, true)
-    end
-end)
+--local is_free_cam_active = false
+--local cam
+--menu.toggle(menus.settings_menu, "Free Cam", {}, "", function(on)
+--    if on then
+--        --natives.CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", player.get_player_coords(player.player_id()).x, player.get_player_coords(player.player_id()).y, player.get_player_coords(player.player_id()).z + 2.0, cam.get_gameplay_cam_rot().x, cam.get_gameplay_cam_rot().y, cam.get_gameplay_cam_rot().z, 70.0, false, false):__tointeger64()
+--        --natives.SET_CAM_ACTIVE(freecam_player_cam, true)
+--        --natives.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
+--
+--        util.toast("Camera on", TOAST_ALL)
+--        is_free_cam_active = true
+--        ENTITY.FREEZE_ENTITY_POSITION(players.user_ped(), true)
+--        local pos = players.get_position(players.user())
+--        cam = CAM.CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", pos.x, pos.y, pos.z + 2.0, -90.0, 0.0, 0.0, 70.0, false, false)
+--        CAM.SET_CAM_ACTIVE(cam, true)
+--        CAM.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
+--
+--    else
+--        is_free_cam_active = false
+--        ENTITY.FREEZE_ENTITY_POSITION(players.user_ped(), false)
+--        util.toast("Camera off", TOAST_ALL)
+--        CAM.RENDER_SCRIPT_CAMS(false, false, 1000, true, false, 0)
+--        CAM.DESTROY_CAM(cam, true)
+--    end
+--end)
 
 ---
 --- Free Cam
