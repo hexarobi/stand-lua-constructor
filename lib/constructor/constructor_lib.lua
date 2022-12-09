@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30b6"
+local SCRIPT_VERSION = "0.30b7"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -118,6 +118,10 @@ constructor_lib.is_attachment_entity = function(attachment)
     return attachment.type ~= "PARTICLE"
 end
 
+constructor_lib.is_attachment_root = function(attachment)
+    return attachment == attachment.root
+end
+
 constructor_lib.use_player_ped_attributes_as_base = function(attachment)
     if attachment.type ~= "PED" then return attachment end
     debug_log("Using player as base model="..tostring(attachment.model).." hash="..tostring(attachment.hash))
@@ -182,13 +186,14 @@ constructor_lib.default_entity_attributes = function(attachment)
         attachment.options.is_networked = true
     end
     if attachment.options.is_mission_entity == nil then attachment.options.is_mission_entity = true end
-    if attachment.options.is_invincible == nil then attachment.options.is_invincible = false end
+    if attachment.options.is_invincible == nil then attachment.options.is_invincible = true end
     if attachment.options.is_bullet_proof == nil then attachment.options.is_bullet_proof = false end
     if attachment.options.is_fire_proof == nil then attachment.options.is_fire_proof = false end
     if attachment.options.is_explosion_proof == nil then attachment.options.is_explosion_proof = false end
     if attachment.options.is_melee_proof == nil then attachment.options.is_melee_proof = false end
     if attachment.options.is_light_on == nil then attachment.options.is_light_on = true end
     if attachment.options.use_soft_pinning == nil then attachment.options.use_soft_pinning = true end
+    if attachment.options.is_driver_visible == nil then attachment.options.is_driver_visible = true end
     if attachment.options.bone_index == nil then attachment.options.bone_index = 0 end
     if attachment.options.is_dynamic == nil then attachment.options.is_dynamic = true end
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
@@ -207,7 +212,7 @@ constructor_lib.default_entity_attributes = function(attachment)
 end
 
 constructor_lib.serialize_entity_attributes = function(attachment)
-    local pos = ENTITY.GET_WORLD_POSITION_OF_ENTITY_BONE(attachment.handle, 0)
+    local pos = ENTITY.GET_ENTITY_COORDS(attachment.handle, 0)
     attachment.position = {x=pos.x, y=pos.y, z=pos.z}
     local rot = ENTITY.GET_ENTITY_ROTATION(attachment.handle, attachment.rotation_order)
     attachment.world_rotation = {x=rot.x, y=rot.y, z=rot.z}
@@ -1591,6 +1596,7 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
     if vehicle.vehicle_attributes.options.engine_running == true then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle.handle, true, true, false)
         VEHICLE.SET_VEHICLE_KEEP_ENGINE_ON_WHEN_ABANDONED(vehicle.handle, true)
+        -- Thanks Prisuhm and Jinxscript
         if (VEHICLE.GET_VEHICLE_CLASS(vehicle.handle) == 15 or VEHICLE.GET_VEHICLE_CLASS(vehicle.handle) == 16) then
             VEHICLE.SET_HELI_BLADES_FULL_SPEED(vehicle.handle)
         end
