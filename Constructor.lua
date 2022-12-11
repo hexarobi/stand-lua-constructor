@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31b4"
+local SCRIPT_VERSION = "0.31b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2136,7 +2136,7 @@ menus.refresh_attachment_menu_is_editing = function(attachment)
 end
 
 menus.rebuild_attachment_menu = function(attachment)
-    if constructor_lib.is_attachment_entity(attachment) and (not attachment.handle) then error("Attachment missing handle") end
+    if constructor_lib.is_attachment_entity(attachment) and (not attachment.handle) then error("Attachment missing handle "..tostring(attachment.name)) end
     if attachment.menus ~= nil then return end
     debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
     attachment.menus = {}
