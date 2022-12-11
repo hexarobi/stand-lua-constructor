@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31b2"
+local SCRIPT_VERSION = "0.31b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1284,6 +1284,7 @@ end
 
 local function build_curated_attachments_menu(attachment, root_menu, curated_item)
     if curated_item.is_folder then
+        if curated_item.load_menu ~= nil then return end
         curated_item.load_menu = menu.list(root_menu, curated_item.name, {}, "", function()
             for _, child_item in pairs(curated_item.items) do
                 build_curated_attachments_menu(attachment, curated_item.load_menu, child_item)
@@ -1941,7 +1942,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
 
         if attachment.menus.curated_attachments ~= nil then return end
         attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
-        for _, curated_item in pairs(constructor_lib.table_copy(curated_attachments)) do
+        for _, curated_item in pairs(curated_attachments) do
             build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
         end
 
