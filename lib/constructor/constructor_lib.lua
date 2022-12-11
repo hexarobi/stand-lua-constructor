@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30"
+local SCRIPT_VERSION = "0.31b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1520,7 +1520,7 @@ end
 constructor_lib.serialize_vehicle_extras = function(vehicle)
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.extras == nil then vehicle.vehicle_attributes.extras = {} end
-    for extra_index = 0, 14 do
+    for extra_index = 0, 60 do
         if VEHICLE.DOES_EXTRA_EXIST(vehicle.handle, extra_index) then
             vehicle.vehicle_attributes.extras["_"..extra_index] = VEHICLE.IS_VEHICLE_EXTRA_TURNED_ON(vehicle.handle, extra_index)
         end
@@ -1529,12 +1529,14 @@ end
 
 constructor_lib.deserialize_vehicle_extras = function(vehicle)
     if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.extras == nil then return end
-    for extra_index = 0, 14 do
+    for extra_index = 0, 60 do
         local state = true
         if vehicle.vehicle_attributes.extras["_"..extra_index] ~= nil then
             state = vehicle.vehicle_attributes.extras["_"..extra_index]
         end
-        VEHICLE.SET_VEHICLE_EXTRA(vehicle.handle, extra_index, not state)
+        if VEHICLE.DOES_EXTRA_EXIST(vehicle.handle, extra_index) then
+            VEHICLE.SET_VEHICLE_EXTRA(vehicle.handle, extra_index, not state)
+        end
     end
 end
 
