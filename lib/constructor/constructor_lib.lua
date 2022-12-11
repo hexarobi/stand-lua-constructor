@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31b2"
+local SCRIPT_VERSION = "0.31b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -510,10 +510,8 @@ constructor_lib.create_entity = function(attachment)
         error(t("Cannot create attachment").." "..tostring(attachment.name)..": "..t("Requires either a hash or a model"))
     end
     if (not constructor_lib.load_hash_for_attachment(attachment)) then
-        debug_log("Failed to load hash for attachment "..tostring(attachment.name))
-        return
+        error(t("Failed to load hash for attachment ")..tostring(attachment.name))
     end
-
     if attachment.root == nil then
         error(t("Attachment missing root"))
     end
@@ -602,10 +600,14 @@ end
 constructor_lib.reattach_attachment_with_children = function(attachment)
     debug_log("Reattaching attachment with children "..tostring(attachment.name))
     constructor_lib.create_entity(attachment)
-    for _, child_attachment in pairs(attachment.children) do
+    for index, child_attachment in pairs(attachment.children) do
         child_attachment.root = attachment.root
         child_attachment.parent = attachment
-        constructor_lib.reattach_attachment_with_children(child_attachment)
+        local create_status = pcall(constructor_lib.reattach_attachment_with_children, child_attachment)
+        if not create_status then
+            debug_log("Skipped reattaching attachment "..child_attachment.name.." to construct due to error")
+            attachment.children[index] = nil
+        end
     end
 end
 
@@ -619,7 +621,7 @@ constructor_lib.create_entity_with_children = function(new_attachment)
     local attachment = constructor_lib.create_entity(new_attachment)
     if not attachment then return end
     if attachment.children then
-        for _, child_attachment in pairs(attachment.children) do
+        for index, child_attachment in pairs(attachment.children) do
             constructor_lib.build_parent_child_relationship(attachment, child_attachment)
             if child_attachment.flash_model then
                 child_attachment.flash_start_on = (not child_attachment.parent.flash_start_on)
@@ -627,7 +629,11 @@ constructor_lib.create_entity_with_children = function(new_attachment)
             if child_attachment.reflection_axis then
                 constructor_lib.update_reflection_offsets(child_attachment)
             end
-            constructor_lib.create_entity_with_children(child_attachment)
+            local create_status = pcall(constructor_lib.create_entity_with_children, child_attachment)
+            if not create_status then
+                debug_log("Skipped adding attachment "..child_attachment.name.." to construct due to error")
+                attachment.children[index] = nil
+            end
         end
     end
     return attachment
