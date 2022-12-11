@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31b1"
+local SCRIPT_VERSION = "0.31b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -440,6 +440,14 @@ constructor_lib.update_attachment_position = function(attachment)
                 )
             end
         end
+    end
+end
+
+constructor_lib.place_on_ground = function(attachment)
+    if attachment.type == "VEHICLE" then
+        VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(attachment.handle, 5)
+    else
+        OBJECT.PLACE_OBJECT_ON_GROUND_OR_OBJECT_PROPERLY(attachment.handle)
     end
 end
 
