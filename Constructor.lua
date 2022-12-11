@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31b3"
+local SCRIPT_VERSION = "0.31b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2080,11 +2080,10 @@ constructor.add_attachment_teleport_options = function(attachment)
             end
         end)
         attachment.menus.teleport_construct_to_me = menu.action(attachment.menus.teleport, t("Teleport Construct to Me"), {}, t("Move the construct to be nearby your player"), function()
-            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.0, 2.0, -2.5)
-            local heading = ENTITY.GET_ENTITY_HEADING(players.user_ped())
-            ENTITY.SET_ENTITY_COORDS(attachment.handle, pos.x, pos.y, pos.z)
-            ENTITY.SET_ENTITY_ROTATION(attachment.handle, 0, 0, heading)
-            VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(attachment.handle, 5)
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.0, 2.0, 0.0)
+            attachment.position = { x=pos.x, y=pos.y, z=pos.z }
+            constructor_lib.update_attachment_position(attachment)
+            constructor_lib.place_on_ground(attachment)
         end)
         menus.refresh_attachment_menu_is_editing(attachment)
     end)
