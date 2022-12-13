@@ -3706,6 +3706,11 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "General Street",
+                        model = "A_F_M_GenStreet_01",
+                        type = "PED",
+                    },
+                    {
                         name = "K town 1",
                         model = "a_f_m_ktown_01",
                         type = "PED",
@@ -4014,6 +4019,11 @@ local curated_attachments <const> = {
                     {
                         name = "African American",
                         model = "a_m_m_afriamer_01",
+                        type = "PED",
+                    },
+                    {
+                        name = "Bank Robber",
+                        model = "A_M_M_BankRobber_01",
                         type = "PED",
                     },
                     {
@@ -4644,6 +4654,11 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "Chimp 2",
+                        model = "A_C_Chimp_02",
+                        type = "PED",
+                    },
+                    {
                         name = "Chop",
                         model = "a_c_chop",
                         type = "PED",
@@ -4731,6 +4746,11 @@ local curated_attachments <const> = {
                     {
                         name = "Rabbit",
                         model = "a_c_rabbit_01",
+                        type = "PED",
+                    },
+                    {
+                        name = "Rabbit 2",
+                        model = "A_C_Rabbit_02",
                         type = "PED",
                     },
                     {
@@ -4892,6 +4912,11 @@ local curated_attachments <const> = {
                     {
                         name = "Dr Friedlander",
                         model = "cs_drfriedlander",
+                        type = "PED",
+                    },
+                    {
+                        name = "Dr Friedlander 2",
+                        model = "CS_DrFriedlander_02",
                         type = "PED",
                     },
                     {
@@ -5067,6 +5092,11 @@ local curated_attachments <const> = {
                     {
                         name = "Nervous Ron",
                         model = "cs_nervousron",
+                        type = "PED",
+                    },
+                    {
+                        name = "Nervous Ron 2",
+                        model = "CS_NervousRon_02",
                         type = "PED",
                     },
                     {
@@ -5265,6 +5295,11 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "Chef 3",
+                        model = "CSB_Chef_03",
+                        type = "PED",
+                    },
+                    {
                         name = "Chinese Goon",
                         model = "csb_chin_goon",
                         type = "PED",
@@ -5282,6 +5317,11 @@ local curated_attachments <const> = {
                     {
                         name = "Customer",
                         model = "csb_customer",
+                        type = "PED",
+                    },
+                    {
+                        name = "Dax",
+                        model = "CSB_Dax",
                         type = "PED",
                     },
                     {
@@ -5332,6 +5372,16 @@ local curated_attachments <const> = {
                     {
                         name = "Janitor",
                         model = "csb_janitor",
+                        type = "PED",
+                    },
+                    {
+                        name = "Luchadora",
+                        model = "CSB_Luchadora",
+                        type = "PED",
+                    },
+                    {
+                        name = "Lab Rat",
+                        model = "CSB_Labrat",
                         type = "PED",
                     },
                     {
@@ -5489,6 +5539,11 @@ local curated_attachments <const> = {
                     {
                         name = "Grove Street Female",
                         model = "g_f_y_families_01",
+                        type = "PED",
+                    },
+                    {
+                        name = "Fooliganz",
+                        model = "G_F_M_Fooliganz_01",
                         type = "PED",
                     },
                     {
@@ -6527,6 +6582,11 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "Acid Lab Cook",
+                        model = "IG_AcidLabCook",
+                        type = "PED",
+                    },
+                    {
                         name = "Agent",
                         model = "ig_agent",
                         type = "PED",
@@ -6617,6 +6677,11 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "Chef 3",
+                        model = "IG_Chef_03",
+                        type = "PED",
+                    },
+                    {
                         name = "Cheng SR",
                         model = "ig_chengsr",
                         type = "PED",
@@ -6652,6 +6717,11 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "Dax",
+                        model = "IG_Dax",
+                        type = "PED",
+                    },
+                    {
                         name = "Denise",
                         model = "ig_denise",
                         type = "PED",
@@ -6677,6 +6747,11 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "Dr Friedlander 2",
+                        model = "IG_DrFriedlander_02",
+                        type = "PED",
+                    },
+                    {
                         name = "Fabien",
                         model = "ig_fabien",
                         type = "PED",
@@ -6697,6 +6772,21 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "Furry",
+                        model = "IG_Furry",
+                        type = "PED",
+                    },
+                    {
+                        name = "Fooliganz 1",
+                        model = "IG_Fooliganz_01",
+                        type = "PED",
+                    },
+                    {
+                        name = "Fooliganz 2",
+                        model = "IG_Fooliganz_02",
+                        type = "PED",
+                    },
+                    {
                         name = "Gerald",
                         model = "ig_g",
                         type = "PED",
@@ -6707,8 +6797,18 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "Gun Van Seller",
+                        model = "IG_GunVanSeller",
+                        type = "PED",
+                    },
+                    {
                         name = "Hao",
                         model = "ig_hao",
+                        type = "PED",
+                    },
+                    {
+                        name = "Hippy Leader",
+                        model = "IG_HippyLeader",
                         type = "PED",
                     },
                     {
@@ -6772,6 +6872,11 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "Lab Rat",
+                        model = "IG_Labrat",
+                        type = "PED",
+                    },
+                    {
                         name = "Lamar Davis",
                         model = "ig_lamardavis",
                         type = "PED",
@@ -6799,6 +6904,11 @@ local curated_attachments <const> = {
                     {
                         name = "Lifeinvader Employee",
                         model = "ig_lifeinvad_02",
+                        type = "PED",
+                    },
+                     {
+                        name = "Luchadora",
+                        model = "IG_Luchadora",
                         type = "PED",
                     },
                     {
@@ -6884,6 +6994,11 @@ local curated_attachments <const> = {
                     {
                         name = "Nervous Ron",
                         model = "ig_nervousron",
+                        type = "PED",
+                    },
+                    {
+                        name = "Nervous Ron 2",
+                        model = "IG_NervousRon_02",
                         type = "PED",
                     },
                     {
@@ -7438,6 +7553,11 @@ local curated_attachments <const> = {
                     {
                         name = "Tattoo Artist",
                         model = "u_m_y_tattoo_01",
+                        type = "PED",
+                    },
+                    {
+                        name = "Yule Monster",
+                        model = "U_M_M_YuleMonster",
                         type = "PED",
                     },
                     {
@@ -8157,6 +8277,16 @@ local curated_attachments <const> = {
                         type = "PED",
                     },
                     {
+                        name = "Fooliganz",
+                        model = "G_M_M_Fooliganz_01",
+                        type = "PED",
+                    },
+                    {
+                        name = "Friedlander Goons",
+                        model = "G_M_M_FriedlanderGoons_01",
+                        type = "PED",
+                    },
+                    {
                         name = "Goons 1",
                         model = "G_M_M_Goons_01",
                         type = "PED",
@@ -8291,6 +8421,12 @@ local curated_attachments <const> = {
                         model = "S_M_M_StudioSouEng_02",
                         type = "PED",
                     },
+                    {
+                        name = "Hazmat Worker",
+                        model = "S_M_M_HazmatWorker_01",
+                        type = "PED",
+                    },
+                    
                 }
             },
         },
