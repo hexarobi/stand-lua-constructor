@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31b5"
+local SCRIPT_VERSION = "0.31b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -254,7 +254,13 @@ end
 ---
 
 -- Shorthand wrapper for translation function
-local function t(text) return CONSTRUCTOR_TRANSLATE_FUNCTION(text) end
+local function t(text)
+    if type(CONSTRUCTOR_TRANSLATE_FUNCTION) == "function" then
+        return CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+    else
+        return text
+    end
+end
 
 ---
 --- Data
@@ -1446,29 +1452,28 @@ constructor.add_attachment_position_menu = function(attachment)
 
             if attachment.menus.edit_offset_x ~= nil then return end
             menu.divider(attachment.menus.position, t("Offset"))
-            attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
+            attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.offset.x * 100, 2), config.edit_offset_step, function(value)
                 attachment.offset.x = value / 100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.offset.y * -100, 2), config.edit_offset_step, function(value)
                 attachment.offset.y = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.offset.z * -100, 2), config.edit_offset_step, function(value)
                 attachment.offset.z = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-
             menu.divider(attachment.menus.position, t("Rotation"))
-            attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
+            attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.rotation.x, 2), config.edit_rotation_step, function(value)
                 attachment.rotation.x = value
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
+            attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.rotation.y, 2), config.edit_rotation_step, function(value)
                 attachment.rotation.y = value
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
+            attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.rotation.z, 2), config.edit_rotation_step, function(value)
                 attachment.rotation.z = value
                 constructor_lib.move_attachment(attachment)
             end)
@@ -1477,29 +1482,29 @@ constructor.add_attachment_position_menu = function(attachment)
 
             if attachment.menus.edit_position_x ~= nil then return end
             menu.divider(attachment.menus.position, t("World Position"))
-            attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
+            attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.position.x * 100, 2), config.edit_offset_step, function(value)
                 attachment.position.x = value / 100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.position.y * -100, 2), config.edit_offset_step, function(value)
                 attachment.position.y = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.position.z * -100, 2), config.edit_offset_step, function(value)
                 attachment.position.z = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
 
             menu.divider(attachment.menus.position, t("World Rotation"))
-            attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
+            attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.world_rotation.x, 2), config.edit_rotation_step, function(value)
                 attachment.world_rotation.x = value
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
+            attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.world_rotation.y, 2), config.edit_rotation_step, function(value)
                 attachment.world_rotation.y = value
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
+            attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.world_rotation.z, 2), config.edit_rotation_step, function(value)
                 attachment.world_rotation.z = value
                 constructor_lib.move_attachment(attachment)
             end)
@@ -2710,6 +2715,7 @@ menu.readonly(menus.credits, "Jackz Vehicle Builder", t("Much of Constructor is 
 menu.readonly(menus.credits, "LanceSpooner", t("LanceSpooner is also a huge inspiration to this script. Thanks Lance!"))
 menu.divider(menus.credits, t("Translators"))
 menu.readonly(menus.credits, t("Chinese"), t("Zelda Two"))
+menu.readonly(menus.credits, t("Spanish"), t("Tryce"))
 
 ---
 --- Startup Logo
