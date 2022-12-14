@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31b3"
+local SCRIPT_VERSION = "0.31b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -136,6 +136,11 @@ constructor_lib.use_player_ped_attributes_as_base = function(attachment)
         constructor_lib.table_merge(attachment.ped_attributes, player_preview.ped_attributes)
         debug_log("Using player as base for "..inspect(attachment))
     end
+end
+
+constructor_lib.round = function(num, numDecimalPlaces)
+    local mult = 10^(numDecimalPlaces or 0)
+    return math.floor(num * mult + 0.5) / mult
 end
 
 ---
