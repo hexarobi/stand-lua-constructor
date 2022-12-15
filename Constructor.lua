@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30.2"
+local SCRIPT_VERSION = "0.31"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
@@ -62,7 +62,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = false,
+    debug_mode = true,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -164,6 +164,13 @@ local auto_update_config = {
             check_interval=default_check_interval,
         },
         {
+            name="objects_complete",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
+            script_relpath="lib/constructor/objects_complete.txt",
+            verify_file_begins_with="ba_prop_glass_garage_opaque",
+            check_interval=default_check_interval,
+        },
+        {
             name="natives-1663599433",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1663599433.lua",
             script_relpath="lib/natives-1663599433.lua",
@@ -247,7 +254,13 @@ end
 ---
 
 -- Shorthand wrapper for translation function
-local function t(text) return CONSTRUCTOR_TRANSLATE_FUNCTION(text) end
+local function t(text)
+    if type(CONSTRUCTOR_TRANSLATE_FUNCTION) == "function" then
+        return CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+    else
+        return text
+    end
+end
 
 ---
 --- Data
@@ -1277,6 +1290,7 @@ end
 
 local function build_curated_attachments_menu(attachment, root_menu, curated_item)
     if curated_item.is_folder then
+        if curated_item.load_menu ~= nil then return end
         curated_item.load_menu = menu.list(root_menu, curated_item.name, {}, "", function()
             for _, child_item in pairs(curated_item.items) do
                 build_curated_attachments_menu(attachment, curated_item.load_menu, child_item)
@@ -1438,29 +1452,28 @@ constructor.add_attachment_position_menu = function(attachment)
 
             if attachment.menus.edit_offset_x ~= nil then return end
             menu.divider(attachment.menus.position, t("Offset"))
-            attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
+            attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.offset.x * 100, 2), config.edit_offset_step, function(value)
                 attachment.offset.x = value / 100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.offset.y * -100, 2), config.edit_offset_step, function(value)
                 attachment.offset.y = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.offset.z * -100, 2), config.edit_offset_step, function(value)
                 attachment.offset.z = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-
             menu.divider(attachment.menus.position, t("Rotation"))
-            attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
+            attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.rotation.x, 2), config.edit_rotation_step, function(value)
                 attachment.rotation.x = value
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
+            attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.rotation.y, 2), config.edit_rotation_step, function(value)
                 attachment.rotation.y = value
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
+            attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.rotation.z, 2), config.edit_rotation_step, function(value)
                 attachment.rotation.z = value
                 constructor_lib.move_attachment(attachment)
             end)
@@ -1469,29 +1482,29 @@ constructor.add_attachment_position_menu = function(attachment)
 
             if attachment.menus.edit_position_x ~= nil then return end
             menu.divider(attachment.menus.position, t("World Position"))
-            attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
+            attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.position.x * 100, 2), config.edit_offset_step, function(value)
                 attachment.position.x = value / 100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.position.y * -100, 2), config.edit_offset_step, function(value)
                 attachment.position.y = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
+            attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, constructor_lib.round(attachment.position.z * -100, 2), config.edit_offset_step, function(value)
                 attachment.position.z = value / -100
                 constructor_lib.move_attachment(attachment)
             end)
 
             menu.divider(attachment.menus.position, t("World Rotation"))
-            attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
+            attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.world_rotation.x, 2), config.edit_rotation_step, function(value)
                 attachment.world_rotation.x = value
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
+            attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.world_rotation.y, 2), config.edit_rotation_step, function(value)
                 attachment.world_rotation.y = value
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
+            attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, constructor_lib.round(attachment.world_rotation.z, 2), config.edit_rotation_step, function(value)
                 attachment.world_rotation.z = value
                 constructor_lib.move_attachment(attachment)
             end)
@@ -1934,16 +1947,16 @@ constructor.add_attachment_add_attachment_options = function(attachment)
 
         if attachment.menus.curated_attachments ~= nil then return end
         attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
-        for _, curated_item in pairs(constructor_lib.table_copy(curated_attachments)) do
+        for _, curated_item in pairs(curated_attachments) do
             build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
         end
 
-        attachment.temp.prop_search_results = {}
         attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, t("Search"), {}, t("Search for a prop by name"), function()
             menu.show_command_box("constructorsearchprop"..attachment.id.." ")
         end)
         menu.text_input(attachment.menus.search_add_prop, t("Search"), {"constructorsearchprop"..attachment.id}, "", function (query)
             clear_menu_list(attachment.temp.prop_search_results)
+            attachment.temp.prop_search_results = {}
             search({
                 query=query,
                 results=attachment.temp.prop_search_results,
@@ -2072,11 +2085,10 @@ constructor.add_attachment_teleport_options = function(attachment)
             end
         end)
         attachment.menus.teleport_construct_to_me = menu.action(attachment.menus.teleport, t("Teleport Construct to Me"), {}, t("Move the construct to be nearby your player"), function()
-            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.0, 2.0, -2.5)
-            local heading = ENTITY.GET_ENTITY_HEADING(players.user_ped())
-            ENTITY.SET_ENTITY_COORDS(attachment.handle, pos.x, pos.y, pos.z)
-            ENTITY.SET_ENTITY_ROTATION(attachment.handle, 0, 0, heading)
-            VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(attachment.handle, 5)
+            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(players.user_ped(), 0.0, 2.0, 0.0)
+            attachment.position = { x=pos.x, y=pos.y, z=pos.z }
+            constructor_lib.update_attachment_position(attachment)
+            constructor_lib.place_on_ground(attachment)
         end)
         menus.refresh_attachment_menu_is_editing(attachment)
     end)
@@ -2129,7 +2141,7 @@ menus.refresh_attachment_menu_is_editing = function(attachment)
 end
 
 menus.rebuild_attachment_menu = function(attachment)
-    if constructor_lib.is_attachment_entity(attachment) and (not attachment.handle) then error("Attachment missing handle") end
+    if constructor_lib.is_attachment_entity(attachment) and (not attachment.handle) then error("Attachment missing handle "..tostring(attachment.name)) end
     if attachment.menus ~= nil then return end
     debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
     attachment.menus = {}
@@ -2703,6 +2715,7 @@ menu.readonly(menus.credits, "Jackz Vehicle Builder", t("Much of Constructor is 
 menu.readonly(menus.credits, "LanceSpooner", t("LanceSpooner is also a huge inspiration to this script. Thanks Lance!"))
 menu.divider(menus.credits, t("Translators"))
 menu.readonly(menus.credits, t("Chinese"), t("Zelda Two"))
+menu.readonly(menus.credits, t("Spanish"), t("Tryce"))
 
 ---
 --- Startup Logo

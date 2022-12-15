@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.30"
+local SCRIPT_VERSION = "0.31"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -136,6 +136,11 @@ constructor_lib.use_player_ped_attributes_as_base = function(attachment)
         constructor_lib.table_merge(attachment.ped_attributes, player_preview.ped_attributes)
         debug_log("Using player as base for "..inspect(attachment))
     end
+end
+
+constructor_lib.round = function(num, numDecimalPlaces)
+    local mult = 10^(numDecimalPlaces or 0)
+    return math.floor(num * mult + 0.5) / mult
 end
 
 ---
@@ -443,6 +448,14 @@ constructor_lib.update_attachment_position = function(attachment)
     end
 end
 
+constructor_lib.place_on_ground = function(attachment)
+    if attachment.type == "VEHICLE" then
+        VEHICLE.SET_VEHICLE_ON_GROUND_PROPERLY(attachment.handle, 5)
+    else
+        OBJECT.PLACE_OBJECT_ON_GROUND_OR_OBJECT_PROPERLY(attachment.handle)
+    end
+end
+
 constructor_lib.update_reflection_offsets = function(reflection)
     debug_log("Updating reflection offsets "..tostring(reflection.name))
     --- This function isn't quite right, it breaks with certain root rotations, but close enough for now
@@ -502,10 +515,8 @@ constructor_lib.create_entity = function(attachment)
         error(t("Cannot create attachment").." "..tostring(attachment.name)..": "..t("Requires either a hash or a model"))
     end
     if (not constructor_lib.load_hash_for_attachment(attachment)) then
-        debug_log("Failed to load hash for attachment "..tostring(attachment.name))
-        return
+        error(t("Failed to load hash for attachment ")..tostring(attachment.name))
     end
-
     if attachment.root == nil then
         error(t("Attachment missing root"))
     end
@@ -594,10 +605,14 @@ end
 constructor_lib.reattach_attachment_with_children = function(attachment)
     debug_log("Reattaching attachment with children "..tostring(attachment.name))
     constructor_lib.create_entity(attachment)
-    for _, child_attachment in pairs(attachment.children) do
+    for index, child_attachment in pairs(attachment.children) do
         child_attachment.root = attachment.root
         child_attachment.parent = attachment
-        constructor_lib.reattach_attachment_with_children(child_attachment)
+        local create_status = pcall(constructor_lib.reattach_attachment_with_children, child_attachment)
+        if not create_status then
+            debug_log("Skipped reattaching attachment "..child_attachment.name.." to construct due to error")
+            attachment.children[index] = nil
+        end
     end
 end
 
@@ -611,7 +626,7 @@ constructor_lib.create_entity_with_children = function(new_attachment)
     local attachment = constructor_lib.create_entity(new_attachment)
     if not attachment then return end
     if attachment.children then
-        for _, child_attachment in pairs(attachment.children) do
+        for index, child_attachment in pairs(attachment.children) do
             constructor_lib.build_parent_child_relationship(attachment, child_attachment)
             if child_attachment.flash_model then
                 child_attachment.flash_start_on = (not child_attachment.parent.flash_start_on)
@@ -619,7 +634,11 @@ constructor_lib.create_entity_with_children = function(new_attachment)
             if child_attachment.reflection_axis then
                 constructor_lib.update_reflection_offsets(child_attachment)
             end
-            constructor_lib.create_entity_with_children(child_attachment)
+            local create_status = pcall(constructor_lib.create_entity_with_children, child_attachment)
+            if not create_status then
+                debug_log("Skipped adding attachment "..child_attachment.name.." to construct due to error")
+                attachment.children[index] = nil
+            end
         end
     end
     return attachment
@@ -1520,7 +1539,7 @@ end
 constructor_lib.serialize_vehicle_extras = function(vehicle)
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.extras == nil then vehicle.vehicle_attributes.extras = {} end
-    for extra_index = 0, 14 do
+    for extra_index = 0, 60 do
         if VEHICLE.DOES_EXTRA_EXIST(vehicle.handle, extra_index) then
             vehicle.vehicle_attributes.extras["_"..extra_index] = VEHICLE.IS_VEHICLE_EXTRA_TURNED_ON(vehicle.handle, extra_index)
         end
@@ -1529,12 +1548,14 @@ end
 
 constructor_lib.deserialize_vehicle_extras = function(vehicle)
     if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.extras == nil then return end
-    for extra_index = 0, 14 do
+    for extra_index = 0, 60 do
         local state = true
         if vehicle.vehicle_attributes.extras["_"..extra_index] ~= nil then
             state = vehicle.vehicle_attributes.extras["_"..extra_index]
         end
-        VEHICLE.SET_VEHICLE_EXTRA(vehicle.handle, extra_index, not state)
+        if VEHICLE.DOES_EXTRA_EXIST(vehicle.handle, extra_index) then
+            VEHICLE.SET_VEHICLE_EXTRA(vehicle.handle, extra_index, not state)
+        end
     end
 end
 
