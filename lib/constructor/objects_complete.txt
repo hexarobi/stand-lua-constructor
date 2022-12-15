@@ -1,3 +1,4 @@
+ba_prop_glass_garage_opaque
 02gate3_l
 0x57710180
 0xBBBD113F
@@ -790,7 +791,6 @@ ba_prop_door_safe_02
 ba_prop_glass_front_office
 ba_prop_glass_front_office_opaque
 ba_prop_glass_garage
-ba_prop_glass_garage_opaque
 ba_prop_glass_rear_office
 ba_prop_glass_rear_opaque
 ba_prop_int_edgy_stool
