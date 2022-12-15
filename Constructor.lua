@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31b6"
+local SCRIPT_VERSION = "0.31b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1951,12 +1951,12 @@ constructor.add_attachment_add_attachment_options = function(attachment)
             build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
         end
 
-        attachment.temp.prop_search_results = {}
         attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, t("Search"), {}, t("Search for a prop by name"), function()
             menu.show_command_box("constructorsearchprop"..attachment.id.." ")
         end)
         menu.text_input(attachment.menus.search_add_prop, t("Search"), {"constructorsearchprop"..attachment.id}, "", function (query)
             clear_menu_list(attachment.temp.prop_search_results)
+            attachment.temp.prop_search_results = {}
             search({
                 query=query,
                 results=attachment.temp.prop_search_results,
