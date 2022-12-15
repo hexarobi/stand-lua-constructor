@@ -1598,7 +1598,7 @@ local curated_attachments <const> = {
                               hash = 1076201208,
                               name = "300R",
                               type = "VEHICLE"
-                          } {
+                          }, {
                               hash = 2765724541,
                               name = "Raiden",
                               type = "VEHICLE"
