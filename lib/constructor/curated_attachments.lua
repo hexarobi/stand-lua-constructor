@@ -670,7 +670,11 @@ local curated_attachments <const> = {
                               hash = 662793086,
                               name = "I-Wagen",
                               type = "VEHICLE"
-                          }, {
+                          },{
+                              hash = 1550581940,
+                              name = "Issi Rally",
+                              type = "VEHICLE"
+                          } {
                               hash = 461465043,
                               name = "Jubilee",
                               type = "VEHICLE"
@@ -835,6 +839,10 @@ local curated_attachments <const> = {
                               name = "Buccaneer Custom",
                               type = "VEHICLE"
                           }, {
+                              hash = 2361724968,
+                              name = "Broadway",
+                              type = "VEHICLE"
+                          },{
                               hash = 3675036420,
                               name = "Buffalo STX",
                               type = "VEHICLE"
@@ -907,6 +915,10 @@ local curated_attachments <const> = {
                               name = "Ellie",
                               type = "VEHICLE"
                           }, {
+                              hash = 3045179290,
+                              name = "Eudora",
+                              type = "VEHICLE"
+                          },{
                               hash = 2175389151,
                               name = "Faction",
                               type = "VEHICLE"
@@ -1079,6 +1091,10 @@ local curated_attachments <const> = {
                               name = "Burger Shot Stallion",
                               type = "VEHICLE"
                           }, {
+                              hash = 3833117047,
+                              name = "Tahoma Coupe",
+                              type = "VEHICLE"
+                          }, {
                               hash = 972671128,
                               name = "Tampa",
                               type = "VEHICLE"
@@ -1089,6 +1105,10 @@ local curated_attachments <const> = {
                           }, {
                               hash = 1456744817,
                               name = "Tulip",
+                              type = "VEHICLE"
+                          },{
+                              hash = 268758436,
+                              name = "Tulip M-100",
                               type = "VEHICLE"
                           }, {
                               hash = 4245851645,
@@ -1450,6 +1470,10 @@ local curated_attachments <const> = {
                               hash = 1304459735,
                               name = "Growler",
                               type = "VEHICLE"
+                          },{
+                              hash = 4163619118,
+                              name = "Hotring Everon",
+                              type = "VEHICLE"
                           }, {
                               hash = 1115909093,
                               name = "Hotring Sabre",
@@ -1460,7 +1484,7 @@ local curated_attachments <const> = {
                               type = "VEHICLE"
                           }, {
                               hash = 1854776567,
-                              name = "Issi Sport",
+                              name = "Issi",
                               type = "VEHICLE"
                           }, {
                               hash = 3963499524,
@@ -1546,6 +1570,10 @@ local curated_attachments <const> = {
                               hash = 3789743831,
                               name = "Omnis e-GT",
                               type = "VEHICLE"
+                          },{
+                              hash = 2100457220,
+                              name = "Panthere",
+                              type = "VEHICLE"
                           }, {
                               hash = 3847255899,
                               name = "Paragon R",
@@ -1565,6 +1593,10 @@ local curated_attachments <const> = {
                           }, {
                               hash = 3663644634,
                               name = "Penumbra FF",
+                              type = "VEHICLE"
+                          },{
+                              hash = 1076201208,
+                              name = "300R",
                               type = "VEHICLE"
                           }, {
                               hash = 2765724541,
@@ -1763,6 +1795,10 @@ local curated_attachments <const> = {
                               name = "Emerus",
                               type = "VEHICLE"
                           }, {
+                              hash = 1748565021,
+                              name = "Entity MT",
+                              type = "VEHICLE"
+                          }, {
                               hash = 2174267100,
                               name = "Entity XXR",
                               type = "VEHICLE"
@@ -1913,6 +1949,10 @@ local curated_attachments <const> = {
                           }, {
                               hash = 3052358707,
                               name = "Vigilante",
+                              type = "VEHICLE"
+                          },{
+                              hash = 669204833,
+                              name = "Virtue",
                               type = "VEHICLE"
                           }, {
                               hash = 3296789504,
@@ -2078,6 +2118,10 @@ local curated_attachments <const> = {
                               hash = 1086534307,
                               name = "Manchez Scout",
                               type = "VEHICLE"
+                          },{
+                              hash = 1384502824,
+                              name = "Manchez Scout C",
+                              type = "VEHICLE"
                           }, {
                               hash = 3660088182,
                               name = "Nemesis",
@@ -2095,6 +2139,10 @@ local curated_attachments <const> = {
                               name = "Oppressor Mk II",
                               type = "VEHICLE"
                           }, {
+                              hash = 2908631255,
+                              name = "Powersurge",
+                              type = "VEHICLE"
+                          },{
                               hash = 3385765638,
                               name = "PCJ 600",
                               type = "VEHICLE"
@@ -2207,6 +2255,10 @@ local curated_attachments <const> = {
                               name = "Bodhi",
                               type = "VEHICLE"
                           }, {
+                              hash = 996383885,
+                              name = "Boor",
+                              type = "VEHICLE"
+                          }{
                               hash = 2815302597,
                               name = "Brawler",
                               type = "VEHICLE"
@@ -2718,6 +2770,10 @@ local curated_attachments <const> = {
                               hash = 4174679674,
                               name = "Journey",
                               type = "VEHICLE"
+                          },{
+                              hash = 2667889793,
+                              name = "Journey II",
+                              type = "VEHICLE"
                           }, {
                               hash = 3984502180,
                               name = "Minivan",
@@ -2771,6 +2827,10 @@ local curated_attachments <const> = {
                               name = "Surfer",
                               type = "VEHICLE"
                           }, {
+                              hash = 3259477733,
+                              name = "Surfer Custom",
+                              type = "VEHICLE"
+                          },{
                               hash = 1951180813,
                               name = "Taco Van",
                               type = "VEHICLE"
@@ -3090,6 +3150,10 @@ local curated_attachments <const> = {
                               hash = 368211810,
                               name = "Cargo Plane",
                               type = "VEHICLE"
+                          },{
+                              hash = 2336777441,
+                              name = "Cargo Plane 2",
+                              type = "VEHICLE"
                           }, {
                               hash = 3650256867,
                               name = "Cuban 800",
@@ -3315,7 +3379,11 @@ local curated_attachments <const> = {
                         hash = 3989239879,
                         name = "Brickade",
                         type = "VEHICLE"
-                    }, {
+                    },{
+                        hash = 2718380883,
+                        name = "Brickade 6x6",
+                        type = "VEHICLE"
+                    },{
                         hash = 3581397346,
                         name = "Bus",
                         type = "VEHICLE"
