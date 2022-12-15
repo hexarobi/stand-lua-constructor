@@ -1,6 +1,6 @@
 -- Curated Attachments
 
-local SCRIPT_VERSION = "0.26"
+local SCRIPT_VERSION = "0.31"
 
 local curated_attachments <const> = {
     {
@@ -576,7 +576,8 @@ local curated_attachments <const> = {
                               hash = 1777363799,
                               name = "Washington",
                               type = "VEHICLE"
-                          } },
+                          }
+                },
                 name = "Sedan"
             }, {
                 is_folder = true,
@@ -585,11 +586,11 @@ local curated_attachments <const> = {
                               name = "Astron",
                               type = "VEHICLE"
                           },
-                          --{
-                          --    hash = 2803699023,
-                          --    name = "Astron Custom",
-                          --    type = "VEHICLE"
-                          --},
+                    --{
+                    --    hash = 2803699023,
+                    --    name = "Astron Custom",
+                    --    type = "VEHICLE"
+                    --},
                           {
                               hash = 3486135912,
                               name = "Baller",
@@ -670,11 +671,11 @@ local curated_attachments <const> = {
                               hash = 662793086,
                               name = "I-Wagen",
                               type = "VEHICLE"
-                          },{
+                          }, {
                               hash = 1550581940,
                               name = "Issi Rally",
                               type = "VEHICLE"
-                          } {
+                          }, {
                               hash = 461465043,
                               name = "Jubilee",
                               type = "VEHICLE"
@@ -2258,7 +2259,7 @@ local curated_attachments <const> = {
                               hash = 996383885,
                               name = "Boor",
                               type = "VEHICLE"
-                          }{
+                          }, {
                               hash = 2815302597,
                               name = "Brawler",
                               type = "VEHICLE"
@@ -6974,7 +6975,7 @@ local curated_attachments <const> = {
                         model = "ig_lifeinvad_02",
                         type = "PED",
                     },
-                     {
+                    {
                         name = "Luchadora",
                         model = "IG_Luchadora",
                         type = "PED",
@@ -8494,7 +8495,7 @@ local curated_attachments <const> = {
                         model = "S_M_M_HazmatWorker_01",
                         type = "PED",
                     },
-                    
+
                 }
             },
         },
