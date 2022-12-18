@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31"
+local SCRIPT_VERSION = "0.32b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -169,6 +169,8 @@ end
 
 constructor_lib.default_entity_attributes = function(attachment)
     debug_log("Defaulting entity attributes "..tostring(attachment.name))
+    constructor_lib.serialize_hash_and_model(attachment)
+    if attachment.name == nil then attachment.name = attachment.model end
     if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
     if attachment.rotation_order == nil then attachment.rotation_order = 2 end
@@ -202,7 +204,7 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.bone_index == nil then attachment.options.bone_index = 0 end
     if attachment.options.is_dynamic == nil then attachment.options.is_dynamic = true end
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
-    if attachment.options.is_attached == nil then attachment.options.is_attached = (attachment ~= attachment.parent) end
+    if attachment.options.is_attached == nil then attachment.options.is_attached = (not constructor_lib.is_attachment_root(attachment)) end
     if attachment.options.is_frozen == nil and attachment.options.is_attached ~= true and attachment.type == "OBJECT" then
         attachment.options.is_frozen = true
     end
@@ -210,8 +212,6 @@ constructor_lib.default_entity_attributes = function(attachment)
         if attachment.blip_sprite == nil then attachment.blip_sprite = 1 end
         if attachment.blip_color == nil then attachment.blip_color = 2 end
     end
-    constructor_lib.serialize_hash_and_model(attachment)
-    if attachment.name == nil then attachment.name = attachment.model end
     constructor_lib.default_vehicle_attributes(attachment)
     constructor_lib.default_ped_attributes(attachment)
 end
@@ -668,8 +668,25 @@ end
 --- Removing
 ---
 
-constructor_lib.detach_attachment = function(attachment)
-    debug_log("Detaching attachment "..tostring(attachment.name))
+constructor_lib.join_attachments = function(parent_attachment, child_attachment)
+    debug_log("Joining "..tostring(child_attachment.name).." to "..tostring(parent_attachment.name))
+    child_attachment.parent = parent_attachment
+    child_attachment.root = parent_attachment.root
+    child_attachment.options.is_attached = true
+    child_attachment.offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(
+        parent_attachment.handle,
+        child_attachment.position.x,
+        child_attachment.position.y,
+        child_attachment.position.z
+    )
+    constructor_lib.validate_children(parent_attachment.root)
+    constructor_lib.attach_entity(child_attachment)
+    constructor_lib.update_attachment_position(child_attachment)
+    table.insert(parent_attachment.children, child_attachment)
+end
+
+constructor_lib.separate_attachment = function(attachment)
+    debug_log("Separating attachment "..tostring(attachment.name))
     ENTITY.DETACH_ENTITY(attachment.handle, true, true)
     constructor_lib.array_remove(attachment.parent.children, function(t, i)
         local child_attachment = t[i]
