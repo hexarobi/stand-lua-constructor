@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.32b1"
+local SCRIPT_VERSION = "0.32b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -673,12 +673,13 @@ constructor_lib.join_attachments = function(parent_attachment, child_attachment)
     child_attachment.parent = parent_attachment
     child_attachment.root = parent_attachment.root
     child_attachment.options.is_attached = true
-    child_attachment.offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(
+    local offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(
         parent_attachment.handle,
         child_attachment.position.x,
         child_attachment.position.y,
         child_attachment.position.z
     )
+    child_attachment.offset = {x=offset.x, y=offset.y, z=offset.z}
     constructor_lib.validate_children(parent_attachment.root)
     constructor_lib.attach_entity(child_attachment)
     constructor_lib.update_attachment_position(child_attachment)
