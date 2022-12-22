@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.32b2"
+local SCRIPT_VERSION = "0.32b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -506,7 +506,7 @@ constructor_lib.create_entity = function(attachment)
         constructor_lib.attach_particle(attachment)
         return
     end
-    debug_log("Attaching "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
+    debug_log("Creating entity "..tostring(attachment.name).." child of "..tostring(attachment.parent.name))
     if attachment.is_player and attachment.model == nil and attachment.hash == nil then
         attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
         attachment.model = util.reverse_joaat(attachment.hash)
@@ -604,8 +604,12 @@ end
 
 constructor_lib.reattach_attachment_with_children = function(attachment)
     debug_log("Reattaching attachment with children "..tostring(attachment.name))
+    constructor_lib.validate_children(attachment)
     constructor_lib.create_entity(attachment)
     for index, child_attachment in pairs(attachment.children) do
+        --if child_attachment == attachment then
+        --    error("Cannot attach entity to itself "..attachment.name)
+        --end
         child_attachment.root = attachment.root
         child_attachment.parent = attachment
         local create_status = pcall(constructor_lib.reattach_attachment_with_children, child_attachment)
@@ -618,7 +622,7 @@ end
 
 constructor_lib.create_entity_with_children = function(new_attachment)
     debug_log("Attaching attachment with children "..tostring(new_attachment.name))
-    for key, value in pairs(constructor_lib.construct_base) do
+    for key, value in pairs(constructor_lib.table_copy(constructor_lib.construct_base)) do
         if new_attachment[key] == nil then
             new_attachment[key] = (value)
         end
