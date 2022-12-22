@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.31"
+local SCRIPT_VERSION = "0.32b1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -627,23 +627,40 @@ local function find_attachment_by_initial_handle(attachment, initial_handle)
     end
 end
 
-convertor.rearrange_by_initial_attachment = function(attachment, parent_attachment, root_attachment)
-    if parent_attachment == nil then root_attachment = attachment end
-    if parent_attachment ~= nil and attachment.parents_initial_handle and (attachment.parents_initial_handle ~= parent_attachment.initial_handle) then
+convertor.swap_new_children_for_old = function(attachment)
+    if attachment.new_children ~= nil then
+        attachment.children = attachment.new_children
+        attachment.new_children = nil
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        convertor.swap_new_children_for_old(child_attachment)
+    end
+end
+
+convertor.build_new_children = function(attachment, root_attachment)
+    debug_log("Building new children "..attachment.name.." ["..attachment.initial_handle.."]")
+    if attachment.parents_initial_handle then
         local new_parent = find_attachment_by_initial_handle(root_attachment, attachment.parents_initial_handle)
         if new_parent then
-            constructor_lib.array_remove(parent_attachment.children, function(t, i)
-                local child_attachment = t[i]
-                return child_attachment ~= attachment
-            end)
-            table.insert(new_parent.children, attachment)
+            debug_log("Adding new child "..attachment.name.." ["..attachment.initial_handle.."] to "..new_parent.name.." ["..new_parent.initial_handle.."]")
+            --constructor_lib.array_remove(parent_attachment.children, function(t, i)
+            --    local child_attachment = t[i]
+            --    return child_attachment ~= attachment
+            --end)
+            if new_parent.new_children == nil then new_parent.new_children = {} end
+            table.insert(new_parent.new_children, attachment)
         else
             util.toast("Could not rearrange attachment "..attachment.name.." to "..attachment.parents_initial_handle, TOAST_ALL)
         end
     end
     for _, child_attachment in pairs(attachment.children) do
-        convertor.rearrange_by_initial_attachment(child_attachment, attachment, root_attachment)
+        convertor.build_new_children(child_attachment, root_attachment)
     end
+end
+
+convertor.rearrange_by_initial_attachment = function(attachment)
+    convertor.build_new_children(attachment, attachment)
+    convertor.swap_new_children_for_old(attachment, attachment)
 end
 
 local function value_splitter(value)
