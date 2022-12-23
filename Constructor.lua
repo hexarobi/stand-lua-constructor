@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.32b5"
+local SCRIPT_VERSION = "0.32b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -524,14 +524,16 @@ local function rotation_to_direction(rotation)
 end
 
 local function get_offset_from_camera(distance)
+    if type(distance) ~= "table" then
+        distance = {x=distance, y=distance, z=distance}
+    end
     local cam_rot = CAM.GET_FINAL_RENDERED_CAM_ROT(0)
     local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
     local direction = rotation_to_direction(cam_rot)
-    local destination =
-    {
-        x = cam_pos.x + direction.x * distance,
-        y = cam_pos.y + direction.y * distance,
-        z = cam_pos.z + direction.z * distance
+    local destination = {
+        x = cam_pos.x + (direction.x * distance.x),
+        y = cam_pos.y + (direction.y * distance.y),
+        z = cam_pos.z + (direction.z * distance.z)
     }
     return destination
 end
@@ -836,10 +838,23 @@ end
 local free_edit_mode_tick = function()
     if not config.free_edit_mode then return true end
     local attachment = config.free_edit_attachment
-    attachment.position = get_offset_from_camera(3.5)
+    local forward, right, up = get_cam_vectors()
+    --local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(free_edit_cam, 0, -2, -2)
+    --attachment.position = {x=pos.x, y=pos.y, z=pos.z}
+    --attachment.position = get_offset_from_camera({x=0, y=2, z=2})
+
+    local cam_rot = CAM.GET_FINAL_RENDERED_CAM_ROT(0)
+    local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
+    local direction = rotation_to_direction(cam_rot)
+    attachment.position = {
+        x = cam_pos.x + (direction.x * distance.x),
+        y = cam_pos.y + (direction.y * distance.y),
+        z = cam_pos.z + (direction.z * distance.z)
+    }
+
+    --debug_log("Setting pos "..attachment.name.." to "..inspect(attachment.position))
     constructor_lib.move_attachment(attachment)
 
-    local forward, right, up = get_cam_vectors()
     local sensitivity = 0.3
 
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 32) then
@@ -891,10 +906,10 @@ end
 local function create_free_edit_cam(attachment)
     --menu.trigger_commands("freecam on")
     constructor_lib.serialize_entity_attributes(attachment)
-    local cam_distance = 2.0
+    local cam_pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.handle, 0, 2, 2)
     free_edit_cam = CAM.CREATE_CAM_WITH_PARAMS(
         "DEFAULT_SCRIPTED_CAMERA",
-        attachment.position.x, attachment.position.y + cam_distance, attachment.position.z + cam_distance,
+        cam_pos.x, cam_pos.y, cam_pos.z,
         0.0, 0.0, 0.0, 70.0, false, false
     )
     CAM.POINT_CAM_AT_ENTITY(free_edit_cam, attachment.handle, 0, 0, 0, true)
@@ -1416,7 +1431,7 @@ local function build_curated_attachments_menu(attachment, root_menu, curated_ite
         if curated_item.load_menu ~= nil then return end
         curated_item.load_menu = menu.list(root_menu, curated_item.name, {}, "", function()
             for _, child_item in pairs(curated_item.items) do
-                build_curated_attachments_menu(attachment, curated_item.load_menu, child_item)
+                build_curated_attachments_menu(attachment, curated_item.load_menu, constructor_lib.table_copy(child_item))
             end
         end)
     else
@@ -1798,6 +1813,11 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     menu.list_select(attachment.menus.vehicle_options, t("Door Lock Status"), {}, t("Vehicle door locks"), constants.door_lock_status, attachment.vehicle_attributes.doors.lock_status or 1, function(value)
         attachment.vehicle_attributes.doors.lock_status = value
         constructor_lib.deserialize_vehicle_doors(attachment)
+    end)
+
+    menu.slider_float(attachment.menus.vehicle_options, t("Paint Fade"), {"constructorfadelevel"..attachment.id}, t("How dirty is the vehicle"), 0, 100, math.floor(attachment.vehicle_attributes.paint.fade * 100), 1, function(value)
+        attachment.vehicle_attributes.paint.fade = value / 100
+        constructor_lib.deserialize_vehicle_paint(attachment)
     end)
 
     menu.slider(attachment.menus.vehicle_options, t("Dirt Level"), {"constructordirtlevel"..attachment.id}, t("How dirty is the vehicle"), 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
