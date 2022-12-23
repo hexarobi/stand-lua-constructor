@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.32b4"
+local SCRIPT_VERSION = "0.32b5"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -579,7 +579,10 @@ constructor_lib.create_entity = function(attachment)
                 attachment.options.is_mission_entity,
                 false
         )
-        if is_networked then constructor_lib.make_entity_networked(attachment) end
+    end
+
+    if is_networked and not (type == "VEHICLE" and constructor_lib.is_attachment_root(attachment)) then
+        constructor_lib.make_entity_networked(attachment)
     end
 
     if not attachment.handle then
