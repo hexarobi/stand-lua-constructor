@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.32b3"
+local SCRIPT_VERSION = "0.32b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -912,12 +912,17 @@ end
 ---
 
 constructor_lib.animate_peds = function(attachment)
-    if attachment.ped_attributes and attachment.ped_attributes.animation_dict then
-        STREAMING.REQUEST_ANIM_DICT(attachment.ped_attributes.animation_dict)
-        while not STREAMING.HAS_ANIM_DICT_LOADED(attachment.ped_attributes.animation_dict) do
-            util.yield()
+    if attachment.ped_attributes then
+        if attachment.ped_attributes.animation_dict ~= nil then
+            STREAMING.REQUEST_ANIM_DICT(attachment.ped_attributes.animation_dict)
+            while not STREAMING.HAS_ANIM_DICT_LOADED(attachment.ped_attributes.animation_dict) do
+                util.yield()
+            end
+            TASK.TASK_PLAY_ANIM(attachment.handle, attachment.ped_attributes.animation_dict, attachment.ped_attributes.animation_name, 8.0, 8.0, -1, 1, 1.0, false, false, false)
+        elseif attachment.ped_attributes.animation_scenario ~= nil then
+            debug_log("Animating ped scenario "..attachment.name.." scenario "..attachment.ped_attributes.animation_scenario)
+            TASK.TASK_START_SCENARIO_IN_PLACE(attachment.handle, attachment.ped_attributes.animation_scenario, 0, true);
         end
-        TASK.TASK_PLAY_ANIM(attachment.handle, attachment.ped_attributes.animation_dict, attachment.ped_attributes.animation_name, 8.0, 8.0, -1, 1, 1.0, false, false, false)
     end
 end
 
@@ -1110,6 +1115,7 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes.paint.primary.custom_color == nil then vehicle.vehicle_attributes.paint.primary.custom_color = {} end
     if vehicle.vehicle_attributes.paint.secondary.custom_color == nil then vehicle.vehicle_attributes.paint.secondary.custom_color = {} end
     if vehicle.vehicle_attributes.paint.dirt_level == nil then vehicle.vehicle_attributes.paint.dirt_level = 0 end
+    if vehicle.vehicle_attributes.paint.fade == nil then vehicle.vehicle_attributes.paint.fade = 0 end
     if vehicle.vehicle_attributes.paint.extra_colors == nil then vehicle.vehicle_attributes.paint.extra_colors = {} end
     if vehicle.vehicle_attributes.neon == nil then vehicle.vehicle_attributes.neon = {} end
     if vehicle.vehicle_attributes.neon.lights == nil then vehicle.vehicle_attributes.neon.lights = {} end
