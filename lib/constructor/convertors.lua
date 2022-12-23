@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.32b3"
+local SCRIPT_VERSION = "0.32b4"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -642,7 +642,7 @@ convertor.build_new_children = function(attachment, root_attachment)
     if attachment.parents_initial_handle then
         local new_parent = find_attachment_by_initial_handle(root_attachment, attachment.parents_initial_handle)
         if new_parent then
-            debug_log("Adding new child "..attachment.name.." ["..attachment.initial_handle.."] to "..new_parent.name.." ["..new_parent.initial_handle.."]")
+            debug_log("Adding new child "..tostring(attachment.name).." ["..tostring(attachment.initial_handle).."] to "..tostring(new_parent.name).." ["..tostring(new_parent.initial_handle).."]")
             --constructor_lib.array_remove(parent_attachment.children, function(t, i)
             --    local child_attachment = t[i]
             --    return child_attachment ~= attachment
