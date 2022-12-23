@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.32b2"
+local SCRIPT_VERSION = "0.32b3"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -653,8 +653,10 @@ convertor.build_new_children = function(attachment, root_attachment)
             util.toast("Could not rearrange attachment "..attachment.name.." to "..attachment.parents_initial_handle, TOAST_ALL)
         end
     end
-    for _, child_attachment in pairs(attachment.children) do
-        convertor.build_new_children(child_attachment, root_attachment)
+    if attachment.children then
+        for _, child_attachment in pairs(attachment.children) do
+            convertor.build_new_children(child_attachment, root_attachment)
+        end
     end
 end
 
@@ -1478,6 +1480,47 @@ local function map_ini_vehicle_extras_flavor_4(attachment, data)
     end
 end
 
+local function map_ini_ped_flavor_4(attachment, data)
+    map_ini_attachment_flavor_4(attachment, data)
+    if attachment.ped_attributes == nil then attachment.ped_attributes = {} end
+
+    if attachment.ped_attributes.components == nil then attachment.ped_attributes.components = {} end
+    for component_index = 0, 11 do
+        if attachment.ped_attributes.components["_"..component_index] == nil then attachment.ped_attributes.components["_"..component_index] = {} end
+        if data["Component"..component_index] ~= nil then
+            attachment.ped_attributes.components["_"..component_index].drawable_variation = data["Component"..component_index]
+        end
+        if data["Texture"..component_index] ~= nil then
+            attachment.ped_attributes.components["_"..component_index].texture_variation = data["Texture"..component_index]
+        end
+        if data["Palette"..component_index] ~= nil then
+            attachment.ped_attributes.components["_"..component_index].palette_variation = data["Palette"..component_index]
+        end
+    end
+
+    local prop_parts = {
+        {index=0, name="Hats"},
+        {index=1, name="Glasses"},
+        {index=2, name="Ears"},
+        --{index=6, name="Watch"},
+        --{index=7, name="Bracelet"},
+    }
+    if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
+    for _, prop_part in pairs(prop_parts) do
+        if attachment.ped_attributes.components["_"..prop_part.index] == nil then attachment.ped_attributes.components["_"..prop_part.index] = {} end
+        if data["Prop"..prop_part.name] ~= nil then attachment.ped_attributes.props["_"..prop_part.index].drawable_variation = data["Prop"..prop_part.name] end
+        if data["Texture"..prop_part.name] ~= nil then attachment.ped_attributes.props["_"..prop_part.index].texture_variation = data["Texture"..prop_part.name] end
+    end
+
+    if data.ScenarioName ~= nil then
+        attachment.ped_attributes.animation_scenario = constructor_lib.trim(data.ScenarioName)
+    end
+
+    --PedType = 4
+    --ScenarioPlaying = true
+    --BlockFleeing = false
+
+end
 
 local function map_ini_data_flavor_4(construct_plan, data)
     if data.Vehicle0 ~= nil then
@@ -1519,6 +1562,16 @@ local function map_ini_data_flavor_4(construct_plan, data)
                 local attachment = {}
                 attachment.type = "OBJECT"
                 map_ini_attachment_flavor_4(attachment, attached_object)
+                table.insert(construct_plan.children, attachment)
+            end
+        end
+        for ped_index = 0, tonumber(data.AllPeds.Count) - 1 do
+            local attached_ped = data["Ped".. ped_index]
+            if attached_ped ~= nil and attached_ped.Hash ~= 0 then
+                debug_log("Processing ped "..ped_index)
+                local attachment = {}
+                attachment.type = "PED"
+                map_ini_ped_flavor_4(attachment, attached_ped)
                 table.insert(construct_plan.children, attachment)
             end
         end
