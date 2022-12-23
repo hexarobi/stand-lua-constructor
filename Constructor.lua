@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.32b6"
+local SCRIPT_VERSION = "0.32b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -843,13 +843,13 @@ local free_edit_mode_tick = function()
     --attachment.position = {x=pos.x, y=pos.y, z=pos.z}
     --attachment.position = get_offset_from_camera({x=0, y=2, z=2})
 
-    local cam_rot = CAM.GET_FINAL_RENDERED_CAM_ROT(0)
+    local camera_sensitivity = 2
+
     local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
-    local direction = rotation_to_direction(cam_rot)
     attachment.position = {
-        x = cam_pos.x + (direction.x * distance.x),
-        y = cam_pos.y + (direction.y * distance.y),
-        z = cam_pos.z + (direction.z * distance.z)
+        x = cam_pos.x + (forward.x * camera_sensitivity) + (up.x * camera_sensitivity),
+        y = cam_pos.y + (forward.y * camera_sensitivity) + (up.x * camera_sensitivity),
+        z = cam_pos.z + (forward.z * camera_sensitivity) + (up.x * camera_sensitivity)
     }
 
     --debug_log("Setting pos "..attachment.name.." to "..inspect(attachment.position))
@@ -2195,7 +2195,19 @@ constructor.add_attachment_add_attachment_options = function(attachment)
             config.add_attachment_gun_recipient = attachment
         end, config.add_attachment_gun_active)
 
-        --attachment.menus.add_construct = menu.list(attachment.menus.add_attachment, t("Construct"), {}, t("Attach another construct to the current construct"))
+        attachment.menus.add_construct = menu.list(attachment.menus.add_attachment, t("Other Construct"), {}, t("Attach another construct to the current construct"), function()
+            local load_constructs_root_menu_file = {menu=attachment.menus.add_construct, name=t("Loaded Constructs Menu"), menus={}}
+            local action_function = function(construct_plan_file)
+                local construct_plan = load_construct_plan_file(construct_plan_file)
+                if construct_plan then
+                    construct_plan.root = attachment.root
+                    construct_plan.parent = attachment
+                    construct_plan.options.is_attached = true
+                    build_construct_from_plan(construct_plan)
+                end
+            end
+            constructor.add_directory_to_load_constructs(CONSTRUCTS_DIR, load_constructs_root_menu_file, action_function)
+        end)
 
     end)
 end
@@ -2601,7 +2613,7 @@ end, config.focus_menu_on_spawned_constructs)
 
 menu.divider(menus.load_construct, t("Browse"))
 
-local function add_directory_to_load_constructs(path, parent_construct_plan_file)
+constructor.add_directory_to_load_constructs = function(path, parent_construct_plan_file, action_function)
     if path == nil then path = CONSTRUCTS_DIR end
     if parent_construct_plan_file == nil then parent_construct_plan_file = load_constructs_root_menu_file end
     if parent_construct_plan_file.menus == nil then parent_construct_plan_file.menus = {} end
@@ -2611,10 +2623,21 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
         end
     end
 
+    if action_function == nil then
+        action_function = function(construct_plan_file)
+            local construct_plan = load_construct_plan_file(construct_plan_file)
+            if construct_plan then
+                construct_plan.root = construct_plan
+                construct_plan.parent = construct_plan
+                build_construct_from_plan(construct_plan)
+            end
+        end
+    end
+
     if path == CONSTRUCTS_DIR and filesystem.exists(JACKZ_BUILD_DIR) then
         local jackz_builds = {}
         jackz_builds.menu = menu.list(load_constructs_root_menu_file.menu, "Jackz Builds", {}, "Builds from Jackz Vehicle Builder", function()
-            add_directory_to_load_constructs(JACKZ_BUILD_DIR, jackz_builds)
+            constructor.add_directory_to_load_constructs(JACKZ_BUILD_DIR, jackz_builds, action_function)
         end)
         table.insert(load_constructs_root_menu_file.menus, jackz_builds.menu)
     end
@@ -2623,7 +2646,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     for _, construct_plan_file in pairs(construct_plan_files) do
         if construct_plan_file.is_directory then
             construct_plan_file.menu = menu.list(parent_construct_plan_file.menu, construct_plan_file.name or "unknown", {}, "", function()
-                add_directory_to_load_constructs(path.."/"..construct_plan_file.filename, construct_plan_file)
+                constructor.add_directory_to_load_constructs(path.."/"..construct_plan_file.filename, construct_plan_file, action_function)
             end)
             table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
         end
@@ -2633,12 +2656,13 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
             if is_file_type_supported(construct_plan_file.ext) then
                 construct_plan_file.load_menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
                     remove_preview()
-                    local construct_plan = load_construct_plan_file(construct_plan_file)
-                    if construct_plan then
-                        construct_plan.root = construct_plan
-                        construct_plan.parent = construct_plan
-                        build_construct_from_plan(construct_plan)
-                    end
+                    action_function(construct_plan_file)
+                    --local construct_plan = load_construct_plan_file(construct_plan_file)
+                    --if construct_plan then
+                    --    construct_plan.root = construct_plan
+                    --    construct_plan.parent = construct_plan
+                    --    build_construct_from_plan(construct_plan)
+                    --end
                 end)
                 menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
                 menu.on_blur(construct_plan_file.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
@@ -2649,7 +2673,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
 end
 
 menus.rebuild_load_construct_menu = function()
-    add_directory_to_load_constructs(CONSTRUCTS_DIR, load_constructs_root_menu_file)
+    constructor.add_directory_to_load_constructs(CONSTRUCTS_DIR, load_constructs_root_menu_file)
 end
 
 ---
