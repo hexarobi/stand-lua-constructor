@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31.3"
+local SCRIPT_VERSION = "0.32b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
@@ -62,7 +62,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = false,
+    debug_mode = true,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -380,7 +380,7 @@ local function copy_construct_plan(construct_plan)
         construct.root = construct
         construct.parent = construct
     end
-    constructor_lib.default_attachment_attributes(construct)
+    --constructor_lib.default_attachment_attributes(construct)
     return construct
 end
 
@@ -524,14 +524,16 @@ local function rotation_to_direction(rotation)
 end
 
 local function get_offset_from_camera(distance)
+    if type(distance) ~= "table" then
+        distance = {x=distance, y=distance, z=distance}
+    end
     local cam_rot = CAM.GET_FINAL_RENDERED_CAM_ROT(0)
     local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
     local direction = rotation_to_direction(cam_rot)
-    local destination =
-    {
-        x = cam_pos.x + direction.x * distance,
-        y = cam_pos.y + direction.y * distance,
-        z = cam_pos.z + direction.z * distance
+    local destination = {
+        x = cam_pos.x + (direction.x * distance.x),
+        y = cam_pos.y + (direction.y * distance.y),
+        z = cam_pos.z + (direction.z * distance.z)
     }
     return destination
 end
@@ -819,6 +821,140 @@ local function draw_editing_attachment_bounding_box_tick()
 end
 
 ---
+--- Free Edit
+---
+
+local free_edit_cam
+local world_up = v3.new(0, 0, 1)
+local function get_cam_vectors()
+    local cam_rot = CAM.GET_FINAL_RENDERED_CAM_ROT(2)
+    local forward = v3.toDir(cam_rot)
+    local right = v3.crossProduct(forward, world_up)
+    right:normalise()
+    local up = v3.crossProduct(right, forward)
+    return forward, right, up
+end
+
+local free_edit_mode_tick = function()
+    if not config.free_edit_mode then return true end
+    local attachment = config.free_edit_attachment
+    local forward, right, up = get_cam_vectors()
+    --local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(free_edit_cam, 0, -2, -2)
+    --attachment.position = {x=pos.x, y=pos.y, z=pos.z}
+    --attachment.position = get_offset_from_camera({x=0, y=2, z=2})
+
+    local camera_sensitivity = 2
+
+    local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
+    attachment.position = {
+        x = cam_pos.x + (forward.x * camera_sensitivity) + (up.x * camera_sensitivity),
+        y = cam_pos.y + (forward.y * camera_sensitivity) + (up.x * camera_sensitivity),
+        z = cam_pos.z + (forward.z * camera_sensitivity) + (up.x * camera_sensitivity)
+    }
+
+    --debug_log("Setting pos "..attachment.name.." to "..inspect(attachment.position))
+    constructor_lib.move_attachment(attachment)
+
+    local sensitivity = 0.3
+
+    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 32) then
+        --local offset = get_offset_from_cam_in_world_coords(cam, {x=1,y=0,z=0})
+        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        local new_cam_pos = v3(cam_pos.x + (forward.x * sensitivity), cam_pos.y + (forward.y * sensitivity), cam_pos.z + (forward.z * sensitivity))
+        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+    end
+    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 33) then
+        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        local new_cam_pos = v3(cam_pos.x - (forward.x * sensitivity), cam_pos.y - (forward.y * sensitivity), cam_pos.z - (forward.z * sensitivity))
+        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+    end
+    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 35) then
+        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        local new_cam_pos = v3(cam_pos.x + (right.x * sensitivity), cam_pos.y + (right.y * sensitivity), cam_pos.z + (right.z * sensitivity))
+        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+    end
+    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 34) then
+        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        local new_cam_pos = v3(cam_pos.x - (right.x * sensitivity), cam_pos.y - (right.y * sensitivity), cam_pos.z - (right.z * sensitivity))
+        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+    end
+    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 22) then
+        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        local new_cam_pos = v3(cam_pos.x + (up.x * sensitivity), cam_pos.y + (up.y * sensitivity), cam_pos.z + (up.z * sensitivity))
+        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+    end
+    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 36) then
+        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        local new_cam_pos = v3(cam_pos.x - (up.x * sensitivity), cam_pos.y - (up.y * sensitivity), cam_pos.z - (up.z * sensitivity))
+        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+    end
+
+    local move_lr, move_ud = PAD.GET_CONTROL_NORMAL(2, 1), PAD.GET_CONTROL_NORMAL(2, 2)
+    local cam_rot = CAM.GET_CAM_ROT(free_edit_cam, 2)
+    if move_ud ~= 0 then
+        cam_rot = v3(cam_rot.x - (move_ud * 5), cam_rot.y, cam_rot.z)
+    end
+    if move_lr ~= 0 then
+        cam_rot = v3(cam_rot.x, cam_rot.y, cam_rot.z - (move_lr * 5))
+    end
+    CAM.SET_CAM_ROT(free_edit_cam, cam_rot.x, cam_rot.y, cam_rot.z, 2)
+
+    return true
+end
+
+
+local function create_free_edit_cam(attachment)
+    --menu.trigger_commands("freecam on")
+    constructor_lib.serialize_entity_attributes(attachment)
+    local cam_pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.handle, 0, 2, 2)
+    free_edit_cam = CAM.CREATE_CAM_WITH_PARAMS(
+        "DEFAULT_SCRIPTED_CAMERA",
+        cam_pos.x, cam_pos.y, cam_pos.z,
+        0.0, 0.0, 0.0, 70.0, false, false
+    )
+    CAM.POINT_CAM_AT_ENTITY(free_edit_cam, attachment.handle, 0, 0, 0, true)
+    CAM.SET_CAM_ACTIVE(free_edit_cam, true)
+    CAM.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
+    util.yield(1000)
+    CAM.STOP_CAM_POINTING(free_edit_cam)
+end
+
+local function destroy_free_edit_cam()
+    --menu.trigger_commands("freecam off")
+    --CAM.SET_CAM_ACTIVE(free_edit_cam, false)
+    CAM.RENDER_SCRIPT_CAMS(false, false, 1000, true, false, 0)
+    --util.yield(1000)
+    CAM.DESTROY_CAM(free_edit_cam, true)
+end
+
+local function free_edit_attachment(attachment)
+    ENTITY.FREEZE_ENTITY_POSITION(attachment.root.handle, true)
+    if attachment.options.is_attached then
+        config.free_edit_parent = attachment.parent
+        constructor_lib.separate_attachment(attachment)
+    else
+        config.free_edit_parent = nil
+    end
+    config.free_edit_attachment = attachment
+    create_free_edit_cam(attachment)
+    config.free_edit_mode = true
+    constructor_lib.serialize_entity_attributes(attachment)
+end
+
+local function clear_free_edit_attachment()
+    if config.free_edit_attachment then
+        if config.free_edit_parent then
+            constructor_lib.join_attachments(config.free_edit_parent, config.free_edit_attachment)
+            constructor.refresh_position_menu(config.free_edit_attachment)
+        end
+        ENTITY.FREEZE_ENTITY_POSITION(config.free_edit_attachment.root.handle, false)
+        config.free_edit_attachment = nil
+    end
+    config.free_edit_mode = false
+    destroy_free_edit_cam()
+end
+
+---
 --- Player Spawn Management
 
 local players_spawned_constructs = {}
@@ -876,6 +1012,7 @@ local function create_construct_from_vehicle(vehicle_handle)
     construct.parent = construct
     construct.hash = ENTITY.GET_ENTITY_MODEL(vehicle_handle)
     construct.model = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(construct.hash)
+    constructor_lib.default_attachment_attributes(construct)
     add_spawned_construct(construct)
     return construct
 end
@@ -1294,18 +1431,24 @@ local function build_curated_attachments_menu(attachment, root_menu, curated_ite
         if curated_item.load_menu ~= nil then return end
         curated_item.load_menu = menu.list(root_menu, curated_item.name, {}, "", function()
             for _, child_item in pairs(curated_item.items) do
-                build_curated_attachments_menu(attachment, curated_item.load_menu, child_item)
+                build_curated_attachments_menu(attachment, curated_item.load_menu, constructor_lib.table_copy(child_item))
             end
         end)
     else
-        curated_item.load_menu = menu.action(root_menu, curated_item.name or "Unknown", {}, "", function()
-            local child_attachment = copy_construct_plan(curated_item)
-            child_attachment.root = attachment.root
-            child_attachment.parent = attachment
-            build_construct_from_plan(child_attachment)
-        end)
-        menu.on_focus(curated_item.load_menu, function(direction) if direction ~= 0 then add_preview(curated_item) end end)
-        menu.on_blur(curated_item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+        if curated_item.load_menu == nil then
+            curated_item.load_menu = menu.action(root_menu, curated_item.name or "Unknown", {}, "", function()
+                debug_log("Adding curated item "..curated_item.name.." at offset "..inspect(curated_item.offset))
+                local child_attachment = copy_construct_plan(curated_item)
+                constructor_lib.default_attachment_attributes(child_attachment)
+                child_attachment.root = attachment.root
+                child_attachment.parent = attachment
+                build_construct_from_plan(child_attachment)
+                debug_log("Built curated item "..child_attachment.name.." at offset "..inspect(child_attachment.offset))
+
+            end)
+            menu.on_focus(curated_item.load_menu, function(direction) if direction ~= 0 then add_preview(curated_item) end end)
+            menu.on_blur(curated_item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+        end
     end
 end
 
@@ -1353,7 +1496,7 @@ local function rebuild_reattach_to_menu(attachment, current, path, depth)
         menu.action(attachment.menus.option_parent_attachment, table.concat(path, " > "), {}, "", function()
             debug_log("Reattaching "..attachment.name.." to "..current.name)
             local previous_parent = attachment.parent
-            constructor_lib.detach_attachment(attachment)
+            constructor_lib.separate_attachment(attachment)
             attachment.parent = current
             attachment.root = current.root
             constructor_lib.attach_entity(attachment)
@@ -1445,6 +1588,13 @@ end
 --- Position Menu
 ---
 
+constructor.refresh_position_menu = function(attachment)
+    if attachment == nil or attachment.menus == nil or attachment.menus.edit_offset_x == nil then return end
+    attachment.menus.edit_offset_x.value = math.floor(attachment.offset.x * 100)
+    attachment.menus.edit_offset_y.value = math.floor(attachment.offset.y * -100)
+    attachment.menus.edit_offset_z.value = math.floor(attachment.offset.z * -100)
+end
+
 local EDIT_MENU_HELP = "Hold SHIFT to fine tune, or hold CONTROL to move ten steps at once."
 
 constructor.add_attachment_position_menu = function(attachment)
@@ -1514,11 +1664,28 @@ constructor.add_attachment_position_menu = function(attachment)
         end
 
         menu.divider(attachment.menus.position, t("Options"))
-        attachment.menus.option_position_frozen = menu.toggle(attachment.menus.position, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
-            attachment.options.is_frozen = on
-            constructor_lib.serialize_entity_attributes(attachment)
-            constructor_lib.attach_entity(attachment)
-        end, attachment.options.is_frozen)
+
+        attachment.menus.free_edit_mode = menu.toggle(attachment.menus.position, "Free Edit", {}, "Position this object using controller or mouse", function(on)
+            if (on) then
+                free_edit_attachment(attachment)
+            else
+                clear_free_edit_attachment()
+            end
+        end, config.free_edit_mode)
+        menu.on_blur(attachment.menus.free_edit_mode, function()
+            if config.free_edit_mode then
+                clear_free_edit_attachment()
+                menu.set_value(attachment.menus.free_edit_mode, false)
+            end
+        end)
+
+        if constructor_lib.is_attachment_root(attachment) then
+            attachment.menus.option_position_frozen = menu.toggle(attachment.menus.position, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
+                attachment.options.is_frozen = on
+                constructor_lib.serialize_entity_attributes(attachment)
+                constructor_lib.attach_entity(attachment)
+            end, attachment.options.is_frozen)
+        end
 
         menus.refresh_attachment_menu_is_editing(attachment)
     end)
@@ -1545,15 +1712,17 @@ constructor.add_attachment_options_menu = function(attachment)
                 attachment.options.is_invincible = on
                 constructor_lib.attach_entity(attachment)
             end, attachment.options.is_invincible)
-            attachment.menus.option_gravity = menu.toggle(attachment.menus.options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
-                attachment.options.has_gravity = on
-                constructor_lib.attach_entity(attachment)
-            end, attachment.options.has_gravity)
-            attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
-                attachment.options.is_frozen = on
-                constructor_lib.serialize_entity_attributes(attachment)
-                constructor_lib.attach_entity(attachment)
-            end, attachment.options.is_frozen)
+            if constructor_lib.is_attachment_root(attachment) then
+                attachment.menus.option_gravity = menu.toggle(attachment.menus.options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
+                    attachment.options.has_gravity = on
+                    constructor_lib.attach_entity(attachment)
+                end, attachment.options.has_gravity)
+                attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
+                    attachment.options.is_frozen = on
+                    constructor_lib.serialize_entity_attributes(attachment)
+                    constructor_lib.attach_entity(attachment)
+                end, attachment.options.is_frozen)
+            end
         end
 
         if attachment.type == "PARTICLE" then
@@ -1585,7 +1754,7 @@ constructor.add_attachment_options_menu = function(attachment)
         end
 
         if constructor_lib.is_attachment_entity(attachment) then
-            if attachment ~= attachment.parent then
+            if not constructor_lib.is_attachment_root(attachment) then
                 constructor.add_child_attachment_menu(attachment)
             end
             constructor.add_attachment_entity_options(attachment)
@@ -1644,6 +1813,11 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     menu.list_select(attachment.menus.vehicle_options, t("Door Lock Status"), {}, t("Vehicle door locks"), constants.door_lock_status, attachment.vehicle_attributes.doors.lock_status or 1, function(value)
         attachment.vehicle_attributes.doors.lock_status = value
         constructor_lib.deserialize_vehicle_doors(attachment)
+    end)
+
+    menu.slider_float(attachment.menus.vehicle_options, t("Paint Fade"), {"constructorfadelevel"..attachment.id}, t("How dirty is the vehicle"), 0, 100, math.floor(attachment.vehicle_attributes.paint.fade * 100), 1, function(value)
+        attachment.vehicle_attributes.paint.fade = value / 100
+        constructor_lib.deserialize_vehicle_paint(attachment)
     end)
 
     menu.slider(attachment.menus.vehicle_options, t("Dirt Level"), {"constructordirtlevel"..attachment.id}, t("How dirty is the vehicle"), 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
@@ -1847,7 +2021,7 @@ constructor.add_child_attachment_menu = function(attachment)
         end, attachment.options.use_soft_pinning)
         attachment.menus.detach = menu.action(attachment.menus.attachment_options, t("Separate"), {}, t("Detach attachment from construct to create a new construct"), function()
             local original_parent = attachment.parent
-            constructor_lib.detach_attachment(attachment)
+            constructor_lib.separate_attachment(attachment)
             table.insert(spawned_constructs, attachment)
             attachment.menus = nil
             menus.rebuild_attachment_menu(attachment)
@@ -1949,7 +2123,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
 
         if attachment.menus.curated_attachments ~= nil then return end
         attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
-        for _, curated_item in pairs(curated_attachments) do
+        for _, curated_item in pairs(constructor_lib.table_copy(curated_attachments)) do
             build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
         end
 
@@ -2021,7 +2195,19 @@ constructor.add_attachment_add_attachment_options = function(attachment)
             config.add_attachment_gun_recipient = attachment
         end, config.add_attachment_gun_active)
 
-        --attachment.menus.add_construct = menu.list(attachment.menus.add_attachment, t("Construct"), {}, t("Attach another construct to the current construct"))
+        attachment.menus.add_construct = menu.list(attachment.menus.add_attachment, t("Other Construct"), {}, t("Attach another construct to the current construct"), function()
+            local load_constructs_root_menu_file = {menu=attachment.menus.add_construct, name=t("Loaded Constructs Menu"), menus={}}
+            local action_function = function(construct_plan_file)
+                local construct_plan = load_construct_plan_file(construct_plan_file)
+                if construct_plan then
+                    construct_plan.root = attachment.root
+                    construct_plan.parent = attachment
+                    construct_plan.options.is_attached = true
+                    build_construct_from_plan(construct_plan)
+                end
+            end
+            constructor.add_directory_to_load_constructs(CONSTRUCTS_DIR, load_constructs_root_menu_file, action_function)
+        end)
 
     end)
 end
@@ -2427,7 +2613,7 @@ end, config.focus_menu_on_spawned_constructs)
 
 menu.divider(menus.load_construct, t("Browse"))
 
-local function add_directory_to_load_constructs(path, parent_construct_plan_file)
+constructor.add_directory_to_load_constructs = function(path, parent_construct_plan_file, action_function)
     if path == nil then path = CONSTRUCTS_DIR end
     if parent_construct_plan_file == nil then parent_construct_plan_file = load_constructs_root_menu_file end
     if parent_construct_plan_file.menus == nil then parent_construct_plan_file.menus = {} end
@@ -2437,10 +2623,21 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
         end
     end
 
+    if action_function == nil then
+        action_function = function(construct_plan_file)
+            local construct_plan = load_construct_plan_file(construct_plan_file)
+            if construct_plan then
+                construct_plan.root = construct_plan
+                construct_plan.parent = construct_plan
+                build_construct_from_plan(construct_plan)
+            end
+        end
+    end
+
     if path == CONSTRUCTS_DIR and filesystem.exists(JACKZ_BUILD_DIR) then
         local jackz_builds = {}
         jackz_builds.menu = menu.list(load_constructs_root_menu_file.menu, "Jackz Builds", {}, "Builds from Jackz Vehicle Builder", function()
-            add_directory_to_load_constructs(JACKZ_BUILD_DIR, jackz_builds)
+            constructor.add_directory_to_load_constructs(JACKZ_BUILD_DIR, jackz_builds, action_function)
         end)
         table.insert(load_constructs_root_menu_file.menus, jackz_builds.menu)
     end
@@ -2449,7 +2646,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
     for _, construct_plan_file in pairs(construct_plan_files) do
         if construct_plan_file.is_directory then
             construct_plan_file.menu = menu.list(parent_construct_plan_file.menu, construct_plan_file.name or "unknown", {}, "", function()
-                add_directory_to_load_constructs(path.."/"..construct_plan_file.filename, construct_plan_file)
+                constructor.add_directory_to_load_constructs(path.."/"..construct_plan_file.filename, construct_plan_file, action_function)
             end)
             table.insert(parent_construct_plan_file.menus, construct_plan_file.menu)
         end
@@ -2459,12 +2656,13 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
             if is_file_type_supported(construct_plan_file.ext) then
                 construct_plan_file.load_menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
                     remove_preview()
-                    local construct_plan = load_construct_plan_file(construct_plan_file)
-                    if construct_plan then
-                        construct_plan.root = construct_plan
-                        construct_plan.parent = construct_plan
-                        build_construct_from_plan(construct_plan)
-                    end
+                    action_function(construct_plan_file)
+                    --local construct_plan = load_construct_plan_file(construct_plan_file)
+                    --if construct_plan then
+                    --    construct_plan.root = construct_plan
+                    --    construct_plan.parent = construct_plan
+                    --    build_construct_from_plan(construct_plan)
+                    --end
                 end)
                 menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
                 menu.on_blur(construct_plan_file.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
@@ -2475,7 +2673,7 @@ local function add_directory_to_load_constructs(path, parent_construct_plan_file
 end
 
 menus.rebuild_load_construct_menu = function()
-    add_directory_to_load_constructs(CONSTRUCTS_DIR, load_constructs_root_menu_file)
+    constructor.add_directory_to_load_constructs(CONSTRUCTS_DIR, load_constructs_root_menu_file)
 end
 
 ---
@@ -2577,109 +2775,6 @@ menu.action(menus.settings_menu, t("Clean Up"), {"cleanup"}, t("Remove nearby ve
     util.toast(t("Removed").." "..objects.." "..t("objects")..", "..vehicles.." "..t("vehicles")..t(", and ")..peds.." "..t("peds"), TOAST_ALL)
 end)
 
---local is_free_cam_active = false
---local cam
---menu.toggle(menus.settings_menu, "Free Cam", {}, "", function(on)
---    if on then
---        --natives.CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", player.get_player_coords(player.player_id()).x, player.get_player_coords(player.player_id()).y, player.get_player_coords(player.player_id()).z + 2.0, cam.get_gameplay_cam_rot().x, cam.get_gameplay_cam_rot().y, cam.get_gameplay_cam_rot().z, 70.0, false, false):__tointeger64()
---        --natives.SET_CAM_ACTIVE(freecam_player_cam, true)
---        --natives.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
---
---        util.toast("Camera on", TOAST_ALL)
---        is_free_cam_active = true
---        ENTITY.FREEZE_ENTITY_POSITION(players.user_ped(), true)
---        local pos = players.get_position(players.user())
---        cam = CAM.CREATE_CAM_WITH_PARAMS("DEFAULT_SCRIPTED_CAMERA", pos.x, pos.y, pos.z + 2.0, -90.0, 0.0, 0.0, 70.0, false, false)
---        CAM.SET_CAM_ACTIVE(cam, true)
---        CAM.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
---
---    else
---        is_free_cam_active = false
---        ENTITY.FREEZE_ENTITY_POSITION(players.user_ped(), false)
---        util.toast("Camera off", TOAST_ALL)
---        CAM.RENDER_SCRIPT_CAMS(false, false, 1000, true, false, 0)
---        CAM.DESTROY_CAM(cam, true)
---    end
---end)
-
----
---- Free Cam
----
-
---local world_up = v3.new(0, 0, 1)
---local function get_cam_vectors()
---    local cam_rot = CAM.GET_FINAL_RENDERED_CAM_ROT(2)
---    local forward = v3.toDir(cam_rot)
---    local right = v3.crossProduct(forward, world_up)
---    right:normalise()
---    local up = v3.crossProduct(right, forward)
---    return forward, right, up
---end
-
---local function get_offset_from_cam_in_world_coords(Cam, Offset)
---    local rot = CAM.GET_CAM_ROT(Cam, 2)
---    local forward = rot:toDir()
---    local rot_rads = v3(math.rad(rot.x), math.rad(rot.y), math.rad(rot.z))
---    local num = math.cos(rot_rads.y)
---    local right = v3(num * math.cos(-rot_rads.z), num * math.sin(rot_rads.z), math.sin(-rot_rads.y))
---    local up = right:crossProduct(forward)
---    local cam_offset = v3(right:mul(Offset.x), forward:mul(Offset.y), up:mul(Offset.z))
---    return CAM.GET_CAM_COORD(Cam):add(cam_offset)
---end
---
---local function render_free_camera(rotation)
---    local direction = v3.toDir(v3(rotation))
---
---    --local inst = v3.new()
---    debug_log("Cam direction "..inspect(direction))
---    local camera_speed = (config.freecam_speed or 100) / 100
---    local camera_vector = v3(CAM.GET_CAM_COORD(cam, 2))
---    camera_vector:add(direction)
---    camera_vector:mul(camera_speed)
---    CAM.SET_CAM_COORD(cam, camera_vector:getX(), camera_vector:getY(), camera_vector:getZ())
---end
-
---constructor.update_free_cam_tick = function()
---    if not is_free_cam_active then return true end
---    ENTITY.FREEZE_ENTITY_POSITION(players.user_ped(), true)
---
---    local forward, right, up = get_cam_vectors()
---
---    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 32) then
---        --local offset = get_offset_from_cam_in_world_coords(cam, {x=1,y=0,z=0})
---        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
---        local new_cam_pos = v3(cam_pos.x + forward.x, cam_pos.y + forward.y, cam_pos.z + forward.z)
---        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
---    end
---    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 33) then
---        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
---        local new_cam_pos = v3(cam_pos.x - forward.x, cam_pos.y - forward.y, cam_pos.z - forward.z)
---        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
---    end
---    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 34) then
---        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
---        local new_cam_pos = v3(cam_pos.x + right.x, cam_pos.y + right.y, cam_pos.z + right.z)
---        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
---    end
---    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 35) then
---        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
---        local new_cam_pos = v3(cam_pos.x - right.x, cam_pos.y - right.y, cam_pos.z - right.z)
---        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
---    end
---    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 36) then
---        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
---        local new_cam_pos = v3(cam_pos.x + up.x, cam_pos.y + up.y, cam_pos.z + up.z)
---        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
---    end
---    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 22) then
---        local cam_pos = CAM.GET_CAM_COORD(cam, 2)
---        local new_cam_pos = v3(cam_pos.x - up.x, cam_pos.y - up.y, cam_pos.z - up.z)
---        CAM.SET_CAM_COORD(cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
---    end
---
---    return true
---end
-
 ---
 --- Script Meta Menu
 ---
@@ -2751,7 +2846,7 @@ util.create_tick_handler(update_preview_tick)
 util.create_tick_handler(sensitivity_modifier_check_tick)
 util.create_tick_handler(update_constructs_tick)
 util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
---util.create_tick_handler(constructor.update_free_cam_tick)
+util.create_tick_handler(free_edit_mode_tick)
 --util.create_tick_handler(ped_animation_tick)
 
 --util.create_tick_handler(function()

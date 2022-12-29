@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.31"
+local SCRIPT_VERSION = "0.32b6"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -169,6 +169,8 @@ end
 
 constructor_lib.default_entity_attributes = function(attachment)
     debug_log("Defaulting entity attributes "..tostring(attachment.name))
+    constructor_lib.serialize_hash_and_model(attachment)
+    if attachment.name == nil then attachment.name = attachment.model end
     if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
     if attachment.rotation_order == nil then attachment.rotation_order = 2 end
@@ -202,7 +204,7 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.bone_index == nil then attachment.options.bone_index = 0 end
     if attachment.options.is_dynamic == nil then attachment.options.is_dynamic = true end
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
-    if attachment.options.is_attached == nil then attachment.options.is_attached = (attachment ~= attachment.parent) end
+    if attachment.options.is_attached == nil then attachment.options.is_attached = (not constructor_lib.is_attachment_root(attachment)) end
     if attachment.options.is_frozen == nil and attachment.options.is_attached ~= true and attachment.type == "OBJECT" then
         attachment.options.is_frozen = true
     end
@@ -210,8 +212,6 @@ constructor_lib.default_entity_attributes = function(attachment)
         if attachment.blip_sprite == nil then attachment.blip_sprite = 1 end
         if attachment.blip_color == nil then attachment.blip_color = 2 end
     end
-    constructor_lib.serialize_hash_and_model(attachment)
-    if attachment.name == nil then attachment.name = attachment.model end
     constructor_lib.default_vehicle_attributes(attachment)
     constructor_lib.default_ped_attributes(attachment)
 end
@@ -506,7 +506,7 @@ constructor_lib.create_entity = function(attachment)
         constructor_lib.attach_particle(attachment)
         return
     end
-    debug_log("Attaching "..tostring(attachment.name).." to "..tostring(attachment.parent.name))
+    debug_log("Creating entity "..tostring(attachment.name).." child of "..tostring(attachment.parent.name))
     if attachment.is_player and attachment.model == nil and attachment.hash == nil then
         attachment.hash = ENTITY.GET_ENTITY_MODEL(players.user_ped())
         attachment.model = util.reverse_joaat(attachment.hash)
@@ -579,7 +579,12 @@ constructor_lib.create_entity = function(attachment)
                 attachment.options.is_mission_entity,
                 false
         )
-        if is_networked then constructor_lib.make_entity_networked(attachment) end
+    end
+
+    if is_networked
+        and not (attachment.type == "VEHICLE" and constructor_lib.is_attachment_root(attachment))
+    then
+        constructor_lib.make_entity_networked(attachment)
     end
 
     if not attachment.handle then
@@ -604,8 +609,12 @@ end
 
 constructor_lib.reattach_attachment_with_children = function(attachment)
     debug_log("Reattaching attachment with children "..tostring(attachment.name))
+    constructor_lib.validate_children(attachment)
     constructor_lib.create_entity(attachment)
     for index, child_attachment in pairs(attachment.children) do
+        --if child_attachment == attachment then
+        --    error("Cannot attach entity to itself "..attachment.name)
+        --end
         child_attachment.root = attachment.root
         child_attachment.parent = attachment
         local create_status = pcall(constructor_lib.reattach_attachment_with_children, child_attachment)
@@ -618,7 +627,7 @@ end
 
 constructor_lib.create_entity_with_children = function(new_attachment)
     debug_log("Attaching attachment with children "..tostring(new_attachment.name))
-    for key, value in pairs(constructor_lib.construct_base) do
+    for key, value in pairs(constructor_lib.table_copy(constructor_lib.construct_base)) do
         if new_attachment[key] == nil then
             new_attachment[key] = (value)
         end
@@ -668,8 +677,26 @@ end
 --- Removing
 ---
 
-constructor_lib.detach_attachment = function(attachment)
-    debug_log("Detaching attachment "..tostring(attachment.name))
+constructor_lib.join_attachments = function(parent_attachment, child_attachment)
+    debug_log("Joining "..tostring(child_attachment.name).." to "..tostring(parent_attachment.name))
+    child_attachment.parent = parent_attachment
+    child_attachment.root = parent_attachment.root
+    child_attachment.options.is_attached = true
+    local offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(
+        parent_attachment.handle,
+        child_attachment.position.x,
+        child_attachment.position.y,
+        child_attachment.position.z
+    )
+    child_attachment.offset = {x=offset.x, y=offset.y, z=offset.z}
+    constructor_lib.validate_children(parent_attachment.root)
+    constructor_lib.attach_entity(child_attachment)
+    constructor_lib.update_attachment_position(child_attachment)
+    table.insert(parent_attachment.children, child_attachment)
+end
+
+constructor_lib.separate_attachment = function(attachment)
+    debug_log("Separating attachment "..tostring(attachment.name))
     ENTITY.DETACH_ENTITY(attachment.handle, true, true)
     constructor_lib.array_remove(attachment.parent.children, function(t, i)
         local child_attachment = t[i]
@@ -890,12 +917,17 @@ end
 ---
 
 constructor_lib.animate_peds = function(attachment)
-    if attachment.ped_attributes and attachment.ped_attributes.animation_dict then
-        STREAMING.REQUEST_ANIM_DICT(attachment.ped_attributes.animation_dict)
-        while not STREAMING.HAS_ANIM_DICT_LOADED(attachment.ped_attributes.animation_dict) do
-            util.yield()
+    if attachment.ped_attributes then
+        if attachment.ped_attributes.animation_dict ~= nil then
+            STREAMING.REQUEST_ANIM_DICT(attachment.ped_attributes.animation_dict)
+            while not STREAMING.HAS_ANIM_DICT_LOADED(attachment.ped_attributes.animation_dict) do
+                util.yield()
+            end
+            TASK.TASK_PLAY_ANIM(attachment.handle, attachment.ped_attributes.animation_dict, attachment.ped_attributes.animation_name, 8.0, 8.0, -1, 1, 1.0, false, false, false)
+        elseif attachment.ped_attributes.animation_scenario ~= nil then
+            debug_log("Animating ped scenario "..attachment.name.." scenario "..attachment.ped_attributes.animation_scenario)
+            TASK.TASK_START_SCENARIO_IN_PLACE(attachment.handle, attachment.ped_attributes.animation_scenario, 0, true);
         end
-        TASK.TASK_PLAY_ANIM(attachment.handle, attachment.ped_attributes.animation_dict, attachment.ped_attributes.animation_name, 8.0, 8.0, -1, 1, 1.0, false, false, false)
     end
 end
 
@@ -1088,6 +1120,7 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes.paint.primary.custom_color == nil then vehicle.vehicle_attributes.paint.primary.custom_color = {} end
     if vehicle.vehicle_attributes.paint.secondary.custom_color == nil then vehicle.vehicle_attributes.paint.secondary.custom_color = {} end
     if vehicle.vehicle_attributes.paint.dirt_level == nil then vehicle.vehicle_attributes.paint.dirt_level = 0 end
+    if vehicle.vehicle_attributes.paint.fade == nil then vehicle.vehicle_attributes.paint.fade = 0 end
     if vehicle.vehicle_attributes.paint.extra_colors == nil then vehicle.vehicle_attributes.paint.extra_colors = {} end
     if vehicle.vehicle_attributes.neon == nil then vehicle.vehicle_attributes.neon = {} end
     if vehicle.vehicle_attributes.neon.lights == nil then vehicle.vehicle_attributes.neon.lights = {} end

@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.31"
+local SCRIPT_VERSION = "0.32b4"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -627,23 +627,42 @@ local function find_attachment_by_initial_handle(attachment, initial_handle)
     end
 end
 
-convertor.rearrange_by_initial_attachment = function(attachment, parent_attachment, root_attachment)
-    if parent_attachment == nil then root_attachment = attachment end
-    if parent_attachment ~= nil and attachment.parents_initial_handle and (attachment.parents_initial_handle ~= parent_attachment.initial_handle) then
+convertor.swap_new_children_for_old = function(attachment)
+    if attachment.new_children ~= nil then
+        attachment.children = attachment.new_children
+        attachment.new_children = nil
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        convertor.swap_new_children_for_old(child_attachment)
+    end
+end
+
+convertor.build_new_children = function(attachment, root_attachment)
+    debug_log("Building new children "..tostring(attachment.name).." ["..tostring(attachment.initial_handle).."]")
+    if attachment.parents_initial_handle then
         local new_parent = find_attachment_by_initial_handle(root_attachment, attachment.parents_initial_handle)
         if new_parent then
-            constructor_lib.array_remove(parent_attachment.children, function(t, i)
-                local child_attachment = t[i]
-                return child_attachment ~= attachment
-            end)
-            table.insert(new_parent.children, attachment)
+            debug_log("Adding new child "..tostring(attachment.name).." ["..tostring(attachment.initial_handle).."] to "..tostring(new_parent.name).." ["..tostring(new_parent.initial_handle).."]")
+            --constructor_lib.array_remove(parent_attachment.children, function(t, i)
+            --    local child_attachment = t[i]
+            --    return child_attachment ~= attachment
+            --end)
+            if new_parent.new_children == nil then new_parent.new_children = {} end
+            table.insert(new_parent.new_children, attachment)
         else
             util.toast("Could not rearrange attachment "..attachment.name.." to "..attachment.parents_initial_handle, TOAST_ALL)
         end
     end
-    for _, child_attachment in pairs(attachment.children) do
-        convertor.rearrange_by_initial_attachment(child_attachment, attachment, root_attachment)
+    if attachment.children then
+        for _, child_attachment in pairs(attachment.children) do
+            convertor.build_new_children(child_attachment, root_attachment)
+        end
     end
+end
+
+convertor.rearrange_by_initial_attachment = function(attachment)
+    convertor.build_new_children(attachment, attachment)
+    convertor.swap_new_children_for_old(attachment, attachment)
 end
 
 local function value_splitter(value)
@@ -1461,6 +1480,47 @@ local function map_ini_vehicle_extras_flavor_4(attachment, data)
     end
 end
 
+local function map_ini_ped_flavor_4(attachment, data)
+    map_ini_attachment_flavor_4(attachment, data)
+    if attachment.ped_attributes == nil then attachment.ped_attributes = {} end
+
+    if attachment.ped_attributes.components == nil then attachment.ped_attributes.components = {} end
+    for component_index = 0, 11 do
+        if attachment.ped_attributes.components["_"..component_index] == nil then attachment.ped_attributes.components["_"..component_index] = {} end
+        if data["Component"..component_index] ~= nil then
+            attachment.ped_attributes.components["_"..component_index].drawable_variation = data["Component"..component_index]
+        end
+        if data["Texture"..component_index] ~= nil then
+            attachment.ped_attributes.components["_"..component_index].texture_variation = data["Texture"..component_index]
+        end
+        if data["Palette"..component_index] ~= nil then
+            attachment.ped_attributes.components["_"..component_index].palette_variation = data["Palette"..component_index]
+        end
+    end
+
+    local prop_parts = {
+        {index=0, name="Hats"},
+        {index=1, name="Glasses"},
+        {index=2, name="Ears"},
+        --{index=6, name="Watch"},
+        --{index=7, name="Bracelet"},
+    }
+    if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
+    for _, prop_part in pairs(prop_parts) do
+        if attachment.ped_attributes.components["_"..prop_part.index] == nil then attachment.ped_attributes.components["_"..prop_part.index] = {} end
+        if data["Prop"..prop_part.name] ~= nil then attachment.ped_attributes.props["_"..prop_part.index].drawable_variation = data["Prop"..prop_part.name] end
+        if data["Texture"..prop_part.name] ~= nil then attachment.ped_attributes.props["_"..prop_part.index].texture_variation = data["Texture"..prop_part.name] end
+    end
+
+    if data.ScenarioName ~= nil then
+        attachment.ped_attributes.animation_scenario = constructor_lib.trim(data.ScenarioName)
+    end
+
+    --PedType = 4
+    --ScenarioPlaying = true
+    --BlockFleeing = false
+
+end
 
 local function map_ini_data_flavor_4(construct_plan, data)
     if data.Vehicle0 ~= nil then
@@ -1502,6 +1562,16 @@ local function map_ini_data_flavor_4(construct_plan, data)
                 local attachment = {}
                 attachment.type = "OBJECT"
                 map_ini_attachment_flavor_4(attachment, attached_object)
+                table.insert(construct_plan.children, attachment)
+            end
+        end
+        for ped_index = 0, tonumber(data.AllPeds.Count) - 1 do
+            local attached_ped = data["Ped".. ped_index]
+            if attached_ped ~= nil and attached_ped.Hash ~= 0 then
+                debug_log("Processing ped "..ped_index)
+                local attachment = {}
+                attachment.type = "PED"
+                map_ini_ped_flavor_4(attachment, attached_ped)
                 table.insert(construct_plan.children, attachment)
             end
         end
