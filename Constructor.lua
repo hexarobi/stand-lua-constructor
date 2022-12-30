@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.32b7"
+local SCRIPT_VERSION = "0.33b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -666,7 +666,9 @@ local function update_preview_tick()
     if current_preview ~= nil then
         --debug_log("Update preview tick")
         current_preview.position = get_offset_from_camera(current_preview.camera_distance)
-        current_preview.rotation.z = current_preview.rotation.z + 2
+        --if not current_preview.temp.is_spooner_preview then
+        --    current_preview.rotation.z = current_preview.rotation.z + 2
+        --end
         constructor_lib.attach_entity(current_preview)
         constructor_lib.update_attachment_position(current_preview)
         constructor_lib.draw_bounding_box(current_preview.handle, config.preview_bounding_box_color)
@@ -842,52 +844,68 @@ local free_edit_mode_tick = function()
     --local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(free_edit_cam, 0, -2, -2)
     --attachment.position = {x=pos.x, y=pos.y, z=pos.z}
     --attachment.position = get_offset_from_camera({x=0, y=2, z=2})
+    --
+    --local camera_sensitivity = 2
 
-    local camera_sensitivity = 2
+    --local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
+    --attachment.position = {
+    --    x = cam_pos.x + (forward.x * camera_sensitivity) + (up.x * camera_sensitivity),
+    --    y = cam_pos.y + (forward.y * camera_sensitivity) + (up.x * camera_sensitivity),
+    --    z = cam_pos.z + (forward.z * camera_sensitivity) + (up.x * camera_sensitivity)
+    --}
+    --
+    ----debug_log("Setting pos "..attachment.name.." to "..inspect(attachment.position))
+    --constructor_lib.move_attachment(attachment)
 
-    local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
-    attachment.position = {
-        x = cam_pos.x + (forward.x * camera_sensitivity) + (up.x * camera_sensitivity),
-        y = cam_pos.y + (forward.y * camera_sensitivity) + (up.x * camera_sensitivity),
-        z = cam_pos.z + (forward.z * camera_sensitivity) + (up.x * camera_sensitivity)
-    }
-
-    --debug_log("Setting pos "..attachment.name.." to "..inspect(attachment.position))
-    constructor_lib.move_attachment(attachment)
+    --local forward = v3.new(1, 0, 0)
+    --local right = v3.new(0, 1, 0)
+    --local up = v3.new(0, 0, 1)
 
     local sensitivity = 0.3
 
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 32) then
-        --local offset = get_offset_from_cam_in_world_coords(cam, {x=1,y=0,z=0})
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (forward.x * sensitivity), cam_pos.y + (forward.y * sensitivity), cam_pos.z + (forward.z * sensitivity))
-        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+        attachment.position = {
+            x=attachment.position.x + (forward.x * sensitivity),
+            y=attachment.position.y + (forward.y * sensitivity),
+            z=attachment.position.z + (forward.z * sensitivity)
+        }
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 33) then
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (forward.x * sensitivity), cam_pos.y - (forward.y * sensitivity), cam_pos.z - (forward.z * sensitivity))
-        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+        attachment.position = {
+            x=attachment.position.x - (forward.x * sensitivity),
+            y=attachment.position.y - (forward.y * sensitivity),
+            z=attachment.position.z - (forward.z * sensitivity)
+        }
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 35) then
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (right.x * sensitivity), cam_pos.y + (right.y * sensitivity), cam_pos.z + (right.z * sensitivity))
-        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+        attachment.position = {
+            x=attachment.position.x + (right.x * sensitivity),
+            y=attachment.position.y + (right.y * sensitivity),
+            z=attachment.position.z + (right.z * sensitivity)
+        }
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 34) then
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (right.x * sensitivity), cam_pos.y - (right.y * sensitivity), cam_pos.z - (right.z * sensitivity))
-        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+        attachment.position = {
+            x=attachment.position.x - (right.x * sensitivity),
+            y=attachment.position.y - (right.y * sensitivity),
+            z=attachment.position.z - (right.z * sensitivity)
+        }
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 22) then
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (up.x * sensitivity), cam_pos.y + (up.y * sensitivity), cam_pos.z + (up.z * sensitivity))
-        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+        attachment.position = {
+            x=attachment.position.x + (up.x * sensitivity),
+            y=attachment.position.y + (up.y * sensitivity),
+            z=attachment.position.z + (up.z * sensitivity)
+        }
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 36) then
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (up.x * sensitivity), cam_pos.y - (up.y * sensitivity), cam_pos.z - (up.z * sensitivity))
-        CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
+        attachment.position = {
+            x=attachment.position.x - (up.x * sensitivity),
+            y=attachment.position.y - (up.y * sensitivity),
+            z=attachment.position.z - (up.z * sensitivity)
+        }
     end
+    constructor_lib.move_attachment(attachment)
 
     local move_lr, move_ud = PAD.GET_CONTROL_NORMAL(2, 1), PAD.GET_CONTROL_NORMAL(2, 2)
     local cam_rot = CAM.GET_CAM_ROT(free_edit_cam, 2)
@@ -898,6 +916,19 @@ local free_edit_mode_tick = function()
         cam_rot = v3(cam_rot.x, cam_rot.y, cam_rot.z - (move_lr * 5))
     end
     CAM.SET_CAM_ROT(free_edit_cam, cam_rot.x, cam_rot.y, cam_rot.z, 2)
+
+    if PAD.IS_DISABLED_CONTROL_JUST_PRESSED(2, 24) then
+        util.toast("Constructiing", TOAST_ALL)
+        local construct_plan = constructor_lib.table_copy(attachment)
+        construct_plan.root = config.spooner_mode_recipient.root
+        construct_plan.parent = config.spooner_mode_recipient
+        local offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(config.spooner_mode_recipient.handle, attachment.position.x, attachment.position.y, attachment.position.z)
+        attachment.offset = { x=offset.x, y=offset.y, z=offset.z }
+        constructor.build_construct_from_plan(construct_plan)
+    end
+
+    --local cam_pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.handle, 0, 2, 2)
+    --CAM.SET_CAM_COORD(free_edit_cam, cam_pos.x, cam_pos.y, cam_pos.z)
 
     return true
 end
@@ -915,8 +946,9 @@ local function create_free_edit_cam(attachment)
     CAM.POINT_CAM_AT_ENTITY(free_edit_cam, attachment.handle, 0, 0, 0, true)
     CAM.SET_CAM_ACTIVE(free_edit_cam, true)
     CAM.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
-    util.yield(1000)
-    CAM.STOP_CAM_POINTING(free_edit_cam)
+    CAM.ATTACH_CAM_TO_ENTITY(free_edit_cam, attachment.handle, 0, 2, 2, true)
+    --util.yield(1000)
+    --CAM.STOP_CAM_POINTING(free_edit_cam)
 end
 
 local function destroy_free_edit_cam()
@@ -955,7 +987,43 @@ local function clear_free_edit_attachment()
 end
 
 ---
+--- Spooner Mode
+---
+
+local spooner_cam
+
+local function start_spooner_mode()
+    local cam_pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(config.spooner_mode_recipient.handle, 0, 2, 2)
+    spooner_cam = CAM.CREATE_CAM_WITH_PARAMS(
+            "DEFAULT_SCRIPTED_CAMERA",
+            cam_pos.x, cam_pos.y, cam_pos.z,
+            0.0, 0.0, 0.0, 70.0, false, false
+    )
+    CAM.POINT_CAM_AT_ENTITY(spooner_cam, config.spooner_mode_recipient.handle, 0, 0, 0, true)
+    CAM.SET_CAM_ACTIVE(spooner_cam, true)
+    CAM.RENDER_SCRIPT_CAMS(true, true, 1000, true, true, 0)
+    util.yield(1000)
+    CAM.STOP_CAM_POINTING(spooner_cam)
+
+    local attachment = constructor_lib.table_copy(constructor_lib.construct_base)
+    attachment.temp.is_spooner_preview = true
+    attachment.model = "prop_air_conelight"
+    add_preview(attachment)
+    free_edit_cam = spooner_cam
+    config.free_edit_mode = true
+    config.free_edit_attachment = attachment
+end
+
+local function end_spooner_mode()
+    remove_preview(config.free_edit_attachment)
+    CAM.RENDER_SCRIPT_CAMS(false, false, 1000, true, false, 0)
+    CAM.DESTROY_CAM(free_edit_cam, true)
+    config.free_edit_mode = false
+end
+
+---
 --- Player Spawn Management
+---
 
 local players_spawned_constructs = {}
 
@@ -1117,7 +1185,7 @@ local function spawn_construct_from_plan(construct_plan)
     return construct
 end
 
-local function build_construct_from_plan(construct_plan)
+constructor.build_construct_from_plan = function(construct_plan)
     debug_log("Building construct from plan name="..tostring(construct_plan.name).." model="..tostring(construct_plan.model).." "..debug.traceback(), construct_plan)
     if construct_plan == construct_plan.parent then
         spawn_construct_from_plan(construct_plan)
@@ -1141,7 +1209,7 @@ local function rebuild_attachment(attachment)
     local construct_plan = constructor_lib.clone_attachment(attachment)
     constructor.delete_construct(attachment)
     construct_plan.root.menu_auto_focus = true
-    build_construct_from_plan(construct_plan)
+    constructor.build_construct_from_plan(construct_plan)
 end
 
 ---
@@ -1389,7 +1457,7 @@ local function animate_peds(attachment)
             local construct_plan = constructor_lib.clone_attachment(attachment)
             constructor.delete_construct(attachment)
             construct_plan.root.menu_auto_focus = false
-            build_construct_from_plan(construct_plan)
+            constructor.build_construct_from_plan(construct_plan)
             construct_plan.root.menu_auto_focus = true
         end
     end
@@ -1419,7 +1487,7 @@ local function build_curated_constructs_menu(root_menu, curated_item)
             local construct_plan = copy_construct_plan(curated_item)
             construct_plan.root = construct_plan
             construct_plan.parent = construct_plan
-            build_construct_from_plan(construct_plan)
+            constructor.build_construct_from_plan(construct_plan)
         end)
         menu.on_focus(curated_item.load_menu, function(direction) if direction ~= 0 then add_preview(curated_item) end end)
         menu.on_blur(curated_item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
@@ -1442,7 +1510,7 @@ local function build_curated_attachments_menu(attachment, root_menu, curated_ite
                 constructor_lib.default_attachment_attributes(child_attachment)
                 child_attachment.root = attachment.root
                 child_attachment.parent = attachment
-                build_construct_from_plan(child_attachment)
+                constructor.build_construct_from_plan(child_attachment)
                 debug_log("Built curated item "..child_attachment.name.." at offset "..inspect(child_attachment.offset))
 
             end)
@@ -2160,7 +2228,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
                             name = item.prop,
                             model = item.prop,
                         }
-                        build_construct_from_plan(construct_plan)
+                        constructor.build_construct_from_plan(construct_plan)
                     end)
                     menu.on_focus(search_result_menu, function(direction) if direction ~= 0 then add_preview({ model=model}) end end)
                     menu.on_blur(search_result_menu, function(direction) if direction ~= 0 then remove_preview() end end)
@@ -2172,28 +2240,23 @@ constructor.add_attachment_add_attachment_options = function(attachment)
         attachment.menus.exact_name = menu.list(attachment.menus.add_attachment, t("Add by Name"), {}, t("Add an object, vehicle, or ped by exact name."))
         menu.text_input(attachment.menus.exact_name, t("Object by Name"), {"constructorattachobject"..attachment.id},
                 t("Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/"), function (value)
-                    build_construct_from_plan({
+                    constructor.build_construct_from_plan({
                         root = attachment.root, parent = attachment, name = value, model = value,
                     })
                 end)
         menu.text_input(attachment.menus.exact_name, t("Vehicle by Name"), {"constructorattachvehicle"..attachment.id},
                 t("Add a vehicle by exact name."), function (value)
-                    build_construct_from_plan({
+                    constructor.build_construct_from_plan({
                         root = attachment.root, parent = attachment, name = value, model = value, type = "VEHICLE",
                     })
                 end)
         menu.text_input(attachment.menus.exact_name, t("Ped by Name"), {"constructorattachped"..attachment.id},
                 t("Add a vehicle by exact name."), function (value)
-                    build_construct_from_plan({
+                    constructor.build_construct_from_plan({
                         root = attachment.root, parent = attachment, name = value, model = value, type = "PED",
                     })
                 end)
         menu.hyperlink(attachment.menus.exact_name, t("Open gta-objects.xyz"), "https://gta-objects.xyz/", t("Website for browsing and searching for props"))
-
-        menu.toggle(attachment.menus.add_attachment, t("Add Attachment Gun"), {}, t("Anything you shoot with this enabled will be added to the current construct"), function(on)
-            config.add_attachment_gun_active = on
-            config.add_attachment_gun_recipient = attachment
-        end, config.add_attachment_gun_active)
 
         attachment.menus.add_construct = menu.list(attachment.menus.add_attachment, t("Other Construct"), {}, t("Attach another construct to the current construct"), function()
             local load_constructs_root_menu_file = {menu=attachment.menus.add_construct, name=t("Loaded Constructs Menu"), menus={}}
@@ -2203,10 +2266,33 @@ constructor.add_attachment_add_attachment_options = function(attachment)
                     construct_plan.root = attachment.root
                     construct_plan.parent = attachment
                     construct_plan.options.is_attached = true
-                    build_construct_from_plan(construct_plan)
+                    constructor.build_construct_from_plan(construct_plan)
                 end
             end
             constructor.add_directory_to_load_constructs(CONSTRUCTS_DIR, load_constructs_root_menu_file, action_function)
+        end)
+
+        menu.divider(attachment.menus.add_attachment, t("Options"))
+
+        attachment.menus.add_attachment_gun = menu.toggle(attachment.menus.add_attachment, t("Add Attachment Gun"), {}, t("Anything you shoot with this enabled will be added to the current construct"), function(on)
+            config.add_attachment_gun_active = on
+            config.add_attachment_gun_recipient = attachment
+        end, config.add_attachment_gun_active)
+
+        attachment.menus.spooner_mode = menu.toggle(attachment.menus.add_attachment, t("Spooner Mode"), {}, t("Free cam mode, click to attach."), function(on)
+            config.spooner_mode = on
+            config.spooner_mode_recipient = attachment
+            if (on) then
+                start_spooner_mode()
+            else
+                end_spooner_mode()
+            end
+        end, config.spooner_mode)
+        menu.on_blur(attachment.menus.main, function()
+            if config.spooner_mode then
+                end_spooner_mode()
+                menu.set_value(attachment.menus.spooner_mode, false)
+            end
         end)
 
     end)
@@ -2233,22 +2319,22 @@ constructor.add_attachment_clone_attachments_options = function(attachment)
         if attachment.menus.clone_in_place ~= nil then return end
         attachment.menus.clone_in_place = menu.action(attachment.menus.clone_options, t("Clone (In Place)"), {}, t("Make a new copy of this entity, at the same location as the original"), function()
             local new_attachment = constructor_lib.clone_attachment(attachment)
-            build_construct_from_plan(new_attachment)
+            constructor.build_construct_from_plan(new_attachment)
         end)
         attachment.menus.clone_reflection_x = menu.action(attachment.menus.clone_options, t("Clone Reflection: X:Left/Right"), {}, t("Make a new copy of this entity, but at the mirror location about the X-axis"), function()
             local new_attachment = constructor_lib.clone_attachment(attachment)
             new_attachment.offset = {x=-attachment.offset.x, y=attachment.offset.y, z=attachment.offset.z}
-            build_construct_from_plan(new_attachment)
+            constructor.build_construct_from_plan(new_attachment)
         end)
         attachment.menus.clone_reflection_y = menu.action(attachment.menus.clone_options, t("Clone Reflection: Y:Front/Back"), {}, t("Make a new copy of this entity, but at the mirror location about the Y-axis"), function()
             local new_attachment = constructor_lib.clone_attachment(attachment)
             new_attachment.offset = {x=attachment.offset.x, y=-attachment.offset.y, z=attachment.offset.z}
-            build_construct_from_plan(new_attachment)
+            constructor.build_construct_from_plan(new_attachment)
         end)
         attachment.menus.clone_reflection_z = menu.action(attachment.menus.clone_options, t("Clone Reflection: Z:Up/Down"), {}, t("Make a new copy of this entity, but at the mirror location about the Z-axis"), function()
             local new_attachment = constructor_lib.clone_attachment(attachment)
             new_attachment.offset = {x=attachment.offset.x, y=attachment.offset.y, z=-attachment.offset.z}
-            build_construct_from_plan(new_attachment)
+            constructor.build_construct_from_plan(new_attachment)
         end)
         menus.refresh_attachment_menu_is_editing(attachment)
     end)
@@ -2358,10 +2444,10 @@ menus.rebuild_attachment_menu = function(attachment)
         constructor.add_attachment_edit_attachments_options(attachment)
         constructor.add_attachment_clone_attachments_options(attachment)
         constructor.add_attachment_teleport_options(attachment)
+        constructor.add_attachment_rebuild_attachment_option(attachment)
+        constructor.add_attachment_save_attachment_option(attachment)
     end
 
-    constructor.add_attachment_rebuild_attachment_option(attachment)
-    constructor.add_attachment_save_attachment_option(attachment)
     constructor.add_attachment_delete_attachment_option(attachment)
 
     menus.refresh_attachment_menu_is_editing(attachment)
@@ -2446,7 +2532,7 @@ menu.text_input(menus.create_new_construct, t("From Vehicle Name"), { "construct
     }
     construct_plan.root = construct_plan
     construct_plan.parent = construct_plan
-    build_construct_from_plan(construct_plan)
+    constructor.build_construct_from_plan(construct_plan)
 end)
 
 menu.divider(menus.create_new_construct, t("Structure (Map)"))
@@ -2462,7 +2548,7 @@ menu.action(menus.create_new_construct, t("From New Construction Cone"), { "cons
     }
     construct_plan.root = construct_plan
     construct_plan.parent = construct_plan
-    build_construct_from_plan(construct_plan)
+    constructor.build_construct_from_plan(construct_plan)
 end)
 
 menus.create_from_object_search_results = {}
@@ -2497,7 +2583,7 @@ menu.text_input(menus.create_from_object_search, t("Search"), {"constructorcreat
                 }
                 construct_plan.root = construct_plan
                 construct_plan.parent = construct_plan
-                build_construct_from_plan(construct_plan)
+                constructor.build_construct_from_plan(construct_plan)
             end)
             menu.on_focus(search_result_menu, function(direction) if direction ~= 0 then add_preview({ model=model}) end end)
             menu.on_blur(search_result_menu, function(direction) if direction ~= 0 then remove_preview() end end)
@@ -2515,7 +2601,7 @@ menu.action(menus.create_new_construct, t("From Current Ped"), { "constructcreat
     end
     get_player_construct()
     constructor_lib.serialize_ped_attributes(player_construct)
-    build_construct_from_plan(player_construct)
+    constructor.build_construct_from_plan(player_construct)
 end)
 
 menus.create_from_ped_list = menu.list(menus.create_new_construct, t("From Ped List"), {}, t("Create a new construct from a list of peds"), function()
@@ -2535,7 +2621,7 @@ menu.text_input(menus.create_new_construct, t("From Ped Name"), {"constructorcre
     }
     construct_plan.root = construct_plan
     construct_plan.parent = construct_plan
-    build_construct_from_plan(construct_plan)
+    constructor.build_construct_from_plan(construct_plan)
 end)
 
 ---
@@ -2549,7 +2635,7 @@ local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
         if construct_plan then
             construct_plan.root = construct_plan
             construct_plan.parent = construct_plan
-            build_construct_from_plan(construct_plan)
+            constructor.build_construct_from_plan(construct_plan)
         end
     end)
     menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
@@ -2629,7 +2715,7 @@ constructor.add_directory_to_load_constructs = function(path, parent_construct_p
             if construct_plan then
                 construct_plan.root = construct_plan
                 construct_plan.parent = construct_plan
-                build_construct_from_plan(construct_plan)
+                constructor.build_construct_from_plan(construct_plan)
             end
         end
     end
@@ -2661,7 +2747,7 @@ constructor.add_directory_to_load_constructs = function(path, parent_construct_p
                     --if construct_plan then
                     --    construct_plan.root = construct_plan
                     --    construct_plan.parent = construct_plan
-                    --    build_construct_from_plan(construct_plan)
+                    --    constructor.build_construct_from_plan(construct_plan)
                     --end
                 end)
                 menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
@@ -2695,7 +2781,7 @@ local player_menu_actions = function(pid)
                     construct_plan.name = construct_plan.name .. " [".. PLAYER.GET_PLAYER_NAME(pid) .."]"
                     construct_plan.options.spawn_for_player = pid
                     construct_plan.menu_auto_focus = false
-                    build_construct_from_plan(construct_plan)
+                    constructor.build_construct_from_plan(construct_plan)
                 end
             end, nil, nil, COMMANDPERM_SPAWN)
         end
