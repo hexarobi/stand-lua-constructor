@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b3"
+local SCRIPT_VERSION = "0.33b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1975,15 +1975,20 @@ constructor.add_attachment_ped_menu = function(attachment)
     end
 
     attachment.menus.ped_options_animation = menu.list(attachment.menus.ped_options, t("Animation"))
-    menu.text_input(attachment.menus.ped_options_animation, t("Animation Dictionary"), {"constructoranimationdictionary"..attachment.id}, "", function(animation_dict)
+    menu.divider(attachment.menus.ped_options_animation, t("Dictionary"))
+    menu.text_input(attachment.menus.ped_options_animation, t("Dictionary"), {"constructoranimationdictionary"..attachment.id}, "Set the animation dictionary available for the animation name to load from.", function(animation_dict)
         attachment.ped_attributes.animation_dict = animation_dict
     end, attachment.ped_attributes.animation_dict or "")
-    menu.text_input(attachment.menus.ped_options_animation, t("Animation Name"), {"constructoranimationname"..attachment.id}, "", function(animation_name)
+    menu.text_input(attachment.menus.ped_options_animation, t("Name"), {"constructoranimationname"..attachment.id}, "Set the animation name to load from the dictionary.", function(animation_name)
         attachment.ped_attributes.animation_name = animation_name
     end, attachment.ped_attributes.animation_name or "")
-    menu.text_input(attachment.menus.ped_options_animation, t("Animation Scenario"), {"constructoranimationscenario"..attachment.id}, "", function(animation_scenario)
+    menu.hyperlink(attachment.menus.ped_options_animation, t("Animation List"), "https://gtahash.ru/animations/")
+    menu.divider(attachment.menus.ped_options_animation, t("Scenario"))
+    menu.text_input(attachment.menus.ped_options_animation, t("Scenario"), {"constructoranimationscenario"..attachment.id}, "Set the animation scenario, separate from dictionary and name.", function(animation_scenario)
         attachment.ped_attributes.animation_scenario = animation_scenario
     end, attachment.ped_attributes.animation_scenario or "")
+    menu.hyperlink(attachment.menus.ped_options_animation, t("Scenario List"), "https://gtaforums.com/topic/796181-list-of-scenarios-for-peds/")
+
 
 end
 
