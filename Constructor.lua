@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b2"
+local SCRIPT_VERSION = "0.33b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1973,6 +1973,18 @@ constructor.add_attachment_ped_menu = function(attachment)
     for _, ped_prop in pairs(constants.ped_props) do
         create_ped_prop_menu(attachment, attachment.menus.ped_options_props, ped_prop.index, ped_prop.name)
     end
+
+    attachment.menus.ped_options_animation = menu.list(attachment.menus.ped_options, t("Animation"))
+    menu.text_input(attachment.menus.ped_options_animation, t("Animation Dictionary"), {"constructoranimationdictionary"..attachment.id}, "", function(animation_dict)
+        attachment.ped_attributes.animation_dict = animation_dict
+    end, attachment.ped_attributes.animation_dict or "")
+    menu.text_input(attachment.menus.ped_options_animation, t("Animation Name"), {"constructoranimationname"..attachment.id}, "", function(animation_name)
+        attachment.ped_attributes.animation_name = animation_name
+    end, attachment.ped_attributes.animation_name or "")
+    menu.text_input(attachment.menus.ped_options_animation, t("Animation Scenario"), {"constructoranimationscenario"..attachment.id}, "", function(animation_scenario)
+        attachment.ped_attributes.animation_scenario = animation_scenario
+    end, attachment.ped_attributes.animation_scenario or "")
+
 end
 
 ---
