@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b5"
+local SCRIPT_VERSION = "0.33b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2072,6 +2072,11 @@ constructor.add_attachment_entity_options = function(attachment)
         attachment.menus.option_alpha = menu.slider(attachment.menus.more_options, t("Alpha"), {}, t("The amount of transparency the object has. Local only!"), 0, 255, attachment.options.alpha, 51, function(value)
             attachment.options.alpha = value
             constructor_lib.attach_entity(attachment)
+        end)
+
+        attachment.menus.option_object_tint = menu.slider(attachment.menus.more_options, t("Object Tint"), {}, t("The color of the object"), 0, 15, attachment.options.object_tint or 0, 1, function(value)
+            attachment.options.object_tint = value
+            constructor_lib.deserialize_entity_attributes(attachment)
         end)
 
         attachment.menus.option_mission_entity = menu.toggle(attachment.menus.more_options, t("Mission Entity"), {}, t("If attachment is treated as a mission entity."), function(on)
