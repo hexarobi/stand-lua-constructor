@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.32b4"
+local SCRIPT_VERSION = "0.33b1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -824,6 +824,9 @@ local function map_placement_options(attachment, placement)
     if placement.IsFireProof ~= nil then attachment.options.is_fire_proof = toboolean(placement.IsFireProof) end
     if placement.IsExplosionProof ~= nil then attachment.options.is_explosion_proof = toboolean(placement.IsExplosionProof) end
     if placement.IsMeleeProof ~= nil then attachment.options.is_melee_proof = toboolean(placement.IsMeleeProof) end
+    if placement.ObjectProperties ~= nil and placement.ObjectProperties.TextureVariation ~= nil then
+        attachment.options.object_tint = placement.ObjectProperties.TextureVariation
+    end
     --IsOnlyDamagedByPlayer = placement.IsOnlyDamagedByPlayer
     if placement.IsCollisionProof ~= nil then attachment.options.has_collision = not toboolean(placement.IsCollisionProof) end
 end
