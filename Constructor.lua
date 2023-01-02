@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b7"
+local SCRIPT_VERSION = "0.33b8"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -66,6 +66,7 @@ CONSTRUCTOR_CONFIG = {
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
+    change_parent_keep_position = true,
 }
 -- Short local alias
 local config = CONSTRUCTOR_CONFIG
@@ -1482,32 +1483,41 @@ local function rebuild_attachment_debug_menu(attachment)
     build_attachment_debug_menu(attachment)
 end
 
-local function rebuild_reattach_to_menu(attachment, current, path, depth)
-    debug_log(
-            "Rebuilding reattach to menu "..tostring(attachment.name),
-            {attachment=attachment, current=current, path=path, depth=depth}
-    )
-    if current == nil then current = attachment.root end
-    if path == nil then path = {} end
-    if depth == nil then depth = 0 end
+local function build_change_parent_menu_item(attachment, current, path, depth)
     depth = depth + 1
     if depth > 100 then error(t("Max depth reached while reattaching")) return end
     table.insert(path, current.name)
     if attachment ~= current then   -- cant reattach to yourself or your children
-        menu.action(attachment.menus.option_parent_attachment, table.concat(path, " > "), {}, "", function()
+        local new_parent_item = menu.action(attachment.menus.option_parent_attachment, table.concat(path, " > "), {}, "", function()
             debug_log("Reattaching "..attachment.name.." to "..current.name)
             local previous_parent = attachment.parent
+            constructor_lib.serialize_entity_attributes(attachment)
             constructor_lib.separate_attachment(attachment)
             attachment.parent = current
             attachment.root = current.root
+            if config.change_parent_keep_position then
+                attachment.offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(current.handle, attachment.position.x, attachment.position.y, attachment.position.z)
+            end
             constructor_lib.attach_entity(attachment)
             table.insert(current.children, attachment)
             rebuild_attachment(attachment.root)
         end)
+        menu.on_focus(new_parent_item, function(direction) if direction ~= 0 then current.is_editing = true end end)
+        menu.on_blur(new_parent_item, function(direction) if direction ~= 0 then current.is_editing = false end end)
         for _, child_attachment in pairs(current.children) do
-            rebuild_reattach_to_menu(attachment, child_attachment, constructor_lib.table_copy(path), depth)
+            build_change_parent_menu_item(attachment, child_attachment, constructor_lib.table_copy(path), depth)
         end
     end
+end
+
+local function build_change_parent_menu(attachment, current, path, depth)
+    if attachment.menus.option_change_parent_keep_position ~= nil then return end
+    debug_log("Rebuilding reattach to menu "..tostring(attachment.name))
+    attachment.menus.option_change_parent_keep_position = menu.toggle(attachment.menus.option_parent_attachment, "Keep Position", {}, "If enabled, the attachment will keep it's position when changing parent (tho rotations may be effected) otherwise it will keep its offset from parent.", function(on)
+        config.change_parent_keep_position = on
+    end, config.change_parent_keep_position)
+    menu.divider(attachment.menus.option_parent_attachment, "New Parent")
+    build_change_parent_menu_item(attachment, attachment.root, {}, 0)
 end
 
 local function search(search_params)
@@ -2103,7 +2113,7 @@ constructor.add_child_attachment_menu = function(attachment)
             constructor_lib.attach_entity(attachment)
         end, attachment.options.is_attached)
         attachment.menus.option_parent_attachment = menu.list(attachment.menus.attachment_options, t("Change Parent"), {}, t("Select a new parent for this child. Construct will be rebuilt to accommodate changes."), function()
-            rebuild_reattach_to_menu(attachment)
+            build_change_parent_menu(attachment)
         end)
         attachment.menus.option_edit_rotation_order = menu.list_select(attachment.menus.attachment_options, t("Rotation Order"), {"constructorrotationorder"..attachment.id}, t("Set the order that rotations should be applied."), constants.rotation_orders, attachment.rotation_order + 1, function(index)
             attachment.rotation_order = constants.rotation_orders[index][4]
