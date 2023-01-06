@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b8"
+local SCRIPT_VERSION = "0.33b9"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2947,7 +2947,12 @@ menu.readonly(menus.credits, t("Spanish"), t("Tryce"))
 ---
 
 if SCRIPT_MANUAL_START and not SCRIPT_SILENT_START then
-    local logo = directx.create_texture(filesystem.scripts_dir() .. '/lib/constructor/constructor_logo.png')
+    local logo_path = filesystem.scripts_dir() .. '/lib/constructor/constructor_logo.png'
+    local logo_status, logo = pcall(directx.create_texture, logo_path)
+    if not logo_status then
+        debug_log("Failed to load constructor logo. "..tostring(logo))
+        return
+    end
     local fade_steps = 50
     -- Fade In
     for i = 0,fade_steps do
