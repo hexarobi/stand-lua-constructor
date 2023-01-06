@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b9"
+local SCRIPT_VERSION = "0.33b10"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2059,6 +2059,10 @@ constructor.add_attachment_ped_menu = function(attachment)
         attachment.ped_attributes.armor = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
+    attachment.menus.option_ped_ignore_events = menu.toggle(attachment.menus.ped_options, t("Ignore Events"), {}, t("If enabled, the ped will ignore events going on that might otherwise cause the ped to flee or cower."), function(value)
+        attachment.ped_attributes.ignore_events = value
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end, attachment.ped_attributes.ignore_events)
     attachment.menus.option_on_fire = menu.toggle(attachment.menus.ped_options, t("On Fire"), {}, t("Will the ped be burning on fire, or not"), function(on)
         attachment.options.is_on_fire = on
         constructor_lib.deserialize_ped_attributes(attachment)
