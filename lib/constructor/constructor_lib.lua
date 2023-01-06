@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b1"
+local SCRIPT_VERSION = "0.33b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1681,6 +1681,7 @@ constructor_lib.default_ped_attributes = function(attachment)
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
     if attachment.ped_attributes.components == nil then attachment.ped_attributes.components = {} end
     if attachment.ped_attributes.weapon == nil then attachment.ped_attributes.weapon = {} end
+    if attachment.ped_attributes.ignore_events == nil then attachment.ped_attributes.ignore_events = true end
     for prop_index = 0, 9 do
         if attachment.ped_attributes.props["_"..prop_index] == nil then attachment.ped_attributes.props["_"..prop_index] = {} end
         if attachment.ped_attributes.props["_"..prop_index].drawable_variation == nil then attachment.ped_attributes.props["_"..prop_index].drawable_variation = -1 end
@@ -1748,6 +1749,9 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
     constructor_lib.deserialize_ped_weapon(attachment)
     if attachment.ped_attributes.armour then
         PED.SET_PED_ARMOUR(attachment.handle, attachment.ped_attributes.armour)
+    end
+    if attachment.ped_attributes.ignore_events ~= nil then
+        PED.SET_BLOCKING_OF_NON_TEMPORARY_EVENTS(attachment.handle, attachment.ped_attributes.ignore_events)
     end
     if attachment.options.is_on_fire == true then
         FIRE.START_ENTITY_FIRE(attachment.handle)
