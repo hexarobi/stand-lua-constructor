@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.33b2"
+local SCRIPT_VERSION = "0.33b3"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -56,6 +56,7 @@ local function parse_number(value)
 end
 
 local function read_file(filepath)
+    os.setlocale("en_us.utf-8")
     local file, err = io.open(filepath, "r")
     if file then
         local status, data = pcall(function() return file:read("*a") end)
