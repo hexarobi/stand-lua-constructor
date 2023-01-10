@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b10"
+local SCRIPT_VERSION = "0.33b11"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1240,7 +1240,7 @@ end
 ---
 
 local function read_file(filepath)
-    local file = io.open(filepath, "r")
+    local file, err = io.open(filepath, "r")
     if file then
         local status, data = pcall(function() return file:read("*a") end)
         if not status then
@@ -1250,7 +1250,7 @@ local function read_file(filepath)
         file:close()
         return data
     else
-        error("Could not read file '" .. filepath .. "'", TOAST_ALL)
+        error("Could not read file '" .. filepath .. "': " .. err, TOAST_ALL)
     end
 end
 
