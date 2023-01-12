@@ -1514,10 +1514,10 @@ end
 local function build_change_parent_menu(attachment, current, path, depth)
     if attachment.menus.option_change_parent_keep_position ~= nil then return end
     debug_log("Rebuilding reattach to menu "..tostring(attachment.name))
-    attachment.menus.option_change_parent_keep_position = menu.toggle(attachment.menus.option_parent_attachment, "Keep Position", {}, "If enabled, the attachment will keep it's position when changing parent (tho rotations may be effected) otherwise it will keep its offset from parent.", function(on)
+    attachment.menus.option_change_parent_keep_position = menu.toggle(attachment.menus.option_parent_attachment, t("Keep Position"), {}, t("If enabled, the attachment will keep it's position when changing parent (tho rotations may be effected) otherwise it will keep its offset from parent."), function(on)
         config.change_parent_keep_position = on
     end, config.change_parent_keep_position)
-    menu.divider(attachment.menus.option_parent_attachment, "New Parent")
+    menu.divider(attachment.menus.option_parent_attachment, t("New Parent"))
     build_change_parent_menu_item(attachment, attachment.root, {}, 0)
 end
 
@@ -1566,7 +1566,7 @@ end
 
 constructor.add_attachment_info_menu = function(attachment)
 
-    attachment.menus.info = menu.list(attachment.menus.main, "Info", {}, t("Information about the construct"), function()
+    attachment.menus.info = menu.list(attachment.menus.main, t("Info"), {}, t("Information about the construct"), function()
         if attachment.menus.name ~= nil then return end
 
         attachment.menus.name = menu.text_input(attachment.menus.info, t("Name"), { "constructorsetattachmentname"..attachment.id}, t("Set name of the attachment"), function(value)
@@ -2946,6 +2946,7 @@ menu.readonly(menus.credits, "LanceSpooner", t("LanceSpooner is also a huge insp
 menu.divider(menus.credits, t("Translators"))
 menu.readonly(menus.credits, t("Chinese"), t("Zelda Two"))
 menu.readonly(menus.credits, t("Spanish"), t("Tryce"))
+menu.readonly(menus.credits, t("French"), t("ukn"))
 
 ---
 --- Startup Logo
