@@ -460,6 +460,14 @@ translations.lang["zh"] = {
     ["Make a copy of this attachment"] = "复制此附件",
     ["Move your player nearby the construct, but not inside of it."] = "将玩家传送到构造附近",
     ["Move the construct to be nearby your player"] = "将构造移动到玩家附近",
+    ["Free Edit"] = "自由编辑",
+    ["Position this object using controller or mouse"] = "使用手柄或鼠标拖动该物体",
+    ["Always Spawn at Position"] = "始终在位置上生成",
+    ["Other Construct"] = "其他构造",
+    ["Attach another construct to the current construct"] = "将另一个结构体附加到当前结构体上",
+    ["Always Spawn at Position"] = "始终在位置上生成",
+    ["Always Spawn at Position"] = "始终在位置上生成",
+    ["Will this construct always spawn at the same world position it's in now (for stationary maps) or in front of the player (for props or small structures)"] = "该建筑是否总是在它现在所处的世界位置（对于静止的地图）或在玩家面前（对于道具或小型结构）生成？",
     ["Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."] = "作者更新lua时会自动进行更新,如果你无法更新,请取消自动更新.",
 }
 
@@ -818,3 +826,4 @@ translations.lang["es"] = {
 
 translations.inject_custom_translations()
 return translations
+
