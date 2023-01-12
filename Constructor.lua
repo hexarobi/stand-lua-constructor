@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b11"
+local SCRIPT_VERSION = "0.33b12"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -272,10 +272,10 @@ local constructor = {}
 local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
 local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION .. " / " .. convertors.SCRIPT_VERSION
 
-local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
+local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs/'
 filesystem.mkdirs(CONSTRUCTS_DIR)
 
-local JACKZ_BUILD_DIR = filesystem.stand_dir() .. 'Builds\\'
+local JACKZ_BUILD_DIR = filesystem.stand_dir() .. 'Builds/'
 
 local spawned_constructs = {}
 local last_spawned_construct
@@ -2816,7 +2816,7 @@ local player_menu_actions = function(pid)
     menus.constructor_player_menu = menu.divider(menu.player_root(pid), t("Constructor"))
 
     menus.spawn_commands = menu.list(menu.player_root(pid), t("Chat Spawn Commands"))
-    local construct_plan_files = load_all_construct_plan_files_from_dir(CONSTRUCTS_DIR.."/"..config.chat_spawnable_dir)
+    local construct_plan_files = load_all_construct_plan_files_from_dir(CONSTRUCTS_DIR..config.chat_spawnable_dir)
     for _, construct_plan_file in pairs(construct_plan_files) do
         if not construct_plan_file.is_directory and is_file_type_supported(construct_plan_file.ext) then
             menu.action(menus.spawn_commands, construct_plan_file.name, {construct_plan_file.name}, "", function()
