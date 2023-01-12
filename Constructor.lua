@@ -1299,7 +1299,7 @@ local function load_construct_plan_file(construct_plan_file)
         construct_plan = load_construct_plan_from_ini_file(construct_plan_file)
     end
     if not construct_plan then return end
-    if not construct_plan.name then construct_plan.name = construct_plan_file.filename or "Unknown" end
+    if construct_plan.name == nil then construct_plan.name = construct_plan_file.filename or "Unknown" end
     if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil and not construct_plan.is_player) then
         util.toast(t("Failed to load construct from file ")..construct_plan_file.filepath, TOAST_ALL)
         debug_log("Failed to load construct \nPlan:"..inspect(construct_plan_file).."\nLoaded construct plan "..inspect(construct_plan))

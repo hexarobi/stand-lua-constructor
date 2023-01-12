@@ -56,7 +56,6 @@ local function parse_number(value)
 end
 
 local function read_file(filepath)
-    os.setlocale("en_us.utf-8")
     local file, err = io.open(filepath, "r")
     if file then
         local status, data = pcall(function() return file:read("*a") end)
