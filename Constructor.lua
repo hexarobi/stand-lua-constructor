@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b12"
+local SCRIPT_VERSION = "0.33b13"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -272,10 +272,10 @@ local constructor = {}
 local PROPS_PATH = filesystem.scripts_dir().."lib/constructor/objects_complete.txt"
 local VERSION_STRING = SCRIPT_VERSION.." / "..constructor_lib.LIB_VERSION .. " / " .. convertors.SCRIPT_VERSION
 
-local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs/'
+local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
 filesystem.mkdirs(CONSTRUCTS_DIR)
 
-local JACKZ_BUILD_DIR = filesystem.stand_dir() .. 'Builds/'
+local JACKZ_BUILD_DIR = filesystem.stand_dir() .. 'Builds\\'
 
 local spawned_constructs = {}
 local last_spawned_construct
@@ -1342,6 +1342,7 @@ local function load_construct_plans_files_from_dir(directory)
 end
 
 local function load_all_construct_plan_files_from_dir(directory)
+    if not filesystem.exists(directory) then return {} end
     local construct_plan_files = load_construct_plans_files_from_dir(directory)
     for _, filepath in ipairs(filesystem.list_files(directory)) do
         if filesystem.is_dir(filepath) then
