@@ -236,6 +236,7 @@ translations.lang["zh"] = {
     ["Clothes"] = "衣服",
     ["Props"] = "道具",
     ["Attachment Options"] = "附件选项",
+    ["Additional options available for all entities attached to a parent object."] = "附加到父级的实体选项.",
     ["Attached"] = "附加",
     ["Is this child physically attached to the parent, or does it move freely on its own."] = "这个附着物是附加在身体上还是父级,还是自由移动.",
     ["Change Parent"] = "更改父级",
@@ -485,6 +486,20 @@ translations.lang["zh"] = {
     ["Windows Rolled Down"] = "窗户摇下",
     ["Roll up and down windows"] = "摇上摇下窗户",
     ["Windows Broken"] = "窗户破碎",
+    ["Loop Timer"] = "循环时间",
+    ["How often should the effect repeat. If this is 0 then it should try to loop forever."] = "粒子特效应该多久循环一次,为0时将一直循环.",
+    ["Particle Color"] = "粒子颜色",
+    ["Particle effect size"] = "粒子大小比例",
+    ["Ignore Events"] = "忽略事件",
+    ["If enabled, the ped will ignore events going on that might otherwise cause the ped to flee or cower."] = "如果开启,NPC就无视周围的事件,避免NPC逃跑.",
+    ["Animation"] = "动画",
+    ["Dictionary"] = "代码",
+    ["Set the animation dictionary available for the animation name to load from."] = "设置动画名称对应的动画代码",
+    ["Set the animation name to load from the dictionary"] = "设置动画代码对应的动画名称",
+    ["Animation List"] = "动画列表",
+    ["Scenario"] = "场景",
+    ["Set the animation scenario, separate from dictionary and name."] = "设置动画场景,与代码和名称分开",
+    ["Scenario List"] = "场景列表",
     ["Will this construct always spawn at the same world position it's in now (for stationary maps) or in front of the player (for props or small structures)"] = "该建筑是否总是在它现在所处的世界位置（对于静止的地图）或在玩家面前（对于道具或小型结构）生成？",
     ["Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."] = "作者更新lua时会自动进行更新,如果你无法更新,请取消自动更新.",
 }
@@ -1192,4 +1207,5 @@ translations.lang["fr"] = {
 
 translations.inject_custom_translations()
 return translations
+
 
