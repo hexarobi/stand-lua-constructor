@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b1"
+local SCRIPT_VERSION = "0.34b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1002,7 +1002,9 @@ local function create_construct_from_vehicle(vehicle_handle)
     for _, construct in pairs(spawned_constructs) do
         if construct.handle == vehicle_handle then
             util.toast("Vehicle is already a construct")
-            menu.focus(construct.menus.info)
+            if menu.is_ref_valid(construct.menus.info) then
+                menu.focus(construct.menus.info)
+            end
             return
         end
     end
@@ -1497,7 +1499,8 @@ local function build_change_parent_menu_item(attachment, current, path, depth)
             attachment.parent = current
             attachment.root = current.root
             if config.change_parent_keep_position then
-                attachment.offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(current.handle, attachment.position.x, attachment.position.y, attachment.position.z)
+                local offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(current.handle, attachment.position.x, attachment.position.y, attachment.position.z)
+                attachment.offset = {x=offset.x, y=offset.y, z=offset.z}
             end
             constructor_lib.attach_entity(attachment)
             table.insert(current.children, attachment)
@@ -2545,7 +2548,9 @@ menu.action(menus.create_new_construct, t("From Current Vehicle"), { "constructc
     if construct then
         menus.rebuild_attachment_menu(construct)
         construct.functions.refresh()
-        menu.focus(construct.menus.info)
+        if menu.is_ref_valid(construct.menus.info) then
+            menu.focus(construct.menus.info)
+        end
     end
 end)
 
