@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b1"
+local SCRIPT_VERSION = "0.34b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1021,27 +1021,39 @@ local function create_construct_from_vehicle(vehicle_handle)
     return construct
 end
 
-local function save_vehicle(construct)
-    debug_log("Saving construct "..tostring(construct.name), construct)
-    if construct.author == nil then construct.author = players.get_name(players.user()) end
-    if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
-    if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
-    local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
-    local serialized_construct = constructor_lib.serialize_attachment(construct)
-    --debug_log("Serialized construct "..inspect(serialized_construct))
-    local encode_status, content = pcall(soup.json.encode, serialized_construct)
-    if not encode_status then
-        util.toast("Error encoding construct: "..content)
-        debug_log("Error encoding construct: "..content.." construct: "..inspect(serialized_construct))
-    end
-    if content == "" or (not constructor_lib.string_starts(content, "{")) then
-        util.toast("Cannot save vehicle: Error serializing.", TOAST_ALL)
-        return
-    end
+local function write_file(filepath, content)
     local file = io.open(filepath, "wb")
     if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
     file:write(content)
     file:close()
+end
+
+local function write_json_file(filepath, object)
+    local encode_status, content = pcall(soup.json.encode, object)
+    if not encode_status then
+        util.toast("Error encoding object: "..content)
+        debug_log("Error encoding object: "..content.." object: "..inspect(object))
+    end
+    if content == "" or (not string.startswith(content, "{")) then
+        util.toast("Cannot save object as JSON: Error serializing.", TOAST_ALL)
+        return
+    end
+    write_file(filepath, content)
+end
+
+local function set_save_defaults(construct)
+    if construct.author == nil then construct.author = players.get_name(players.user()) end
+    if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
+    if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
+end
+
+local function save_vehicle(construct)
+    debug_log("Saving construct "..tostring(construct.name), construct)
+    set_save_defaults(construct)
+    local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
+    local serialized_construct = constructor_lib.serialize_attachment(construct)
+    --debug_log("Serialized construct "..inspect(serialized_construct))
+    write_json_file(filepath, serialized_construct)
     util.toast("Saved ".. construct.name)
     util.log("Saved ".. construct.name .. " to " ..filepath)
     menus.rebuild_load_construct_menu()
@@ -1741,7 +1753,17 @@ constructor.add_attachment_options_menu = function(attachment)
         end
 
         if attachment.type == "PARTICLE" then
-            if attachment.menus.option_paritcle_edit_scale ~= nil then return end
+            if attachment.menus.option_particle_asset ~= nil then return end
+
+            attachment.menus.option_particle_asset = menu.text_input(attachment.menus.options, t("Particle Asset"), { "constructorsetparticleasset"..attachment.id}, t("Set the name of the particle asset"), function(value)
+                attachment.particle_attributes.asset = value
+                constructor_lib.update_particle(attachment)
+            end, attachment.particle_attributes.asset or "")
+            attachment.menus.option_particle_effect_name = menu.text_input(attachment.menus.options, t("Particle Effect"), { "constructorsetparticleeffect"..attachment.id}, t("Set the name of the particle effect"), function(value)
+                attachment.particle_attributes.effect_name = value
+                constructor_lib.update_particle(attachment)
+            end, attachment.particle_attributes.effect_name or "")
+
             attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.options, t("Scale"), {"constructorscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
                 attachment.particle_attributes.scale = value / 100
                 constructor_lib.update_particle(attachment)
@@ -2087,17 +2109,20 @@ constructor.add_attachment_ped_menu = function(attachment)
 
     attachment.menus.ped_options_animation = menu.list(attachment.menus.ped_options, t("Animation"))
     menu.divider(attachment.menus.ped_options_animation, t("Dictionary"))
-    menu.text_input(attachment.menus.ped_options_animation, t("Dictionary"), {"constructoranimationdictionary"..attachment.id}, "Set the animation dictionary available for the animation name to load from.", function(animation_dict)
+    attachment.menus.ped_options_animation_dict = menu.text_input(attachment.menus.ped_options_animation, t("Dictionary"), {"constructoranimationdictionary"..attachment.id}, "Set the animation dictionary available for the animation name to load from.", function(animation_dict)
         attachment.ped_attributes.animation_dict = animation_dict
         constructor_lib.animate_peds(attachment)
     end, attachment.ped_attributes.animation_dict or "")
-    menu.text_input(attachment.menus.ped_options_animation, t("Name"), {"constructoranimationname"..attachment.id}, "Set the animation name to load from the dictionary.", function(animation_name)
+    attachment.menus.ped_options_animation_name = menu.text_input(attachment.menus.ped_options_animation, t("Name"), {"constructoranimationname"..attachment.id}, "Set the animation name to load from the dictionary.", function(animation_name)
         attachment.ped_attributes.animation_name = animation_name
         constructor_lib.animate_peds(attachment)
     end, attachment.ped_attributes.animation_name or "")
-    menu.hyperlink(attachment.menus.ped_options_animation, t("Animation List"), "https://gtahash.ru/animations/")
+    attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Animation List"), {}, "", function()
+
+    end)
+
     menu.divider(attachment.menus.ped_options_animation, t("Scenario"))
-    menu.text_input(attachment.menus.ped_options_animation, t("Scenario"), {"constructoranimationscenario"..attachment.id}, "Set the animation scenario, separate from dictionary and name.", function(animation_scenario)
+    attachment.menus.ped_options_animation_scenario = menu.text_input(attachment.menus.ped_options_animation, t("Scenario"), {"constructoranimationscenario"..attachment.id}, "Set the animation scenario, separate from dictionary and name.", function(animation_scenario)
         attachment.ped_attributes.animation_scenario = animation_scenario
         constructor_lib.animate_peds(attachment)
     end, attachment.ped_attributes.animation_scenario or "")
