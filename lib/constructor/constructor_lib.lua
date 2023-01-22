@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33b2"
+local SCRIPT_VERSION = "0.34b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -327,7 +327,7 @@ constructor_lib.start_particle_fx = function(attachment)
     constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
     GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
     if attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0 then
-        attachment.handle = GRAPHICS.START_NETWORKED_PARTICLE_FX_NON_LOOPED_ON_PED_BONE(
+        attachment.handle = GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
                 attachment.particle_attributes.effect_name,
                 attachment.parent.handle,
                 attachment.offset.x, attachment.offset.y, attachment.offset.z,
@@ -884,15 +884,6 @@ end
 --- Ported from Kek's Menu. Thanks Kek!
 ---
 
-constructor_lib.set_attachment_visibility = function(attachment)
-    if attachment.options.is_visible ~= nil then
-        ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
-    end
-    for _, child_attachment in pairs(attachment.children) do
-        constructor_lib.set_attachment_visibility(child_attachment)
-    end
-end
-
 constructor_lib.set_entity_as_networked = function(attachment, timeout)
     local time <const> = util.current_time_millis() + (timeout or 1500)
     while time > util.current_time_millis() and not NETWORK.NETWORK_GET_ENTITY_IS_NETWORKED(attachment.handle) do
@@ -916,6 +907,19 @@ constructor_lib.make_entity_networked = function(attachment)
     ENTITY.SET_ENTITY_SHOULD_FREEZE_WAITING_ON_COLLISION(attachment.handle, false)
     constructor_lib.constantize_network_id(attachment)
     NETWORK.SET_NETWORK_ID_CAN_MIGRATE(NETWORK.OBJ_TO_NET(attachment.handle), false)
+end
+
+---
+--- Visibility
+---
+
+constructor_lib.set_attachment_visibility = function(attachment)
+    if attachment.options.is_visible ~= nil then
+        ENTITY.SET_ENTITY_VISIBLE(attachment.handle, attachment.options.is_visible, 0)
+    end
+    for _, child_attachment in pairs(attachment.children) do
+        constructor_lib.set_attachment_visibility(child_attachment)
+    end
 end
 
 ---
