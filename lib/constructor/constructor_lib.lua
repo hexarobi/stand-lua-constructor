@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b1"
+local SCRIPT_VERSION = "0.34b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -182,6 +182,9 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.is_visible == nil then attachment.options.is_visible = true end
     if attachment.options.alpha == nil then attachment.options.alpha = 255 end
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
+    if attachment.options.gravity == nil then attachment.options.gravity = 0.0 end
+    if attachment.options.weight == nil then attachment.options.weight = 0.0 end
+    if attachment.options.buoyancy == nil then attachment.options.buoyancy = 0.0 end
     if attachment.options.has_collision == nil then
         attachment.options.has_collision = true
         if attachment.root ~= nil and attachment.root.type == "PED" then
@@ -217,11 +220,15 @@ constructor_lib.default_entity_attributes = function(attachment)
     constructor_lib.default_ped_attributes(attachment)
 end
 
-constructor_lib.serialize_entity_attributes = function(attachment)
+constructor_lib.serialize_entity_position = function(attachment)
     local pos = ENTITY.GET_ENTITY_COORDS(attachment.handle, 0)
     attachment.position = {x=pos.x, y=pos.y, z=pos.z}
     local rot = ENTITY.GET_ENTITY_ROTATION(attachment.handle, attachment.rotation_order)
     attachment.world_rotation = {x=rot.x, y=rot.y, z=rot.z}
+end
+
+constructor_lib.serialize_entity_attributes = function(attachment)
+    constructor_lib.serialize_entity_position(attachment)
     attachment.options.object_tint = OBJECT.GET_OBJECT_TINT_INDEX(attachment.handle)
 end
 
@@ -249,9 +256,20 @@ constructor_lib.deserialize_entity_attributes = function(attachment)
     if attachment.options.is_scorched ~= nil then ENTITY.SET_ENTITY_RENDER_SCORCHED(attachment.handle, attachment.options.is_scorched) end
     if attachment.options.radio_loud ~= nil then AUDIO.SET_VEHICLE_RADIO_LOUD(attachment.handle, attachment.options.radio_loud) end
     if attachment.options.lod_distance ~= nil then ENTITY.SET_ENTITY_LOD_DIST(attachment.handle, attachment.options.lod_distance) end
-
     if attachment.options.is_dynamic ~= nil then ENTITY.SET_ENTITY_DYNAMIC(attachment.handle, attachment.options.is_dynamic) end
-    if attachment.options.has_gravity ~= nil then ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity) end
+    if attachment.options.has_gravity ~= nil then
+        if attachment.type == "OBJECT" then
+            ENTITY.SET_ENTITY_HAS_GRAVITY(attachment.handle, attachment.options.has_gravity)
+        elseif attachment.type == "VEHICLE" then
+            VEHICLE.SET_VEHICLE_GRAVITY(attachment.handle, attachment.options.has_gravity)
+        elseif attachment.type == "PED" then
+            PED.SET_PED_GRAVITY(attachment.handle, attachment.options.has_gravity)
+        end
+    end
+    if attachment.options.has_special_physics then
+        OBJECT.SET_OBJECT_PHYSICS_PARAMS(attachment.handle, attachment.options.weight, 0.0, 0.0, 0.0, 0.0,
+                attachment.options.gravity, 0.0, 0.0, 0.0, 0.0, attachment.options.buoyancy)
+    end
     if attachment.options.is_light_on == true then
         VEHICLE.SET_VEHICLE_SIREN(attachment.handle, true)
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(attachment.handle, true)
@@ -566,9 +584,6 @@ constructor_lib.create_entity = function(attachment)
                 )
             end
         end
-        if attachment.parent.type == "VEHICLE" and attachment.ped_attributes and attachment.ped_attributes.is_seated then
-            PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, -1)
-        end
         constructor_lib.deserialize_ped_attributes(attachment)
     else
         debug_log("Creating object "..tostring(attachment.name))
@@ -817,6 +832,7 @@ constructor_lib.update_attachment_tick = function(attachment)
             and attachment.vehicle_attributes.wheels.steering_bias ~= nil then
         VEHICLE.SET_VEHICLE_STEER_BIAS(attachment.handle, attachment.vehicle_attributes.wheels.steering_bias)
     end
+    --constructor_lib.serialize_entity_position(attachment)
     constructor_lib.update_particle_tick(attachment)
 end
 
@@ -1411,7 +1427,7 @@ local function vehicle_wheels_uninvis(attachment)
     VEHICLE.SET_VEHICLE_FIXED(attachment.handle)
     VEHICLE.SET_VEHICLE_DEFORMATION_FIXED(attachment.handle)
     VEHICLE.RESET_VEHICLE_WHEELS(attachment.handle)
-    VEHICLE.SET_VEHICLE_DIRT_LEVEL(attachment.handle, 0)
+    VEHICLE.SET_VEHICLE_DIRT_LEVEL(attachment.handle, 0.0)
     VEHICLE.SET_VEHICLE_ENGINE_CAN_DEGRADE(attachment.handle, 0)
     VEHICLE.SET_VEHICLE_ENGINE_HEALTH(attachment.handle, 2000)
     VEHICLE.SET_VEHICLE_PETROL_TANK_HEALTH(attachment.handle, 2000)
@@ -1685,6 +1701,7 @@ constructor_lib.default_ped_attributes = function(attachment)
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
     if attachment.ped_attributes.components == nil then attachment.ped_attributes.components = {} end
     if attachment.ped_attributes.weapon == nil then attachment.ped_attributes.weapon = {} end
+    if attachment.ped_attributes.seat == nil then attachment.ped_attributes.seat = -3 end
     if attachment.ped_attributes.ignore_events == nil then attachment.ped_attributes.ignore_events = true end
     for prop_index = 0, 9 do
         if attachment.ped_attributes.props["_"..prop_index] == nil then attachment.ped_attributes.props["_"..prop_index] = {} end
@@ -1747,6 +1764,15 @@ end
 constructor_lib.deserialize_ped_attributes = function(attachment)
     debug_log("Deserializing ped attributes "..tostring(attachment.name))
     if attachment.ped_attributes == nil then return end
+    if attachment.parent.type == "VEHICLE" then
+        if attachment.ped_attributes.seat ~= -3 then
+            PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, attachment.ped_attributes.seat)
+        elseif PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+            TASK.TASK_LEAVE_VEHICLE(attachment.handle, attachment.parent.handle, 16)
+            util.yield(100)
+            constructor_lib.move_attachment(attachment)
+        end
+    end
     if attachment.ped_attributes.can_rag_doll ~= nil then
         PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
     end
