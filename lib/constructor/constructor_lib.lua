@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b2"
+local SCRIPT_VERSION = "0.34b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -834,6 +834,7 @@ constructor_lib.update_attachment_tick = function(attachment)
     end
     --constructor_lib.serialize_entity_position(attachment)
     constructor_lib.update_particle_tick(attachment)
+    constructor_lib.refresh_ped_animation(attachment)
 end
 
 ---
@@ -854,6 +855,13 @@ constructor_lib.load_particle_fx_asset = function(asset, timeout)
     local end_time = util.current_time_millis() + timeout
     repeat util.yield() until STREAMING.HAS_NAMED_PTFX_ASSET_LOADED(asset) or util.current_time_millis() >= end_time
     return STREAMING.REQUEST_NAMED_PTFX_ASSET(asset)
+end
+
+constructor_lib.load_animation_dictionary = function(dictionary, timeout)
+    if timeout == nil then timeout = 3000 end
+    STREAMING.REQUEST_ANIM_DICT(dictionary)
+    local end_time = util.current_time_millis() + timeout
+    repeat util.yield() until STREAMING.HAS_ANIM_DICT_LOADED(dictionary) or util.current_time_millis() >= end_time
 end
 
 constructor_lib.load_hash_for_attachment = function(attachment)
@@ -942,18 +950,101 @@ end
 --- Ped Animation
 ---
 
-constructor_lib.animate_peds = function(attachment)
-    if attachment.ped_attributes then
-        if attachment.ped_attributes.animation_dict ~= nil then
-            STREAMING.REQUEST_ANIM_DICT(attachment.ped_attributes.animation_dict)
-            while not STREAMING.HAS_ANIM_DICT_LOADED(attachment.ped_attributes.animation_dict) do
-                util.yield()
-            end
-            TASK.TASK_PLAY_ANIM(attachment.handle, attachment.ped_attributes.animation_dict, attachment.ped_attributes.animation_name, 8.0, 8.0, -1, 1, 1.0, false, false, false)
-        elseif attachment.ped_attributes.animation_scenario ~= nil then
-            debug_log("Animating ped scenario "..attachment.name.." scenario "..attachment.ped_attributes.animation_scenario)
-            TASK.TASK_START_SCENARIO_IN_PLACE(attachment.handle, attachment.ped_attributes.animation_scenario, 0, true);
+local function delete_animation_prop(attachment, prop_handle)
+    if attachment.temp.animation_attachments == nil then return end
+    for key, animation_attachment in pairs(attachment.temp.animation_attachments) do
+        if animation_attachment.handle == prop_handle then
+            entities.delete_by_handle(animation_attachment.handle)
+            attachment.temp.animation_attachments.key = nil
+            return
         end
+    end
+end
+
+local function delete_animation_props(attachment)
+    if attachment.temp.animation_attachments == nil then return end
+    for _, animation_attachment in pairs(attachment.temp.animation_attachments) do
+        entities.delete_by_handle(animation_attachment.handle)
+    end
+end
+
+constructor_lib.cancel_animation = function(attachment)
+    TASK.CLEAR_PED_TASKS_IMMEDIATELY(attachment.handle)
+    delete_animation_props(attachment)
+end
+
+local function build_animation_flags(attachment)
+    local flags = constants.animation_flags.ANIM_FLAG_NORMAL
+    if attachment.ped_attributes.animation.loop then
+        flags = flags | constants.animation_flags.ANIM_FLAG_REPEAT
+    end
+    if attachment.ped_attributes.animation.controllable then
+        flags = flags | constants.animation_flags.ANIM_FLAG_ENABLE_PLAYER_CONTROL | constants.animation_flags.ANIM_FLAG_UPPERBODY
+    end
+    return flags
+end
+
+local function attach_animation_props(attachment)
+    if attachment.ped_attributes.animation.props == nil then return end
+    if attachment.temp.animation_attachments == nil then attachment.temp.animation_attachments = {} end
+    local pos = ENTITY.GET_ENTITY_COORDS(attachment.handle)
+    for _, prop_data in ipairs(attachment.ped_attributes.animation.props) do
+        local bone_index = PED.GET_PED_BONE_INDEX(attachment.handle, prop_data.bone)
+        local hash = util.joaat(prop_data.prop)
+        local prop_handle = entities.create_object(hash, pos)
+        table.insert(attachment.temp.animation_attachments, {
+            handle = prop_handle,
+            delete_on_end = (prop_data.delete_on_end ~= nil),
+        })
+        ENTITY.ATTACH_ENTITY_TO_ENTITY(
+                prop_handle, attachment.handle, bone_index,
+                prop_data.placement[1] or 0.0,
+                prop_data.placement[2] or 0.0,
+                prop_data.placement[3] or 0.0,
+                prop_data.placement[4] or 0.0,
+                prop_data.placement[5] or 0.0,
+                prop_data.placement[6] or 0.0,
+                false, true, false, true, 1, true
+        )
+        STREAMING.SET_MODEL_AS_NO_LONGER_NEEDED(hash)
+        if prop_data.delete_on_end and attachment.ped_attributes.animation.emote_duration then
+            util.create_thread(function()
+                util.yield(attachment.ped_attributes.animation.emote_duration)
+                delete_animation_prop(attachment, prop_handle)
+            end)
+        end
+    end
+end
+
+constructor_lib.animate_peds = function(attachment)
+    constructor_lib.cancel_animation(attachment)
+    if attachment.ped_attributes == nil or attachment.ped_attributes.animation == nil then return end
+    local animation = attachment.ped_attributes.animation
+    if animation.scenario ~= nil then
+        --debug_log("Animating ped scenario "..attachment.name.." scenario "..animation.scenario)
+        TASK.TASK_START_SCENARIO_IN_PLACE(attachment.handle, animation.scenario, 0, true)
+    elseif animation.dictionary ~= nil then
+        --debug_log("Animating ped "..attachment.name.." dictionary:"..animation.dictionary .. " clip:"..tostring(animation.clip))
+        constructor_lib.load_animation_dictionary(animation.dictionary)
+        attach_animation_props(attachment)
+        TASK.TASK_PLAY_ANIM(
+            attachment.handle, animation.dictionary, animation.clip,
+            8.0, 8.0, (animation.emote_duration or -1), build_animation_flags(attachment),
+            0.0, false, false, false
+        )
+    end
+    if attachment.ped_attributes.animation.refresh_timer ~= nil and attachment.ped_attributes.animation.refresh_timer > 0 then
+        attachment.ped_attributes.animation.refresh_time = util.current_time_millis() + attachment.ped_attributes.animation.refresh_timer
+    else
+        attachment.ped_attributes.animation.refresh_time = nil
+    end
+end
+
+constructor_lib.refresh_ped_animation = function(attachment)
+    if attachment.ped_attributes == nil or attachment.ped_attributes.animation == nil then return end
+    if (attachment.ped_attributes.animation.refresh_time ~= nil
+        and attachment.ped_attributes.animation.refresh_time < util.current_time_millis()) then
+        constructor_lib.animate_peds(attachment)
     end
 end
 
@@ -1765,7 +1856,7 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
     debug_log("Deserializing ped attributes "..tostring(attachment.name))
     if attachment.ped_attributes == nil then return end
     if attachment.parent.type == "VEHICLE" then
-        if attachment.ped_attributes.seat ~= -3 then
+        if attachment.ped_attributes.seat ~= -3 then    -- -3 is special value to mean unseated
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, attachment.ped_attributes.seat)
         elseif PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
             TASK.TASK_LEAVE_VEHICLE(attachment.handle, attachment.parent.handle, 16)
