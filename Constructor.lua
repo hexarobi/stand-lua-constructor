@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b3"
+local SCRIPT_VERSION = "0.34b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1576,6 +1576,34 @@ local function install_curated_constructs()
 end
 
 ---
+--- Item Browser
+---
+
+-- TODO: In progress
+
+constructor.search_items = function(items, query)
+
+end
+
+constructor.browse_items = function(root_menu, items, context)
+    menu.action(root_menu, t("Search"), {}, "", function()  end)
+    menu.divider(root_menu, t("Browse"))
+    for _, item in pairs(items) do
+        if item.is_folder == true then
+            local menu_list = menu.list(root_menu, item.name)
+            constructor.browse_items(menu_list, item.items, context)
+        else
+            if context.action_function ~= nil then
+                menu.action(root_menu, item.name, {}, item.description or "", function()
+                    context.action_function(item)
+                end)
+            end
+        end
+    end
+end
+
+
+---
 --- Info Attachment Menu
 ---
 
@@ -1740,10 +1768,6 @@ constructor.add_attachment_options_menu = function(attachment)
                 constructor_lib.attach_entity(attachment)
             end, attachment.options.is_invincible)
             if constructor_lib.is_attachment_root(attachment) then
-                attachment.menus.option_gravity = menu.toggle(attachment.menus.options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
-                    attachment.options.has_gravity = on
-                    constructor_lib.attach_entity(attachment)
-                end, attachment.options.has_gravity)
                 attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
                     attachment.options.is_frozen = on
                     constructor_lib.serialize_entity_attributes(attachment)
@@ -1764,19 +1788,19 @@ constructor.add_attachment_options_menu = function(attachment)
                 constructor_lib.update_particle(attachment)
             end, attachment.particle_attributes.effect_name or "")
 
-            attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.options, t("Scale"), {"constructorscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
+            attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.options, t("Scale"), {"constructorpfxscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
                 attachment.particle_attributes.scale = value / 100
                 constructor_lib.update_particle(attachment)
             end)
-            attachment.menus.option_particle_bone_index = menu.slider(attachment.menus.options, t("Bone Index"), {}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.particle_attributes.bone_index or -1, 1, function(value)
+            attachment.menus.option_particle_bone_index = menu.slider(attachment.menus.options, t("Bone Index"), {"constructorpfxbone"..attachment.id}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.particle_attributes.bone_index or -1, 1, function(value)
                 attachment.particle_attributes.bone_index = value
                 constructor_lib.update_particle(attachment)
             end)
-            attachment.menus.option_particle_loop_timer = menu.slider(attachment.menus.options, t("Loop Timer"), {}, t("How often should the effect repeat. If this is 0 then it should try to loop forever."), 0, 60000, attachment.particle_attributes.loop_timer or 0, 1, function(value)
+            attachment.menus.option_particle_loop_timer = menu.slider(attachment.menus.options, t("Loop Timer"), {"constructorpfxlooptimer"..attachment.id}, t("How often should the effect repeat. If this is 0 then it should try to loop forever."), 0, 60000, attachment.particle_attributes.loop_timer or 0, 1, function(value)
                 attachment.particle_attributes.loop_timer = value
                 constructor_lib.update_particle(attachment)
             end)
-            attachment.menus.option_particle_color = menu.colour(attachment.menus.options, "Particle Color", {}, "", attachment.particle_attributes.color, true, function(color)
+            attachment.menus.option_particle_color = menu.colour(attachment.menus.options, t("Particle Color"), {}, "Local only :(", attachment.particle_attributes.color, true, function(color)
                 attachment.particle_attributes.color = color
                 constructor_lib.update_particle(attachment)
             end)
@@ -2043,7 +2067,7 @@ end
 
 local function create_ped_component_menu(attachment, root_menu, index, name)
     local component = attachment.ped_attributes.components["_".. index]
-    attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {}, "", 0, component.num_drawable_variations, component.drawable_variation, 1, function(value)
+    attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {}, "", 0, component.num_drawable_variations or -1, component.drawable_variation or -1, 1, function(value)
         component.drawable_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
         menu.set_max_value(attachment.menus["ped_components_drawable_"..index], component.num_drawable_variations)
@@ -2051,7 +2075,7 @@ local function create_ped_component_menu(attachment, root_menu, index, name)
         menu.set_value(attachment.menus["ped_components_texture_"..index], component.texture_variation)
         menu.set_max_value(attachment.menus["ped_components_texture_"..index], component.num_texture_variations)
     end)
-    attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, component.num_texture_variations, component.texture_variation, 1, function(value)
+    attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, component.num_texture_variations or -1, component.texture_variation or -1, 1, function(value)
         component.texture_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
@@ -2073,15 +2097,47 @@ local function create_ped_prop_menu(attachment, root_menu, index, name)
     end)
 end
 
+local function convert_jackz_animations()
+    local animations = {}
+    for folder_name, contents in pairs(constants.jackz_animations) do
+        local folder_item = {
+            name=folder_name,
+            is_folder=true,
+            items={}
+        }
+        for animation_name, animation_item in pairs(contents) do
+            --"mp_ped_interaction", "handshake_guy_a", "Handshake",
+            --AnimationOptions = {
+            --TargetAnimation = "handshake2", Controllable = true, EmoteDuration = 3000, SyncOffsetFront = 0.9
+            --}
+            local item = {
+                name=animation_item[3],
+                animation_dict=animation_item[1],
+                animation_name=animation_item[2],
+                animation_options=animation_item.AnimationOptions
+            }
+            table.insert(folder_item.items, item)
+        end
+        table.insert(animations, folder_item)
+    end
+    return animations
+end
+
 constructor.add_attachment_ped_menu = function(attachment)
     if attachment.type ~= "PED" then return end
     if attachment.menus.ped_options ~= nil then return end
     attachment.menus.ped_options = menu.list(attachment.menus.options, t("Ped Options"), {}, t("Additional options available for Ped entities."))
+
+    local ped_seats = { t("Unseated"), t("Any free seat"), t("Driver"), t("Passenger"), t("Backseat Driver Side"), t("Backseat Passenger Side") }
+    attachment.menus.option_ped_seat_select = menu.list_select(attachment.menus.ped_options, t("Seat"), {}, t("If attached to a vehicle, which seat should this ped occupy."), ped_seats, 1, function(value)
+        attachment.ped_attributes.seat = value - 4
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end)
     attachment.menus.option_ped_can_rag_doll = menu.toggle(attachment.menus.ped_options, t("Can Rag Doll"), {}, t("If enabled, the ped can go limp."), function(value)
         attachment.ped_attributes.can_rag_doll = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end, attachment.ped_attributes.can_rag_doll)
-    attachment.menus.option_ped_armor = menu.slider(attachment.menus.ped_options, t("Armor"), {}, t("How much armor does the ped have."), 0, attachment.ped_attributes.armor, 100, 1, function(value)
+    attachment.menus.option_ped_armor = menu.slider(attachment.menus.ped_options, t("Armor"), {}, t("How much armor does the ped have."), 0, 100, attachment.ped_attributes.armor, 1, function(value)
         attachment.ped_attributes.armor = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
@@ -2117,9 +2173,21 @@ constructor.add_attachment_ped_menu = function(attachment)
         attachment.ped_attributes.animation_name = animation_name
         constructor_lib.animate_peds(attachment)
     end, attachment.ped_attributes.animation_name or "")
-    attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Animation List"), {}, "", function()
+    --attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Animation List"), {}, "", function()
+    --    --debug_log("Converting Jackz animations..\n"..inspect(convert_jackz_animations()))
+    --    constructor.browse_items(attachment.menus.ped_options_animation_list, constants.animations, {
+    --        action_function=function(item)
+    --            attachment.ped_attributes.animation_dict = item.animation_dict
+    --            attachment.ped_attributes.animation_name = item.animation_name
+    --            constructor_lib.animate_peds(attachment)
+    --        end,
+    --        search_function=function(item, query)
+    --            return item.name == query
+    --        end
+    --    })
+    --end)
+    menu.hyperlink(attachment.menus.ped_options_animation, t("Animation Reference"), "https://gtahash.ru/animations/")
 
-    end)
 
     menu.divider(attachment.menus.ped_options_animation, t("Scenario"))
     attachment.menus.ped_options_animation_scenario = menu.text_input(attachment.menus.ped_options_animation, t("Scenario"), {"constructoranimationscenario"..attachment.id}, "Set the animation scenario, separate from dictionary and name.", function(animation_scenario)
@@ -2199,10 +2267,26 @@ constructor.add_attachment_entity_options = function(attachment)
 
     attachment.menus.more_options = menu.list(attachment.menus.options, t("Entity Options"), {}, t("Additional options available for all entities."), function()
 
-        if attachment.menus.option_lod_distance ~= nil then return end
+        if attachment.menus.option_has_special_physics ~= nil then return end
+
+        attachment.menus.option_has_special_physics = menu.toggle(attachment.menus.more_options, t("Special Physics"), {}, t("Allow for special physics overrides"), function(on)
+            attachment.options.has_special_physics = on
+            constructor_lib.attach_entity(attachment)
+        end, attachment.options.has_special_physics)
+
+        attachment.menus.option_has_gravity = menu.toggle(attachment.menus.more_options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
+            attachment.options.has_gravity = on
+            constructor_lib.attach_entity(attachment)
+        end, attachment.options.has_gravity)
+
         attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, t("LoD Distance"), {"constructorsetloddistance"..attachment.id}, t("Level of Detail draw distance"), 1, 9999999, attachment.options.lod_distance, 100, function(value)
             attachment.options.lod_distance = value
             constructor_lib.attach_entity(attachment)
+        end)
+
+        attachment.menus.option_gravity = menu.slider(attachment.menus.more_options, t("Gravity"), {"constructorsetgravity"..attachment.id}, t(""), 0, 100, attachment.options.gravity, 1, function(value)
+            attachment.options.gravity = value
+            constructor_lib.deserialize_entity_attributes(attachment)
         end)
 
         attachment.menus.option_alpha = menu.slider(attachment.menus.more_options, t("Alpha"), {}, t("The amount of transparency the object has. Local only!"), 0, 255, attachment.options.alpha, 51, function(value)
