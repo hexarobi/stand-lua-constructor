@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.34b1"
+local SCRIPT_VERSION = "0.34b2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -83,26 +83,28 @@ local function convert_legacy_construct(construct_plan)
     end
 
     -- 0.34 Moved ped animation into sub-table
-    if construct_plan.ped_attributes.animation_dict ~= nil then
-        if construct_plan.ped_attributes.animation == nil then construct_plan.ped_attributes.animation = {} end
-        if construct_plan.ped_attributes.animation.dictionary == nil then
-            construct_plan.ped_attributes.animation.dictionary = construct_plan.ped_attributes.animation_dict
+    if construct_plan.ped_attributes ~= nil then
+        if construct_plan.ped_attributes.animation_dict ~= nil then
+            if construct_plan.ped_attributes.animation == nil then construct_plan.ped_attributes.animation = {} end
+            if construct_plan.ped_attributes.animation.dictionary == nil then
+                construct_plan.ped_attributes.animation.dictionary = construct_plan.ped_attributes.animation_dict
+            end
+            construct_plan.ped_attributes.animation_dict = nil
         end
-        construct_plan.ped_attributes.animation_dict = nil
-    end
-    if construct_plan.ped_attributes.animation_name ~= nil then
-        if construct_plan.ped_attributes.animation == nil then construct_plan.ped_attributes.animation = {} end
-        if construct_plan.ped_attributes.animation.clip == nil then
-            construct_plan.ped_attributes.animation.clip = construct_plan.ped_attributes.animation_name
+        if construct_plan.ped_attributes.animation_name ~= nil then
+            if construct_plan.ped_attributes.animation == nil then construct_plan.ped_attributes.animation = {} end
+            if construct_plan.ped_attributes.animation.clip == nil then
+                construct_plan.ped_attributes.animation.clip = construct_plan.ped_attributes.animation_name
+            end
+            construct_plan.ped_attributes.animation_name = nil
         end
-        construct_plan.ped_attributes.animation_name = nil
-    end
-    if construct_plan.ped_attributes.animation_scenario ~= nil then
-        if construct_plan.ped_attributes.animation == nil then construct_plan.ped_attributes.animation = {} end
-        if construct_plan.ped_attributes.animation.scenario == nil then
-            construct_plan.ped_attributes.animation.scenario = construct_plan.ped_attributes.animation_scenario
+        if construct_plan.ped_attributes.animation_scenario ~= nil then
+            if construct_plan.ped_attributes.animation == nil then construct_plan.ped_attributes.animation = {} end
+            if construct_plan.ped_attributes.animation.scenario == nil then
+                construct_plan.ped_attributes.animation.scenario = construct_plan.ped_attributes.animation_scenario
+            end
+            construct_plan.ped_attributes.animation_scenario = nil
         end
-        construct_plan.ped_attributes.animation_scenario = nil
     end
 
 end
