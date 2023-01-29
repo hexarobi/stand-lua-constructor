@@ -1,6 +1,6 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.28b1"
+local SCRIPT_VERSION = "0.34b1"
 local constants = {}
 
 constants.rotation_orders = {
@@ -1240,6 +1240,2770 @@ constants.ped_weapons = {
             },
         }
     }
+}
+
+constants.animation_flags = {
+    ANIM_FLAG_NORMAL = 0,
+    ANIM_FLAG_REPEAT = 1,
+    ANIM_FLAG_STOP_LAST_FRAME = 2,
+    ANIM_FLAG_UPPERBODY = 16,
+    ANIM_FLAG_ENABLE_PLAYER_CONTROL = 32,
+    ANIM_FLAG_CANCELABLE = 120
+}
+
+constants.animations = {
+    is_folder = true,
+    items = { {
+                  is_folder = true,
+                  items = { {
+                                clip = "bind_pose_180",
+                                dictionary = "mp_sleep",
+                                loop = true,
+                                name = "A-Pose"
+                            }, {
+                                clip = "michael_tux_fidget",
+                                controllable = true,
+                                dictionary = "missmic4",
+                                emote_duration = 4000,
+                                name = "Adjust"
+                            }, {
+                                clip = "air_guitar",
+                                dictionary = "anim@mp_player_intcelebrationfemale@air_guitar",
+                                name = "Air Guitar"
+                            }, {
+                                clip = "ledge_loop",
+                                controllable = true,
+                                dictionary = "missfbi1",
+                                loop = true,
+                                name = "Air Plane"
+                            }, {
+                                clip = "air_synth",
+                                dictionary = "anim@mp_player_intcelebrationfemale@air_synth",
+                                name = "Air Synth"
+                            }, {
+                                clip = "actor_berating_loop",
+                                controllable = true,
+                                dictionary = "misscarsteal4@actor",
+                                loop = true,
+                                name = "Argue"
+                            }, {
+                                clip = "argue_a",
+                                controllable = true,
+                                dictionary = "oddjobs@assassinate@vice@hooker",
+                                loop = true,
+                                name = "Argue 2"
+                            }, {
+                                clip = "brotheradrianhasshown_2",
+                                controllable = true,
+                                dictionary = "special_ped@jane@monologue_5@monologue_5c",
+                                emote_duration = 3000,
+                                name = "BOI"
+                            }, {
+                                clip = "wakeup",
+                                dictionary = "random@peyote@dog",
+                                name = "Bark"
+                            }, {
+                                clip = "idle_a_bartender",
+                                controllable = true,
+                                dictionary = "anim@amb@clubhouse@bar@drink@idle_a",
+                                loop = true,
+                                name = "Bartender"
+                            }, {
+                                clip = "beast_transform",
+                                controllable = true,
+                                dictionary = "anim@mp_fm_event@intro",
+                                emote_duration = 5000,
+                                name = "Beast"
+                            }, {
+                                clip = "wakeup",
+                                dictionary = "random@peyote@bird",
+                                name = "Bird"
+                            }, {
+                                clip = "blow_kiss",
+                                dictionary = "anim@mp_player_intcelebrationfemale@blow_kiss",
+                                name = "Blow Kiss"
+                            }, {
+                                clip = "exit",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intselfieblow_kiss",
+                                emote_duration = 2000,
+                                name = "Blow Kiss 2"
+                            }, {
+                                clip = "regal_c_1st",
+                                controllable = true,
+                                dictionary = "anim@arena@celeb@podium@no_prop@",
+                                loop = true,
+                                name = "Bow"
+                            }, {
+                                clip = "regal_a_1st",
+                                controllable = true,
+                                dictionary = "anim@arena@celeb@podium@no_prop@",
+                                loop = true,
+                                name = "Bow 2"
+                            }, {
+                                clip = "bring_it_on",
+                                controllable = true,
+                                dictionary = "misscommon@response",
+                                emote_duration = 3000,
+                                name = "Bring It On"
+                            }, {
+                                clip = "cpr_pumpchest",
+                                dictionary = "mini@cpr@char_a@cpr_str",
+                                loop = true,
+                                name = "CPR"
+                            }, {
+                                clip = "cpr_pumpchest",
+                                controllable = true,
+                                dictionary = "mini@cpr@char_a@cpr_str",
+                                loop = true,
+                                name = "CPR 2"
+                            }, {
+                                clip = "celebrate",
+                                dictionary = "rcmfanatic1celebrate",
+                                loop = true,
+                                name = "Celebrate"
+                            }, {
+                                clip = "wakeup",
+                                controllable = true,
+                                dictionary = "random@peyote@chicken",
+                                loop = true,
+                                name = "Chicken"
+                            }, {
+                                clip = "trev_scares_tramp_idle_tramp",
+                                dictionary = "switch@trevor@scares_tramp",
+                                loop = true,
+                                name = "Chill"
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "amb@world_human_cheering@male_a",
+                                loop = true,
+                                name = "Clap"
+                            }, {
+                                clip = "angry_clap_a_player_a",
+                                dictionary = "anim@arena@celeb@flat@solo@no_props@",
+                                loop = true,
+                                name = "Clap Angry"
+                            }, {
+                                clip = "trev_annoys_sunbathers_loop_girl",
+                                dictionary = "switch@trevor@annoys_sunbathers",
+                                loop = true,
+                                name = "Cloudgaze"
+                            }, {
+                                clip = "trev_annoys_sunbathers_loop_guy",
+                                dictionary = "switch@trevor@annoys_sunbathers",
+                                loop = true,
+                                name = "Cloudgaze 2"
+                            }, {
+                                clip = "clown_idle_0",
+                                dictionary = "rcm_barry2",
+                                loop = true,
+                                name = "Clown"
+                            }, {
+                                clip = "clown_idle_1",
+                                dictionary = "rcm_barry2",
+                                loop = true,
+                                name = "Clown 2"
+                            }, {
+                                clip = "clown_idle_2",
+                                dictionary = "rcm_barry2",
+                                loop = true,
+                                name = "Clown 3"
+                            }, {
+                                clip = "clown_idle_3",
+                                controllable = true,
+                                dictionary = "rcm_barry2",
+                                loop = true,
+                                name = "Clown 4"
+                            }, {
+                                clip = "clown_idle_6",
+                                dictionary = "rcm_barry2",
+                                loop = true,
+                                name = "Clown 5"
+                            }, {
+                                clip = "want_some_of_this",
+                                controllable = true,
+                                dictionary = "mini@triathlon",
+                                emote_duration = 2000,
+                                name = "Come at me bro"
+                            }, {
+                                clip = "rcmme_amanda1_stand_loop_cop",
+                                dictionary = "anim@amb@nightclub@peds@",
+                                loop = true,
+                                name = "Cop 2"
+                            }, {
+                                clip = "idle_b",
+                                dictionary = "amb@code_human_police_investigate@idle_a",
+                                loop = true,
+                                name = "Cop 3"
+                            }, {
+                                clip = "idle_cough",
+                                controllable = true,
+                                dictionary = "timetable@gardener@smoking_joint",
+                                loop = true,
+                                name = "Cough"
+                            }, {
+                                clip = "grid_girl_race_start",
+                                controllable = true,
+                                dictionary = "random@street_race",
+                                loop = true,
+                                name = "Countdown"
+                            }, {
+                                clip = "front_loop",
+                                dictionary = "move_injured_ground",
+                                loop = true,
+                                name = "Crawl"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "amb@world_human_hang_out_street@female_arms_crossed@idle_a",
+                                loop = true,
+                                name = "Crossarms"
+                            }, {
+                                clip = "idle_b",
+                                controllable = true,
+                                dictionary = "amb@world_human_hang_out_street@male_c@idle_a",
+                                name = "Crossarms 2"
+                            }, {
+                                clip = "single_team_loop_boss",
+                                controllable = true,
+                                dictionary = "anim@heists@heist_corona@single_team",
+                                loop = true,
+                                name = "Crossarms 3"
+                            }, {
+                                clip = "_car_b_lookout",
+                                controllable = true,
+                                dictionary = "random@street_race",
+                                loop = true,
+                                name = "Crossarms 4"
+                            }, {
+                                clip = "rcmme_amanda1_stand_loop_cop",
+                                controllable = true,
+                                dictionary = "anim@amb@nightclub@peds@",
+                                loop = true,
+                                name = "Crossarms 5"
+                            }, {
+                                clip = "_idle",
+                                controllable = true,
+                                dictionary = "random@shop_gunstore",
+                                loop = true,
+                                name = "Crossarms 6"
+                            }, {
+                                clip = "base_m2",
+                                controllable = true,
+                                dictionary = "rcmnigel1a_band_groupies",
+                                loop = true,
+                                name = "Crossarms Side"
+                            }, {
+                                clip = "sarcastic_left",
+                                dictionary = "anim@mp_player_intcelebrationpaired@f_f_sarcastic",
+                                name = "Curtsy"
+                            }, {
+                                clip = "dixn_dance_cntr_open_dix",
+                                controllable = true,
+                                dictionary = "anim@amb@nightclub@djs@dixon@",
+                                loop = true,
+                                name = "DJ"
+                            }, {
+                                clip = "gesture_damn",
+                                controllable = true,
+                                dictionary = "gestures@m@standing@casual",
+                                emote_duration = 1000,
+                                name = "Damn"
+                            }, {
+                                clip = "shoplift_mid",
+                                controllable = true,
+                                dictionary = "anim@am_hold_up@male",
+                                emote_duration = 1000,
+                                name = "Damn 2"
+                            }, {
+                                clip = "loop",
+                                controllable = true,
+                                dictionary = "mp_player_inteat@pnq",
+                                emote_duration = 2500,
+                                name = "Drink"
+                            }, {
+                                clip = "mp_player_int_eat_burger",
+                                controllable = true,
+                                dictionary = "mp_player_inteat@burger",
+                                emote_duration = 3000,
+                                name = "Eat"
+                            }, {
+                                clip = "agitated_idle_a",
+                                controllable = true,
+                                dictionary = "random@car_thief@agitated@idle_a",
+                                emote_duration = 8000,
+                                name = "Facepalm"
+                            }, {
+                                clip = "face_palm",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationfemale@face_palm",
+                                emote_duration = 8000,
+                                name = "Facepalm 2"
+                            }, {
+                                clip = "tasered_2",
+                                controllable = true,
+                                dictionary = "missminuteman_1ig_2",
+                                emote_duration = 8000,
+                                name = "Facepalm 3"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intupperface_palm",
+                                loop = true,
+                                name = "Facepalm 4"
+                            }, {
+                                clip = "sleep_loop",
+                                controllable = true,
+                                dictionary = "mp_sleep",
+                                loop = true,
+                                name = "Fall Asleep"
+                            }, {
+                                clip = "drunk_fall_over",
+                                dictionary = "random@drunk_driver_1",
+                                name = "Fall Over"
+                            }, {
+                                clip = "pistol",
+                                dictionary = "mp_suicide",
+                                name = "Fall Over 2"
+                            }, {
+                                clip = "pill",
+                                dictionary = "mp_suicide",
+                                name = "Fall Over 3"
+                            }, {
+                                clip = "knockout_plyr",
+                                dictionary = "friends@frf@ig_2",
+                                name = "Fall Over 4"
+                            }, {
+                                clip = "victim_fail",
+                                dictionary = "anim@gangops@hostage@",
+                                name = "Fall Over 5"
+                            }, {
+                                clip = "intro_male_unarmed_c",
+                                dictionary = "anim@deathmatch_intros@unarmed",
+                                name = "Fight Me"
+                            }, {
+                                clip = "intro_male_unarmed_e",
+                                dictionary = "anim@deathmatch_intros@unarmed",
+                                name = "Fight Me 2"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intselfiethe_bird",
+                                loop = true,
+                                name = "Finger"
+                            }, {
+                                clip = "idle_a_fp",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intupperfinger",
+                                loop = true,
+                                name = "Finger 2"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intupperfind_the_fish",
+                                loop = true,
+                                name = "Fish Dance"
+                            }, {
+                                clip = "flip_a_player_a",
+                                dictionary = "anim@arena@celeb@flat@solo@no_props@",
+                                name = "Flip"
+                            }, {
+                                clip = "cap_a_player_a",
+                                dictionary = "anim@arena@celeb@flat@solo@no_props@",
+                                name = "Flip 2"
+                            }, {
+                                clip = "flip_off_a_1st",
+                                controllable = true,
+                                dictionary = "anim@arena@celeb@podium@no_prop@",
+                                name = "Flip Off"
+                            }, {
+                                clip = "flip_off_c_1st",
+                                controllable = true,
+                                dictionary = "anim@arena@celeb@podium@no_prop@",
+                                name = "Flip Off 2"
+                            }, {
+                                clip = "stand_phone_phoneputdown_idle_nowork",
+                                controllable = true,
+                                dictionary = "anim@amb@business@bgen@bgen_no_work@",
+                                loop = true,
+                                name = "Fold Arms"
+                            }, {
+                                clip = "rcmme_amanda1_stand_loop_cop",
+                                controllable = true,
+                                dictionary = "anim@amb@nightclub@peds@",
+                                loop = true,
+                                name = "Fold Arms 2"
+                            }, {
+                                clip = "mp_player_int_gang_sign_a",
+                                controllable = true,
+                                dictionary = "mp_player_int_uppergang_sign_a",
+                                loop = true,
+                                name = "Gang Sign"
+                            }, {
+                                clip = "mp_player_int_gang_sign_b",
+                                controllable = true,
+                                dictionary = "mp_player_int_uppergang_sign_b",
+                                loop = true,
+                                name = "Gang Sign 2"
+                            }, {
+                                clip = "swing_a_mark",
+                                dictionary = "rcmnigel1d",
+                                name = "Golf Swing"
+                            }, {
+                                clip = "handsup_base",
+                                controllable = true,
+                                dictionary = "missminuteman_1ig_2",
+                                loop = true,
+                                name = "Hands Up"
+                            }, {
+                                clip = "handshake_guy_a",
+                                controllable = true,
+                                dictionary = "mp_ped_interaction",
+                                emote_duration = 3000,
+                                name = "Handshake"
+                            }, {
+                                clip = "handshake_guy_b",
+                                controllable = true,
+                                dictionary = "mp_ped_interaction",
+                                emote_duration = 3000,
+                                name = "Handshake 2"
+                            }, {
+                                clip = "plyr_takedown_front_headbutt",
+                                dictionary = "melee@unarmed@streamed_variations",
+                                name = "Headbutt"
+                            }, {
+                                clip = "idle",
+                                controllable = true,
+                                dictionary = "move_m@hiking",
+                                loop = true,
+                                name = "Hiking"
+                            }, {
+                                clip = "kisses_guy_a",
+                                dictionary = "mp_ped_interaction",
+                                name = "Hug"
+                            }, {
+                                clip = "kisses_guy_b",
+                                dictionary = "mp_ped_interaction",
+                                name = "Hug 2"
+                            }, {
+                                clip = "hugs_guy_a",
+                                dictionary = "mp_ped_interaction",
+                                name = "Hug 3"
+                            }, {
+                                clip = "idle",
+                                dictionary = "anim@heists@heist_corona@team_idles@male_a",
+                                loop = true,
+                                name = "Idle"
+                            }, {
+                                clip = "idle",
+                                controllable = true,
+                                dictionary = "mp_move@prostitute@m@french",
+                                loop = true,
+                                name = "Idle 10"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "random@countrysiderobbery",
+                                loop = true,
+                                name = "Idle 11"
+                            }, {
+                                clip = "idle",
+                                dictionary = "anim@heists@heist_corona@team_idles@female_a",
+                                loop = true,
+                                name = "Idle 2"
+                            }, {
+                                clip = "ped_b_celebrate_loop",
+                                dictionary = "anim@heists@humane_labs@finale@strip_club",
+                                loop = true,
+                                name = "Idle 3"
+                            }, {
+                                clip = "celebration_idle_f_a",
+                                dictionary = "anim@mp_celebration@idles@female",
+                                loop = true,
+                                name = "Idle 4"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "anim@mp_corona_idles@female_b@idle_a",
+                                loop = true,
+                                name = "Idle 5"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "anim@mp_corona_idles@male_c@idle_a",
+                                loop = true,
+                                name = "Idle 6"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "anim@mp_corona_idles@male_d@idle_a",
+                                loop = true,
+                                name = "Idle 7"
+                            }, {
+                                clip = "idle_b",
+                                dictionary = "amb@world_human_hang_out_street@male_b@idle_a",
+                                name = "Idle 8"
+                            }, {
+                                clip = "base_idle",
+                                dictionary = "friends@fra@ig_1",
+                                loop = true,
+                                name = "Idle 9"
+                            }, {
+                                clip = "drunk_driver_stand_loop_dd1",
+                                dictionary = "random@drunk_driver_1",
+                                loop = true,
+                                name = "Idle Drunk"
+                            }, {
+                                clip = "drunk_driver_stand_loop_dd2",
+                                dictionary = "random@drunk_driver_1",
+                                loop = true,
+                                name = "Idle Drunk 2"
+                            }, {
+                                clip = "standing_idle_loop_drunk",
+                                dictionary = "missarmenian2",
+                                loop = true,
+                                name = "Idle Drunk 3"
+                            }, {
+                                clip = "idle_e",
+                                dictionary = "random@train_tracks",
+                                name = "Inspect"
+                            }, {
+                                clip = "jazz_hands",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationfemale@jazz_hands",
+                                emote_duration = 6000,
+                                name = "Jazzhands"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "amb@world_human_jog_standing@male@idle_a",
+                                loop = true,
+                                name = "Jog 2"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "amb@world_human_jog_standing@female@idle_a",
+                                loop = true,
+                                name = "Jog 3"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "amb@world_human_power_walker@female@idle_a",
+                                loop = true,
+                                name = "Jog 4"
+                            }, {
+                                clip = "walk",
+                                controllable = true,
+                                dictionary = "move_m@joy@a",
+                                loop = true,
+                                name = "Jog 5"
+                            }, {
+                                clip = "jimmy_getknocked",
+                                dictionary = "timetable@reunited@ig_2",
+                                loop = true,
+                                name = "Jumping Jacks"
+                            }, {
+                                clip = "fob_click",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intmenu@key_fob@",
+                                emote_duration = 1000,
+                                loop = false,
+                                name = "Key Fob"
+                            }, {
+                                clip = "idle",
+                                dictionary = "rcmextreme3",
+                                loop = true,
+                                name = "Kneel 2"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_bum_wash@male@low@idle_a",
+                                loop = true,
+                                name = "Kneel 3"
+                            }, {
+                                clip = "knockdoor_idle",
+                                controllable = true,
+                                dictionary = "timetable@jimmy@doorknock@",
+                                loop = true,
+                                name = "Knock"
+                            }, {
+                                clip = "lift_fibagent_loop",
+                                dictionary = "missheistfbi3b_ig7",
+                                loop = true,
+                                name = "Knock 2"
+                            }, {
+                                clip = "knuckle_crunch",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationfemale@knuckle_crunch",
+                                loop = true,
+                                name = "Knuckle Crunch"
+                            }, {
+                                clip = "laugh_a_player_b",
+                                dictionary = "anim@arena@celeb@flat@paired@no_props@",
+                                loop = true,
+                                name = "LOL"
+                            }, {
+                                clip = "giggle_a_player_b",
+                                dictionary = "anim@arena@celeb@flat@solo@no_props@",
+                                loop = true,
+                                name = "LOL 2"
+                            }, {
+                                clip = "lap_dance_girl",
+                                dictionary = "mp_safehouse",
+                                name = "Lapdance"
+                            }, {
+                                clip = "priv_dance_idle",
+                                dictionary = "mini@strip_club@private_dance@idle",
+                                loop = true,
+                                name = "Lapdance 2"
+                            }, {
+                                clip = "priv_dance_p2",
+                                dictionary = "mini@strip_club@private_dance@part2",
+                                loop = true,
+                                name = "Lapdance 3"
+                            }, {
+                                clip = "priv_dance_p3",
+                                dictionary = "mini@strip_club@private_dance@part3",
+                                loop = true,
+                                name = "Lapdance 4"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_leaning@female@wall@back@hand_up@idle_a",
+                                loop = true,
+                                name = "Lean 2"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_leaning@female@wall@back@holding_elbow@idle_a",
+                                loop = true,
+                                name = "Lean 3"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_leaning@male@wall@back@foot_up@idle_a",
+                                loop = true,
+                                name = "Lean 4"
+                            }, {
+                                clip = "idle_b",
+                                dictionary = "amb@world_human_leaning@male@wall@back@hands_together@idle_b",
+                                loop = true,
+                                name = "Lean 5"
+                            }, {
+                                clip = "idle_c",
+                                dictionary = "amb@prop_human_bum_shopping_cart@male@idle_a",
+                                loop = true,
+                                name = "Lean Bar 2"
+                            }, {
+                                clip = "clubvip_base_laz",
+                                dictionary = "anim@amb@nightclub@lazlow@ig1_vip@",
+                                loop = true,
+                                name = "Lean Bar 3"
+                            }, {
+                                clip = "ped_b_loop_a",
+                                dictionary = "anim@heists@prison_heist",
+                                loop = true,
+                                name = "Lean Bar 4"
+                            }, {
+                                clip = "_car_a_flirt_girl",
+                                dictionary = "random@street_race",
+                                loop = true,
+                                name = "Lean Flirt"
+                            }, {
+                                clip = "idle_a_player_one",
+                                controllable = true,
+                                dictionary = "anim@mp_ferris_wheel",
+                                loop = true,
+                                name = "Lean High"
+                            }, {
+                                clip = "idle_a_player_two",
+                                controllable = true,
+                                dictionary = "anim@mp_ferris_wheel",
+                                loop = true,
+                                name = "Lean High 2"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "timetable@mime@01_gc",
+                                loop = true,
+                                name = "Leanside"
+                            }, {
+                                clip = "packer_idle_1_trevor",
+                                controllable = true,
+                                dictionary = "misscarstealfinale",
+                                loop = true,
+                                name = "Leanside 2"
+                            }, {
+                                clip = "waitloop_lamar",
+                                controllable = true,
+                                dictionary = "misscarstealfinalecar_5_ig_1",
+                                loop = true,
+                                name = "Leanside 3"
+                            }, {
+                                clip = "waitloop_lamar",
+                                controllable = false,
+                                dictionary = "misscarstealfinalecar_5_ig_1",
+                                loop = true,
+                                name = "Leanside 4"
+                            }, {
+                                clip = "josh_2_intp1_base",
+                                controllable = false,
+                                dictionary = "rcmjosh2",
+                                loop = true,
+                                name = "Leanside 5"
+                            }, {
+                                clip = "ledge_loop",
+                                dictionary = "missfbi1",
+                                loop = true,
+                                name = "Ledge"
+                            }, {
+                                clip = "idle_f",
+                                controllable = true,
+                                dictionary = "random@hitch_lift",
+                                loop = true,
+                                name = "Lift"
+                            }, {
+                                clip = "gesture_me_hard",
+                                controllable = true,
+                                dictionary = "gestures@f@standing@casual",
+                                emote_duration = 1000,
+                                name = "Me"
+                            }, {
+                                clip = "fixing_a_ped",
+                                controllable = true,
+                                dictionary = "mini@repair",
+                                loop = true,
+                                name = "Mechanic"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_vehicle_mechanic@male@base",
+                                loop = true,
+                                name = "Mechanic 2"
+                            }, {
+                                clip = "machinic_loop_mechandplayer",
+                                dictionary = "anim@amb@clubhouse@tutorial@bkr_tut_ig3@",
+                                loop = true,
+                                name = "Mechanic 3"
+                            }, {
+                                clip = "machinic_loop_mechandplayer",
+                                controllable = true,
+                                dictionary = "anim@amb@clubhouse@tutorial@bkr_tut_ig3@",
+                                loop = true,
+                                name = "Mechanic 4"
+                            }, {
+                                clip = "base",
+                                dictionary = "amb@medic@standing@tendtodead@base",
+                                loop = true,
+                                name = "Medic 2"
+                            }, {
+                                clip = "meditiate_idle",
+                                dictionary = "rcmcollect_paperleadinout@",
+                                loop = true,
+                                name = "Meditiate"
+                            }, {
+                                clip = "ep_3_rcm_marnie_meditating",
+                                dictionary = "rcmepsilonism3",
+                                loop = true,
+                                name = "Meditiate 2"
+                            }, {
+                                clip = "base_loop",
+                                dictionary = "rcmepsilonism3",
+                                loop = true,
+                                name = "Meditiate 3"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intincarrockstd@ps@",
+                                loop = true,
+                                name = "Metal"
+                            }, {
+                                clip = "mind_control_b_loop",
+                                dictionary = "rcmbarry",
+                                loop = true,
+                                name = "Mind Control"
+                            }, {
+                                clip = "bar_1_attack_idle_aln",
+                                dictionary = "rcmbarry",
+                                loop = true,
+                                name = "Mind Control 2"
+                            }, {
+                                clip = "ig_4_base",
+                                controllable = true,
+                                dictionary = "timetable@amanda@ig_4",
+                                loop = true,
+                                name = "Namaste"
+                            }, {
+                                clip = "idle_c",
+                                controllable = true,
+                                dictionary = "amb@world_human_bum_standing@twitchy@idle_a",
+                                loop = true,
+                                name = "Nervous"
+                            }, {
+                                clip = "nervous_idle",
+                                controllable = true,
+                                dictionary = "mp_missheist_countrybank@nervous",
+                                loop = true,
+                                name = "Nervous 2"
+                            }, {
+                                clip = "nervous_loop",
+                                controllable = true,
+                                dictionary = "rcmme_tracey1",
+                                loop = true,
+                                name = "Nervous 3"
+                            }, {
+                                clip = "fail",
+                                controllable = true,
+                                dictionary = "anim@heists@ornate_bank@chat_manager",
+                                loop = true,
+                                name = "No"
+                            }, {
+                                clip = "mp_player_int_nod_no",
+                                controllable = true,
+                                dictionary = "mp_player_int_upper_nod",
+                                loop = true,
+                                name = "No 2"
+                            }, {
+                                clip = "gesture_no_way",
+                                controllable = true,
+                                dictionary = "gestures@m@standing@casual",
+                                emote_duration = 1500,
+                                name = "No Way"
+                            }, {
+                                clip = "nose_pick",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationfemale@nose_pick",
+                                loop = true,
+                                name = "Nose Pick"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intselfiedock",
+                                loop = true,
+                                name = "OK"
+                            }, {
+                                clip = "out_of_breath",
+                                controllable = true,
+                                dictionary = "re@construction",
+                                loop = true,
+                                name = "Out of Breath"
+                            }, {
+                                clip = "drunk_loop",
+                                dictionary = "missarmenian2",
+                                loop = true,
+                                name = "Passout"
+                            }, {
+                                clip = "corpse_search_exit_ped",
+                                dictionary = "missarmenian2",
+                                loop = true,
+                                name = "Passout 2"
+                            }, {
+                                clip = "body_search",
+                                dictionary = "anim@gangops@morgue@table@",
+                                loop = true,
+                                name = "Passout 3"
+                            }, {
+                                clip = "cpr_pumpchest_idle",
+                                dictionary = "mini@cpr@char_b@cpr_def",
+                                loop = true,
+                                name = "Passout 4"
+                            }, {
+                                clip = "flee_backward_loop_shopkeeper",
+                                dictionary = "random@mugging4",
+                                loop = true,
+                                name = "Passout 5"
+                            }, {
+                                clip = "mp_player_int_peace_sign",
+                                controllable = true,
+                                dictionary = "mp_player_int_upperpeace_sign",
+                                loop = true,
+                                name = "Peace"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intupperpeace",
+                                loop = true,
+                                name = "Peace 2"
+                            }, {
+                                clip = "left_peek_a",
+                                dictionary = "random@paparazzi@peek",
+                                loop = true,
+                                name = "Peek"
+                            }, {
+                                clip = "petting_franklin",
+                                dictionary = "creatures@rottweiler@tricks@",
+                                loop = true,
+                                name = "Petting"
+                            }, {
+                                clip = "pickup_low",
+                                dictionary = "random@domestic",
+                                name = "Pickup"
+                            }, {
+                                clip = "gesture_point",
+                                controllable = true,
+                                dictionary = "gestures@f@standing@casual",
+                                loop = true,
+                                name = "Point"
+                            }, {
+                                clip = "gesture_hand_down",
+                                controllable = true,
+                                dictionary = "gestures@f@standing@casual",
+                                emote_duration = 1000,
+                                name = "Point Down"
+                            }, {
+                                clip = "indicate_right",
+                                controllable = true,
+                                dictionary = "mp_gun_shop_tut",
+                                loop = true,
+                                name = "Point Right"
+                            }, {
+                                clip = "prone_dave",
+                                dictionary = "missfbi3_sniping",
+                                loop = true,
+                                name = "Prone"
+                            }, {
+                                clip = "struggle_loop_b_thief",
+                                controllable = true,
+                                dictionary = "random@mugging4",
+                                loop = true,
+                                name = "Pull"
+                            }, {
+                                clip = "pull_over_right",
+                                controllable = true,
+                                dictionary = "misscarsteal3pullover",
+                                emote_duration = 1300,
+                                name = "Pullover"
+                            }, {
+                                clip = "loop_punching",
+                                controllable = true,
+                                dictionary = "rcmextreme2",
+                                loop = true,
+                                name = "Punching"
+                            }, {
+                                clip = "pushcar_offcliff_f",
+                                dictionary = "missfinale_c2ig_11",
+                                loop = true,
+                                name = "Push"
+                            }, {
+                                clip = "pushcar_offcliff_m",
+                                dictionary = "missfinale_c2ig_11",
+                                loop = true,
+                                name = "Push 2"
+                            }, {
+                                clip = "idle_d",
+                                dictionary = "amb@world_human_push_ups@male@idle_a",
+                                loop = true,
+                                name = "Pushup"
+                            }, {
+                                clip = "wakeup",
+                                dictionary = "random@peyote@rabbit",
+                                name = "Rabbit"
+                            }, {
+                                clip = "generic_radio_chatter",
+                                controllable = true,
+                                dictionary = "random@arrests",
+                                loop = true,
+                                name = "Radio"
+                            }, {
+                                clip = "idle",
+                                controllable = true,
+                                dictionary = "move_m@intimidation@cop@unarmed",
+                                loop = true,
+                                name = "Reaching"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intincarsalutestd@ds@",
+                                loop = true,
+                                name = "Salute"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intincarsalutestd@ps@",
+                                loop = true,
+                                name = "Salute 2"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intuppersalute",
+                                loop = true,
+                                name = "Salute 3"
+                            }, {
+                                clip = "f_distressed_loop",
+                                controllable = true,
+                                dictionary = "random@domestic",
+                                loop = true,
+                                name = "Scared"
+                            }, {
+                                clip = "knees_loop_girl",
+                                controllable = true,
+                                dictionary = "random@homelandsecurity",
+                                loop = true,
+                                name = "Scared 2"
+                            }, {
+                                clip = "screw_you",
+                                controllable = true,
+                                dictionary = "misscommon@response",
+                                loop = true,
+                                name = "Screw You"
+                            }, {
+                                clip = "shakeoff_1",
+                                controllable = true,
+                                dictionary = "move_m@_idles@shake_off",
+                                emote_duration = 3500,
+                                name = "Shake Off"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "random@dealgonewrong",
+                                loop = true,
+                                name = "Shot"
+                            }, {
+                                clip = "gesture_shrug_hard",
+                                controllable = true,
+                                dictionary = "gestures@f@standing@casual",
+                                emote_duration = 1000,
+                                name = "Shrug"
+                            }, {
+                                clip = "gesture_shrug_hard",
+                                controllable = true,
+                                dictionary = "gestures@m@standing@casual",
+                                emote_duration = 1000,
+                                name = "Shrug 2"
+                            }, {
+                                clip = "sit_phone_phoneputdown_idle_nowork",
+                                dictionary = "anim@amb@business@bgen@bgen_no_work@",
+                                loop = true,
+                                name = "Sit"
+                            }, {
+                                clip = "barry_3_sit_loop",
+                                dictionary = "rcm_barry3",
+                                loop = true,
+                                name = "Sit 2"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_picnic@male@idle_a",
+                                loop = true,
+                                name = "Sit 3"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_picnic@female@idle_a",
+                                loop = true,
+                                name = "Sit 4"
+                            }, {
+                                clip = "owner_idle",
+                                dictionary = "anim@heists@fleeca_bank@ig_7_jetski_owner",
+                                loop = true,
+                                name = "Sit 5"
+                            }, {
+                                clip = "idle_a_jimmy",
+                                dictionary = "timetable@jimmy@mics3_ig_15@",
+                                loop = true,
+                                name = "Sit 6"
+                            }, {
+                                clip = "lowalone_base_laz",
+                                dictionary = "anim@amb@nightclub@lazlow@lo_alone@",
+                                loop = true,
+                                name = "Sit 7"
+                            }, {
+                                clip = "mics3_15_base_jimmy",
+                                dictionary = "timetable@jimmy@mics3_ig_15@",
+                                loop = true,
+                                name = "Sit 8"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_stupor@male@idle_a",
+                                loop = true,
+                                name = "Sit 9"
+                            }, {
+                                clip = "ig_5_p3_base",
+                                dictionary = "timetable@ron@ig_5_p3",
+                                loop = true,
+                                name = "Sit Chair 2"
+                            }, {
+                                clip = "base_amanda",
+                                dictionary = "timetable@reunited@ig_10",
+                                loop = true,
+                                name = "Sit Chair 3"
+                            }, {
+                                clip = "base",
+                                dictionary = "timetable@ron@ig_3_couch",
+                                loop = true,
+                                name = "Sit Chair 4"
+                            }, {
+                                clip = "mics3_15_base_tracy",
+                                dictionary = "timetable@jimmy@mics3_ig_15@",
+                                loop = true,
+                                name = "Sit Chair 5"
+                            }, {
+                                clip = "base",
+                                dictionary = "timetable@maid@couch@",
+                                loop = true,
+                                name = "Sit Chair 6"
+                            }, {
+                                clip = "ig_2_alt1_base",
+                                dictionary = "timetable@ron@ron_ig_2_alt1",
+                                loop = true,
+                                name = "Sit Chair Side"
+                            }, {
+                                clip = "base",
+                                dictionary = "timetable@amanda@drunk@base",
+                                loop = true,
+                                name = "Sit Drunk"
+                            }, {
+                                clip = "ig_14_base_tracy",
+                                dictionary = "timetable@tracy@ig_14@",
+                                loop = true,
+                                name = "Sit Lean"
+                            }, {
+                                clip = "sit_phone_phoneputdown_sleeping-noworkfemale",
+                                dictionary = "anim@amb@business@bgen@bgen_no_work@",
+                                loop = true,
+                                name = "Sit Sad"
+                            }, {
+                                clip = "hit_loop_ped_b",
+                                dictionary = "anim@heists@ornate_bank@hostages@hit",
+                                loop = true,
+                                name = "Sit Scared"
+                            }, {
+                                clip = "flinch_loop",
+                                dictionary = "anim@heists@ornate_bank@hostages@ped_c@",
+                                loop = true,
+                                name = "Sit Scared 2"
+                            }, {
+                                clip = "flinch_loop",
+                                dictionary = "anim@heists@ornate_bank@hostages@ped_e@",
+                                loop = true,
+                                name = "Sit Scared 3"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_sit_ups@male@idle_a",
+                                loop = true,
+                                name = "Sit Up"
+                            }, {
+                                clip = "plyr_takedown_front_slap",
+                                controllable = true,
+                                dictionary = "melee@unarmed@streamed_variations",
+                                emote_duration = 2000,
+                                loop = true,
+                                name = "Slap"
+                            }, {
+                                clip = "idle_c",
+                                dictionary = "timetable@tracy@sleep@",
+                                loop = true,
+                                name = "Sleep"
+                            }, {
+                                clip = "slide_a_player_a",
+                                dictionary = "anim@arena@celeb@flat@solo@no_props@",
+                                name = "Slide"
+                            }, {
+                                clip = "slide_b_player_a",
+                                dictionary = "anim@arena@celeb@flat@solo@no_props@",
+                                name = "Slide 2"
+                            }, {
+                                clip = "slide_c_player_a",
+                                dictionary = "anim@arena@celeb@flat@solo@no_props@",
+                                name = "Slide 3"
+                            }, {
+                                clip = "slow_clap",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationfemale@slow_clap",
+                                loop = true,
+                                name = "Slow Clap"
+                            }, {
+                                clip = "slow_clap",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationmale@slow_clap",
+                                loop = true,
+                                name = "Slow Clap 2"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intupperslow_clap",
+                                loop = true,
+                                name = "Slow Clap 3"
+                            }, {
+                                clip = "slugger_a_player_a",
+                                dictionary = "anim@arena@celeb@flat@solo@no_props@",
+                                name = "Slugger"
+                            }, {
+                                clip = "fidget_sniff_fingers",
+                                controllable = true,
+                                dictionary = "move_p_m_two_idles@generic",
+                                loop = true,
+                                name = "Smell"
+                            }, {
+                                clip = "ex03_train_roof_idle",
+                                dictionary = "missexile3",
+                                loop = true,
+                                name = "Spider-Man"
+                            }, {
+                                clip = "cs_lamardavis_dual-1",
+                                controllable = true,
+                                dictionary = "fra_0_int-1",
+                                loop = true,
+                                name = "Statue 2"
+                            }, {
+                                clip = "csb_englishdave_dual-0",
+                                dictionary = "club_intro2-0",
+                                loop = true,
+                                name = "Statue 3"
+                            }, {
+                                clip = "biker_02_stickup_loop",
+                                controllable = true,
+                                dictionary = "random@countryside_gang_fight",
+                                loop = true,
+                                name = "Stick Up"
+                            }, {
+                                clip = "idle_e",
+                                dictionary = "mini@triathlon",
+                                loop = true,
+                                name = "Stretch"
+                            }, {
+                                clip = "idle_f",
+                                dictionary = "mini@triathlon",
+                                loop = true,
+                                name = "Stretch 2"
+                            }, {
+                                clip = "idle_d",
+                                dictionary = "mini@triathlon",
+                                loop = true,
+                                name = "Stretch 3"
+                            }, {
+                                clip = "idle_e",
+                                dictionary = "rcmfanatic1maryann_stretchidle_b",
+                                loop = true,
+                                name = "Stretch 4"
+                            }, {
+                                clip = "stumble",
+                                dictionary = "misscarsteal4@actor",
+                                loop = true,
+                                name = "Stumble"
+                            }, {
+                                clip = "damage",
+                                dictionary = "stungun@standing",
+                                loop = true,
+                                name = "Stunned"
+                            }, {
+                                clip = "base",
+                                dictionary = "amb@world_human_sunbathe@male@back@base",
+                                loop = true,
+                                name = "Sunbathe"
+                            }, {
+                                clip = "base",
+                                dictionary = "amb@world_human_sunbathe@female@back@base",
+                                loop = true,
+                                name = "Sunbathe 2"
+                            }, {
+                                clip = "base",
+                                dictionary = "rcmbarry",
+                                loop = true,
+                                name = "Superhero"
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "rcmbarry",
+                                loop = true,
+                                name = "Superhero 2"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "random@arrests@busted",
+                                loop = true,
+                                name = "Surrender"
+                            }, {
+                                clip = "a2_pose",
+                                controllable = true,
+                                dictionary = "missfam5_yoga",
+                                loop = true,
+                                name = "T-Pose"
+                            }, {
+                                clip = "a2_pose",
+                                controllable = true,
+                                dictionary = "missfam5_yoga",
+                                name = "T-Pose (Once)"
+                            }, {
+                                clip = "rehearsal_base_idle_director",
+                                controllable = true,
+                                dictionary = "misscarsteal4@aliens",
+                                loop = true,
+                                name = "Think"
+                            }, {
+                                clip = "jh_int_outro_loop_a",
+                                controllable = true,
+                                dictionary = "missheist_jewelleadinout",
+                                loop = true,
+                                name = "Think 2"
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "timetable@tracy@ig_8@base",
+                                loop = true,
+                                name = "Think 3"
+                            }, {
+                                clip = "b_think",
+                                controllable = true,
+                                dictionary = "mp_cp_welcome_tutthink",
+                                emote_duration = 2000,
+                                name = "Think 5"
+                            }, {
+                                clip = "b_atm_mugging",
+                                controllable = true,
+                                dictionary = "random@atmrobberygen",
+                                loop = true,
+                                name = "Threaten"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intupperthumbs_up",
+                                loop = true,
+                                name = "Thumbs Up"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intselfiethumbs_up",
+                                loop = true,
+                                name = "Thumbs Up 2"
+                            }, {
+                                clip = "enter",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intincarthumbs_uplow@ds@",
+                                emote_duration = 3000,
+                                name = "Thumbs Up 3"
+                            }, {
+                                clip = "try_trousers_neutral_a",
+                                dictionary = "mp_clothing@female@trousers",
+                                loop = true,
+                                name = "Try Clothes"
+                            }, {
+                                clip = "try_shirt_positive_a",
+                                dictionary = "mp_clothing@female@shirt",
+                                loop = true,
+                                name = "Try Clothes 2"
+                            }, {
+                                clip = "try_shoes_positive_a",
+                                dictionary = "mp_clothing@female@shoes",
+                                loop = true,
+                                name = "Try Clothes 3"
+                            }, {
+                                clip = "001443_01_trvs_28_idle_stripper",
+                                dictionary = "switch@trevor@mocks_lapdance",
+                                loop = true,
+                                name = "Twerk"
+                            }, {
+                                clip = "cop_b_idle",
+                                controllable = true,
+                                dictionary = "anim@heists@prison_heiststation@cop_reactions",
+                                loop = true,
+                                name = "Type"
+                            }, {
+                                clip = "loop",
+                                controllable = true,
+                                dictionary = "anim@heists@prison_heistig1_p1_guard_checks_bus",
+                                loop = true,
+                                name = "Type 2"
+                            }, {
+                                clip = "hack_loop",
+                                controllable = true,
+                                dictionary = "mp_prison_break",
+                                loop = true,
+                                name = "Type 3"
+                            }, {
+                                clip = "loop",
+                                dictionary = "mp_fbi_heist",
+                                loop = true,
+                                name = "Type 4"
+                            }, {
+                                clip = "a_uncuff",
+                                controllable = true,
+                                dictionary = "mp_arresting",
+                                loop = true,
+                                name = "Uncuff"
+                            }, {
+                                clip = "_idle_a",
+                                controllable = true,
+                                dictionary = "random@shop_tattoo",
+                                loop = true,
+                                name = "Wait"
+                            }, {
+                                clip = "ig_3_base_tracy",
+                                controllable = true,
+                                dictionary = "timetable@amanda@ig_3",
+                                loop = true,
+                                name = "Wait 10"
+                            }, {
+                                clip = "keeper_base",
+                                controllable = true,
+                                dictionary = "misshair_shop@hair_dressers",
+                                loop = true,
+                                name = "Wait 11"
+                            }, {
+                                clip = "idle",
+                                controllable = true,
+                                dictionary = "rcmjosh1",
+                                loop = true,
+                                name = "Wait 12"
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "rcmnigel1a",
+                                loop = true,
+                                name = "Wait 13"
+                            }, {
+                                clip = "wait_for_van_c",
+                                controllable = true,
+                                dictionary = "missbigscore2aig_3",
+                                loop = true,
+                                name = "Wait 2"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_hang_out_street@female_hold_arm@idle_a",
+                                loop = true,
+                                name = "Wait 3"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "amb@world_human_hang_out_street@Female_arm_side@idle_a",
+                                loop = true,
+                                name = "Wait 4"
+                            }, {
+                                clip = "idle_storeclerk",
+                                controllable = true,
+                                dictionary = "missclothing",
+                                loop = true,
+                                name = "Wait 5"
+                            }, {
+                                clip = "ig_2_base_amanda",
+                                controllable = true,
+                                dictionary = "timetable@amanda@ig_2",
+                                loop = true,
+                                name = "Wait 6"
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "rcmnigel1cnmt_1c",
+                                loop = true,
+                                name = "Wait 7"
+                            }, {
+                                clip = "idle",
+                                controllable = true,
+                                dictionary = "rcmjosh1",
+                                loop = true,
+                                name = "Wait 8"
+                            }, {
+                                clip = "josh_2_intp1_base",
+                                controllable = true,
+                                dictionary = "rcmjosh2",
+                                loop = true,
+                                name = "Wait 9"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "amb@world_human_stand_fire@male@idle_a",
+                                loop = true,
+                                name = "Warmth"
+                            }, {
+                                clip = "wave_a",
+                                controllable = true,
+                                dictionary = "friends@frj@ig_1",
+                                loop = true,
+                                name = "Wave"
+                            }, {
+                                clip = "wave",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationfemale@wave",
+                                loop = true,
+                                name = "Wave 2"
+                            }, {
+                                clip = "over_here_idle_a",
+                                controllable = true,
+                                dictionary = "friends@fra@ig_1",
+                                loop = true,
+                                name = "Wave 3"
+                            }, {
+                                clip = "001445_01_gangintimidation_1_female_idle_b",
+                                controllable = true,
+                                dictionary = "random@mugging5",
+                                emote_duration = 3000,
+                                name = "Wave 4"
+                            }, {
+                                clip = "wave_b",
+                                controllable = true,
+                                dictionary = "friends@frj@ig_1",
+                                loop = true,
+                                name = "Wave 5"
+                            }, {
+                                clip = "wave_c",
+                                controllable = true,
+                                dictionary = "friends@frj@ig_1",
+                                loop = true,
+                                name = "Wave 6"
+                            }, {
+                                clip = "wave_d",
+                                controllable = true,
+                                dictionary = "friends@frj@ig_1",
+                                loop = true,
+                                name = "Wave 7"
+                            }, {
+                                clip = "wave_e",
+                                controllable = true,
+                                dictionary = "friends@frj@ig_1",
+                                loop = true,
+                                name = "Wave 8"
+                            }, {
+                                clip = "gesture_hello",
+                                controllable = true,
+                                dictionary = "gestures@m@standing@casual",
+                                loop = true,
+                                name = "Wave 9"
+                            }, {
+                                clip = "hail_taxi",
+                                controllable = true,
+                                dictionary = "taxi_hail",
+                                emote_duration = 1300,
+                                name = "Whistle"
+                            }, {
+                                clip = "hailing_whistle_waive_a",
+                                controllable = true,
+                                dictionary = "rcmnigel1c",
+                                emote_duration = 2000,
+                                name = "Whistle 2"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intupperair_shagging",
+                                emote_duration = 1000,
+                                loop = true,
+                                name = "Yeah"
+                            } },
+                  name = "Actions"
+              }, {
+                  is_folder = true,
+                  items = { {
+                                clip = "hi_dance_facedj_17_v2_male^5",
+                                dictionary = "anim@amb@nightclub@dancers@podium_dancers@",
+                                loop = true,
+                                name = "Dance"
+                            }, {
+                                clip = "high_center_down",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@male@var_b@",
+                                loop = true,
+                                name = "Dance 2"
+                            }, {
+                                clip = "high_center",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@male@var_a@",
+                                loop = true,
+                                name = "Dance 3"
+                            }, {
+                                clip = "high_center_up",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@male@var_b@",
+                                loop = true,
+                                name = "Dance 4"
+                            }, {
+                                clip = "med_center",
+                                dictionary = "anim@amb@casino@mini@dance@dance_solo@female@var_a@",
+                                loop = true,
+                                name = "Dance 5"
+                            }, {
+                                clip = "dance_loop_tao",
+                                dictionary = "misschinese2_crystalmazemcs1_cs",
+                                loop = true,
+                                name = "Dance 6"
+                            }, {
+                                clip = "dance_loop_tao",
+                                dictionary = "misschinese2_crystalmazemcs1_ig",
+                                loop = true,
+                                name = "Dance 7"
+                            }, {
+                                clip = "dance_m_default",
+                                dictionary = "missfbi3_sniping",
+                                loop = true,
+                                name = "Dance 8"
+                            }, {
+                                clip = "med_center_up",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@female@var_a@",
+                                loop = true,
+                                name = "Dance 9"
+                            }, {
+                                clip = "mi_dance_facedj_17_v1_female^1",
+                                dictionary = "anim@amb@nightclub@dancers@solomun_entourage@",
+                                loop = true,
+                                name = "Dance F"
+                            }, {
+                                clip = "high_center",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@female@var_a@",
+                                loop = true,
+                                name = "Dance F2"
+                            }, {
+                                clip = "high_center_up",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@female@var_a@",
+                                loop = true,
+                                name = "Dance F3"
+                            }, {
+                                clip = "hi_dance_facedj_09_v2_female^1",
+                                dictionary = "anim@amb@nightclub@dancers@crowddance_facedj@hi_intensity",
+                                loop = true,
+                                name = "Dance F4"
+                            }, {
+                                clip = "hi_dance_facedj_09_v2_female^3",
+                                dictionary = "anim@amb@nightclub@dancers@crowddance_facedj@hi_intensity",
+                                loop = true,
+                                name = "Dance F5"
+                            }, {
+                                clip = "high_center_up",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@female@var_a@",
+                                loop = true,
+                                name = "Dance F6"
+                            }, {
+                                clip = "ambclub_13_mi_hi_sexualgriding_laz",
+                                controllable = true,
+                                dictionary = "anim@amb@nightclub@lazlow@hi_railing@",
+                                loop = true,
+                                name = "Dance Glowsticks",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.07, 0.14, 0.0, -80.0, 20.0 },
+                                              prop = "ba_prop_battle_glowstick_01"
+                                          }, {
+                                              bone = 60309,
+                                              placement = { 0.07, 0.09, 0.0, -120.0, -20.0 },
+                                              prop = "ba_prop_battle_glowstick_01"
+                                          } }
+                            }, {
+                                clip = "ambclub_12_mi_hi_bootyshake_laz",
+                                dictionary = "anim@amb@nightclub@lazlow@hi_railing@",
+                                loop = true,
+                                name = "Dance Glowsticks 2",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.07, 0.14, 0.0, -80.0, 20.0 },
+                                              prop = "ba_prop_battle_glowstick_01"
+                                          }, {
+                                              bone = 60309,
+                                              placement = { 0.07, 0.09, 0.0, -120.0, -20.0 },
+                                              prop = "ba_prop_battle_glowstick_01"
+                                          } }
+                            }, {
+                                clip = "ambclub_09_mi_hi_bellydancer_laz",
+                                dictionary = "anim@amb@nightclub@lazlow@hi_railing@",
+                                name = "Dance Glowsticks 3",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.07, 0.14, 0.0, -80.0, 20.0 },
+                                              prop = "ba_prop_battle_glowstick_01"
+                                          }, {
+                                              bone = 60309,
+                                              placement = { 0.07, 0.09, 0.0, -120.0, -20.0 },
+                                              prop = "ba_prop_battle_glowstick_01"
+                                          },
+                                          loop = true
+                                }
+                            }, {
+                                clip = "low_center",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@male@var_a@",
+                                loop = true,
+                                name = "Dance Shy"
+                            }, {
+                                clip = "low_center_down",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@female@var_b@",
+                                loop = true,
+                                name = "Dance Shy 2"
+                            }, {
+                                clip = "mnt_dnc_buttwag",
+                                dictionary = "special_ped@mountain_dancer@monologue_3@monologue_3a",
+                                loop = true,
+                                name = "Dance Silly"
+                            }, {
+                                clip = "fidget_short_dance",
+                                dictionary = "move_clown@p_m_zero_idles@",
+                                loop = true,
+                                name = "Dance Silly 2"
+                            }, {
+                                clip = "fidget_short_dance",
+                                dictionary = "move_clown@p_m_two_idles@",
+                                loop = true,
+                                name = "Dance Silly 3"
+                            }, {
+                                clip = "danceidle_hi_11_buttwiggle_b_laz",
+                                dictionary = "anim@amb@nightclub@lazlow@hi_podium@",
+                                loop = true,
+                                name = "Dance Silly 4"
+                            }, {
+                                clip = "idle_a",
+                                dictionary = "timetable@tracy@ig_5@idle_a",
+                                loop = true,
+                                name = "Dance Silly 5"
+                            }, {
+                                clip = "idle_d",
+                                dictionary = "timetable@tracy@ig_8@idle_b",
+                                loop = true,
+                                name = "Dance Silly 6"
+                            }, {
+                                clip = "high_center",
+                                dictionary = "anim@amb@casino@mini@dance@dance_solo@female@var_b@",
+                                loop = true,
+                                name = "Dance Silly 7"
+                            }, {
+                                clip = "the_woogie",
+                                dictionary = "anim@mp_player_intcelebrationfemale@the_woogie",
+                                loop = true,
+                                name = "Dance Silly 8"
+                            }, {
+                                clip = "dance_loop_tyler",
+                                dictionary = "rcmnigel1bnmt_1b",
+                                loop = true,
+                                name = "Dance Silly 9"
+                            }, {
+                                clip = "low_center",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@male@var_b@",
+                                loop = true,
+                                name = "Dance Slow"
+                            }, {
+                                clip = "low_center",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@female@var_a@",
+                                loop = true,
+                                name = "Dance Slow 2"
+                            }, {
+                                clip = "low_center_down",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@female@var_a@",
+                                loop = true,
+                                name = "Dance Slow 3"
+                            }, {
+                                clip = "low_center",
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@female@var_b@",
+                                loop = true,
+                                name = "Dance Slow 4"
+                            }, {
+                                clip = "high_center",
+                                controllable = true,
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@female@var_b@",
+                                loop = true,
+                                name = "Dance Upper"
+                            }, {
+                                clip = "high_center_up",
+                                controllable = true,
+                                dictionary = "anim@amb@nightclub@mini@dance@dance_solo@female@var_b@",
+                                loop = true,
+                                name = "Dance Upper 2"
+                            } },
+                  name = "Dances"
+              }, {
+                  is_folder = true,
+                  items = { {
+                                clip = "handshake_guy_a",
+                                controllable = true,
+                                dictionary = "mp_ped_interaction",
+                                emote_duration = 3000,
+                                name = "Handshake",
+                                sync_offset_front = 0.9,
+                                target_animation = "handshake2"
+                            }, {
+                                clip = "handshake_guy_b",
+                                controllable = true,
+                                dictionary = "mp_ped_interaction",
+                                emote_duration = 3000,
+                                name = "Handshake 2",
+                                target_animation = "handshake"
+                            }, {
+                                clip = "kisses_guy_a",
+                                controllable = false,
+                                dictionary = "mp_ped_interaction",
+                                emote_duration = 5000,
+                                name = "Hug",
+                                sync_offset_front = 1.05,
+                                target_animation = "hug2"
+                            }, {
+                                clip = "kisses_guy_b",
+                                controllable = false,
+                                dictionary = "mp_ped_interaction",
+                                emote_duration = 5000,
+                                name = "Hug 2",
+                                sync_offset_front = 1.13,
+                                target_animation = "hug"
+                            } },
+                  name = "Interaction"
+              }, {
+                  is_folder = true,
+                  items = { {
+                                clip = "try_tie_positive_a",
+                                controllable = true,
+                                dictionary = "clothingtie",
+                                emote_duration = 5000,
+                                name = "Adjust Tie"
+                            }, {
+                                clip = "shadow_boxing",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationmale@shadow_boxing",
+                                emote_duration = 4000,
+                                name = "Boxing"
+                            }, {
+                                clip = "shadow_boxing",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationfemale@shadow_boxing",
+                                emote_duration = 4000,
+                                name = "Boxing 2"
+                            }, {
+                                clip = "mind_blown",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationmale@mind_blown",
+                                emote_duration = 4000,
+                                name = "Mind Blown"
+                            }, {
+                                clip = "mind_blown",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationfemale@mind_blown",
+                                emote_duration = 4000,
+                                name = "Mind Blown 2"
+                            }, {
+                                clip = "stinker",
+                                controllable = true,
+                                dictionary = "anim@mp_player_intcelebrationfemale@stinker",
+                                loop = true,
+                                name = "Stink"
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "anim@amb@casino@hangout@ped_male@stand@02b@idles",
+                                loop = true,
+                                name = "Think 4"
+                            } },
+                  name = "Misc"
+              }, {
+                  is_folder = true,
+                  items = { {
+                                clip = "idle",
+                                controllable = true,
+                                dictionary = "move_p_m_zero_rucksack",
+                                loop = true,
+                                name = "Backpack",
+                                props = { {
+                                              bone = 24818,
+                                              placement = { 0.07, -0.11, -0.05, 0.0, 90.0, 175.0 },
+                                              prop = "p_michael_backpack_s"
+                                          } }
+                            }, {
+                                clip = "idle_c",
+                                controllable = true,
+                                dictionary = "amb@world_human_drinking@coffee@male@idle_a",
+                                loop = true,
+                                name = "Beer",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_amb_beer_bottle"
+                                          } }
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "amb@world_human_bum_freeway@male@base",
+                                loop = true,
+                                name = "Beg",
+                                props = { {
+                                              bone = 58868,
+                                              placement = { 0.19, 0.18, 0.0, 5.0, 0.0, 40.0 },
+                                              prop = "prop_beggers_sign_03"
+                                          } }
+                            }, {
+                                clip = "bong_stage3",
+                                dictionary = "anim@safehouse@bong",
+                                name = "Bong",
+                                props = { {
+                                              bone = 18905,
+                                              placement = { 0.1, -0.25, 0.0, 95.0, 190.0, 180.0 },
+                                              prop = "hei_heist_sh_bong_01"
+                                          } }
+                            }, {
+                                clip = "cellphone_text_read_base",
+                                controllable = true,
+                                dictionary = "cellphone@",
+                                loop = true,
+                                name = "Book",
+                                props = { {
+                                              bone = 6286,
+                                              placement = { 0.15, 0.03, -0.065, 0.0, 180.0, 90.0 },
+                                              prop = "prop_novel_01"
+                                          } }
+                            }, {
+                                clip = "mp_m_waremech_01_dual-0",
+                                controllable = true,
+                                dictionary = "impexp_int-0",
+                                loop = true,
+                                name = "Bouquet",
+                                props = { {
+                                              bone = 24817,
+                                              placement = { -0.29, 0.4, -0.02, -90.0, -90.0, 0.0 },
+                                              prop = "prop_snow_flower_02"
+                                          } }
+                            }, {
+                                clip = "idle",
+                                controllable = true,
+                                dictionary = "anim@heists@box_carry@",
+                                loop = true,
+                                name = "Box",
+                                props = { {
+                                              bone = 60309,
+                                              placement = { 0.025, 0.08, 0.255, -145.0, 290.0, 0.0 },
+                                              prop = "hei_prop_heist_box"
+                                          } }
+                            }, {
+                                clip = "static",
+                                controllable = true,
+                                dictionary = "missheistdocksprep1hold_cellphone",
+                                loop = true,
+                                name = "Brief 3",
+                                props = { {
+                                              bone = 57005,
+                                              placement = { 0.1, 0.0, 0.0, 0.0, 280.0, 53.0 },
+                                              prop = "prop_ld_case_01"
+                                          } }
+                            }, {
+                                clip = "mp_player_int_eat_burger",
+                                controllable = true,
+                                dictionary = "mp_player_inteat@burger",
+                                name = "Burger",
+                                props = { {
+                                              bone = 18905,
+                                              placement = { 0.13, 0.05, 0.02, -50.0, 16.0, 60.0 },
+                                              prop = "prop_cs_burger_01"
+                                          } }
+                            }, {
+                                clip = "ped_a_enter_loop",
+                                controllable = true,
+                                dictionary = "anim@heists@humane_labs@finale@keycards",
+                                loop = true,
+                                name = "Champagne",
+                                props = { {
+                                              bone = 18905,
+                                              placement = { 0.1, -0.03, 0.03, -100.0, 0.0, -10.0 },
+                                              prop = "prop_drink_champ"
+                                          } }
+                            }, {
+                                clip = "enter",
+                                controllable = true,
+                                dictionary = "amb@world_human_smoking@male@male_a@enter",
+                                emote_duration = 2600,
+                                name = "Cig",
+                                props = { {
+                                              bone = 47419,
+                                              placement = { 0.015, -0.009, 0.003, 55.0, 0.0, 110.0 },
+                                              prop = "prop_amb_ciggy_01"
+                                          } }
+                            }, {
+                                clip = "enter",
+                                controllable = true,
+                                dictionary = "amb@world_human_smoking@male@male_a@enter",
+                                emote_duration = 2600,
+                                name = "Cigar",
+                                props = { {
+                                              bone = 47419,
+                                              placement = { 0.01, 0.0, 0.0, 50.0, 0.0, -80.0 },
+                                              prop = "prop_cigar_02"
+                                          } }
+                            }, {
+                                clip = "enter",
+                                controllable = true,
+                                dictionary = "amb@world_human_smoking@male@male_a@enter",
+                                emote_duration = 2600,
+                                name = "Cigar 2",
+                                props = { {
+                                              bone = 47419,
+                                              placement = { 0.01, 0.0, 0.0, 50.0, 0.0, -80.0 },
+                                              prop = "prop_cigar_01"
+                                          } }
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "timetable@floyd@clean_kitchen@base",
+                                loop = true,
+                                name = "Clean",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, -0.01, 90.0, 0.0, 0.0 },
+                                              prop = "prop_sponge_01"
+                                          } }
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "amb@world_human_maid_clean@",
+                                loop = true,
+                                name = "Clean 2",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, -0.01, 90.0, 0.0, 0.0 },
+                                              prop = "prop_sponge_01"
+                                          } }
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "missfam4",
+                                loop = true,
+                                name = "Clipboard",
+                                props = { {
+                                              bone = 36029,
+                                              placement = { 0.16, 0.08, 0.1, -130.0, -50.0, 0.0 },
+                                              prop = "p_amb_clipboard_01"
+                                          } }
+                            }, {
+                                clip = "idle_c",
+                                controllable = true,
+                                dictionary = "amb@world_human_drinking@coffee@male@idle_a",
+                                loop = true,
+                                name = "Coffee",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "p_amb_coffeecup_01"
+                                          } }
+                            }, {
+                                clip = "idle_c",
+                                controllable = true,
+                                dictionary = "amb@world_human_drinking@coffee@male@idle_a",
+                                loop = true,
+                                name = "Cup",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_plastic_cup_02"
+                                          } }
+                            }, {
+                                clip = "mp_player_int_eat_burger",
+                                controllable = true,
+                                dictionary = "mp_player_inteat@burger",
+                                name = "Donut",
+                                props = { {
+                                              bone = 18905,
+                                              placement = { 0.13, 0.05, 0.02, -50.0, 16.0, 60.0 },
+                                              prop = "prop_amb_donut"
+                                          } }
+                            }, {
+                                clip = "mp_player_int_eat_burger",
+                                controllable = true,
+                                dictionary = "mp_player_inteat@burger",
+                                name = "Ego Bar",
+                                props = { {
+                                              bone = 60309,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_choc_ego"
+                                          } }
+                            }, {
+                                clip = "ped_a_enter_loop",
+                                controllable = true,
+                                dictionary = "anim@heists@humane_labs@finale@keycards",
+                                loop = true,
+                                name = "Flute",
+                                props = { {
+                                              bone = 18905,
+                                              placement = { 0.1, -0.03, 0.03, -100.0, 0.0, -10.0 },
+                                              prop = "prop_champ_flute"
+                                          } }
+                            }, {
+                                clip = "idle_b",
+                                controllable = true,
+                                dictionary = "amb@world_human_musician@guitar@male@idle_a",
+                                loop = true,
+                                name = "Guitar",
+                                props = { {
+                                              bone = 24818,
+                                              placement = { -0.1, 0.31, 0.1, 0.0, 20.0, 150.0 },
+                                              prop = "prop_acc_guitar_01"
+                                          } }
+                            }, {
+                                clip = "001370_02_trvs_8_guitar_beatdown_idle_busker",
+                                controllable = true,
+                                dictionary = "switch@trevor@guitar_beatdown",
+                                loop = true,
+                                name = "Guitar 2",
+                                props = { {
+                                              bone = 24818,
+                                              placement = { -0.05, 0.31, 0.1, 0.0, 20.0, 150.0 },
+                                              prop = "prop_acc_guitar_01"
+                                          } }
+                            }, {
+                                clip = "idle_b",
+                                controllable = true,
+                                dictionary = "amb@world_human_musician@guitar@male@idle_a",
+                                loop = true,
+                                name = "Guitar Electric",
+                                props = { {
+                                              bone = 24818,
+                                              placement = { -0.1, 0.31, 0.1, 0.0, 20.0, 150.0 },
+                                              prop = "prop_el_guitar_01"
+                                          } }
+                            }, {
+                                clip = "idle_b",
+                                controllable = true,
+                                dictionary = "amb@world_human_musician@guitar@male@idle_a",
+                                loop = true,
+                                name = "Guitar Electric 2",
+                                props = { {
+                                              bone = 24818,
+                                              placement = { -0.1, 0.31, 0.1, 0.0, 20.0, 150.0 },
+                                              prop = "prop_el_guitar_03"
+                                          } }
+                            }, {
+                                clip = "enter",
+                                controllable = true,
+                                dictionary = "amb@world_human_smoking@male@male_a@enter",
+                                emote_duration = 2600,
+                                name = "Joint",
+                                props = { {
+                                              bone = 47419,
+                                              placement = { 0.015, -0.009, 0.003, 55.0, 0.0, 110.0 },
+                                              prop = "p_cs_joint_02"
+                                          } }
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "amb@world_human_tourist_map@male@base",
+                                loop = true,
+                                name = "Map",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_tourist_map_01"
+                                          } }
+                            }, {
+                                clip = "loop",
+                                controllable = true,
+                                dictionary = "mp_character_creation@customise@male_a",
+                                loop = true,
+                                name = "Mugshot",
+                                props = { {
+                                              bone = 58868,
+                                              placement = { 0.12, 0.24, 0.0, 5.0, 0.0, 70.0 },
+                                              prop = "prop_police_id_board"
+                                          } }
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "missheistdockssetup1clipboard@base",
+                                loop = true,
+                                name = "Notepad",
+                                props = { {
+                                              bone = 18905,
+                                              placement = { 0.1, 0.02, 0.05, 10.0, 0.0, 0.0 },
+                                              prop = "prop_notepad_01"
+                                          }, {
+                                              bone = 58866,
+                                              placement = { 0.11, -0.02, 0.001, -120.0, 0.0, 0.0 },
+                                              prop = "prop_pencil_01"
+                                          } }
+                            }, {
+                                clip = "cellphone_text_read_base",
+                                controllable = true,
+                                dictionary = "cellphone@",
+                                loop = true,
+                                name = "Phone",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_npc_phone_02"
+                                          } }
+                            }, {
+                                clip = "cellphone_call_listen_base",
+                                controllable = true,
+                                dictionary = "cellphone@",
+                                loop = true,
+                                name = "Phone Call",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_npc_phone_02"
+                                          } }
+                            }, {
+                                clip = "ped_a_enter_loop",
+                                controllable = true,
+                                dictionary = "anim@heists@humane_labs@finale@keycards",
+                                loop = true,
+                                name = "Rose",
+                                props = { {
+                                              bone = 18905,
+                                              placement = { 0.13, 0.15, 0.0, -100.0, 0.0, -20.0 },
+                                              prop = "prop_single_rose"
+                                          } }
+                            }, {
+                                clip = "mp_player_int_eat_burger",
+                                controllable = true,
+                                dictionary = "mp_player_inteat@burger",
+                                name = "Sandwich",
+                                props = { {
+                                              bone = 18905,
+                                              placement = { 0.13, 0.05, 0.02, -50.0, 16.0, 60.0 },
+                                              prop = "prop_sandwich_01"
+                                          } }
+                            }, {
+                                clip = "idle_c",
+                                controllable = true,
+                                dictionary = "amb@world_human_aa_smoke@male@idle_a",
+                                loop = true,
+                                name = "Smoke 2",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_cs_ciggy_01"
+                                          } }
+                            }, {
+                                clip = "idle_b",
+                                controllable = true,
+                                dictionary = "amb@world_human_aa_smoke@male@idle_a",
+                                loop = true,
+                                name = "Smoke 3",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_cs_ciggy_01"
+                                          } }
+                            }, {
+                                clip = "idle_b",
+                                controllable = true,
+                                dictionary = "amb@world_human_smoking@female@idle_a",
+                                loop = true,
+                                name = "Smoke 4",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_cs_ciggy_01"
+                                          } }
+                            }, {
+                                clip = "idle_c",
+                                controllable = true,
+                                dictionary = "amb@world_human_drinking@coffee@male@idle_a",
+                                loop = true,
+                                name = "Soda",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 130.0 },
+                                              prop = "prop_ecola_can"
+                                          } }
+                            }, {
+                                clip = "static",
+                                controllable = true,
+                                dictionary = "missheistdocksprep1hold_cellphone",
+                                loop = true,
+                                name = "Suitcase",
+                                props = { {
+                                              bone = 57005,
+                                              placement = { 0.39, 0.0, 0.0, 0.0, 266.0, 60.0 },
+                                              prop = "prop_ld_suitcase_01"
+                                          } }
+                            }, {
+                                clip = "static",
+                                controllable = true,
+                                dictionary = "missheistdocksprep1hold_cellphone",
+                                loop = true,
+                                name = "Suitcase 2",
+                                props = { {
+                                              bone = 57005,
+                                              placement = { 0.1, 0.0, 0.0, 0.0, 280.0, 53.0 },
+                                              prop = "prop_security_case_01"
+                                          } }
+                            }, {
+                                clip = "base",
+                                controllable = true,
+                                dictionary = "amb@world_human_tourist_map@male@base",
+                                loop = true,
+                                name = "Tablet",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { 0.0, -0.03, 0.0, 20.0, -90.0, 0.0 },
+                                              prop = "prop_cs_tablet"
+                                          } }
+                            }, {
+                                clip = "idle_a",
+                                controllable = true,
+                                dictionary = "amb@code_human_in_bus_passenger_idles@female@tablet@idle_a",
+                                loop = true,
+                                name = "Tablet 2",
+                                props = { {
+                                              bone = 28422,
+                                              placement = { -0.05, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_cs_tablet"
+                                          } }
+                            }, {
+                                clip = "mp_m_waremech_01_dual-0",
+                                controllable = true,
+                                dictionary = "impexp_int-0",
+                                loop = true,
+                                name = "Teddy",
+                                props = { {
+                                              bone = 24817,
+                                              delete_on_end = true,
+                                              placement = { -0.2, 0.46, -0.016, -180.0, -90.0, 0.0 },
+                                              prop = "v_ilev_mr_rasberryclean"
+                                          } }
+                            }, {
+                                clip = "idle_c",
+                                controllable = true,
+                                dictionary = "amb@world_human_drinking@coffee@male@idle_a",
+                                loop = true,
+                                name = "Whiskey",
+                                props = { {
+                                              bone = 28422,
+                                              delete_on_end = true,
+                                              placement = { 0.01, -0.01, -0.06, 0.0, 0.0, 0.0 },
+                                              prop = "prop_drink_whisky"
+                                          } }
+                            }, {
+                                clip = "ped_a_enter_loop",
+                                controllable = true,
+                                dictionary = "anim@heists@humane_labs@finale@keycards",
+                                loop = true,
+                                name = "Wine",
+                                props = { {
+                                              bone = 18905,
+                                              delete_on_end = true,
+                                              placement = { 0.1, -0.03, 0.03, -100.0, 0.0, -10.0 },
+                                              prop = "prop_drink_redwine"
+                                          } }
+                            } },
+                  name = "Props"
+              }, {
+                  is_folder = true,
+                  items = { {
+                                is_folder = true,
+                                items = { {
+                                              name = "Bird in Tree",
+                                              scenario = "PROP_BIRD_IN_TREE"
+                                          }, {
+                                              name = "Bird on pole",
+                                              scenario = "PROP_BIRD_TELEGRAPH_POLE"
+                                          }, {
+                                              name = "Boar Grazing",
+                                              scenario = "WORLD_BOAR_GRAZING"
+                                          }, {
+                                              name = "Cat Sleeping (Ground)",
+                                              scenario = "WORLD_CAT_SLEEPING_GROUND"
+                                          }, {
+                                              name = "Cat Sleeping (Ledge)",
+                                              scenario = "WORLD_CAT_SLEEPING_LEDGE"
+                                          }, {
+                                              name = "Chicken Hawk Feeding",
+                                              scenario = "WORLD_CHICKENHAWK_FEEDING"
+                                          }, {
+                                              name = "Chicken Hawk Standing",
+                                              scenario = "WORLD_CHICKENHAWK_STANDING"
+                                          }, {
+                                              name = "Cormorant Standing",
+                                              scenario = "WORLD_CORMORANT_STANDING"
+                                          }, {
+                                              name = "Cow Grazing",
+                                              scenario = "WORLD_COW_GRAZING"
+                                          }, {
+                                              name = "Coyote Howl",
+                                              scenario = "WORLD_COYOTE_HOWL"
+                                          }, {
+                                              name = "Coyote Rest",
+                                              scenario = "WORLD_COYOTE_REST"
+                                          }, {
+                                              name = "Coyte Wander",
+                                              scenario = "WORLD_COYOTE_WANDER"
+                                          }, {
+                                              name = "Crow Feeding",
+                                              scenario = "WORLD_CROW_FEEDING"
+                                          }, {
+                                              name = "Crow Standing",
+                                              scenario = "WORLD_CROW_STANDING"
+                                          }, {
+                                              name = "Deer Grazing",
+                                              scenario = "WORLD_DEER_GRAZING"
+                                          }, {
+                                              name = "Dog Barking (Retriever)",
+                                              scenario = "WORLD_DOG_BARKING_RETRIEVER"
+                                          }, {
+                                              name = "Dog Barking (Rottweiler)",
+                                              scenario = "WORLD_DOG_BARKING_ROTTWEILER"
+                                          }, {
+                                              name = "Dog Barking (Shepherd)",
+                                              scenario = "WORLD_DOG_BARKING_SHEPHERD"
+                                          }, {
+                                              name = "Dog Barking (Small)",
+                                              scenario = "WORLD_DOG_BARKING_SMALL"
+                                          }, {
+                                              name = "Dog Sitting (Retriever)",
+                                              scenario = "WORLD_DOG_SITTING_RETRIEVER"
+                                          }, {
+                                              name = "Dog Sitting (Rottweiler)",
+                                              scenario = "WORLD_DOG_SITTING_ROTTWEILER"
+                                          }, {
+                                              name = "Dog Sitting (Shepherd)",
+                                              scenario = "WORLD_DOG_SITTING_SHEPHERD"
+                                          }, {
+                                              name = "Dog Sitting (Small)",
+                                              scenario = "WORLD_DOG_SITTING_SMALL"
+                                          }, {
+                                              name = "Fish Idle",
+                                              scenario = "WORLD_FISH_IDLE"
+                                          }, {
+                                              name = "Gull Feeding",
+                                              scenario = "WORLD_GULL_FEEDING"
+                                          }, {
+                                              name = "Gull Standing",
+                                              scenario = "WORLD_GULL_STANDING"
+                                          }, {
+                                              name = "Hen Pecking",
+                                              scenario = "WORLD_HEN_PECKING"
+                                          }, {
+                                              name = "Hen Standing",
+                                              scenario = "WORLD_HEN_STANDING"
+                                          }, {
+                                              name = "Mountain Lion Rest",
+                                              scenario = "WORLD_MOUNTAIN_LION_REST"
+                                          }, {
+                                              name = "Mountain Lion Wander",
+                                              scenario = "WORLD_MOUNTAIN_LION_WANDER"
+                                          }, {
+                                              name = "Pig Grazing",
+                                              scenario = "WORLD_PIG_GRAZING"
+                                          }, {
+                                              name = "Pigeon Feeding",
+                                              scenario = "WORLD_PIGEON_FEEDING"
+                                          }, {
+                                              name = "Pigeon Standing",
+                                              scenario = "WORLD_PIGEON_STANDING"
+                                          }, {
+                                              name = "Rabbit Eating",
+                                              scenario = "WORLD_RABBIT_EATING"
+                                          }, {
+                                              name = "Rats Eating",
+                                              scenario = "WORLD_RATS_EATING"
+                                          }, {
+                                              name = "Shark Swimming",
+                                              scenario = "WORLD_SHARK_SWIM"
+                                          } },
+                                name = "ANIMALS"
+                            }, {
+                                is_folder = true,
+                                items = { {
+                                              name = "AA Coffee",
+                                              scenario = "WORLD_HUMAN_AA_COFFEE"
+                                          }, {
+                                              name = "AA Smoking",
+                                              scenario = "WORLD_HUMAN_AA_SMOKE"
+                                          }, {
+                                              name = "Binoculars",
+                                              scenario = "WORLD_HUMAN_BINOCULARS"
+                                          }, {
+                                              name = "Bum Freeway",
+                                              scenario = "WORLD_HUMAN_BUM_FREEWAY"
+                                          }, {
+                                              name = "Bum Slumped",
+                                              scenario = "WORLD_HUMAN_BUM_SLUMPED"
+                                          }, {
+                                              name = "Bum Standing",
+                                              scenario = "WORLD_HUMAN_BUM_STANDING"
+                                          }, {
+                                              name = "Bum Wash",
+                                              scenario = "WORLD_HUMAN_BUM_WASH"
+                                          }, {
+                                              name = "Campfire",
+                                              scenario = "WORLD_HUMAN_STAND_FIRE"
+                                          }, {
+                                              name = "Car Park Attendant",
+                                              scenario = "WORLD_HUMAN_CAR_PARK_ATTENDANT"
+                                          }, {
+                                              name = "Cheering",
+                                              scenario = "WORLD_HUMAN_CHEERING"
+                                          }, {
+                                              name = "Cleaning",
+                                              scenario = "WORLD_HUMAN_MAID_CLEAN"
+                                          }, {
+                                              name = "Clipboard",
+                                              scenario = "WORLD_HUMAN_CLIPBOARD"
+                                          }, {
+                                              name = "Cop Idle",
+                                              scenario = "WORLD_HUMAN_COP_IDLES"
+                                          }, {
+                                              name = "Drill",
+                                              scenario = "WORLD_HUMAN_CONST_DRILL"
+                                          }, {
+                                              name = "Drinking",
+                                              scenario = "WORLD_HUMAN_DRINKING"
+                                          }, {
+                                              name = "Drug Dealer",
+                                              scenario = "WORLD_HUMAN_DRUG_DEALER"
+                                          }, {
+                                              name = "Drug Dealer Hard",
+                                              scenario = "WORLD_HUMAN_DRUG_DEALER_HARD"
+                                          }, {
+                                              name = "Eat on Wall",
+                                              scenario = "WORLD_HUMAN_SEAT_WALL_EATING"
+                                          }, {
+                                              name = "Fishing",
+                                              scenario = "WORLD_HUMAN_STAND_FISHING"
+                                          }, {
+                                              name = "Gardener",
+                                              scenario = "WORLD_HUMAN_GARDENER_PLANT"
+                                          }, {
+                                              name = "Golfing",
+                                              scenario = "WORLD_HUMAN_GOLF_PLAYER"
+                                          }, {
+                                              name = "Guard Patrol",
+                                              scenario = "WORLD_HUMAN_GUARD_PATROL"
+                                          }, {
+                                              name = "Guard Stand",
+                                              scenario = "WORLD_HUMAN_GUARD_STAND"
+                                          }, {
+                                              name = "Guard Stand (Army)",
+                                              scenario = "WORLD_HUMAN_GUARD_STAND_ARMY"
+                                          }, {
+                                              name = "Hammering",
+                                              scenario = "WORLD_HUMAN_HAMMERING"
+                                          }, {
+                                              name = "Hanging Out",
+                                              scenario = "WORLD_HUMAN_HANG_OUT_STREET"
+                                          }, {
+                                              name = "Hiker Standing",
+                                              scenario = "WORLD_HUMAN_HIKER_STANDING"
+                                          }, {
+                                              name = "Human Statue",
+                                              scenario = "WORLD_HUMAN_HUMAN_STATUE"
+                                          }, {
+                                              name = "Impatient",
+                                              scenario = "WORLD_HUMAN_STAND_IMPATIENT"
+                                          }, {
+                                              name = "Impatient Upright",
+                                              scenario = "WORLD_HUMAN_STAND_IMPATIENT_UPRIGHT"
+                                          }, {
+                                              name = "Janitor",
+                                              scenario = "WORLD_HUMAN_JANITOR"
+                                          }, {
+                                              name = "Jog in place",
+                                              scenario = "WORLD_HUMAN_JOG_STANDING"
+                                          }, {
+                                              name = "Leaf Blower",
+                                              scenario = "WORLD_HUMAN_GARDENER_LEAF_BLOWER"
+                                          }, {
+                                              name = "Leaning",
+                                              scenario = "WORLD_HUMAN_LEANING"
+                                          }, {
+                                              name = "Ledge Eating",
+                                              scenario = "WORLD_HUMAN_SEAT_LEDGE_EATING"
+                                          }, {
+                                              name = "Ledge Sit",
+                                              scenario = "WORLD_HUMAN_SEAT_LEDGE"
+                                          }, {
+                                              name = "Mechanic",
+                                              scenario = "WORLD_HUMAN_VEHICLE_MECHANIC"
+                                          }, {
+                                              name = "Muscle Flex",
+                                              scenario = "WORLD_HUMAN_MUSCLE_FLEX"
+                                          }, {
+                                              name = "Musician",
+                                              scenario = "WORLD_HUMAN_MUSICIAN"
+                                          }, {
+                                              name = "Paparazzi",
+                                              scenario = "WORLD_HUMAN_PAPARAZZI"
+                                          }, {
+                                              name = "Partying",
+                                              scenario = "WORLD_HUMAN_PARTYING"
+                                          }, {
+                                              name = "Phone",
+                                              scenario = "WORLD_HUMAN_STAND_MOBILE"
+                                          }, {
+                                              name = "Phone Filming",
+                                              scenario = "WORLD_HUMAN_MOBILE_FILM_SHOCKING"
+                                          }, {
+                                              name = "Phone Upright",
+                                              scenario = "WORLD_HUMAN_STAND_MOBILE_UPRIGHT"
+                                          }, {
+                                              name = "Picnic",
+                                              scenario = "WORLD_HUMAN_PICNIC"
+                                          }, {
+                                              name = "Prositute (High Class)",
+                                              scenario = "WORLD_HUMAN_PROSTITUTE_HIGH_CLASS"
+                                          }, {
+                                              name = "Prostitute (Low Class)",
+                                              scenario = "WORLD_HUMAN_PROSTITUTE_LOW_CLASS"
+                                          }, {
+                                              name = "Push Ups",
+                                              scenario = "WORLD_HUMAN_PUSH_UPS"
+                                          }, {
+                                              name = "Shine Torch",
+                                              scenario = "WORLD_HUMAN_SECURITY_SHINE_TORCH"
+                                          }, {
+                                              name = "Sit on Steps",
+                                              scenario = "WORLD_HUMAN_SEAT_STEPS"
+                                          }, {
+                                              name = "Sit on Wall",
+                                              scenario = "WORLD_HUMAN_SEAT_WALL"
+                                          }, {
+                                              name = "Situps",
+                                              scenario = "WORLD_HUMAN_SIT_UPS"
+                                          }, {
+                                              name = "Smoking",
+                                              scenario = "WORLD_HUMAN_SMOKING"
+                                          }, {
+                                              name = "Smoking Pot",
+                                              scenario = "WORLD_HUMAN_SMOKING_POT"
+                                          }, {
+                                              name = "Stupor",
+                                              scenario = "WORLD_HUMAN_STUPOR"
+                                          }, {
+                                              name = "Sunbathe",
+                                              scenario = "WORLD_HUMAN_SUNBATHE"
+                                          }, {
+                                              name = "Sunbathe Back",
+                                              scenario = "WORLD_HUMAN_SUNBATHE_BACK"
+                                          }, {
+                                              name = "Superhero",
+                                              scenario = "WORLD_HUMAN_SUPERHERO"
+                                          }, {
+                                              name = "Swimming",
+                                              scenario = "WORLD_HUMAN_SWIMMING"
+                                          }, {
+                                              name = "Tablet on Wall",
+                                              scenario = "WORLD_HUMAN_SEAT_WALL_TABLET"
+                                          }, {
+                                              name = "Tennis Player",
+                                              scenario = "WORLD_HUMAN_TENNIS_PLAYER"
+                                          }, {
+                                              name = "Tourist Map",
+                                              scenario = "WORLD_HUMAN_TOURIST_MAP"
+                                          }, {
+                                              name = "Tourist Phone",
+                                              scenario = "WORLD_HUMAN_TOURIST_MOBILE"
+                                          }, {
+                                              name = "Watch Stand",
+                                              scenario = "WORLD_HUMAN_STRIP_WATCH_STAND"
+                                          }, {
+                                              name = "Weights",
+                                              scenario = "WORLD_HUMAN_MUSCLE_FREE_WEIGHTS"
+                                          }, {
+                                              name = "Welding",
+                                              scenario = "WORLD_HUMAN_WELDING"
+                                          }, {
+                                              name = "Window Browsing",
+                                              scenario = "WORLD_HUMAN_WINDOW_SHOP_BROWSE"
+                                          }, {
+                                              name = "Yoga",
+                                              scenario = "WORLD_HUMAN_YOGA"
+                                          } },
+                                name = "HUMAN"
+                            }, {
+                                is_folder = true,
+                                items = { {
+                                              name = "ATM",
+                                              scenario = "PROP_HUMAN_ATM"
+                                          }, {
+                                              name = "BBQ",
+                                              scenario = "PROP_HUMAN_BBQ"
+                                          }, {
+                                              name = "BUM Shopping Cart",
+                                              scenario = "PROP_HUMAN_BUM_SHOPPING_CART"
+                                          }, {
+                                              name = "Bench Press",
+                                              scenario = "PROP_HUMAN_SEAT_MUSCLE_BENCH_PRESS"
+                                          }, {
+                                              name = "Bench Press (Prison)",
+                                              scenario = "PROP_HUMAN_SEAT_MUSCLE_BENCH_PRESS_PRISON"
+                                          }, {
+                                              name = "Bum Bin",
+                                              scenario = "PROP_HUMAN_BUM_BIN"
+                                          }, {
+                                              name = "Bus Stop Wait",
+                                              scenario = "PROP_HUMAN_SEAT_BUS_STOP_WAIT"
+                                          }, {
+                                              name = "Cower",
+                                              scenario = "CODE_HUMAN_COWER"
+                                          }, {
+                                              name = "Cower (Standing)",
+                                              scenario = "CODE_HUMAN_STAND_COWER"
+                                          }, {
+                                              name = "Cross road wait",
+                                              scenario = "CODE_HUMAN_CROSS_ROAD_WAIT"
+                                          }, {
+                                              name = "Ear to Text",
+                                              scenario = "EAR_TO_TEXT"
+                                          }, {
+                                              name = "Ear to Text (Fat)",
+                                              scenario = "EAR_TO_TEXT_FAT"
+                                          }, {
+                                              name = "Impatient",
+                                              scenario = "PROP_HUMAN_STAND_IMPATIENT"
+                                          }, {
+                                              name = "Medic Kneel",
+                                              scenario = "CODE_HUMAN_MEDIC_KNEEL"
+                                          }, {
+                                              name = "Medic Tend",
+                                              scenario = "CODE_HUMAN_MEDIC_TEND_TO_DEAD"
+                                          }, {
+                                              name = "Medic Time of Death",
+                                              scenario = "CODE_HUMAN_MEDIC_TIME_OF_DEATH"
+                                          }, {
+                                              name = "Movie Bulb",
+                                              scenario = "PROP_HUMAN_MOVIE_BULB"
+                                          }, {
+                                              name = "Movie Studio Light",
+                                              scenario = "PROP_HUMAN_MOVIE_STUDIO_LIGHT"
+                                          }, {
+                                              name = "Muscle Chinups",
+                                              scenario = "PROP_HUMAN_MUSCLE_CHIN_UPS"
+                                          }, {
+                                              name = "Muscle Chinups (Army)",
+                                              scenario = "PROP_HUMAN_MUSCLE_CHIN_UPS_ARMY"
+                                          }, {
+                                              name = "Muscle Chinups (Prison)",
+                                              scenario = "PROP_HUMAN_MUSCLE_CHIN_UPS_PRISON"
+                                          }, {
+                                              name = "Park Car",
+                                              scenario = "CODE_HUMAN_PARK_CAR"
+                                          }, {
+                                              name = "Parking Meter",
+                                              scenario = "PROP_HUMAN_PARKING_METER"
+                                          }, {
+                                              name = "Police Crowd Control",
+                                              scenario = "CODE_HUMAN_POLICE_CROWD_CONTROL"
+                                          }, {
+                                              name = "Police Investigate",
+                                              scenario = "CODE_HUMAN_POLICE_INVESTIGATE"
+                                          }, {
+                                              name = "Sit & Drink (Bench)",
+                                              scenario = "PROP_HUMAN_SEAT_BENCH_DRINK"
+                                          }, {
+                                              name = "Sit & Drink (Chair)",
+                                              scenario = "PROP_HUMAN_SEAT_CHAIR_DRINK"
+                                          }, {
+                                              name = "Sit & Drink (Deckchair)",
+                                              scenario = "PROP_HUMAN_SEAT_DECKCHAIR_DRINK"
+                                          }, {
+                                              name = "Sit & Drink Beer (Bench)",
+                                              scenario = "PROP_HUMAN_SEAT_BENCH_DRINK_BEER"
+                                          }, {
+                                              name = "Sit & Drink Beer (Chair)",
+                                              scenario = "PROP_HUMAN_SEAT_CHAIR_DRINK_BEER"
+                                          }, {
+                                              name = "Sit & Eat (Bench)",
+                                              scenario = "PROP_HUMAN_SEAT_BENCH_FOOD"
+                                          }, {
+                                              name = "Sit & Eat (Chair)",
+                                              scenario = "PROP_HUMAN_SEAT_CHAIR_FOOD"
+                                          }, {
+                                              name = "Sit (Armchair)",
+                                              scenario = "PROP_HUMAN_SEAT_ARMCHAIR"
+                                          }, {
+                                              name = "Sit (Bar)",
+                                              scenario = "PROP_HUMAN_SEAT_BAR"
+                                          }, {
+                                              name = "Sit (Bench)",
+                                              scenario = "PROP_HUMAN_SEAT_BENCH"
+                                          }, {
+                                              name = "Sit (Chair)",
+                                              scenario = "PROP_HUMAN_SEAT_CHAIR"
+                                          }, {
+                                              name = "Sit (Computer)",
+                                              scenario = "PROP_HUMAN_SEAT_COMPUTER"
+                                          }, {
+                                              name = "Sit (Deckchair)",
+                                              scenario = "PROP_HUMAN_SEAT_DECKCHAIR"
+                                          }, {
+                                              name = "Sit (Sewing)",
+                                              scenario = "PROP_HUMAN_SEAT_SEWING"
+                                          }, {
+                                              name = "Sit (Stripclub)",
+                                              scenario = "PROP_HUMAN_SEAT_STRIP_WATCH"
+                                          }, {
+                                              name = "Sit (Sunlounger)",
+                                              scenario = "PROP_HUMAN_SEAT_SUNLOUNGER"
+                                          }, {
+                                              name = "Sit MP Player",
+                                              scenario = "PROP_HUMAN_SEAT_CHAIR_MP_PLAYER"
+                                          }, {
+                                              name = "Sit Upright (Chair)",
+                                              scenario = "PROP_HUMAN_SEAT_CHAIR_UPRIGHT"
+                                          } },
+                                name = "HUMAN2"
+                            } },
+                  name = "Scenarios"
+              } }
 }
 
 return constants
