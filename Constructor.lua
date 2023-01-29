@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b4"
+local SCRIPT_VERSION = "0.34b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1581,17 +1581,20 @@ end
 
 -- TODO: In progress
 
-constructor.search_items = function(items, query)
+--constructor.search_items = function(folder, query)
+--
+--end
 
-end
-
-constructor.browse_items = function(root_menu, items, context)
-    menu.action(root_menu, t("Search"), {}, "", function()  end)
-    menu.divider(root_menu, t("Browse"))
-    for _, item in pairs(items) do
+constructor.browse_items = function(root_menu, folder, context)
+    --menu.action(root_menu, t("Search"), {}, "", function()  end)
+    --if context.additional_page_menus ~= nil then
+    --    context.additional_page_menus(context, root_menu)
+    --end
+    --menu.divider(root_menu, t("Browse"))
+    for _, item in pairs(folder.items) do
         if item.is_folder == true then
             local menu_list = menu.list(root_menu, item.name)
-            constructor.browse_items(menu_list, item.items, context)
+            constructor.browse_items(menu_list, item, context)
         else
             if context.action_function ~= nil then
                 menu.action(root_menu, item.name, {}, item.description or "", function()
@@ -2097,30 +2100,27 @@ local function create_ped_prop_menu(attachment, root_menu, index, name)
     end)
 end
 
-local function convert_jackz_animations()
-    local animations = {}
-    for folder_name, contents in pairs(constants.jackz_animations) do
-        local folder_item = {
-            name=folder_name,
-            is_folder=true,
-            items={}
-        }
-        for animation_name, animation_item in pairs(contents) do
-            --"mp_ped_interaction", "handshake_guy_a", "Handshake",
-            --AnimationOptions = {
-            --TargetAnimation = "handshake2", Controllable = true, EmoteDuration = 3000, SyncOffsetFront = 0.9
-            --}
-            local item = {
-                name=animation_item[3],
-                animation_dict=animation_item[1],
-                animation_name=animation_item[2],
-                animation_options=animation_item.AnimationOptions
-            }
-            table.insert(folder_item.items, item)
-        end
-        table.insert(animations, folder_item)
+local function refresh_current_animation(attachment)
+    local current_animation = "None"
+    local current_refresh_timer = 0
+    if attachment.ped_attributes.animation ~= nil then
+        current_animation = attachment.ped_attributes.animation.name
+        current_refresh_timer = attachment.ped_attributes.animation.refresh_timer or 0
     end
-    return animations
+    attachment.menus.current_animation.value = current_animation
+    attachment.menus.ped_edit_animation_refresh_timer.value = current_refresh_timer
+end
+
+local function set_current_animation(attachment, animation)
+    attachment.ped_attributes.animation = animation
+    constructor_lib.animate_peds(attachment)
+    refresh_current_animation(attachment)
+end
+
+local function cancel_current_animation(attachment)
+    constructor_lib.cancel_animation(attachment)
+    attachment.ped_attributes.animation = nil
+    refresh_current_animation(attachment)
 end
 
 constructor.add_attachment_ped_menu = function(attachment)
@@ -2163,39 +2163,46 @@ constructor.add_attachment_ped_menu = function(attachment)
         create_ped_prop_menu(attachment, attachment.menus.ped_options_props, ped_prop.index, ped_prop.name)
     end
 
-    attachment.menus.ped_options_animation = menu.list(attachment.menus.ped_options, t("Animation"))
-    menu.divider(attachment.menus.ped_options_animation, t("Dictionary"))
-    attachment.menus.ped_options_animation_dict = menu.text_input(attachment.menus.ped_options_animation, t("Dictionary"), {"constructoranimationdictionary"..attachment.id}, "Set the animation dictionary available for the animation name to load from.", function(animation_dict)
-        attachment.ped_attributes.animation_dict = animation_dict
+    attachment.menus.ped_options_animation = menu.list(attachment.menus.ped_options, t("Animation"), {}, t("Configure animation options"), function()
+        refresh_current_animation(attachment)
+    end)
+    attachment.menus.current_animation = menu.readonly(attachment.menus.ped_options_animation, t("Current"), t("The current animation set for this ped"))
+    local refresh_timer = 0
+    if attachment.ped_attributes.animation ~= nil and attachment.ped_attributes.animation.refresh_timer then refresh_timer = attachment.ped_attributes.animation.refresh_timer end
+    attachment.menus.ped_edit_animation_refresh_timer = menu.slider(attachment.menus.ped_options_animation, t("Refresh Timer"), {}, t("How often should the animation be totally reset. 0 means never."), 0, 60000, refresh_timer, 1000, function(value)
+        if attachment.ped_attributes.animation == nil then return end
+        attachment.ped_attributes.animation.refresh_timer = value
         constructor_lib.animate_peds(attachment)
-    end, attachment.ped_attributes.animation_dict or "")
-    attachment.menus.ped_options_animation_name = menu.text_input(attachment.menus.ped_options_animation, t("Name"), {"constructoranimationname"..attachment.id}, "Set the animation name to load from the dictionary.", function(animation_name)
-        attachment.ped_attributes.animation_name = animation_name
-        constructor_lib.animate_peds(attachment)
-    end, attachment.ped_attributes.animation_name or "")
-    --attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Animation List"), {}, "", function()
-    --    --debug_log("Converting Jackz animations..\n"..inspect(convert_jackz_animations()))
-    --    constructor.browse_items(attachment.menus.ped_options_animation_list, constants.animations, {
-    --        action_function=function(item)
-    --            attachment.ped_attributes.animation_dict = item.animation_dict
-    --            attachment.ped_attributes.animation_name = item.animation_name
-    --            constructor_lib.animate_peds(attachment)
-    --        end,
-    --        search_function=function(item, query)
-    --            return item.name == query
-    --        end
-    --    })
-    --end)
-    menu.hyperlink(attachment.menus.ped_options_animation, t("Animation Reference"), "https://gtahash.ru/animations/")
+    end)
+    attachment.menus.ped_cancel_animation = menu.action(attachment.menus.ped_options_animation, t("Cancel"), {}, t("Immediately stops the current animation"), function()
+        cancel_current_animation(attachment)
+    end)
+    attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Browse Animations"), {}, t("Select from a curated set of animations"))
+    constructor.browse_items(attachment.menus.ped_options_animation_list, constants.animations, {
+        action_function=function(item)
+            set_current_animation(attachment, item)
+        end
+    })
 
-
-    menu.divider(attachment.menus.ped_options_animation, t("Scenario"))
-    attachment.menus.ped_options_animation_scenario = menu.text_input(attachment.menus.ped_options_animation, t("Scenario"), {"constructoranimationscenario"..attachment.id}, "Set the animation scenario, separate from dictionary and name.", function(animation_scenario)
-        attachment.ped_attributes.animation_scenario = animation_scenario
-        constructor_lib.animate_peds(attachment)
-    end, attachment.ped_attributes.animation_scenario or "")
-    menu.hyperlink(attachment.menus.ped_options_animation, t("Scenario List"), "https://gtaforums.com/topic/796181-list-of-scenarios-for-peds/")
-
+    attachment.menus.animation_set_by_name = menu.list(attachment.menus.ped_options_animation, t("Set by Name"), {}, t("Set a specific animation dictionary+clip or scenario"))
+    attachment.menus.ped_animation_set_dict_and_clip = menu.text_input(attachment.menus.animation_set_by_name, t("Dictionary and Clip"), {"constructoranimationdictionaryclip"..attachment.id}, t("Set the animation dictionary and clip (separated by a space)."), function(animation_name)
+        local animation_values = string.split(animation_name, " ")
+        if #animation_values > 1 then
+            set_current_animation(attachment, {
+                name = animation_values[2],
+                dictionary = animation_values[1],
+                clip = animation_values[2],
+            })
+        end
+    end)
+    menu.hyperlink(attachment.menus.animation_set_by_name, t("Dictionary and Clip List"), "https://gtahash.ru/animations/")
+    attachment.menus.ped_options_animation_scenario = menu.text_input(attachment.menus.animation_set_by_name, t("Scenario"), {"constructoranimationscenario"..attachment.id}, t("Set the animation scenario."), function(animation_scenario)
+        set_current_animation(attachment, {
+            name = animation_scenario,
+            scenario = animation_scenario,
+        })
+    end)
+    menu.hyperlink(attachment.menus.animation_set_by_name, t("Scenario List"), "https://gtaforums.com/topic/796181-list-of-scenarios-for-peds/")
 
 end
 
