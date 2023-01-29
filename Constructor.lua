@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b5"
+local SCRIPT_VERSION = "0.34b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2086,7 +2086,7 @@ end
 
 local function create_ped_prop_menu(attachment, root_menu, index, name)
     local prop = attachment.ped_attributes.props["_".. index]
-    attachment.menus["ped_props_drawable_".. index] = menu.slider(root_menu, name, {}, "", -1, prop.num_drawable_variations, prop.drawable_variation, 1, function(value)
+    attachment.menus["ped_props_drawable_".. index] = menu.slider(root_menu, name, {}, "", -1, prop.num_drawable_variations or -1, prop.drawable_variation or -1, 1, function(value)
         prop.drawable_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
         menu.set_max_value(attachment.menus["ped_props_drawable_".. index], prop.num_drawable_variations)
@@ -2094,7 +2094,7 @@ local function create_ped_prop_menu(attachment, root_menu, index, name)
         menu.set_value(attachment.menus["ped_props_texture_".. index], prop.texture_variation)
         menu.set_max_value(attachment.menus["ped_props_texture_".. index], prop.num_texture_variations)
     end)
-    attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, prop.num_texture_variations, prop.texture_variation, 1, function(value)
+    attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, prop.num_texture_variations or -1, prop.texture_variation or -1, 1, function(value)
         prop.texture_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
