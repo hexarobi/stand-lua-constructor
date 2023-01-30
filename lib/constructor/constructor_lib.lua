@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b3"
+local SCRIPT_VERSION = "0.34b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -828,11 +828,8 @@ constructor_lib.update_attachment_tick = function(attachment)
     if attachment.options ~= nil and attachment.options.is_frozen ~= nil then
         ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
     end
-    if attachment.vehicle_attributes ~= nil and attachment.vehicle_attributes.wheels ~= nil
-            and attachment.vehicle_attributes.wheels.steering_bias ~= nil then
-        VEHICLE.SET_VEHICLE_STEER_BIAS(attachment.handle, attachment.vehicle_attributes.wheels.steering_bias)
-    end
     --constructor_lib.serialize_entity_position(attachment)
+    constructor_lib.deserialize_vehicle_tick(attachment)
     constructor_lib.update_particle_tick(attachment)
     constructor_lib.refresh_ped_animation(attachment)
 end
@@ -1723,6 +1720,19 @@ constructor_lib.serialize_vehicle_options = function(vehicle)
     vehicle.vehicle_attributes.options.license_plate_type = VEHICLE.GET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle)
 end
 
+constructor_lib.deserialize_vehicle_tick = function(vehicle)
+    if vehicle.vehicle_attributes == nil then return end
+    if vehicle.vehicle_attributes.wheels ~= nil and vehicle.vehicle_attributes.wheels.steering_bias ~= nil then
+        VEHICLE.SET_VEHICLE_STEER_BIAS(vehicle.handle, vehicle.vehicle_attributes.wheels.steering_bias)
+    end
+    if vehicle.vehicle_attributes.engine_sound ~= nil then
+        local hash = util.joaat(vehicle.vehicle_attributes.engine_sound)
+        if STREAMING.IS_MODEL_VALID(hash) and VEHICLE.IS_THIS_MODEL_A_CAR(hash) then
+            AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
+        end
+    end
+end
+
 constructor_lib.deserialize_vehicle_options = function(vehicle)
     if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.options == nil then return end
     if vehicle.vehicle_attributes.options.siren then
@@ -1730,12 +1740,6 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
         VEHICLE.SET_VEHICLE_HAS_MUTED_SIRENS(vehicle.handle, false)
         AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(vehicle.handle, true)
         AUDIO.TRIGGER_SIREN_AUDIO(vehicle.handle, true)
-    end
-    if vehicle.vehicle_attributes.engine_sound ~= nil then
-        local hash = util.joaat(vehicle.vehicle_attributes.engine_sound)
-        if STREAMING.IS_MODEL_VALID(hash) and VEHICLE.IS_THIS_MODEL_A_CAR(hash) then
-            AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
-        end
     end
     if vehicle.vehicle_attributes.options.window_tint ~= nil then
         VEHICLE.SET_VEHICLE_WINDOW_TINT(vehicle.handle, vehicle.vehicle_attributes.options.window_tint)
