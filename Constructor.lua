@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b6"
+local SCRIPT_VERSION = "0.34b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1905,7 +1905,6 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     attachment.menus.vehicle_options = menu.list(attachment.menus.options, t("Vehicle Options"), {}, t("Additional options available for all vehicle entities"))
 
     attachment.menus.vehicle_options_ls_customs = menu.list(attachment.menus.vehicle_options, t("LS Customs"), {}, "Vehicle modifications normally available in Los Santos Customs")
-
     for _, vehicle_mod in pairs(vehicle_mod_menus) do
         if vehicle_mod.type == "separator" then
             menu.divider(attachment.menus.vehicle_options_ls_customs, vehicle_mod.name)
@@ -1928,6 +1927,20 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             end
         end
     end
+
+    attachment.menus.vehicle_options_extras = menu.list(attachment.menus.vehicle_options, t("Extras"), {}, t("Some vehicles include parts that can fall off and be removed when damaged"), function()
+        if attachment.temp.extra_menus == nil then attachment.temp.extra_menus = {} end
+        clear_menu_list(attachment.temp.extra_menus)
+        for extra_index = 0, 60 do
+            if VEHICLE.DOES_EXTRA_EXIST(attachment.handle, extra_index) then
+                local extra_menu = menu.toggle(attachment.menus.vehicle_options_extras, t("Extra").." #"..extra_index, {}, "", function(toggle)
+                    attachment.vehicle_attributes.extras["_"..extra_index] = toggle
+                    constructor_lib.deserialize_vehicle_extras(attachment)
+                end, attachment.vehicle_attributes.extras["_"..extra_index])
+                table.insert(attachment.temp.extra_menus, extra_menu)
+            end
+        end
+    end)
 
     menu.toggle_loop(attachment.menus.vehicle_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
         attachment.options.engine_running = true
