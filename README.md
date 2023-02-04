@@ -39,10 +39,10 @@ If the above methods fail, you can manually install the entire project using thi
 2. To create using your current vehicle as the base select `From Current Vehicle`. This will add it to your `Loaded Constructs` menu for editing.
 3. Select `Add Attachment > Search` and enter in a search term such as "tree"
 4. Browse search results and select a tree to attach to your vehicle
-5. Modify position of the tree attachment until it suits you
-6. Attach another attachment to the tree attachment, maybe one the curated objects, or try searching "art"
-7. Attach another vehicle to the base vehicle
-8. Continue building and exploring and having fun
+5. Use the `Position` menu to move the tree attachment into an appropriate position
+6. Use `Add Attachment` to attach another attachment to the tree attachment, maybe one the curated objects, or try searching "art"
+7. Try using `Add Attachment` to attach another vehicle to the base vehicle
+8. Continue explopring, building, and having fun
 9. Save your construct and share it with others on Dicord! =)
 
 
