@@ -17,17 +17,17 @@ local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 ---
 
 -- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
-local status, auto_updater = pcall(require, "auto-updater-dev")
+local status, auto_updater = pcall(require, "auto-updater")
 if not status then
     local auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
-    async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/dev/auto-updater-dev.lua",
+    async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
             function(result, headers, status_code)
                 local function parse_auto_update_result(result, headers, status_code)
                     local error_prefix = "Error downloading auto-updater: "
                     if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
                     if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
                     filesystem.mkdir(filesystem.scripts_dir() .. "lib")
-                    local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater-dev.lua", "wb")
+                    local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
                     if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
                     file:write(result) file:close() util.toast("Successfully installed auto-updater lib", TOAST_ALL) return true
                 end
@@ -35,9 +35,9 @@ if not status then
             end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
     async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 40) do util.yield(250) i = i + 1 end
     if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
-    auto_updater = require("auto-updater-dev")
+    auto_updater = require("auto-updater")
 end
-if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater-dev.lua and try again") end
+if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
 
 ---
 --- Config
@@ -402,6 +402,14 @@ local function clear_menu_list(t)
         end
         t[k] = nil
     end
+end
+
+local function color_menu_input(input_color)
+    return { r=input_color.r or 0, g=input_color.g or 0, b=input_color.b or 0, a=1 }
+end
+
+local function color_menu_output(output_color)
+    return { r=math.floor(output_color.r * 255), g=math.floor(output_color.g * 255), b=math.floor(output_color.b * 255) }
 end
 
 ---
@@ -1850,7 +1858,7 @@ local vehicle_mod_menus = {
     { name="Wheels", index=23 },
     { name="Rear Wheel", index=24 },
 
-    { name="Visual", type="separator" },
+    { name="Mods", type="separator" },
     { name="Spoiler", index=0 },
     { name="Front Bumper", index=1 },
     { name="Rear Bumper", index=2 },
@@ -1942,6 +1950,86 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end
     end)
 
+    attachment.menus.vehicle_options_paint = menu.list(attachment.menus.vehicle_options, t("Paint"), {}, t("Set vehicle paint colors"))
+    
+    attachment.menus.vehicle_options_primary = menu.list(attachment.menus.vehicle_options_paint, t("Primary"), {}, t("Primary vehicle paint color"))
+    attachment.menus.vehicle_options_primary_standard_colors = menu.list(attachment.menus.vehicle_options_primary, t("Standard Color"), {}, t("Select from a list of standard paint colors"))
+    for _, standard_color in pairs(constants.standard_colors) do
+        menu.action(attachment.menus.vehicle_options_primary_standard_colors, standard_color.name, {}, "", function()
+            attachment.vehicle_attributes.paint.primary.is_custom = false
+            attachment.vehicle_attributes.paint.primary.vehicle_standard_color = standard_color.index
+            constructor_lib.deserialize_vehicle_paint(attachment)
+        end)
+    end
+    attachment.menus.vehicle_options_primary_custom_color = menu.colour(attachment.menus.vehicle_options_primary, t("Custom Color"), {}, t("Mix up a custom paint color"), color_menu_input(attachment.vehicle_attributes.paint.primary.custom_color), false, function(color)
+        attachment.vehicle_attributes.paint.primary.is_custom = true
+        attachment.vehicle_attributes.paint.primary.custom_color = color_menu_output(color)
+        constructor_lib.deserialize_vehicle_paint(attachment)
+    end)
+    --menu.divider(attachment.menus.vehicle_options_primary_custom_color, "Hex")
+    attachment.menus.vehicle_options_primary_paint_type = menu.list_select(attachment.menus.vehicle_options_primary, t("Paint Type"), {}, t("Type of paint finish"), constants.vehicle_paint_types, 1, function(value)
+        attachment.vehicle_attributes.paint.primary.paint_type = value - 1
+        constructor_lib.deserialize_vehicle_paint(attachment)
+    end)
+
+    attachment.menus.vehicle_options_secondary = menu.list(attachment.menus.vehicle_options_paint, t("Secondary"), {}, t("Secondary vehicle paint color"))
+    attachment.menus.vehicle_options_secondary_standard_colors = menu.list(attachment.menus.vehicle_options_secondary, t("Standard Color"), {}, t("Select from a list of standard paint colors"))
+    for _, standard_color in pairs(constants.standard_colors) do
+        menu.action(attachment.menus.vehicle_options_secondary_standard_colors, standard_color.name, {}, "", function()
+            attachment.vehicle_attributes.paint.secondary.is_custom = false
+            attachment.vehicle_attributes.paint.secondary.vehicle_standard_color = standard_color.index
+            constructor_lib.deserialize_vehicle_paint(attachment)
+        end)
+    end
+    attachment.menus.vehicle_options_secondary_custom_color = menu.colour(attachment.menus.vehicle_options_secondary, t("Custom Color"), {}, t("Mix up a custom paint color"), color_menu_input(attachment.vehicle_attributes.paint.secondary.custom_color), false, function(color)
+        attachment.vehicle_attributes.paint.secondary.is_custom = true
+        attachment.vehicle_attributes.paint.secondary.custom_color = color_menu_output(color)
+        constructor_lib.deserialize_vehicle_paint(attachment)
+    end)
+    --menu.divider(attachment.menus.vehicle_options_secondary_custom_color, "Hex")
+    attachment.menus.vehicle_options_secondary_paint_type = menu.list_select(attachment.menus.vehicle_options_secondary, t("Paint Type"), {}, t("Type of paint finish"), constants.vehicle_paint_types, 1, function(value)
+        attachment.vehicle_attributes.paint.secondary.paint_type = value - 1
+        constructor_lib.deserialize_vehicle_paint(attachment)
+    end)
+
+    attachment.menus.vehicle_options_pearl = menu.list(attachment.menus.vehicle_options_paint, t("Pearlescent"), {}, t("Select from a list of pearlescent paint colors"))
+    for _, standard_color in pairs(constants.standard_colors) do
+        menu.action(attachment.menus.vehicle_options_pearl, standard_color.name, {}, "", function()
+            attachment.vehicle_attributes.paint.extra_colors.pearlescent = standard_color.index
+            constructor_lib.deserialize_vehicle_paint(attachment)
+        end)
+    end
+    
+    attachment.menus.vehicle_options_wheels = menu.list(attachment.menus.vehicle_options_paint, t("Wheels"), {}, t("Select from a list of wheel paint colors"))
+    for _, standard_color in pairs(constants.standard_colors) do
+        menu.action(attachment.menus.vehicle_options_wheels, standard_color.name, {}, "", function()
+            attachment.vehicle_attributes.paint.extra_colors.wheel = standard_color.index
+            constructor_lib.deserialize_vehicle_paint(attachment)
+        end)
+    end
+
+    attachment.menus.vehicle_options_tire_smoke = menu.colour(attachment.menus.vehicle_options_paint, t("Tire Smoke"), {}, t("Mix up a custom tire smoke color"), color_menu_input(attachment.vehicle_attributes.wheels.tire_smoke_color), false, function(color)
+        attachment.vehicle_attributes.wheels.tire_smoke_color = color_menu_output(color)
+        attachment.vehicle_attributes.mods["_20"] = true    -- Turn on tire smoke mod
+        constructor_lib.deserialize_vehicle_mods(attachment)
+        constructor_lib.deserialize_vehicle_wheels(attachment)
+    end)
+
+    menu.list_select(attachment.menus.vehicle_options_paint, t("Headlights"), {}, t("Select from a list of headlight colors"), constants.headlight_colors, (attachment.vehicle_attributes.headlights.headlights_color or -1) + 2, function(index)
+        attachment.vehicle_attributes.headlights.headlights_color = index - 2
+        attachment.vehicle_attributes.headlights.headlights_type = true
+        constructor_lib.deserialize_vehicle_mods(attachment)
+        constructor_lib.deserialize_vehicle_headlights(attachment)
+    end)
+    
+    attachment.menus.vehicle_options_neon = menu.colour(attachment.menus.vehicle_options_paint, t("Neon Lights"), {}, t("Set up a custom neon light color"), color_menu_input(attachment.vehicle_attributes.neon.color), false, function(color)
+        attachment.vehicle_attributes.neon.color = color_menu_output(color)
+        if attachment.vehicle_attributes.neon.lights == nil then
+            attachment.vehicle_attributes.neon.lights = { left = true, right = true, front = true, back = true }
+        end
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end)
+    
     menu.toggle_loop(attachment.menus.vehicle_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
         attachment.options.engine_running = true
         VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
