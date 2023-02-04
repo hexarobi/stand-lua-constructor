@@ -40,11 +40,12 @@ If the above methods fail, you can manually install the entire project using thi
 3. Select `Add Attachment > Search` and enter in a search term such as "tree"
 4. Browse search results and select a tree to attach to your vehicle
 5. Use the `Position` menu to move the tree attachment into an appropriate position
-6. Use `Add Attachment` to attach another attachment to the tree attachment, maybe one the curated objects, or try searching "art"
-7. Try using `Add Attachment` to attach another vehicle to the base vehicle
-8. Continue explopring, building, and having fun
-9. Save your construct and share it with others on Dicord! =)
-
+6. Use the `Options` menu to modify various attributes about the attachment, including visibility, collision, and invincibility.
+7. Use `Add Attachment` to attach another attachment to the tree attachment, maybe one the curated objects, or try searching "art"
+8. Try using `Add Attachment` to attach another vehicle to the base vehicle and explore the various vehicle options
+9. Try using `Add Attachment` to add a pedestrian (ped) and explore the ped options, including clothing and animations
+10. Continue explopring, building, and having fun
+11. Save your construct and share it with others on Dicord! =)
 
 ## Updating
 
