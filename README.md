@@ -49,7 +49,3 @@ If the above methods fail, you can manually install the entire project using thi
 ## Updating
 
 The script will check for updates the first time it is run each day. If updates are found they will be auto-downloaded from https://github.com/hexarobi/stand-lua-constructor and auto-installed. You can manually check for updates any time within the Script Meta menu.
-
-## Creating Constructs
-
-Use `Create Construct` root menu to create a new vehicle, map, or ped.
