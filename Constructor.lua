@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b9"
+local SCRIPT_VERSION = "0.34b10"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2202,13 +2202,14 @@ local function create_ped_prop_menu(attachment, root_menu, index, name)
 end
 
 local function refresh_current_animation(attachment)
-    local current_animation = "None"
+    local current_animation_name = "None"
     local current_refresh_timer = 0
     if attachment.ped_attributes.animation ~= nil then
-        current_animation = attachment.ped_attributes.animation.name
+        current_animation_name = attachment.ped_attributes.animation.name or attachment.ped_attributes.animation.clip
+                or attachment.ped_attributes.animation.scenario or "Unknown"
         current_refresh_timer = attachment.ped_attributes.animation.refresh_timer or 0
     end
-    attachment.menus.current_animation.value = current_animation
+    attachment.menus.current_animation.value = current_animation_name
     attachment.menus.ped_edit_animation_refresh_timer.value = current_refresh_timer
 end
 
