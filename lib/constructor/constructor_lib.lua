@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b4"
+local SCRIPT_VERSION = "0.34b5"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1243,6 +1243,11 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes.wheels.tires_burst == nil then vehicle.vehicle_attributes.wheels.tires_burst = {} end
     if vehicle.vehicle_attributes.wheels.tire_smoke_color == nil then vehicle.vehicle_attributes.wheels.tire_smoke_color = {} end
     if vehicle.vehicle_attributes.headlights == nil then vehicle.vehicle_attributes.headlights = {} end
+    if vehicle.vehicle_attributes.headlights.headlight_color == nil
+        or vehicle.vehicle_attributes.headlights.headlight_color < -1
+        or vehicle.vehicle_attributes.headlights.headlight_color > 14 then
+        vehicle.vehicle_attributes.headlights.headlight_color = -1
+    end
     if vehicle.vehicle_attributes.options == nil then vehicle.vehicle_attributes.options = {} end
     if vehicle.vehicle_attributes.extras == nil then vehicle.vehicle_attributes.extras = {} end
     if vehicle.vehicle_attributes.doors == nil then vehicle.vehicle_attributes.doors = {} end
@@ -1384,6 +1389,8 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
     if vehicle.vehicle_attributes.paint.primary ~= nil then
         if vehicle.vehicle_attributes.paint.primary.vehicle_standard_color ~= nil
                 or vehicle.vehicle_attributes.paint.secondary.vehicle_standard_color ~= nil then
+            VEHICLE.CLEAR_VEHICLE_CUSTOM_PRIMARY_COLOUR(vehicle.handle)
+            VEHICLE.CLEAR_VEHICLE_CUSTOM_SECONDARY_COLOUR(vehicle.handle)
             VEHICLE.SET_VEHICLE_COLOURS(
                     vehicle.handle,
                     vehicle.vehicle_attributes.paint.primary.vehicle_standard_color,
@@ -1494,17 +1501,33 @@ constructor_lib.deserialize_vehicle_neon = function(vehicle)
 end
 
 local function vehicle_wheels_invis(attachment)
+    ----if attachment.is_attached then
+    --    util.toast("Detaching "..attachment.name)
+    --    ENTITY.DETACH_ENTITY(attachment.handle, true, true)
+    --    ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, false)
+    --    VEHICLE.SET_VEHICLE_GRAVITY(attachment.handle, true)
+    --    ENTITY.APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(
+    --            attachment.handle, 5, 0, 0, 1,
+    --            true, false, true, true
+    --    )
+    --    util.yield(5000)
+    ----end
     debug_log("Making wheels invis "..attachment.name)
     local DBL_MAX = 1.79769e+308
     constructor_lib.request_control(attachment.handle, 800)
     VEHICLE.SET_VEHICLE_FORWARD_SPEED(attachment.handle, DBL_MAX*DBL_MAX)
+    --util.yield(100)
     SYSTEM.WAIT(100)
     VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, DBL_MAX*DBL_MAX)
     VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, DBL_MAX*DBL_MAX)
     ENTITY.APPLY_FORCE_TO_ENTITY(attachment.handle, 1, 0.0, 0.0, -DBL_MAX*DBL_MAX, 0.0, 0.0, 0.0, 0, false, true, true, true, false, true)
     SYSTEM.WAIT(100)
+    --util.yield(100)
     VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, 1)
     VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, 1)
+    --if attachment.is_attached then
+    --    constructor_lib.attach_entity(attachment)
+    --end
 end
 
 local function vehicle_wheels_uninvis(attachment)
@@ -1525,6 +1548,7 @@ local function vehicle_wheels_uninvis(attachment)
 
     VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, 0)
     VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, 0)
+    --util.yield(100)
     SYSTEM.WAIT(100)
     VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, 1)
     VEHICLE.MODIFY_VEHICLE_TOP_SPEED(attachment.handle, 1)
