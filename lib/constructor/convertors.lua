@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.34b3"
+local SCRIPT_VERSION = "0.34b4"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -812,13 +812,11 @@ local function map_ped_placement(attachment, placement)
     if placement.PedProperties.CanRagDoll ~= nil then attachment.ped_attributes.can_rag_doll = toboolean(placement.PedProperties.CanRagDoll) end
     if placement.PedProperties.Armour ~= nil then attachment.ped_attributes.armour = tonumber(placement.PedProperties.Armour) end
     if placement.PedProperties.CurrentWeapon ~= nil then attachment.ped_attributes.current_weapon = tonumber(placement.PedProperties.CurrentWeapon) end
-    if placement.PedProperties.AnimDict ~= nil then
+    if placement.PedProperties.AnimDict ~= nil and placement.PedProperties.AnimName ~= nil then
         if attachment.ped_attributes.animation == nil then attachment.ped_attributes.animation = {} end
         attachment.ped_attributes.animation.dictionary = tostring(placement.PedProperties.AnimDict)
-    end
-    if placement.PedProperties.AnimName ~= nil then
-        if attachment.ped_attributes.animation == nil then attachment.ped_attributes.animation = {} end
         attachment.ped_attributes.animation.clip = tostring(placement.PedProperties.AnimName)
+        attachment.ped_attributes.animation.loop = true
     end
 
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
