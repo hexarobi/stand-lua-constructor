@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b8"
+local SCRIPT_VERSION = "0.34b9"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -394,7 +394,7 @@ local function add_attachment_to_construct(attachment)
     attachment.functions.focus()
 end
 
-local function clear_menu_list(t)
+local function delete_menu_list(t)
     if type(t) ~= "table" then return end
     for k, h in pairs(t) do
         if h:isValid() then
@@ -1501,7 +1501,7 @@ end
 
 local function rebuild_attachment_debug_menu(attachment)
     if attachment.temp.debug_menus then
-        clear_menu_list(attachment.temp.debug_menus)
+        delete_menu_list(attachment.temp.debug_menus)
     end
     build_attachment_debug_menu(attachment)
 end
@@ -1938,7 +1938,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
 
     attachment.menus.vehicle_options_extras = menu.list(attachment.menus.vehicle_options, t("Extras"), {}, t("Some vehicles include parts that can fall off and be removed when damaged"), function()
         if attachment.temp.extra_menus == nil then attachment.temp.extra_menus = {} end
-        clear_menu_list(attachment.temp.extra_menus)
+        delete_menu_list(attachment.temp.extra_menus)
         for extra_index = 0, 60 do
             if VEHICLE.DOES_EXTRA_EXIST(attachment.handle, extra_index) then
                 local extra_menu = menu.toggle(attachment.menus.vehicle_options_extras, t("Extra").." #"..extra_index, {}, "", function(toggle)
@@ -2015,7 +2015,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_wheels(attachment)
     end)
 
-    menu.list_select(attachment.menus.vehicle_options_paint, t("Headlights"), {}, t("Select from a list of headlight colors"), constants.headlight_colors, (attachment.vehicle_attributes.headlights.headlights_color or -1) + 2, function(index)
+    menu.list_select(attachment.menus.vehicle_options_paint, t("Headlights"), {}, t("Select from a list of headlight colors"), constants.headlight_colors, attachment.vehicle_attributes.headlights.headlight_color + 2, function(index)
         attachment.vehicle_attributes.headlights.headlights_color = index - 2
         attachment.vehicle_attributes.headlights.headlights_type = true
         constructor_lib.deserialize_vehicle_mods(attachment)
@@ -2268,6 +2268,22 @@ constructor.add_attachment_ped_menu = function(attachment)
         refresh_current_animation(attachment)
     end)
     attachment.menus.current_animation = menu.readonly(attachment.menus.ped_options_animation, t("Current"), t("The current animation set for this ped"))
+
+    attachment.menus.ped_animation_options = menu.list(attachment.menus.ped_options_animation, t("Options"), {}, t("Options to modify the current animation"), function()
+        if attachment.temp.ped_animation_option_menus == nil then attachment.temp.ped_animation_option_menus = {} end
+        delete_menu_list(attachment.temp.ped_animation_option_menus)
+        if attachment.ped_attributes.animation ~= nil then
+            attachment.temp.ped_animation_option_menus.controllable = menu.toggle(attachment.menus.ped_animation_options, t("Controllable"), {}, t("If enabled, you can control your ped while using this animation, at the cost of some animation fidelity"), function(toggle)
+                attachment.ped_attributes.animation.controllable = toggle
+                constructor_lib.animate_peds(attachment)
+            end, attachment.ped_attributes.animation.controllable)
+            attachment.temp.ped_animation_option_menus.loop = menu.toggle(attachment.menus.ped_animation_options, t("Loop"), {}, t("If enabled, and the animation supports native looping, then it will loop"), function(toggle)
+                attachment.ped_attributes.animation.loop = toggle
+                constructor_lib.animate_peds(attachment)
+            end, attachment.ped_attributes.animation.loop)
+        end
+    end)
+
     local refresh_timer = 0
     if attachment.ped_attributes.animation ~= nil and attachment.ped_attributes.animation.refresh_timer then refresh_timer = attachment.ped_attributes.animation.refresh_timer end
     attachment.menus.ped_edit_animation_refresh_timer = menu.slider(attachment.menus.ped_options_animation, t("Refresh Timer"), {}, t("How often should the animation be totally reset. 0 means never."), 0, 60000, refresh_timer, 1000, function(value)
@@ -2275,9 +2291,11 @@ constructor.add_attachment_ped_menu = function(attachment)
         attachment.ped_attributes.animation.refresh_timer = value
         constructor_lib.animate_peds(attachment)
     end)
+
     attachment.menus.ped_cancel_animation = menu.action(attachment.menus.ped_options_animation, t("Cancel"), {}, t("Immediately stops the current animation"), function()
         cancel_current_animation(attachment)
     end)
+
     attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Browse Animations"), {}, t("Select from a curated set of animations"))
     constructor.browse_items(attachment.menus.ped_options_animation_list, constants.animations, {
         action_function=function(item)
@@ -2484,7 +2502,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
             menu.show_command_box("constructorsearchprop"..attachment.id.." ")
         end)
         menu.text_input(attachment.menus.search_add_prop, t("Search"), {"constructorsearchprop"..attachment.id}, "", function (query)
-            clear_menu_list(attachment.temp.prop_search_results)
+            delete_menu_list(attachment.temp.prop_search_results)
             attachment.temp.prop_search_results = {}
             search({
                 query=query,
@@ -2527,6 +2545,12 @@ constructor.add_attachment_add_attachment_options = function(attachment)
                 t("Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/"), function (value)
                     build_construct_from_plan({
                         root = attachment.root, parent = attachment, name = value, model = value,
+                    })
+                end)
+        menu.text_input(attachment.menus.exact_name, t("Object by Hash"), {"constructorattachobjecthash"..attachment.id},
+                t("Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/"), function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, hash = value,
                     })
                 end)
         menu.text_input(attachment.menus.exact_name, t("Vehicle by Name"), {"constructorattachvehicle"..attachment.id},
@@ -2825,7 +2849,7 @@ menus.create_from_object_search = menu.list(menus.create_new_construct, t("From 
     menu.show_command_box("constructorcreatefromobjectname ")
 end)
 menu.text_input(menus.create_from_object_search, t("Search"), {"constructorcreatefromobjectname"}, "", function (query)
-    clear_menu_list(menus.create_from_object_search_results)
+    delete_menu_list(menus.create_from_object_search_results)
     search({
         query=query,
         results=menus.create_from_object_search_results,
