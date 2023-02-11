@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b5"
+local SCRIPT_VERSION = "0.34b6"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -809,6 +809,7 @@ constructor_lib.clone_attachment = function(attachment)
         attachment.heading = ENTITY.GET_ENTITY_HEADING(attachment.handle) or 0
     end
     local clone = constructor_lib.serialize_attachment(attachment)
+    clone.id = nil
     if attachment == attachment.parent then
         clone.root = clone
         clone.parent = clone
