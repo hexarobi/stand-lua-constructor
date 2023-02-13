@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b6"
+local SCRIPT_VERSION = "0.34b7"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -143,19 +143,30 @@ constructor_lib.round = function(num, numDecimalPlaces)
     return math.floor(num * mult + 0.5) / mult
 end
 
+constructor_lib.is_in_list = function(needle, list)
+    for _, item in pairs(list) do
+        if item == needle then
+            return true
+        end
+    end
+    return false
+end
+
 ---
 --- Attachment Construction
 ---
 
 local unique_id_counter = 0
-local function get_unique_id()
-    unique_id_counter = unique_id_counter + 1
-    return unique_id_counter
+local function ensure_unique_id(attachment)
+    if attachment.id == nil then
+        unique_id_counter = unique_id_counter + 1
+        attachment.id = unique_id_counter
+    end
 end
 
 constructor_lib.default_attachment_attributes = function(attachment)
     debug_log("Defaulting attachment attributes "..tostring(attachment.name))
-    if attachment.id == nil then attachment.id = get_unique_id() end
+    ensure_unique_id(attachment)
     if attachment.children == nil then attachment.children = {} end
     if attachment.temp == nil then attachment.temp = {} end
     if attachment.options == nil then attachment.options = {} end
@@ -1963,16 +1974,18 @@ end
 --- Construct Serializer
 ---
 
+local ignored_keys = {
+    "id" ,"handle" ,"root" ,"parent" ,"menus" ,"children" ,"temp" ,"load_menu" ,"menu_auto_focus",
+    "is_preview" ,"is_editing" ,"dimensions" ,"camera_distance" ,"heading" , "functions"
+}
+
 constructor_lib.copy_serializable = function(attachment)
     debug_log("Copying serializable "..tostring(attachment.name))
     local serializeable_attachment = {
         children = {}
     }
     for k, v in pairs(attachment) do
-        if not (
-            k == "handle" or k == "root" or k == "parent" or k == "menus" or k == "children" or k == "temp" or k == "load_menu" or k == "menu_auto_focus"
-            or k == "is_preview" or k == "is_editing" or k == "dimensions" or k == "camera_distance" or k == "heading" or k == "functions"
-        ) then
+        if not constructor_lib.is_in_list(k, ignored_keys) then
             serializeable_attachment[k] = constructor_lib.table_copy(v)
         end
     end
