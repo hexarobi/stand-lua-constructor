@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.34b4"
+local SCRIPT_VERSION = "0.34b5"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -109,10 +109,20 @@ local function convert_legacy_construct(construct_plan)
 
 end
 
+local function clear_existing_ids(attachment)
+    attachment.id = nil
+    if attachment.children then
+        for _, child_attachment in pairs(attachment.children) do
+            clear_existing_ids(child_attachment)
+        end
+    end
+end
+
 convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
     if construct_plan.temp == nil then construct_plan.temp = {} end
     construct_plan.temp.source_file_type = "Construct"
     convert_legacy_construct(construct_plan)
+    clear_existing_ids(construct_plan)
     constructor_lib.use_player_ped_attributes_as_base(construct_plan)
     return construct_plan
 end
