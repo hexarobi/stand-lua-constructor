@@ -1150,6 +1150,24 @@ local function build_construct_from_plan(construct_plan)
     end
 end
 
+local function add_attachment_from_vehicle_handle(parent_attachment, vehicle_handle)
+    debug_log("Adding attachment from vehicle handle "..tostring(vehicle_handle))
+    local attachment = {}
+    attachment.type = "VEHICLE"
+    attachment.handle = vehicle_handle
+    attachment.root = parent_attachment.root
+    attachment.parent = parent_attachment
+    attachment.hash = ENTITY.GET_ENTITY_MODEL(vehicle_handle)
+    attachment.model = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(attachment.hash)
+    table.insert(parent_attachment.children, attachment)
+    constructor_lib.default_attachment_attributes(attachment)
+    constructor_lib.serialize_attachment_attributes(attachment)
+    menus.rebuild_attachment_menu(attachment)
+    attachment.root.functions.refresh()
+    attachment.functions.focus()
+    return attachment
+end
+
 local function cleanup_constructs_handler()
     if config.deconstruct_all_spawned_constructs_on_unload then
         config.is_final_cleanup = true
@@ -2567,6 +2585,15 @@ constructor.add_attachment_add_attachment_options = function(attachment)
                     })
                 end)
         menu.hyperlink(attachment.menus.exact_name, t("Open gta-objects.xyz"), "https://gta-objects.xyz/", t("Website for browsing and searching for props"))
+
+        menu.action(attachment.menus.add_attachment, t("Add Current Vehicle"), {}, t("Attach your current vehicle to the construct"), function(on)
+            local vehicle = entities.get_user_vehicle_as_handle()
+            if vehicle == 0 then
+                util.toast(t("Error: You must be (or recently been) in a vehicle to create a construct from it"))
+                return
+            end
+            add_attachment_from_vehicle_handle(attachment, vehicle)
+        end)
 
         menu.toggle(attachment.menus.add_attachment, t("Add Attachment Gun"), {}, t("Anything you shoot with this enabled will be added to the current construct"), function(on)
             config.add_attachment_gun_active = on
