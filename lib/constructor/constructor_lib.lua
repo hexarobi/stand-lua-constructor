@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b7"
+local SCRIPT_VERSION = "0.34b8"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -332,6 +332,7 @@ constructor_lib.attach_entity = function(attachment)
         if attachment.options.is_frozen and attachment.options.has_collision ~= nil then
             ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
         end
+        ENTITY.DETACH_ENTITY(attachment.handle, true, true)
     end
 end
 
@@ -1992,12 +1993,17 @@ constructor_lib.copy_serializable = function(attachment)
     return serializeable_attachment
 end
 
-constructor_lib.serialize_attachment = function(attachment)
-    debug_log("Serializing attachment "..tostring(attachment.name))
-    if attachment.target_version == nil then attachment.target_version = constructor_lib.LIB_VERSION end
+constructor_lib.serialize_attachment_attributes = function(attachment)
+    debug_log("Serializing attachment attributes "..tostring(attachment.name))
     constructor_lib.serialize_entity_attributes(attachment)
     constructor_lib.serialize_vehicle_attributes(attachment)
     constructor_lib.serialize_ped_attributes(attachment)
+end
+
+constructor_lib.serialize_attachment = function(attachment)
+    debug_log("Serializing attachment "..tostring(attachment.name))
+    if attachment.target_version == nil then attachment.target_version = constructor_lib.LIB_VERSION end
+    constructor_lib.serialize_attachment_attributes(attachment)
     local serialized_attachment = constructor_lib.copy_serializable(attachment)
     if attachment.children then
         for _, child_attachment in pairs(attachment.children) do
