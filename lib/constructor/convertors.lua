@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.34b5"
+local SCRIPT_VERSION = "0.34"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
