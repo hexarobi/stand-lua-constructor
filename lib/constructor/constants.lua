@@ -1,6 +1,6 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.34b2"
+local SCRIPT_VERSION = "0.34"
 local constants = {}
 
 constants.rotation_orders = {
