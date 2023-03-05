@@ -1,6 +1,6 @@
 -- Constructor Translations
 
-local SCRIPT_VERSION = "0.33b1"
+local SCRIPT_VERSION = "0.33"
 local translations = {}
 
 ---
@@ -200,6 +200,7 @@ translations.lang["zh"] = {
     ["Will the attachment be frozen in place, or allowed to move freely"] = "附件会被冻结在原地，还是允许自由移动",
     ["VEHICLE"] = "载具",
     ["Vehicle Options"] = "载具选项",
+    ["Additional options available for all vehicle entities"] = "载具实体选项",
     ["Engine Always On"] = "引擎启动",
     ["Radio Loud"] = "载具电台",
     ["If enabled, vehicle radio will play loud enough to be heard outside the vehicle."] = "如果开启载具电台声音大到可以在车外听到.",
@@ -217,7 +218,8 @@ translations.lang["zh"] = {
     ["Are tires burst"] = "车胎爆破",
     ["Broken Doors"] = "拆除车门",
     ["Remove doors and trunks"] = "移除车门和后备箱",
-    ["Break Door: Front Left"] = "拆除门:左后",
+    ["Break Door: Front Left"] = "拆除门:左前",
+    ["Break Door: Back Left"] = "拆除门:左后",
     ["Break Door: Front Right"] = "拆除门:右前",
     ["Break Door: Back Right"] = "拆除门:右后",
     ["Break Door: Hood"] = "拆除门: 引擎盖",
@@ -234,6 +236,7 @@ translations.lang["zh"] = {
     ["Clothes"] = "衣服",
     ["Props"] = "道具",
     ["Attachment Options"] = "附件选项",
+    ["Additional options available for all entities attached to a parent object."] = "附加到父级的实体选项.",
     ["Attached"] = "附加",
     ["Is this child physically attached to the parent, or does it move freely on its own."] = "这个附着物是附加在身体上还是父级,还是自由移动.",
     ["Change Parent"] = "更改父级",
@@ -299,6 +302,7 @@ translations.lang["zh"] = {
     ["Actions"] = "行动",
     ["Teleport"] = "传送",
     ["Teleport Into Vehicle"] = "传送到载具",
+    ["Move your player into the vehicle driver seat"] = "传送人物到驾驶位上",
     ["Teleport Me to Construct"] = "传送我到 构造",
     ["Teleport Construct to Me"] = "构造 传送到我",
     ["Debug Info"] = "调试信息",
@@ -432,7 +436,6 @@ translations.lang["zh"] = {
     ["Set a Constructs sub-folder to be spawnable by name. Only available for users with permission to use Spawn Commands. See Online>Chat>Commands"] = "将Constructs子文件夹设置为名称生成.仅适用于有权使用“生成命令”的用户.请参见线上>聊天>命令",
     ["Constructs Allowed Per Player"] = "构造体上限",
     ["CqCq and Zelda Two"] = "Zelda Two",
-    ["Chinese"] = "中文翻译",
     ["The number of constructs any one player can spawn at a time. When a player tried to spawn additional constructs past this limit, the oldest spawned construct will be deleted."] = "玩家可生成的构造数,当生成指定数后将删除老的构造.",
     ["Editing"] = "编辑",
     ["Set configuration options relating to editing constructs."] = "设置编辑与constructs有关的配置选项",
@@ -465,8 +468,38 @@ translations.lang["zh"] = {
     ["Always Spawn at Position"] = "始终在位置上生成",
     ["Other Construct"] = "其他构造",
     ["Attach another construct to the current construct"] = "将另一个结构体附加到当前结构体上",
-    ["Always Spawn at Position"] = "始终在位置上生成",
-    ["Always Spawn at Position"] = "始终在位置上生成",
+    ["Object Tint"] = "物体色调",
+    ["The color of the object"] = "物体颜色",
+    ["LS Customs"] = "载具定制",
+    ["Vehicle modifications normally available in Los Santos Customs"] = "载具改装定制服务",
+    ["Steering Bias"] = "转向偏差",
+    ["Set wheel position. Must be driving to set, but will stay when you exit until someone else drives."] = "设置轮胎左右偏差",
+    ["Siren Control"] = "警笛控制",
+    ["If enabled, and this vehicle has a siren, then siren controls will effect this vehicle. Has no effect on vehicles without a siren."] = "如果启用，并且这辆车有警笛，那么警笛控制将影响这辆车.对没有警笛的车辆没有影响.",
+    ["Engine Sound"] = "引擎声音",
+    ["Set vehicle engine sound from another vehicle name."] = "从另一个载具名称设置载具引擎声音",
+    ["Invisible Wheels"] = "隐形轮胎",
+    ["If enabled, the vehicle wheels will be invisible"] = "如果启用，车轮将不可见",
+    ["Drift Tires"] = "漂移轮胎",
+    ["If enabled, the vehicle tires will have low grip"] = "如果启用，车辆轮胎将具有低抓地力",
+    ["Paint Fade"] = "车漆掉色",
+    ["Windows Rolled Down"] = "窗户摇下",
+    ["Roll up and down windows"] = "摇上摇下窗户",
+    ["Windows Broken"] = "窗户破碎",
+    ["Loop Timer"] = "循环时间",
+    ["How often should the effect repeat. If this is 0 then it should try to loop forever."] = "粒子特效应该多久循环一次,为0时将一直循环.",
+    ["Particle Color"] = "粒子颜色",
+    ["Particle effect size"] = "粒子大小比例",
+    ["Ignore Events"] = "忽略事件",
+    ["If enabled, the ped will ignore events going on that might otherwise cause the ped to flee or cower."] = "如果开启,NPC就无视周围的事件,避免NPC逃跑.",
+    ["Animation"] = "动画",
+    ["Dictionary"] = "代码",
+    ["Set the animation dictionary available for the animation name to load from."] = "设置动画名称对应的动画代码",
+    ["Set the animation name to load from the dictionary"] = "设置动画代码对应的动画名称",
+    ["Animation List"] = "动画列表",
+    ["Scenario"] = "场景",
+    ["Set the animation scenario, separate from dictionary and name."] = "设置动画场景,与代码和名称分开",
+    ["Scenario List"] = "场景列表",
     ["Will this construct always spawn at the same world position it's in now (for stationary maps) or in front of the player (for props or small structures)"] = "该建筑是否总是在它现在所处的世界位置（对于静止的地图）或在玩家面前（对于道具或小型结构）生成？",
     ["Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."] = "作者更新lua时会自动进行更新,如果你无法更新,请取消自动更新.",
 }
@@ -1174,4 +1207,5 @@ translations.lang["fr"] = {
 
 translations.inject_custom_translations()
 return translations
+
 
