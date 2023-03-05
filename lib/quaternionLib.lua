@@ -2,7 +2,7 @@
 -- by Murten
 
 --#region quaternion lib
-quaternion = {}
+quaternionLib = {}
 
 local pi = math.pi
 local deg2rad = pi/180
@@ -19,39 +19,39 @@ local acos  = math.acos
 local atan = math.atan
 
 --prints the quaternion
-function quaternion:print()
+function quaternionLib:print()
     print(self:to_string())
 end
 
 --toasts the quaternion
-function quaternion:toast()
+function quaternionLib:toast()
     util.toast(self:to_string())
 end
 --toasts the quaternion
-function quaternion:to_string()
+function quaternionLib:to_string()
     return "X:" .. self.x .. " Y:" .. self.y .. " Z:" .. self.z .. " W:" .. self.w
 end
 --function to create a new quaternion
-function quaternion.new(x, y, z, w)
+function quaternionLib.new(x, y, z, w)
     q = {
         x = x or 1,
         y = y or 0,
         z = z or 0,
         w = w or 0
     }
-    setmetatable(q, quaternion)
-    quaternion.__index = quaternion
+    setmetatable(q, quaternionLib)
+    quaternionLib.__index = quaternionLib
     return q
 end
 
-function quaternion:copy()
-    return quaternion.new(self.x, self.y, self.z, self.w)
+function quaternionLib:copy()
+    return quaternionLib.new(self.x, self.y, self.z, self.w)
 end
 
 local q_pointer = memory.alloc(8 * 4)
-function quaternion.from_entity(ent)
+function quaternionLib.from_entity(ent)
     ENTITY.GET_ENTITY_QUATERNION(ent, q_pointer, q_pointer + 8, q_pointer + 16, q_pointer + 24)
-    return quaternion.new(
+    return quaternionLib.new(
         memory.read_float(q_pointer),
         memory.read_float(q_pointer + 8),
         memory.read_float(q_pointer + 16),
@@ -59,7 +59,7 @@ function quaternion.from_entity(ent)
 end
 
 --Wikipedia go brrrrrr
-function quaternion.from_euler(x, y, z)
+function quaternionLib.from_euler(x, y, z)
 	x = x*deg2rad*0.5
 	y = y*deg2rad*0.5
 	z = z*deg2rad*0.5
@@ -71,7 +71,7 @@ function quaternion.from_euler(x, y, z)
     local cy = cos(z)
     local sy = sin(z)
 
-    local q = quaternion.new()
+    local q = quaternionLib.new()
 
 	q.w = cr * cp * cy + sr * sp * sy;
     q.x = sr * cp * cy - cr * sp * sy;
@@ -81,7 +81,7 @@ function quaternion.from_euler(x, y, z)
 end
 
 --Wikipedia go brrrrrr
-function quaternion:to_euler()
+function quaternionLib:to_euler()
     local angles = v3.new()
 
     local sinr_cosp = 2 * (q.w * q.x + q.y * q.z);
@@ -100,8 +100,8 @@ function quaternion:to_euler()
 end
 
 --return the inverse of the given quaternion
-function quaternion:inverse()
-    local quat = quaternion.new(
+function quaternionLib:inverse()
+    local quat = quaternionLib.new(
         -self.x,
         -self.y,
         -self.z,
@@ -111,10 +111,10 @@ function quaternion:inverse()
 end
 
 -- function to multiply two quaternions
-function quaternion:mul(q2)
+function quaternionLib:mul(q2)
     local w1, x1, y1, z1 = self.x, self.y, self.z, self.w
     local w2, x2, y2, z2 = q2.x, q2.y, q2.z, q2.w
-    return quaternion.new(
+    return quaternionLib.new(
         w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,
         w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,
         w1 * y2 + y1 * w2 + z1 * x2 - x1 * z2,
@@ -122,11 +122,11 @@ function quaternion:mul(q2)
     )
 end
 
-function quaternion:from_entity_pointer(pointer)
-    return quaternion.from_euler(entities.get_rotation(pointer):get())
+function quaternionLib:from_entity_pointer(pointer)
+    return quaternionLib.from_euler(entities.get_rotation(pointer):get())
 end
 
-function quaternion:mul_v3(vec)
+function quaternionLib:mul_v3(vec)
     local new_vec = v3.new(vec)
     self:mul_v3_non_alloc(new_vec)
     return new_vec
@@ -135,7 +135,7 @@ end
 
 -- function to multiply a quaternion with a vector 3 (I stole this code. Sue me.)
 local temp_store_vec = v3.new()
-function quaternion:mul_v3_non_alloc(vec)
+function quaternionLib:mul_v3_non_alloc(vec)
     local num   = self.x * 2 
     local num2  = self.y * 2 
     local num3  = self.z * 2 
@@ -158,10 +158,10 @@ function quaternion:mul_v3_non_alloc(vec)
 end
 
 -- rotate a quaternion by the given eulerAngles
-function quaternion:rotate(x, y ,z)
+function quaternionLib:rotate(x, y , z)
     --create a quaternion from the euler angles and multiply it with the given quaternion. Return the result
-    return quaternion.from_euler(x, y, z):mul(self)
+    return quaternionLib.from_euler(x, y, z):mul(self)
 end
 
 --#endregion
-return quaternion
+return quaternionLib
