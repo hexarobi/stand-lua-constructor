@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.35b1"
+local SCRIPT_VERSION = "0.35b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -71,6 +71,8 @@ CONSTRUCTOR_CONFIG = {
 -- Short local alias
 local config = CONSTRUCTOR_CONFIG
 
+local state = {}
+
 ---
 --- Auto-Update
 ---
@@ -133,6 +135,14 @@ local auto_update_config = {
             check_interval=default_check_interval,
         },
         {
+            name="quaternionLib",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/quaternionLib.lua",
+            script_relpath="lib/quaternionLib.lua",
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
             name="convertors",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/convertors.lua",
             script_relpath="lib/constructor/convertors.lua",
@@ -171,13 +181,13 @@ local auto_update_config = {
             verify_file_begins_with="ba_prop_glass_garage_opaque",
             check_interval=default_check_interval,
         },
-        {
-            name="natives-1663599433",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1663599433.lua",
-            script_relpath="lib/natives-1663599433.lua",
-            verify_file_begins_with="--",
-            is_required=true,
-        },
+        --{
+        --    name="natives-1663599433",
+        --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1663599433.lua",
+        --    script_relpath="lib/natives-1663599433.lua",
+        --    verify_file_begins_with="--",
+        --    is_required=true,
+        --},
     }
 }
 local update_success
@@ -193,9 +203,9 @@ end
 --local status_json, json = pcall(require, "json")
 --if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
-util.ensure_package_is_installed('lua/natives-1663599433')
-local status_natives, natives = pcall(require, "natives-1663599433")
-if not status_natives then error("Could not load natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
+util.ensure_package_is_installed('lua/natives-1672190175')
+local status_natives, natives = pcall(require, "natives-1672190175")
+if not status_natives then error("Could not load natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1672190175") end
 
 -- Call require() on all required dependencies
 local missing_required_dependencies = {}
@@ -827,6 +837,69 @@ local function draw_editing_attachment_bounding_box_tick()
     for _, construct in pairs(spawned_constructs) do
         draw_editing_bounding_box(construct)
     end
+end
+
+---
+--- Gizmo Edit
+---
+
+local gizmo_scale = 0.02
+local colour = {r = 255, g = 0, b = 255, a = 255}
+local current_ent = -1
+local grabbed_gizmo_index = -1
+
+local function gizmo_edit_mode_tick()
+    if not state.gizmo_edit_mode then return end
+    GRAPHICS.SET_DEPTHWRITING(true)
+    HUD.SET_MOUSE_CURSOR_THIS_FRAME()
+
+    PAD.DISABLE_CONTROL_ACTION(2, 25, true) --aim
+    PAD.DISABLE_CONTROL_ACTION(2, 24, true) --attack
+    PAD.DISABLE_CONTROL_ACTION(2, 257, true) --attack2
+    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 25) then return true end
+
+    PAD.DISABLE_CONTROL_ACTION(2, 1, true) --look lr
+    PAD.DISABLE_CONTROL_ACTION(2, 2, true) --look ud
+
+    local mouse_dir = constructor_lib.get_mouse_cursor_dir()
+
+    if current_ent ~= -1 then
+        local cam_dir = CAM.GET_FINAL_RENDERED_CAM_ROT(2):toDir()
+        local gizmos = constructor_lib.get_gizmos(current_ent)
+        local hovered_gizmo = constructor_lib.get_gizmo_hovered(gizmos, gizmo_scale)
+
+        if hovered_gizmo.index ~= -1 and PAD.IS_DISABLED_CONTROL_JUST_PRESSED(2, 237) then
+            grabbed_gizmo_index = hovered_gizmo.index
+        elseif PAD.IS_DISABLED_CONTROL_JUST_RELEASED(2, 237) then
+            grabbed_gizmo_index = -1
+        end
+
+        for i, g in ipairs(gizmos) do
+            g.colour = colour
+            if i == hovered_gizmo.index or i == grabbed_gizmo_index then
+                g.colour = {r = 255, g = 255, b = 255, a = 255}
+            end
+        end
+
+        if grabbed_gizmo_index ~= -1 then
+            gizmos = {gizmos[grabbed_gizmo_index]}
+            local grabbed_gizmo = gizmos[1]
+            local gizmo_dir = grabbed_gizmo.rot:mul_v3(v3.new(0, 0, 1))
+            local point = constructor_lib.closest_point_on_lines(gizmo_dir, mouse_dir, grabbed_gizmo.pos, CAM.GET_FINAL_RENDERED_CAM_COORD())
+            ENTITY.SET_ENTITY_COORDS_NO_OFFSET(current_ent ,point.x - grabbed_gizmo.offset.x, point.y - grabbed_gizmo.offset.y, point.z - grabbed_gizmo.offset.z, false, false, false)
+        end
+
+        constructor_lib.draw_all_gizmos(gizmos, gizmo_scale)
+    end
+
+    if grabbed_gizmo_index == -1 and PAD.IS_DISABLED_CONTROL_JUST_PRESSED(2, 237) then
+        ENTITY.FREEZE_ENTITY_POSITION(current_ent, false)
+        PHYSICS.ACTIVATE_PHYSICS(current_ent)
+        current_ent = constructor_lib.get_ent_clicked_on(mouse_dir)
+        ENTITY.FREEZE_ENTITY_POSITION(current_ent, true)
+    end
+    GRAPHICS.SET_DEPTHWRITING(false)
+    return true
 end
 
 ---
@@ -3135,6 +3208,9 @@ end)
 menu.slider(menus.editing_settings, t("Edit Rotation Step"), {}, t("The amount of change each time you edit an attachment rotation (hold SHIFT for fine tuning)"), 1, 30, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
+menu.toggle(menus.editing_settings, t("Gizmo Edit Mode"), {}, t("Enabled mouse-based edit mode. Click any world object to enable edit handles."), function(toggle)
+    state.gizmo_edit_mode = toggle
+end, state.gizmo_edit_mode)
 
 menus.preview_settings = menu.list(menus.settings_menu, t("Previews"), {}, t("Set configuration options relating to previewing constructs."))
 menu.toggle(menus.preview_settings, t("Show Previews"), {}, t("Show previews when adding attachments"), function(on)
@@ -3212,8 +3288,9 @@ menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/2u5HbHPB9y", 
 menus.credits = menu.list(script_meta_menu, t("Credits"))
 menu.divider(menus.credits, t("Developers"))
 menu.readonly(menus.credits, "Hexarobi", t("Main developer"))
-menu.readonly(menus.credits, "BigTuna", t("Development, Testing, Suggestions and Support"))
-menu.readonly(menus.credits, "acjoker", t("Development, Ped Curation"))
+menu.readonly(menus.credits, "BigTuna", t("Development, testing, suggestions and support"))
+menu.readonly(menus.credits, "acjoker", t("Development, curation and more"))
+menu.readonly(menus.credits, "Murten", t("Development, created the Gizmo edit mode"))
 menu.divider(menus.credits, t("Inspirations"))
 menu.readonly(menus.credits, "Jackz Vehicle Builder", t("Much of Constructor is based on code originally copied from Jackz Vehicle Builder and this script wouldn't be possible without it. Constructor is just my own copy of Jackz's amazing work. Thank you Jackz!"))
 menu.readonly(menus.credits, "LanceSpooner", t("LanceSpooner is also a huge inspiration to this script. Thanks Lance!"))
@@ -3260,6 +3337,7 @@ util.create_tick_handler(sensitivity_modifier_check_tick)
 util.create_tick_handler(update_constructs_tick)
 util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
 util.create_tick_handler(free_edit_mode_tick)
+util.create_tick_handler(gizmo_edit_mode_tick)
 --util.create_tick_handler(ped_animation_tick)
 
 --util.create_tick_handler(function()
