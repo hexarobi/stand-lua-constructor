@@ -181,13 +181,13 @@ local auto_update_config = {
             verify_file_begins_with="ba_prop_glass_garage_opaque",
             check_interval=default_check_interval,
         },
-        --{
-        --    name="natives-1663599433",
-        --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1663599433.lua",
-        --    script_relpath="lib/natives-1663599433.lua",
-        --    verify_file_begins_with="--",
-        --    is_required=true,
-        --},
+        {
+            name="natives-1672190175",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1672190175.lua",
+            script_relpath="lib/natives-1672190175.lua",
+            verify_file_begins_with="--",
+            is_required=true,
+        },
     }
 }
 local update_success
