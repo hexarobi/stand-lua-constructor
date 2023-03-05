@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.33"
+local SCRIPT_VERSION = "0.34b5"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -75,14 +75,54 @@ end
 ---
 
 local function convert_legacy_construct(construct_plan)
+
     -- 0.28 Renamed `rotation_axis` to `rotation_order`
-    if construct_plan.rotation_axis ~= nil then construct_plan.rotation_order = construct_plan.rotation_axis end
+    if construct_plan.rotation_axis ~= nil and construct_plan.rotation_order == nil then
+        construct_plan.rotation_order = construct_plan.rotation_axis
+        construct_plan.rotation_axis = nil
+    end
+
+    -- 0.34 Moved ped animation into sub-table
+    if construct_plan.ped_attributes ~= nil then
+        if construct_plan.ped_attributes.animation_dict ~= nil then
+            if construct_plan.ped_attributes.animation == nil then construct_plan.ped_attributes.animation = {} end
+            if construct_plan.ped_attributes.animation.dictionary == nil then
+                construct_plan.ped_attributes.animation.dictionary = construct_plan.ped_attributes.animation_dict
+            end
+            construct_plan.ped_attributes.animation_dict = nil
+        end
+        if construct_plan.ped_attributes.animation_name ~= nil then
+            if construct_plan.ped_attributes.animation == nil then construct_plan.ped_attributes.animation = {} end
+            if construct_plan.ped_attributes.animation.clip == nil then
+                construct_plan.ped_attributes.animation.clip = construct_plan.ped_attributes.animation_name
+            end
+            construct_plan.ped_attributes.animation_name = nil
+        end
+        if construct_plan.ped_attributes.animation_scenario ~= nil then
+            if construct_plan.ped_attributes.animation == nil then construct_plan.ped_attributes.animation = {} end
+            if construct_plan.ped_attributes.animation.scenario == nil then
+                construct_plan.ped_attributes.animation.scenario = construct_plan.ped_attributes.animation_scenario
+            end
+            construct_plan.ped_attributes.animation_scenario = nil
+        end
+    end
+
+end
+
+local function clear_existing_ids(attachment)
+    attachment.id = nil
+    if attachment.children then
+        for _, child_attachment in pairs(attachment.children) do
+            clear_existing_ids(child_attachment)
+        end
+    end
 end
 
 convertor.convert_raw_construct_to_construct_plan = function(construct_plan)
     if construct_plan.temp == nil then construct_plan.temp = {} end
     construct_plan.temp.source_file_type = "Construct"
     convert_legacy_construct(construct_plan)
+    clear_existing_ids(construct_plan)
     constructor_lib.use_player_ped_attributes_as_base(construct_plan)
     return construct_plan
 end
@@ -782,8 +822,12 @@ local function map_ped_placement(attachment, placement)
     if placement.PedProperties.CanRagDoll ~= nil then attachment.ped_attributes.can_rag_doll = toboolean(placement.PedProperties.CanRagDoll) end
     if placement.PedProperties.Armour ~= nil then attachment.ped_attributes.armour = tonumber(placement.PedProperties.Armour) end
     if placement.PedProperties.CurrentWeapon ~= nil then attachment.ped_attributes.current_weapon = tonumber(placement.PedProperties.CurrentWeapon) end
-    if placement.PedProperties.AnimDict ~= nil then attachment.ped_attributes.animation_dict = tostring(placement.PedProperties.AnimDict) end
-    if placement.PedProperties.AnimName ~= nil then attachment.ped_attributes.animation_name = tostring(placement.PedProperties.AnimName) end
+    if placement.PedProperties.AnimDict ~= nil and placement.PedProperties.AnimName ~= nil then
+        if attachment.ped_attributes.animation == nil then attachment.ped_attributes.animation = {} end
+        attachment.ped_attributes.animation.dictionary = tostring(placement.PedProperties.AnimDict)
+        attachment.ped_attributes.animation.clip = tostring(placement.PedProperties.AnimName)
+        attachment.ped_attributes.animation.loop = true
+    end
 
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
     if placement.PedProperties.PedProps ~= nil then

@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.33"
+local SCRIPT_VERSION = "0.34b12"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
@@ -62,7 +62,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = false,
+    debug_mode = true,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -394,7 +394,7 @@ local function add_attachment_to_construct(attachment)
     attachment.functions.focus()
 end
 
-local function clear_menu_list(t)
+local function delete_menu_list(t)
     if type(t) ~= "table" then return end
     for k, h in pairs(t) do
         if h:isValid() then
@@ -402,6 +402,14 @@ local function clear_menu_list(t)
         end
         t[k] = nil
     end
+end
+
+local function color_menu_input(input_color)
+    return { r=input_color.r or 0, g=input_color.g or 0, b=input_color.b or 0, a=1 }
+end
+
+local function color_menu_output(output_color)
+    return { r=math.floor(output_color.r * 255), g=math.floor(output_color.g * 255), b=math.floor(output_color.b * 255) }
 end
 
 ---
@@ -1002,7 +1010,9 @@ local function create_construct_from_vehicle(vehicle_handle)
     for _, construct in pairs(spawned_constructs) do
         if construct.handle == vehicle_handle then
             util.toast("Vehicle is already a construct")
-            menu.focus(construct.menus.info)
+            if menu.is_ref_valid(construct.menus.info) then
+                menu.focus(construct.menus.info)
+            end
             return
         end
     end
@@ -1019,27 +1029,39 @@ local function create_construct_from_vehicle(vehicle_handle)
     return construct
 end
 
-local function save_vehicle(construct)
-    debug_log("Saving construct "..tostring(construct.name), construct)
-    if construct.author == nil then construct.author = players.get_name(players.user()) end
-    if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
-    if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
-    local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
-    local serialized_construct = constructor_lib.serialize_attachment(construct)
-    --debug_log("Serialized construct "..inspect(serialized_construct))
-    local encode_status, content = pcall(soup.json.encode, serialized_construct)
-    if not encode_status then
-        util.toast("Error encoding construct: "..content)
-        debug_log("Error encoding construct: "..content.." construct: "..inspect(serialized_construct))
-    end
-    if content == "" or (not constructor_lib.string_starts(content, "{")) then
-        util.toast("Cannot save vehicle: Error serializing.", TOAST_ALL)
-        return
-    end
+local function write_file(filepath, content)
     local file = io.open(filepath, "wb")
     if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
     file:write(content)
     file:close()
+end
+
+local function write_json_file(filepath, object)
+    local encode_status, content = pcall(soup.json.encode, object)
+    if not encode_status then
+        util.toast("Error encoding object: "..content)
+        debug_log("Error encoding object: "..content.." object: "..inspect(object))
+    end
+    if content == "" or (not string.startswith(content, "{")) then
+        util.toast("Cannot save object as JSON: Error serializing.", TOAST_ALL)
+        return
+    end
+    write_file(filepath, content)
+end
+
+local function set_save_defaults(construct)
+    if construct.author == nil then construct.author = players.get_name(players.user()) end
+    if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
+    if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
+end
+
+local function save_vehicle(construct)
+    debug_log("Saving construct "..tostring(construct.name), construct)
+    set_save_defaults(construct)
+    local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
+    local serialized_construct = constructor_lib.serialize_attachment(construct)
+    --debug_log("Serialized construct "..inspect(serialized_construct))
+    write_json_file(filepath, serialized_construct)
     util.toast("Saved ".. construct.name)
     util.log("Saved ".. construct.name .. " to " ..filepath)
     menus.rebuild_load_construct_menu()
@@ -1126,6 +1148,24 @@ local function build_construct_from_plan(construct_plan)
     else
         add_attachment_to_construct(construct_plan)
     end
+end
+
+local function add_attachment_from_vehicle_handle(parent_attachment, vehicle_handle)
+    debug_log("Adding attachment from vehicle handle "..tostring(vehicle_handle))
+    local attachment = {}
+    attachment.type = "VEHICLE"
+    attachment.handle = vehicle_handle
+    attachment.root = parent_attachment.root
+    attachment.parent = parent_attachment
+    attachment.hash = ENTITY.GET_ENTITY_MODEL(vehicle_handle)
+    attachment.model = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(attachment.hash)
+    table.insert(parent_attachment.children, attachment)
+    constructor_lib.default_attachment_attributes(attachment)
+    constructor_lib.serialize_attachment_attributes(attachment)
+    menus.rebuild_attachment_menu(attachment)
+    attachment.root.functions.refresh()
+    attachment.functions.focus()
+    return attachment
 end
 
 local function cleanup_constructs_handler()
@@ -1434,7 +1474,7 @@ local function build_curated_attachments_menu(attachment, root_menu, curated_ite
         if curated_item.load_menu ~= nil then return end
         curated_item.load_menu = menu.list(root_menu, curated_item.name, {}, "", function()
             for _, child_item in pairs(curated_item.items) do
-                build_curated_attachments_menu(attachment, curated_item.load_menu, constructor_lib.table_copy(child_item))
+                build_curated_attachments_menu(attachment, curated_item.load_menu, child_item)
             end
         end)
     else
@@ -1479,7 +1519,7 @@ end
 
 local function rebuild_attachment_debug_menu(attachment)
     if attachment.temp.debug_menus then
-        clear_menu_list(attachment.temp.debug_menus)
+        delete_menu_list(attachment.temp.debug_menus)
     end
     build_attachment_debug_menu(attachment)
 end
@@ -1497,7 +1537,8 @@ local function build_change_parent_menu_item(attachment, current, path, depth)
             attachment.parent = current
             attachment.root = current.root
             if config.change_parent_keep_position then
-                attachment.offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(current.handle, attachment.position.x, attachment.position.y, attachment.position.z)
+                local offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(current.handle, attachment.position.x, attachment.position.y, attachment.position.z)
+                attachment.offset = {x=offset.x, y=offset.y, z=offset.z}
             end
             constructor_lib.attach_entity(attachment)
             table.insert(current.children, attachment)
@@ -1559,6 +1600,37 @@ local function install_curated_constructs()
     util.yield(100)
     menu.trigger_commands("luaconstructsinstaller")
 end
+
+---
+--- Item Browser
+---
+
+-- TODO: In progress
+
+--constructor.search_items = function(folder, query)
+--
+--end
+
+constructor.browse_items = function(root_menu, folder, context)
+    --menu.action(root_menu, t("Search"), {}, "", function()  end)
+    --if context.additional_page_menus ~= nil then
+    --    context.additional_page_menus(context, root_menu)
+    --end
+    --menu.divider(root_menu, t("Browse"))
+    for _, item in pairs(folder.items) do
+        if item.is_folder == true then
+            local menu_list = menu.list(root_menu, item.name)
+            constructor.browse_items(menu_list, item, context)
+        else
+            if context.action_function ~= nil then
+                menu.action(root_menu, item.name, {}, item.description or "", function()
+                    context.action_function(item)
+                end)
+            end
+        end
+    end
+end
+
 
 ---
 --- Info Attachment Menu
@@ -1691,7 +1763,7 @@ constructor.add_attachment_position_menu = function(attachment)
             end
         end)
 
-        if constructor_lib.is_attachment_root(attachment) then
+        if constructor_lib.is_attachment_root(attachment) or attachment.options.is_attached == false then
             attachment.menus.option_position_frozen = menu.toggle(attachment.menus.position, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
                 attachment.options.is_frozen = on
                 constructor_lib.serialize_entity_attributes(attachment)
@@ -1725,10 +1797,6 @@ constructor.add_attachment_options_menu = function(attachment)
                 constructor_lib.attach_entity(attachment)
             end, attachment.options.is_invincible)
             if constructor_lib.is_attachment_root(attachment) then
-                attachment.menus.option_gravity = menu.toggle(attachment.menus.options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
-                    attachment.options.has_gravity = on
-                    constructor_lib.attach_entity(attachment)
-                end, attachment.options.has_gravity)
                 attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
                     attachment.options.is_frozen = on
                     constructor_lib.serialize_entity_attributes(attachment)
@@ -1738,20 +1806,30 @@ constructor.add_attachment_options_menu = function(attachment)
         end
 
         if attachment.type == "PARTICLE" then
-            if attachment.menus.option_paritcle_edit_scale ~= nil then return end
-            attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.options, t("Scale"), {"constructorscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
+            if attachment.menus.option_particle_asset ~= nil then return end
+
+            attachment.menus.option_particle_asset = menu.text_input(attachment.menus.options, t("Particle Asset"), { "constructorsetparticleasset"..attachment.id}, t("Set the name of the particle asset"), function(value)
+                attachment.particle_attributes.asset = value
+                constructor_lib.update_particle(attachment)
+            end, attachment.particle_attributes.asset or "")
+            attachment.menus.option_particle_effect_name = menu.text_input(attachment.menus.options, t("Particle Effect"), { "constructorsetparticleeffect"..attachment.id}, t("Set the name of the particle effect"), function(value)
+                attachment.particle_attributes.effect_name = value
+                constructor_lib.update_particle(attachment)
+            end, attachment.particle_attributes.effect_name or "")
+
+            attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.options, t("Scale"), {"constructorpfxscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
                 attachment.particle_attributes.scale = value / 100
                 constructor_lib.update_particle(attachment)
             end)
-            attachment.menus.option_particle_bone_index = menu.slider(attachment.menus.options, t("Bone Index"), {}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.particle_attributes.bone_index or -1, 1, function(value)
+            attachment.menus.option_particle_bone_index = menu.slider(attachment.menus.options, t("Bone Index"), {"constructorpfxbone"..attachment.id}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.particle_attributes.bone_index or -1, 1, function(value)
                 attachment.particle_attributes.bone_index = value
                 constructor_lib.update_particle(attachment)
             end)
-            attachment.menus.option_particle_loop_timer = menu.slider(attachment.menus.options, t("Loop Timer"), {}, t("How often should the effect repeat. If this is 0 then it should try to loop forever."), 0, 60000, attachment.particle_attributes.loop_timer or 0, 1, function(value)
+            attachment.menus.option_particle_loop_timer = menu.slider(attachment.menus.options, t("Loop Timer"), {"constructorpfxlooptimer"..attachment.id}, t("How often should the effect repeat. If this is 0 then it should try to loop forever."), 0, 60000, attachment.particle_attributes.loop_timer or 0, 1, function(value)
                 attachment.particle_attributes.loop_timer = value
                 constructor_lib.update_particle(attachment)
             end)
-            attachment.menus.option_particle_color = menu.colour(attachment.menus.options, "Particle Color", {}, "", attachment.particle_attributes.color, true, function(color)
+            attachment.menus.option_particle_color = menu.colour(attachment.menus.options, t("Particle Color"), {}, "Local only :(", attachment.particle_attributes.color, true, function(color)
                 attachment.particle_attributes.color = color
                 constructor_lib.update_particle(attachment)
             end)
@@ -1798,7 +1876,7 @@ local vehicle_mod_menus = {
     { name="Wheels", index=23 },
     { name="Rear Wheel", index=24 },
 
-    { name="Visual", type="separator" },
+    { name="Mods", type="separator" },
     { name="Spoiler", index=0 },
     { name="Front Bumper", index=1 },
     { name="Rear Bumper", index=2 },
@@ -1853,7 +1931,6 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     attachment.menus.vehicle_options = menu.list(attachment.menus.options, t("Vehicle Options"), {}, t("Additional options available for all vehicle entities"))
 
     attachment.menus.vehicle_options_ls_customs = menu.list(attachment.menus.vehicle_options, t("LS Customs"), {}, "Vehicle modifications normally available in Los Santos Customs")
-
     for _, vehicle_mod in pairs(vehicle_mod_menus) do
         if vehicle_mod.type == "separator" then
             menu.divider(attachment.menus.vehicle_options_ls_customs, vehicle_mod.name)
@@ -1877,6 +1954,100 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end
     end
 
+    attachment.menus.vehicle_options_extras = menu.list(attachment.menus.vehicle_options, t("Extras"), {}, t("Some vehicles include parts that can fall off and be removed when damaged"), function()
+        if attachment.temp.extra_menus == nil then attachment.temp.extra_menus = {} end
+        delete_menu_list(attachment.temp.extra_menus)
+        for extra_index = 0, 60 do
+            if VEHICLE.DOES_EXTRA_EXIST(attachment.handle, extra_index) then
+                local extra_menu = menu.toggle(attachment.menus.vehicle_options_extras, t("Extra").." #"..extra_index, {}, "", function(toggle)
+                    attachment.vehicle_attributes.extras["_"..extra_index] = toggle
+                    constructor_lib.deserialize_vehicle_extras(attachment)
+                end, attachment.vehicle_attributes.extras["_"..extra_index])
+                table.insert(attachment.temp.extra_menus, extra_menu)
+            end
+        end
+    end)
+
+    attachment.menus.vehicle_options_paint = menu.list(attachment.menus.vehicle_options, t("Paint"), {}, t("Set vehicle paint colors"))
+    
+    attachment.menus.vehicle_options_primary = menu.list(attachment.menus.vehicle_options_paint, t("Primary"), {}, t("Primary vehicle paint color"))
+    attachment.menus.vehicle_options_primary_standard_colors = menu.list(attachment.menus.vehicle_options_primary, t("Standard Color"), {}, t("Select from a list of standard paint colors"))
+    for _, standard_color in pairs(constants.standard_colors) do
+        menu.action(attachment.menus.vehicle_options_primary_standard_colors, standard_color.name, {}, "", function()
+            attachment.vehicle_attributes.paint.primary.is_custom = false
+            attachment.vehicle_attributes.paint.primary.vehicle_standard_color = standard_color.index
+            constructor_lib.deserialize_vehicle_paint(attachment)
+        end)
+    end
+    attachment.menus.vehicle_options_primary_custom_color = menu.colour(attachment.menus.vehicle_options_primary, t("Custom Color"), {}, t("Mix up a custom paint color"), color_menu_input(attachment.vehicle_attributes.paint.primary.custom_color), false, function(color)
+        attachment.vehicle_attributes.paint.primary.is_custom = true
+        attachment.vehicle_attributes.paint.primary.custom_color = color_menu_output(color)
+        constructor_lib.deserialize_vehicle_paint(attachment)
+    end)
+    --menu.divider(attachment.menus.vehicle_options_primary_custom_color, "Hex")
+    attachment.menus.vehicle_options_primary_paint_type = menu.list_select(attachment.menus.vehicle_options_primary, t("Paint Type"), {}, t("Type of paint finish"), constants.vehicle_paint_types, 1, function(value)
+        attachment.vehicle_attributes.paint.primary.paint_type = value - 1
+        constructor_lib.deserialize_vehicle_paint(attachment)
+    end)
+
+    attachment.menus.vehicle_options_secondary = menu.list(attachment.menus.vehicle_options_paint, t("Secondary"), {}, t("Secondary vehicle paint color"))
+    attachment.menus.vehicle_options_secondary_standard_colors = menu.list(attachment.menus.vehicle_options_secondary, t("Standard Color"), {}, t("Select from a list of standard paint colors"))
+    for _, standard_color in pairs(constants.standard_colors) do
+        menu.action(attachment.menus.vehicle_options_secondary_standard_colors, standard_color.name, {}, "", function()
+            attachment.vehicle_attributes.paint.secondary.is_custom = false
+            attachment.vehicle_attributes.paint.secondary.vehicle_standard_color = standard_color.index
+            constructor_lib.deserialize_vehicle_paint(attachment)
+        end)
+    end
+    attachment.menus.vehicle_options_secondary_custom_color = menu.colour(attachment.menus.vehicle_options_secondary, t("Custom Color"), {}, t("Mix up a custom paint color"), color_menu_input(attachment.vehicle_attributes.paint.secondary.custom_color), false, function(color)
+        attachment.vehicle_attributes.paint.secondary.is_custom = true
+        attachment.vehicle_attributes.paint.secondary.custom_color = color_menu_output(color)
+        constructor_lib.deserialize_vehicle_paint(attachment)
+    end)
+    --menu.divider(attachment.menus.vehicle_options_secondary_custom_color, "Hex")
+    attachment.menus.vehicle_options_secondary_paint_type = menu.list_select(attachment.menus.vehicle_options_secondary, t("Paint Type"), {}, t("Type of paint finish"), constants.vehicle_paint_types, 1, function(value)
+        attachment.vehicle_attributes.paint.secondary.paint_type = value - 1
+        constructor_lib.deserialize_vehicle_paint(attachment)
+    end)
+
+    attachment.menus.vehicle_options_pearl = menu.list(attachment.menus.vehicle_options_paint, t("Pearlescent"), {}, t("Select from a list of pearlescent paint colors"))
+    for _, standard_color in pairs(constants.standard_colors) do
+        menu.action(attachment.menus.vehicle_options_pearl, standard_color.name, {}, "", function()
+            attachment.vehicle_attributes.paint.extra_colors.pearlescent = standard_color.index
+            constructor_lib.deserialize_vehicle_paint(attachment)
+        end)
+    end
+    
+    attachment.menus.vehicle_options_wheels = menu.list(attachment.menus.vehicle_options_paint, t("Wheels"), {}, t("Select from a list of wheel paint colors"))
+    for _, standard_color in pairs(constants.standard_colors) do
+        menu.action(attachment.menus.vehicle_options_wheels, standard_color.name, {}, "", function()
+            attachment.vehicle_attributes.paint.extra_colors.wheel = standard_color.index
+            constructor_lib.deserialize_vehicle_paint(attachment)
+        end)
+    end
+
+    attachment.menus.vehicle_options_tire_smoke = menu.colour(attachment.menus.vehicle_options_paint, t("Tire Smoke"), {}, t("Mix up a custom tire smoke color"), color_menu_input(attachment.vehicle_attributes.wheels.tire_smoke_color), false, function(color)
+        attachment.vehicle_attributes.wheels.tire_smoke_color = color_menu_output(color)
+        attachment.vehicle_attributes.mods["_20"] = true    -- Turn on tire smoke mod
+        constructor_lib.deserialize_vehicle_mods(attachment)
+        constructor_lib.deserialize_vehicle_wheels(attachment)
+    end)
+
+    menu.list_select(attachment.menus.vehicle_options_paint, t("Headlights"), {}, t("Select from a list of headlight colors"), constants.headlight_colors, attachment.vehicle_attributes.headlights.headlight_color + 2, function(index)
+        attachment.vehicle_attributes.headlights.headlights_color = index - 2
+        attachment.vehicle_attributes.headlights.headlights_type = true
+        constructor_lib.deserialize_vehicle_mods(attachment)
+        constructor_lib.deserialize_vehicle_headlights(attachment)
+    end)
+    
+    attachment.menus.vehicle_options_neon = menu.colour(attachment.menus.vehicle_options_paint, t("Neon Lights"), {}, t("Set up a custom neon light color"), color_menu_input(attachment.vehicle_attributes.neon.color), false, function(color)
+        attachment.vehicle_attributes.neon.color = color_menu_output(color)
+        if attachment.vehicle_attributes.neon.lights == nil then
+            attachment.vehicle_attributes.neon.lights = { left = true, right = true, front = true, back = true }
+        end
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end)
+    
     menu.toggle_loop(attachment.menus.vehicle_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
         attachment.options.engine_running = true
         VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
@@ -2018,7 +2189,7 @@ end
 
 local function create_ped_component_menu(attachment, root_menu, index, name)
     local component = attachment.ped_attributes.components["_".. index]
-    attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {}, "", 0, component.num_drawable_variations, component.drawable_variation, 1, function(value)
+    attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {}, "", 0, component.num_drawable_variations or -1, component.drawable_variation or -1, 1, function(value)
         component.drawable_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
         menu.set_max_value(attachment.menus["ped_components_drawable_"..index], component.num_drawable_variations)
@@ -2026,7 +2197,7 @@ local function create_ped_component_menu(attachment, root_menu, index, name)
         menu.set_value(attachment.menus["ped_components_texture_"..index], component.texture_variation)
         menu.set_max_value(attachment.menus["ped_components_texture_"..index], component.num_texture_variations)
     end)
-    attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, component.num_texture_variations, component.texture_variation, 1, function(value)
+    attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, component.num_texture_variations or -1, component.texture_variation or -1, 1, function(value)
         component.texture_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
@@ -2034,7 +2205,7 @@ end
 
 local function create_ped_prop_menu(attachment, root_menu, index, name)
     local prop = attachment.ped_attributes.props["_".. index]
-    attachment.menus["ped_props_drawable_".. index] = menu.slider(root_menu, name, {}, "", -1, prop.num_drawable_variations, prop.drawable_variation, 1, function(value)
+    attachment.menus["ped_props_drawable_".. index] = menu.slider(root_menu, name, {}, "", -1, prop.num_drawable_variations or -1, prop.drawable_variation or -1, 1, function(value)
         prop.drawable_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
         menu.set_max_value(attachment.menus["ped_props_drawable_".. index], prop.num_drawable_variations)
@@ -2042,21 +2213,51 @@ local function create_ped_prop_menu(attachment, root_menu, index, name)
         menu.set_value(attachment.menus["ped_props_texture_".. index], prop.texture_variation)
         menu.set_max_value(attachment.menus["ped_props_texture_".. index], prop.num_texture_variations)
     end)
-    attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, prop.num_texture_variations, prop.texture_variation, 1, function(value)
+    attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, prop.num_texture_variations or -1, prop.texture_variation or -1, 1, function(value)
         prop.texture_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
+end
+
+local function refresh_current_animation(attachment)
+    local current_animation_name = "None"
+    local current_refresh_timer = 0
+    if attachment.ped_attributes.animation ~= nil then
+        current_animation_name = attachment.ped_attributes.animation.name or attachment.ped_attributes.animation.clip
+                or attachment.ped_attributes.animation.scenario or "Unknown"
+        current_refresh_timer = attachment.ped_attributes.animation.refresh_timer or 0
+    end
+    attachment.menus.current_animation.value = current_animation_name
+    attachment.menus.ped_edit_animation_refresh_timer.value = current_refresh_timer
+end
+
+local function set_current_animation(attachment, animation)
+    attachment.ped_attributes.animation = animation
+    constructor_lib.animate_peds(attachment)
+    refresh_current_animation(attachment)
+end
+
+local function cancel_current_animation(attachment)
+    constructor_lib.cancel_animation(attachment)
+    attachment.ped_attributes.animation = nil
+    refresh_current_animation(attachment)
 end
 
 constructor.add_attachment_ped_menu = function(attachment)
     if attachment.type ~= "PED" then return end
     if attachment.menus.ped_options ~= nil then return end
     attachment.menus.ped_options = menu.list(attachment.menus.options, t("Ped Options"), {}, t("Additional options available for Ped entities."))
+
+    local ped_seats = { t("Unseated"), t("Any free seat"), t("Driver"), t("Passenger"), t("Backseat Driver Side"), t("Backseat Passenger Side") }
+    attachment.menus.option_ped_seat_select = menu.list_select(attachment.menus.ped_options, t("Seat"), {}, t("If attached to a vehicle, which seat should this ped occupy."), ped_seats, 1, function(value)
+        attachment.ped_attributes.seat = value - 4
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end)
     attachment.menus.option_ped_can_rag_doll = menu.toggle(attachment.menus.ped_options, t("Can Rag Doll"), {}, t("If enabled, the ped can go limp."), function(value)
         attachment.ped_attributes.can_rag_doll = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end, attachment.ped_attributes.can_rag_doll)
-    attachment.menus.option_ped_armor = menu.slider(attachment.menus.ped_options, t("Armor"), {}, t("How much armor does the ped have."), 0, attachment.ped_attributes.armor, 100, 1, function(value)
+    attachment.menus.option_ped_armor = menu.slider(attachment.menus.ped_options, t("Armor"), {}, t("How much armor does the ped have."), 0, 100, attachment.ped_attributes.armor, 1, function(value)
         attachment.ped_attributes.armor = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
@@ -2082,24 +2283,64 @@ constructor.add_attachment_ped_menu = function(attachment)
         create_ped_prop_menu(attachment, attachment.menus.ped_options_props, ped_prop.index, ped_prop.name)
     end
 
-    attachment.menus.ped_options_animation = menu.list(attachment.menus.ped_options, t("Animation"))
-    menu.divider(attachment.menus.ped_options_animation, t("Dictionary"))
-    menu.text_input(attachment.menus.ped_options_animation, t("Dictionary"), {"constructoranimationdictionary"..attachment.id}, "Set the animation dictionary available for the animation name to load from.", function(animation_dict)
-        attachment.ped_attributes.animation_dict = animation_dict
-        constructor_lib.animate_peds(attachment)
-    end, attachment.ped_attributes.animation_dict or "")
-    menu.text_input(attachment.menus.ped_options_animation, t("Name"), {"constructoranimationname"..attachment.id}, "Set the animation name to load from the dictionary.", function(animation_name)
-        attachment.ped_attributes.animation_name = animation_name
-        constructor_lib.animate_peds(attachment)
-    end, attachment.ped_attributes.animation_name or "")
-    menu.hyperlink(attachment.menus.ped_options_animation, t("Animation List"), "https://gtahash.ru/animations/")
-    menu.divider(attachment.menus.ped_options_animation, t("Scenario"))
-    menu.text_input(attachment.menus.ped_options_animation, t("Scenario"), {"constructoranimationscenario"..attachment.id}, "Set the animation scenario, separate from dictionary and name.", function(animation_scenario)
-        attachment.ped_attributes.animation_scenario = animation_scenario
-        constructor_lib.animate_peds(attachment)
-    end, attachment.ped_attributes.animation_scenario or "")
-    menu.hyperlink(attachment.menus.ped_options_animation, t("Scenario List"), "https://gtaforums.com/topic/796181-list-of-scenarios-for-peds/")
+    attachment.menus.ped_options_animation = menu.list(attachment.menus.ped_options, t("Animation"), {}, t("Configure animation options"), function()
+        refresh_current_animation(attachment)
+    end)
+    attachment.menus.current_animation = menu.readonly(attachment.menus.ped_options_animation, t("Current"), t("The current animation set for this ped"))
 
+    attachment.menus.ped_animation_options = menu.list(attachment.menus.ped_options_animation, t("Options"), {}, t("Options to modify the current animation"), function()
+        if attachment.temp.ped_animation_option_menus == nil then attachment.temp.ped_animation_option_menus = {} end
+        delete_menu_list(attachment.temp.ped_animation_option_menus)
+        if attachment.ped_attributes.animation ~= nil then
+            attachment.temp.ped_animation_option_menus.controllable = menu.toggle(attachment.menus.ped_animation_options, t("Controllable"), {}, t("If enabled, you can control your ped while using this animation, at the cost of some animation fidelity"), function(toggle)
+                attachment.ped_attributes.animation.controllable = toggle
+                constructor_lib.animate_peds(attachment)
+            end, attachment.ped_attributes.animation.controllable)
+            attachment.temp.ped_animation_option_menus.loop = menu.toggle(attachment.menus.ped_animation_options, t("Loop"), {}, t("If enabled, and the animation supports native looping, then it will loop"), function(toggle)
+                attachment.ped_attributes.animation.loop = toggle
+                constructor_lib.animate_peds(attachment)
+            end, attachment.ped_attributes.animation.loop)
+        end
+    end)
+
+    local refresh_timer = 0
+    if attachment.ped_attributes.animation ~= nil and attachment.ped_attributes.animation.refresh_timer then refresh_timer = attachment.ped_attributes.animation.refresh_timer end
+    attachment.menus.ped_edit_animation_refresh_timer = menu.slider(attachment.menus.ped_options_animation, t("Refresh Timer"), {}, t("How often should the animation be totally reset. 0 means never."), 0, 60000, refresh_timer, 1000, function(value)
+        if attachment.ped_attributes.animation == nil then return end
+        attachment.ped_attributes.animation.refresh_timer = value
+        constructor_lib.animate_peds(attachment)
+    end)
+
+    attachment.menus.ped_cancel_animation = menu.action(attachment.menus.ped_options_animation, t("Cancel"), {}, t("Immediately stops the current animation"), function()
+        cancel_current_animation(attachment)
+    end)
+
+    attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Browse Animations"), {}, t("Select from a curated set of animations"))
+    constructor.browse_items(attachment.menus.ped_options_animation_list, constants.animations, {
+        action_function=function(item)
+            set_current_animation(attachment, item)
+        end
+    })
+
+    attachment.menus.animation_set_by_name = menu.list(attachment.menus.ped_options_animation, t("Set by Name"), {}, t("Set a specific animation dictionary+clip or scenario"))
+    attachment.menus.ped_animation_set_dict_and_clip = menu.text_input(attachment.menus.animation_set_by_name, t("Dictionary and Clip"), {"constructoranimationdictionaryclip"..attachment.id}, t("Set the animation dictionary and clip (separated by a space)."), function(animation_name)
+        local animation_values = string.split(animation_name, " ")
+        if #animation_values > 1 then
+            set_current_animation(attachment, {
+                name = animation_values[2],
+                dictionary = animation_values[1],
+                clip = animation_values[2],
+            })
+        end
+    end)
+    menu.hyperlink(attachment.menus.animation_set_by_name, t("Dictionary and Clip List"), "https://gtahash.ru/animations/")
+    attachment.menus.ped_options_animation_scenario = menu.text_input(attachment.menus.animation_set_by_name, t("Scenario"), {"constructoranimationscenario"..attachment.id}, t("Set the animation scenario."), function(animation_scenario)
+        set_current_animation(attachment, {
+            name = animation_scenario,
+            scenario = animation_scenario,
+        })
+    end)
+    menu.hyperlink(attachment.menus.animation_set_by_name, t("Scenario List"), "https://gtaforums.com/topic/796181-list-of-scenarios-for-peds/")
 
 end
 
@@ -2171,10 +2412,26 @@ constructor.add_attachment_entity_options = function(attachment)
 
     attachment.menus.more_options = menu.list(attachment.menus.options, t("Entity Options"), {}, t("Additional options available for all entities."), function()
 
-        if attachment.menus.option_lod_distance ~= nil then return end
+        if attachment.menus.option_has_special_physics ~= nil then return end
+
+        attachment.menus.option_has_special_physics = menu.toggle(attachment.menus.more_options, t("Special Physics"), {}, t("Allow for special physics overrides"), function(on)
+            attachment.options.has_special_physics = on
+            constructor_lib.attach_entity(attachment)
+        end, attachment.options.has_special_physics)
+
+        attachment.menus.option_has_gravity = menu.toggle(attachment.menus.more_options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
+            attachment.options.has_gravity = on
+            constructor_lib.attach_entity(attachment)
+        end, attachment.options.has_gravity)
+
         attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, t("LoD Distance"), {"constructorsetloddistance"..attachment.id}, t("Level of Detail draw distance"), 1, 9999999, attachment.options.lod_distance, 100, function(value)
             attachment.options.lod_distance = value
             constructor_lib.attach_entity(attachment)
+        end)
+
+        attachment.menus.option_gravity = menu.slider(attachment.menus.more_options, t("Gravity"), {"constructorsetgravity"..attachment.id}, t(""), 0, 100, attachment.options.gravity, 1, function(value)
+            attachment.options.gravity = value
+            constructor_lib.deserialize_entity_attributes(attachment)
         end)
 
         attachment.menus.option_alpha = menu.slider(attachment.menus.more_options, t("Alpha"), {}, t("The amount of transparency the object has. Local only!"), 0, 255, attachment.options.alpha, 51, function(value)
@@ -2264,7 +2521,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
             menu.show_command_box("constructorsearchprop"..attachment.id.." ")
         end)
         menu.text_input(attachment.menus.search_add_prop, t("Search"), {"constructorsearchprop"..attachment.id}, "", function (query)
-            clear_menu_list(attachment.temp.prop_search_results)
+            delete_menu_list(attachment.temp.prop_search_results)
             attachment.temp.prop_search_results = {}
             search({
                 query=query,
@@ -2309,6 +2566,12 @@ constructor.add_attachment_add_attachment_options = function(attachment)
                         root = attachment.root, parent = attachment, name = value, model = value,
                     })
                 end)
+        menu.text_input(attachment.menus.exact_name, t("Object by Hash"), {"constructorattachobjecthash"..attachment.id},
+                t("Add an in-game object by exact name. To search for objects try https://gta-objects.xyz/"), function (value)
+                    build_construct_from_plan({
+                        root = attachment.root, parent = attachment, name = value, hash = value,
+                    })
+                end)
         menu.text_input(attachment.menus.exact_name, t("Vehicle by Name"), {"constructorattachvehicle"..attachment.id},
                 t("Add a vehicle by exact name."), function (value)
                     build_construct_from_plan({
@@ -2322,6 +2585,15 @@ constructor.add_attachment_add_attachment_options = function(attachment)
                     })
                 end)
         menu.hyperlink(attachment.menus.exact_name, t("Open gta-objects.xyz"), "https://gta-objects.xyz/", t("Website for browsing and searching for props"))
+
+        menu.action(attachment.menus.add_attachment, t("Add Current Vehicle"), {}, t("Attach your current vehicle to the construct"), function(on)
+            local vehicle = entities.get_user_vehicle_as_handle()
+            if vehicle == 0 then
+                util.toast(t("Error: You must be (or recently been) in a vehicle to create a construct from it"))
+                return
+            end
+            add_attachment_from_vehicle_handle(attachment, vehicle)
+        end)
 
         menu.toggle(attachment.menus.add_attachment, t("Add Attachment Gun"), {}, t("Anything you shoot with this enabled will be added to the current construct"), function(on)
             config.add_attachment_gun_active = on
@@ -2545,7 +2817,9 @@ menu.action(menus.create_new_construct, t("From Current Vehicle"), { "constructc
     if construct then
         menus.rebuild_attachment_menu(construct)
         construct.functions.refresh()
-        menu.focus(construct.menus.info)
+        if menu.is_ref_valid(construct.menus.info) then
+            menu.focus(construct.menus.info)
+        end
     end
 end)
 
@@ -2603,7 +2877,7 @@ menus.create_from_object_search = menu.list(menus.create_new_construct, t("From 
     menu.show_command_box("constructorcreatefromobjectname ")
 end)
 menu.text_input(menus.create_from_object_search, t("Search"), {"constructorcreatefromobjectname"}, "", function (query)
-    clear_menu_list(menus.create_from_object_search_results)
+    delete_menu_list(menus.create_from_object_search_results)
     search({
         query=query,
         results=menus.create_from_object_search_results,
