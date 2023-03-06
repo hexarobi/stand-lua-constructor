@@ -4,41 +4,6 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34"
-local AUTO_UPDATE_BRANCHES = {
-    { "main", {}, "More stable, but updated less often.", "main", },
-    { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
-}
-local SELECTED_BRANCH_INDEX = 1
-local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
-
----
---- Auto-Updater Lib Install
----
-
--- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
-local status, auto_updater = pcall(require, "auto-updater")
-if not status then
-    local auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
-    async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
-            function(result, headers, status_code)
-                local function parse_auto_update_result(result, headers, status_code)
-                    local error_prefix = "Error downloading auto-updater: "
-                    if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
-                    if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
-                    filesystem.mkdir(filesystem.scripts_dir() .. "lib")
-                    local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
-                    if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
-                    file:write(result) file:close() util.toast("Successfully installed auto-updater lib", TOAST_ALL) return true
-                end
-                auto_update_complete = parse_auto_update_result(result, headers, status_code)
-            end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
-    async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 40) do util.yield(250) i = i + 1 end
-    if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
-    auto_updater = require("auto-updater")
-end
-if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
-
 ---
 --- Config
 ---
@@ -72,120 +37,6 @@ CONSTRUCTOR_CONFIG = {
 local config = CONSTRUCTOR_CONFIG
 
 ---
---- Auto-Update
----
-
-local default_check_interval = 604800
-local auto_update_config = {
-    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua",
-    script_relpath=SCRIPT_RELPATH,
-    switch_to_branch=selected_branch,
-    verify_file_begins_with="--",
-    check_interval=config.auto_update_check_interval,
-    dependencies={
-        {
-            name="inspect",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/inspect.lua",
-            script_relpath="lib/inspect.lua",
-            verify_file_begins_with="local",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="xml2lua",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
-            script_relpath="lib/constructor/xml2lua.lua",
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-        },
-        --{
-        --    name="json",
-        --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/json.lua",
-        --    script_relpath="lib/json.lua",
-        --    verify_file_begins_with="--",
-        --    check_interval=default_check_interval,
-        --    is_required=true,
-        --},
-        {
-            name="constants",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
-            script_relpath="lib/constructor/constants.lua",
-            switch_to_branch=selected_branch,
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="constructor_lib",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
-            script_relpath="lib/constructor/constructor_lib.lua",
-            switch_to_branch=selected_branch,
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="iniparser",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/iniparser.lua",
-            script_relpath="lib/constructor/iniparser.lua",
-            switch_to_branch=selected_branch,
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-        },
-        {
-            name="convertors",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/convertors.lua",
-            script_relpath="lib/constructor/convertors.lua",
-            switch_to_branch=selected_branch,
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="curated_attachments",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
-            script_relpath="lib/constructor/curated_attachments.lua",
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="translations",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
-            script_relpath="lib/constructor/translations.lua",
-            switch_to_branch=selected_branch,
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="constructor_logo",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
-            script_relpath="lib/constructor/constructor_logo.png",
-            check_interval=default_check_interval,
-        },
-        {
-            name="objects_complete",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
-            script_relpath="lib/constructor/objects_complete.txt",
-            verify_file_begins_with="ba_prop_glass_garage_opaque",
-            check_interval=default_check_interval,
-        },
-        {
-            name="natives-1663599433",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1663599433.lua",
-            script_relpath="lib/natives-1663599433.lua",
-            verify_file_begins_with="--",
-            is_required=true,
-        },
-    }
-}
-local update_success
-if config.auto_update then
-    update_success = auto_updater.run_auto_update(auto_update_config)
-end
-
----
 --- Dependencies
 ---
 
@@ -193,49 +44,33 @@ end
 --local status_json, json = pcall(require, "json")
 --if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
 
+local status_inspect, inspect = pcall(require, "inspect")
+if not status_inspect then error("Could not load inspect lib") end
+
+local status_xnl2lua, xml2lua = pcall(require, "xml2lua")
+if not status_xnl2lua then error("Could not load xml2lua lib") end
+
+local status_iniparser, iniparser = pcall(require, "iniparser")
+if not status_iniparser then error("Could not load iniparser lib") end
+
+local status_constants, constants = pcall(require, "constructor/constants")
+if not status_constants then error("Could not load constructor/constants lib") end
+
+local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
+if not status_constructor_lib then error("Could not load constructor/constructor_lib lib") end
+
+local status_convertors, convertors = pcall(require, "constructor/convertors")
+if not status_convertors then error("Could not load constructor/convertors lib") end
+
+local status_curated_attachments, curated_attachments = pcall(require, "constructor/curated_attachments")
+if not status_curated_attachments then error("Could not load constructor/curated_attachments lib") end
+
+local status_translations, translations = pcall(require, "constructor/translations")
+if not status_translations then error("Could not load constructor/translations lib") end
+
 util.ensure_package_is_installed('lua/natives-1663599433')
 local status_natives, natives = pcall(require, "natives-1663599433")
 if not status_natives then error("Could not load natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
-
--- Call require() on all required dependencies
-local missing_required_dependencies = {}
-for _, dependency in pairs(auto_update_config.dependencies) do
-    if dependency.is_required then
-        local var_name = dependency.name
-        if dependency.loaded_lib ~= nil then
-            _G[var_name] = dependency.loaded_lib
-        else
-            local lib_require_status, loaded_lib = pcall(require, dependency.script_relpath:gsub("[.]lua$", ""))
-            if lib_require_status then
-                _G[var_name] = loaded_lib
-            else
-                table.insert(missing_required_dependencies, dependency.name)
-            end
-        end
-    end
-end
-
-if #missing_required_dependencies > 0 then
-    local missing_files = table.concat(missing_required_dependencies, ", ")
-    if not update_success then
-        menu.readonly(menu.my_root(), "Error: Install Failed", "Auto-update failed and required files are missing ("..missing_files..") Please re-install from the project zip file.")
-        menu.hyperlink(menu.my_root(), "Download Full Project Zip", "https://github.com/hexarobi/stand-lua-constructor")
-        error("Error: Install Failed. Auto-update failed and required files are missing ("..missing_files..") Please re-install from the project zip file @ https://github.com/hexarobi/stand-lua-constructor")
-    else
-        menu.readonly(menu.my_root(), "Error: Load Failed", "Required files are missing. ("..missing_files..")")
-        if config.auto_update then
-            menu.hyperlink(menu.my_root(), "Discord Help", "https://discord.gg/2u5HbHPB9y")
-        else
-            menu.readonly(menu.my_root(), "Please Update", "Please clean reinstall or manually update from the project homepage.")
-            menu.action(menu.my_root(), "Clean Reinstall", {}, "Force an update to the latest version, regardless of current version.", function()
-                auto_update_config.clean_reinstall = true
-                auto_updater.run_auto_update(auto_update_config)
-            end)
-            menu.hyperlink(menu.my_root(), "Download Full Project Zip", "https://github.com/hexarobi/stand-lua-constructor")
-        end
-        error("Error: Load Failed. Auto-update successful but required files are missing. This is likely a bug. Please report this issue on Discord @ https://discord.gg/2u5HbHPB9y")
-    end
-end
 
 ---
 --- Debug Log
@@ -3189,23 +3024,6 @@ end)
 local script_meta_menu = menu.list(menu.my_root(), t("Script Meta"), {}, t("Information and options about the Constructor script itself."))
 menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
-menu.toggle(script_meta_menu, t("Auto-Update"), {}, t("Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."), function()  end, config.auto_update)
-menu.list_select(script_meta_menu, t("Release Branch"), {}, t("Switch from main to dev to get cutting edge updates, but also potentially more bugs."), AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
-    if click_type ~= 0 then return end
-    auto_update_config.switch_to_branch = AUTO_UPDATE_BRANCHES[index][1]
-    auto_update_config.check_interval = 0
-    auto_updater.run_auto_update(auto_update_config)
-end)
-menu.action(script_meta_menu, t("Check for Update"), {}, t("The script will automatically check for updates at most daily, but you can manually check using this option anytime."), function()
-    auto_update_config.check_interval = 0
-    if auto_updater.run_auto_update(auto_update_config) then
-        util.toast(t("No updates found"))
-    end
-end)
-menu.action(script_meta_menu, t("Clean Reinstall"), {}, t("Force an update to the latest version, regardless of current version."), function()
-    auto_update_config.clean_reinstall = true
-    auto_updater.run_auto_update(auto_update_config)
-end)
 menu.hyperlink(script_meta_menu, t("Github Source"), "https://github.com/hexarobi/stand-lua-constructor", t("View source files on Github"))
 menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/2u5HbHPB9y", t("Open Discord Server"))
 
