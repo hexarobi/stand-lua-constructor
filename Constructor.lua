@@ -4,6 +4,8 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
+local SCRIPT_VERSION = "0.34"
+
 ---
 --- Config
 ---
@@ -47,8 +49,8 @@ local config = CONSTRUCTOR_CONFIG
 local status_inspect, inspect = pcall(require, "inspect")
 if not status_inspect then error("Could not load inspect lib") end
 
-local status_xnl2lua, xml2lua = pcall(require, "xml2lua")
-if not status_xnl2lua then error("Could not load xml2lua lib") end
+local status_xml2lua, xml2lua = pcall(require, "xml2lua")
+if not status_xml2lua then error("Could not load xml2lua lib") end
 
 local status_iniparser, iniparser = pcall(require, "iniparser")
 if not status_iniparser then error("Could not load iniparser lib") end
