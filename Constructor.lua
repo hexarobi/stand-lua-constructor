@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34"
+local SCRIPT_VERSION = "0.34r"
 
 ---
 --- Config
@@ -3080,19 +3080,5 @@ util.create_tick_handler(sensitivity_modifier_check_tick)
 util.create_tick_handler(update_constructs_tick)
 util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
 util.create_tick_handler(free_edit_mode_tick)
---util.create_tick_handler(ped_animation_tick)
-
---util.create_tick_handler(function()
---    debug_log("Ticking")
---    --aim_info_tick()
---    --update_preview_tick()
---    --sensitivity_modifier_check_tick()
---    --update_constructs_tick()
---    --draw_editing_attachment_bounding_box_tick()
---
---    --ped_animation_tick()
---    --util.yield(60000)
---    return true
---end)
 
 util.on_stop(cleanup_constructs_handler)
