@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.35b2"
+local SCRIPT_VERSION = "0.35b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -374,7 +374,7 @@ constructor_lib.start_particle_fx = function(attachment)
                 attachment.rotation.x, attachment.rotation.y, attachment.rotation.z,
                 attachment.particle_attributes.bone_index,
                 attachment.particle_attributes.scale,
-                false, false, false
+                false, false, false, 1, 1, 1, 1
         )
     end
 end
