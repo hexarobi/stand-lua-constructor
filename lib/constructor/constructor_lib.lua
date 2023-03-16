@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.35b4"
+local SCRIPT_VERSION = "0.34b5"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -75,6 +75,11 @@ constructor_lib.table_copy = function(obj)
     return res
 end
 
+local next = next
+constructor_lib.is_table_empty = function(tab)
+    return next(tab) == nil
+end
+
 constructor_lib.string_starts = function(String,Start)
     return string.sub(String,1,string.len(Start))==Start
 end
@@ -108,11 +113,6 @@ constructor_lib.table_merge = function(t1, t2)
         end
     end
     return t1
-end
-
-local next = next
-constructor_lib.is_table_empty = function(tab)
-    return next(tab) == nil
 end
 
 constructor_lib.trim = function(string)
@@ -369,7 +369,7 @@ constructor_lib.start_particle_fx = function(attachment)
                 attachment.rotation.x, attachment.rotation.y, attachment.rotation.z,
                 attachment.particle_attributes.bone_index,
                 attachment.particle_attributes.scale,
-                false, false, false
+                false, false, false, 1, 1, 1, 1
         )
     else
         attachment.handle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(
@@ -2020,6 +2020,7 @@ constructor_lib.serialize_attachment = function(attachment)
     --debug_log("Serialized attachment "..inspect(serialized_attachment))
     return serialized_attachment
 end
+
 
 ---
 --- Gizmo Utils
