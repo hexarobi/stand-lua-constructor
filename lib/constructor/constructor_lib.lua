@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.35b3"
+local SCRIPT_VERSION = "0.35b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -108,6 +108,11 @@ constructor_lib.table_merge = function(t1, t2)
         end
     end
     return t1
+end
+
+local next = next
+constructor_lib.is_table_empty = function(tab)
+    return next(tab) == nil
 end
 
 constructor_lib.trim = function(string)
