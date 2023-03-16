@@ -13,10 +13,10 @@ local convertor = {
 local status_inspect, inspect = pcall(require, "inspect")
 if not status_inspect then error("Could not load inspect lib. This should have been auto-installed.") end
 
-local status_xml2lua, xml2lua = pcall(require, "constructor/xml2lua")
+local status_xml2lua, xml2lua = pcall(require, "xml2lua")
 if not status_xml2lua then error("Could not load xml2lua lib. This should have been auto-installed.") end
 
-local status_iniparser, iniparser = pcall(require, "constructor/iniparser")
+local status_iniparser, iniparser = pcall(require, "iniparser")
 if not status_iniparser then error("Could not load iniparser lib. This should have been auto-installed.") end
 
 local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
