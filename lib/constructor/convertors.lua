@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.34"
+local SCRIPT_VERSION = "0.34b1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -193,7 +193,7 @@ local function convert_jackz_savedata_build_vehicle_attribute_extras(jackz_save_
 end
 
 local function convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, attachment)
-    if jackz_save_data == nil then return end
+    if jackz_save_data == nil or constructor_lib.is_table_empty(jackz_save_data) then return end
     attachment.vehicle_attributes = {
         paint = {
             dirt_level = jackz_save_data["Dirt Level"],
