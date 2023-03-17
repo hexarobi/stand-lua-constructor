@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.34"
+local SCRIPT_VERSION = "0.35b2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -10,21 +10,20 @@ local convertor = {
 --- Dependencies
 ---
 
-local status_inspect, inspect = pcall(require, "inspect")
-if not status_inspect then error("Could not load inspect lib. This should have been auto-installed.") end
+local function require_dependency(path)
+    local status, required_dep = pcall(require, path)
+    if not status then
+        error("Could not load "..path..": "..required_dep)
+    else
+        return required_dep
+    end
+end
 
-local status_xml2lua, xml2lua = pcall(require, "constructor/xml2lua")
-if not status_xml2lua then error("Could not load xml2lua lib. This should have been auto-installed.") end
-
-local status_iniparser, iniparser = pcall(require, "constructor/iniparser")
-if not status_iniparser then error("Could not load iniparser lib. This should have been auto-installed.") end
-
-local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
-if not status_constructor_lib then error("Could not load constructor_lib. This should have been auto-installed.") end
-
-util.ensure_package_is_installed('lua/json')
-local status_json, json = pcall(require, "json")
-if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+local inspect = require_dependency("inspect")
+local xml2lua = require_dependency("xml2lua")
+local iniparser = require_dependency("iniparser")
+local json = require_dependency("json")
+local constructor_lib = require_dependency("constructor/constructor_lib")
 
 ---
 --- Utils
@@ -193,7 +192,7 @@ local function convert_jackz_savedata_build_vehicle_attribute_extras(jackz_save_
 end
 
 local function convert_jackz_savedata_to_vehicle_attributes(jackz_save_data, attachment)
-    if jackz_save_data == nil then return end
+    if jackz_save_data == nil or constructor_lib.is_table_empty(jackz_save_data) then return end
     attachment.vehicle_attributes = {
         paint = {
             dirt_level = jackz_save_data["Dirt Level"],
