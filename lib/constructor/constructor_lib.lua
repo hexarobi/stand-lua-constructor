@@ -26,6 +26,7 @@ end
 
 local inspect = require_dependency("inspect")
 local constants = require_dependency("constructor/constants")
+local quaternionLib = require_dependency("quaternionLib")
 
 ---
 --- Data

@@ -209,9 +209,9 @@ local function require_dependency(path)
 end
 
 local inspect = require_dependency("inspect")
-local xml2lua = require_dependency("xml2lua")
-local iniparser = require_dependency("iniparser")
-local quaternionLib = require_dependency("quaternionLib")
+--local xml2lua = require_dependency("xml2lua")
+--local iniparser = require_dependency("iniparser")
+--local quaternionLib = require_dependency("quaternionLib")
 --local json = require_dependency("json")
 local constructor_lib = require_dependency("constructor/constructor_lib")
 local constants = require_dependency("constructor/constants")
