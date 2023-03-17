@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34b6"
+local SCRIPT_VERSION = "0.35b7"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -15,16 +15,17 @@ local constructor_lib = {
 --- Dependencies
 ---
 
---util.ensure_package_is_installed('lua/natives-1663599433')
---util.require_natives(1663599433)
---local status_natives, natives = pcall(require, "natives-1663599433")
---if not status_natives then error("Could not natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
+local function require_dependency(path)
+    local status, required_dep = pcall(require, path)
+    if not status then
+        error("Could not load "..path..": "..required_dep)
+    else
+        return required_dep
+    end
+end
 
-local status_inspect, inspect = pcall(require, "inspect")
-if not status_inspect then error("Could not load inspect lib. This should have been auto-installed.") end
-
-local status_constants, constants = pcall(require, "constructor/constants")
-if not status_constants then error("Could not load constants lib. This should have been auto-installed.") end
+local inspect = require_dependency("inspect")
+local constants = require_dependency("constructor/constants")
 
 ---
 --- Data

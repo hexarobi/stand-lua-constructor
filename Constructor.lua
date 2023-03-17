@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.35b4"
+local SCRIPT_VERSION = "0.35b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -199,13 +199,28 @@ end
 --- Dependencies
 ---
 
---util.ensure_package_is_installed('lua/json')
---local status_json, json = pcall(require, "json")
---if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+local function require_dependency(path)
+    local dep_status, required_dep = pcall(require, path)
+    if not dep_status then
+        error("Could not load "..path..": "..required_dep)
+    else
+        return required_dep
+    end
+end
+
+local inspect = require_dependency("inspect")
+local xml2lua = require_dependency("xml2lua")
+local iniparser = require_dependency("iniparser")
+local quaternionLib = require_dependency("quaternionLib")
+--local json = require_dependency("json")
+local constructor_lib = require_dependency("constructor/constructor_lib")
+local constants = require_dependency("constructor/constants")
+local convertors = require_dependency("constructor/convertors")
+local curated_attachments = require_dependency("constructor/curated_attachments")
+local translations = require_dependency("constructor/translations")
 
 util.ensure_package_is_installed('lua/natives-1672190175')
-local status_natives, natives = pcall(require, "natives-1672190175")
-if not status_natives then error("Could not load natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1672190175") end
+local natives = require_dependency("natives-1672190175")
 
 -- Call require() on all required dependencies
 local missing_required_dependencies = {}
