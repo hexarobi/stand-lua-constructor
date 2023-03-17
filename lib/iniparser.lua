@@ -42,7 +42,7 @@ function ini._Case_Ini_Recurse(tab, tab_name)
             ini._Case_Ini_Recurse(val, key)
         else
             tab = tostring(tab)
-            print("KEY: "..key.."\nTYPE: "..type(val).."\nVALUE: "..tostring(val).."\nTABLE: "..(tab_name or tab).."\n")
+            util.log("KEY: "..key.."\nTYPE: "..type(val).."\nVALUE: "..tostring(val).."\nTABLE: "..(tab_name or tab).."\n")
         end
     end
 end
@@ -135,7 +135,7 @@ function ini.parse(path, cwd)
                 end)
 
                 if not status1 then
-                    print("Err Paths:\n1:"..cwd..path.."\n2:"..path)
+                    util.log("Err Paths:\n1:"..cwd..path.."\n2:"..path)
                     error "ini.parse path leads to nil file. Check debug console for err paths."
                 else
                     path = cwd .. path
