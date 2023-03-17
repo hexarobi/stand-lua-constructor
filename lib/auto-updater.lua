@@ -1,4 +1,4 @@
--- Auto-Updater v2.5.2
+-- Auto-Updater v2.5.3
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -189,7 +189,7 @@ local function extract_zip(auto_update_config)
             local _, _, relative_path = f.name:find(pattern)
             --local relative_path = f.name:gsub(pattern, "")
             if relative_path and not is_ignored_filename(relative_path) then
-                local output_filepath = filesystem.stand_dir() .. extraction.to .. relative_path
+                local output_filepath = filesystem.stand_dir() .. extraction.to .. "/" .. relative_path
                 debug_log("Extracting file "..output_filepath)
                 local expand_status, content = pcall(zr.getFileContents, zr, f)
                 if not expand_status then
@@ -487,6 +487,9 @@ function run_auto_update(auto_update_config)
         while (is_download_complete == nil and i < (auto_update_config.http_timeout / config.http_check_delay)) do
             util.yield(config.http_check_delay)
             i = i + 1
+            if not auto_update_config.silent_updates then
+                util.toast("Downloading "..auto_update_config.script_filename.."...")
+            end
         end
         if is_download_complete == nil then
             util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout. This error can often be resolved by using Cloudflare DNS settings: 1.1.1.1 and 1.0.0.1 For more info visit http://1.1.1.1/dns/", TOAST_ALL)
