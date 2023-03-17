@@ -11,21 +11,21 @@
 -- Other Credits:
 --      - kektram#8996 (743564698699563020); significantly assisted with parse optimizations, and other areas such as garbage collection.
 
-local ini <const> = {
-    version = "0.2.7",
+local ini = {
+    version = "0.2.8",
     __debug = false
 }
 
 -- Localizing things we'll use often, for faster access.
 -- This allows Lua to index the stack instead of performing a hash lookup each time we make a call to _G.
-local type <const>,
-      f_open <const>,
-      str_sub <const>,
-      str_len <const>,
-      tostring <const>,
-      tonumber <const>,
-      str_gmatch <const>,
-      default_path = type, io.open, string.sub, string.len, tostring, tonumber, string.gmatch, nil
+local type,
+f_open,
+str_sub,
+str_len,
+tostring,
+tonumber,
+str_gmatch,
+default_path = type, io.open, string.sub, string.len, tostring, tonumber, string.gmatch, nil
 
 if menu then
     default_path = filesystem.scripts_dir() .. '\\store\\'
@@ -42,7 +42,7 @@ function ini._Case_Ini_Recurse(tab, tab_name)
             ini._Case_Ini_Recurse(val, key)
         else
             tab = tostring(tab)
-            util.log("KEY: "..key.."\nTYPE: "..type(val).."\nVALUE: "..tostring(val).."\nTABLE: "..(tab_name or tab).."\n")
+            print("KEY: "..key.."\nTYPE: "..type(val).."\nVALUE: "..tostring(val).."\nTABLE: "..(tab_name or tab).."\n")
         end
     end
 end
@@ -54,7 +54,7 @@ end
 -- str:sub previously in parseStringIntoLuaValue created a new string * amount of lines in the file.
 -- I learned during profiling that I created upwards of 55,000 dead-strings, along with using tonumber on all of them.
 -- So, this table looks less visually appealing, but it's significantly better for medium to large files, should they ever exist.
-local luaBoolValues <const> = {
+local luaBoolValues = {
     ["nil"] = "nil",
     [" nil"] = "nil",
     ["nil "] = nil,
@@ -87,7 +87,7 @@ end
 -- Unlike `ini.parse` this will not give you the option to treat your file as if it was a Lua table.
 function ini.match(path, key_name, desired_value, use_cache)
     local handle <close> = f_open(path, "r")
-    local content <const> = handle:read("*a")
+    local content = handle:read("*a")
 
     return content:match(key_name.."=(%a%a%a%a)") == desired_value
 end
@@ -106,18 +106,55 @@ function ini.parse(path, cwd)
     assert(type(path) == "string", "ini.parse 'path' must be a string.")
 
     -- Decipher `path` and decide whether it's absolute or relative.
-    local path = cwd .. path 
+    do
+        cwd = cwd or default_path
+        local _1, absStatus = pcall(function() return f_open(path) ~= nil end)
+        local _2, relStatus = pcall(function() return f_open(path) ~= nil end)
 
-    local res <const>,
-          cache <const>,
-          section = {}, { lines = {}, values = {}, keys = {} }, nil -- Inline cache gave smaller execution times.
-    
+        -- We need to ensure there were no errors for 2T1 compatibility.
+        absStatus = _1 and absStatus
+        relStatus = _2 and relStatus
+
+        if absStatus then
+            path = path
+        elseif relStatus and not absStatus then
+            path = cwd..path
+        elseif not (absStatus and relStatus) then
+            -- Note: Wrapping in pcall remains for 2T1 API support, since errors are thrown for non-appdata paths.
+            local status, _ = pcall(function ()
+                local f = f_open(path, "a+")
+                if f then f:close() end
+            end)
+
+            if status then
+                path = path
+            else
+                local status1, _1 = pcall(function ()
+                    local f = f_open(cwd .. path, "a+")
+                    if f then f:close() end
+                end)
+
+                if not status1 then
+                    print("Err Paths:\n1:"..cwd..path.."\n2:"..path)
+                    error "ini.parse path leads to nil file. Check debug console for err paths."
+                else
+                    path = cwd .. path
+                end
+            end
+        end
+    end
+
+    local res,
+    cache,
+    section,
+    subsection = {}, { lines = {}, values = {}, keys = {} }, nil, nil -- Inline cache gave smaller execution times.
+
     local file <close> = f_open(path)
 
     -- This gets messy because we must minimize function calls; they're very expensive in Lua.
     for str in str_gmatch(file:read("*a"), "[^\n\r\x80-\xFF]+") do
-        local lc <const> = str_sub(str, -1)     -- Last character.
-        local fc <const> = str_sub(str, 1, 1)   -- First character.
+        local lc = str_sub(str, -1)     -- Last character.
+        local fc = str_sub(str, 1, 1)   -- First character.
 
         -------------------------------------------------------------
         -- Only continue if the line meets the following conditions:
@@ -127,7 +164,7 @@ function ini.parse(path, cwd)
         if not (fc == ";" or fc == "\n") then
             -- This line is a section.
             if fc == "[" and lc == "]" then
-                local name <const> = str_sub(str, 2, -2)
+                local name = str_sub(str, 2, -2)
 
                 if section ~= name then
                     section = serializeKey(name)
@@ -136,7 +173,7 @@ function ini.parse(path, cwd)
                 --------------------------------------
                 -- Checking if this line is cached: --
                 --------------------------------------
-                local cache_line <const> = cache.lines[str]
+                local cache_line = cache.lines[str]
                 if cache_line then
                     if section then
                         if not res[section] then
@@ -155,21 +192,24 @@ function ini.parse(path, cwd)
                         local serialized_val, serialized_key
 
                         -- Check if the key has been cached:
-                        local cache_key <const> = cache.keys[key]
+                        local cache_key = cache.keys[key]
                         if cache_key then
                             serialized_key = cache_key
                         else
                             serialized_key = serializeKey(key)
-                            cache.keys[key] = serialized_key
+                            cache.keys[serialized_key] = serialized_key
                         end
 
                         -- Check if the value has been cached:
-                        local cache_val <const> = cache.values[value]
+                        local cache_val = cache.values[value]
                         if cache_val then
                             serialized_val = cache_val
                         else
-                            local nVal <const> = tonumber(value)
-                            local bVal <const> = luaBoolValues[value]
+                            -- For locales using comma as decimal comma separator
+                            if type(value) == "string" then value = value:gsub(",", ".") end
+
+                            local nVal = tonumber(value)
+                            local bVal = luaBoolValues[value]
 
                             if nVal then
                                 serialized_val = nVal
@@ -204,9 +244,7 @@ function ini.parse(path, cwd)
     end
 
     res.save = function (_path, skip_keys)
-        local cats <const>,
-              resl <const>,
-              skip <const> = {}, {}, {}
+        local cats, resl, skip = {}, {}, {}
 
         if type(skip_keys) == "table" then
             for _, k in next, skip_keys do
@@ -248,7 +286,7 @@ function ini.parse(path, cwd)
             end
         end
 
-        local status <const>, _ = pcall(function ()
+        local status, _ = pcall(function ()
             local f <close> = f_open(_path or path, "w+")
             if f then
                 f:write(table.concat(resl, "\n"))
@@ -267,17 +305,18 @@ function ini.parse(path, cwd)
 
             setmetatable(res[k], {
                 __newindex = function (tab, key, val)
-                    local mt <const>, __newindex = getmetatable(tab), nil
+                    local mt = getmetatable(tab)
+                    local ni = nil
 
                     if mt then
-                        __newindex = mt.__newindex
+                        ni = mt.__newindex
                         mt.__newindex = nil
                     end
 
                     res[k][key] = val
 
-                    if __newindex then
-                        mt.__newindex = __newindex
+                    if ni then
+                        mt.__newindex = ni
                     end
                 end
             })
@@ -286,6 +325,7 @@ function ini.parse(path, cwd)
         end
     })
 
+    collectgarbage()
     return res
 end
 
