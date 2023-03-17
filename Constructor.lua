@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.35b2"
+local SCRIPT_VERSION = "0.35b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -95,8 +95,8 @@ local auto_update_config = {
         },
         {
             name="xml2lua",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/xml2lua.lua",
-            script_relpath="lib/constructor/xml2lua.lua",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/xml2lua.lua",
+            script_relpath="lib/xml2lua.lua",
             verify_file_begins_with="--",
             check_interval=default_check_interval,
         },
@@ -128,8 +128,8 @@ local auto_update_config = {
         },
         {
             name="iniparser",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/iniparser.lua",
-            script_relpath="lib/constructor/iniparser.lua",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/iniparser.lua",
+            script_relpath="lib/iniparser.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
             check_interval=default_check_interval,
@@ -845,7 +845,7 @@ end
 
 local gizmo_scale = 0.02
 local colour = {r = 255, g = 0, b = 255, a = 255}
-local current_ent = -1
+local current_gizmo_entity = -1
 local grabbed_gizmo_index = -1
 
 local function gizmo_edit_mode_tick()
@@ -863,9 +863,9 @@ local function gizmo_edit_mode_tick()
 
     local mouse_dir = constructor_lib.get_mouse_cursor_dir()
 
-    if current_ent ~= -1 then
+    if current_gizmo_entity ~= -1 then
         local cam_dir = CAM.GET_FINAL_RENDERED_CAM_ROT(2):toDir()
-        local gizmos = constructor_lib.get_gizmos(current_ent)
+        local gizmos = constructor_lib.get_gizmos(current_gizmo_entity)
         local hovered_gizmo = constructor_lib.get_gizmo_hovered(gizmos, gizmo_scale)
 
         if hovered_gizmo.index ~= -1 and PAD.IS_DISABLED_CONTROL_JUST_PRESSED(2, 237) then
@@ -886,17 +886,17 @@ local function gizmo_edit_mode_tick()
             local grabbed_gizmo = gizmos[1]
             local gizmo_dir = grabbed_gizmo.rot:mul_v3(v3.new(0, 0, 1))
             local point = constructor_lib.closest_point_on_lines(gizmo_dir, mouse_dir, grabbed_gizmo.pos, CAM.GET_FINAL_RENDERED_CAM_COORD())
-            ENTITY.SET_ENTITY_COORDS_NO_OFFSET(current_ent ,point.x - grabbed_gizmo.offset.x, point.y - grabbed_gizmo.offset.y, point.z - grabbed_gizmo.offset.z, false, false, false)
+            ENTITY.SET_ENTITY_COORDS_NO_OFFSET(current_gizmo_entity,point.x - grabbed_gizmo.offset.x, point.y - grabbed_gizmo.offset.y, point.z - grabbed_gizmo.offset.z, false, false, false)
         end
 
         constructor_lib.draw_all_gizmos(gizmos, gizmo_scale)
     end
 
     if grabbed_gizmo_index == -1 and PAD.IS_DISABLED_CONTROL_JUST_PRESSED(2, 237) then
-        ENTITY.FREEZE_ENTITY_POSITION(current_ent, false)
-        PHYSICS.ACTIVATE_PHYSICS(current_ent)
-        current_ent = constructor_lib.get_ent_clicked_on(mouse_dir)
-        ENTITY.FREEZE_ENTITY_POSITION(current_ent, true)
+        ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, false)
+        PHYSICS.ACTIVATE_PHYSICS(current_gizmo_entity)
+        current_gizmo_entity = constructor_lib.get_ent_clicked_on(mouse_dir)
+        ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, true)
     end
     GRAPHICS.SET_DEPTHWRITING(false)
     return true
@@ -1660,18 +1660,32 @@ end
 --- Curated Constructs Installer
 ---
 
+local CURATED_CONSTRUCTS_DIR = CONSTRUCTS_DIR..'/Curated'
+filesystem.mkdirs(CURATED_CONSTRUCTS_DIR)
+
 local function install_curated_constructs()
-    local to_path = filesystem.scripts_dir().."/Constructs Installer.lua"
-    local write_file = io.open(to_path, "wb")
-    if write_file == nil then util.toast("Error writing to "..to_path..".") end
-    write_file:write(constants.CONSTRUCTS_INSTALLER_SCRIPT)
-    write_file:close()
-    util.yield(100)
-    menu.focus(menu.ref_by_path("Stand>Lua Scripts"))
-    util.yield(100)
-    menu.focus(menu.ref_by_path("Stand>Lua Scripts>Repository"))
-    util.yield(100)
-    menu.trigger_commands("luaconstructsinstaller")
+    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
+    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
+
+    if filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
+        os.remove(DOWNLOADED_ZIP_FILE_PATH)
+    end
+
+    auto_updater.run_auto_update({
+        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
+        script_relpath="store"..ZIP_FILE_STORE_PATH,
+        auto_restart=false,
+        http_timeout=300000,
+        check_interval = 0,
+        extractions={
+            {
+                from="stand-curated-constructs-main",
+                to="Constructs/Curated",
+            }
+        }
+    })
+
+    util.toast("Successfully installed curated constructs!", TOAST_ALL)
 end
 
 ---
@@ -1821,6 +1835,22 @@ constructor.add_attachment_position_menu = function(attachment)
         end
 
         menu.divider(attachment.menus.position, t("Options"))
+
+        attachment.menus.gizmo_edit_mode = menu.toggle(attachment.menus.position, "Gizmo Edit", {}, "Position this object using clickable arrow handles", function(on)
+            if (on) then
+                attachment.temp.is_gizmo_editing = true
+                current_gizmo_entity = attachment.handle
+                state.gizmo_edit_mode = true
+            else
+                attachment.temp.is_gizmo_editing = false
+                state.gizmo_edit_mode = false
+            end
+        end)
+        menu.on_blur(attachment.menus.gizmo_edit_mode, function()
+            if attachment.temp.is_gizmo_editing then
+                menu.set_value(attachment.menus.gizmo_edit_mode, false)
+            end
+        end)
 
         attachment.menus.free_edit_mode = menu.toggle(attachment.menus.position, "Free Edit", {}, "Position this object using controller or mouse", function(on)
             if (on) then
@@ -2042,7 +2072,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     end)
 
     attachment.menus.vehicle_options_paint = menu.list(attachment.menus.vehicle_options, t("Paint"), {}, t("Set vehicle paint colors"))
-    
+
     attachment.menus.vehicle_options_primary = menu.list(attachment.menus.vehicle_options_paint, t("Primary"), {}, t("Primary vehicle paint color"))
     attachment.menus.vehicle_options_primary_standard_colors = menu.list(attachment.menus.vehicle_options_primary, t("Standard Color"), {}, t("Select from a list of standard paint colors"))
     for _, standard_color in pairs(constants.standard_colors) do
@@ -2090,7 +2120,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             constructor_lib.deserialize_vehicle_paint(attachment)
         end)
     end
-    
+
     attachment.menus.vehicle_options_wheels = menu.list(attachment.menus.vehicle_options_paint, t("Wheels"), {}, t("Select from a list of wheel paint colors"))
     for _, standard_color in pairs(constants.standard_colors) do
         menu.action(attachment.menus.vehicle_options_wheels, standard_color.name, {}, "", function()
@@ -2112,7 +2142,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_mods(attachment)
         constructor_lib.deserialize_vehicle_headlights(attachment)
     end)
-    
+
     attachment.menus.vehicle_options_neon = menu.colour(attachment.menus.vehicle_options_paint, t("Neon Lights"), {}, t("Set up a custom neon light color"), color_menu_input(attachment.vehicle_attributes.neon.color), false, function(color)
         attachment.vehicle_attributes.neon.color = color_menu_output(color)
         if attachment.vehicle_attributes.neon.lights == nil then
@@ -2120,7 +2150,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end
         constructor_lib.deserialize_vehicle_neon(attachment)
     end)
-    
+
     menu.toggle_loop(attachment.menus.vehicle_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
         attachment.options.engine_running = true
         VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
@@ -3045,7 +3075,7 @@ menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {"construc
                 "No constructs found! Would you like to download a curated collection of constructs? "
                         .."This includes popular vehicles, maps and skins to get started with Constructor. "
                         .."Installer requires special permissions for direct access to system for unzipping."), function()
-            install_curated_constructs()
+            download_and_extract_curated_constructs()
             menus.rebuild_load_construct_menu()
         end)
     end
@@ -3078,9 +3108,11 @@ end)
 
 menus.load_construct_options = menu.list(menus.load_construct, t("Options"))
 menu.hyperlink(menus.load_construct_options, t("Open Constructs Folder"), "file:///"..CONSTRUCTS_DIR, t("Open constructs folder. Share your creations or add new creations here."))
-menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs from https://github.com/hexarobi/stand-curated-constructs"), function(click_type)
+menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs. This may take up to 5 minutes."), function(click_type)
     install_curated_constructs()
 end)
+-- menu.hyperlink(menus.load_construct_options, t("Open Curated Constructs Collection"), "https://github.com/hexarobi/stand-curated-constructs", t("Open curated constructs collection website for manual installation."))
+
 menu.toggle(menus.load_construct_options, t("Drive Spawned Vehicles"), {}, t("When spawning vehicles, automatically place you into the drivers seat."), function(on)
     config.drive_spawned_vehicles = on
 end, config.drive_spawned_vehicles)
@@ -3338,19 +3370,5 @@ util.create_tick_handler(update_constructs_tick)
 util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
 util.create_tick_handler(free_edit_mode_tick)
 util.create_tick_handler(gizmo_edit_mode_tick)
---util.create_tick_handler(ped_animation_tick)
-
---util.create_tick_handler(function()
---    debug_log("Ticking")
---    --aim_info_tick()
---    --update_preview_tick()
---    --sensitivity_modifier_check_tick()
---    --update_constructs_tick()
---    --draw_editing_attachment_bounding_box_tick()
---
---    --ped_animation_tick()
---    --util.yield(60000)
---    return true
---end)
 
 util.on_stop(cleanup_constructs_handler)
