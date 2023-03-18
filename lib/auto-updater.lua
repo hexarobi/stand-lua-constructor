@@ -1,4 +1,4 @@
--- Auto-Updater v2.5.3
+-- Auto-Updater v2.5.4
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -214,6 +214,7 @@ local function extract_zip(auto_update_config)
                 debug_log("Skipping file due to name doesnt match pattern "..pattern.." "..f.name)
             end
         end
+        util.yield()
     end
 end
 
