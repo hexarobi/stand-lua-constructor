@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.34r"
+local SCRIPT_VERSION = "0.35r"
 
 ---
 --- Config
@@ -38,41 +38,34 @@ CONSTRUCTOR_CONFIG = {
 -- Short local alias
 local config = CONSTRUCTOR_CONFIG
 
+local state = {}
+
 ---
 --- Dependencies
 ---
 
---util.ensure_package_is_installed('lua/json')
---local status_json, json = pcall(require, "json")
---if not status_json then error("Could not load json lib. Make sure it is selected under Stand > Lua Scripts > Repository > json") end
+local function require_dependency(path)
+    local dep_status, required_dep = pcall(require, path)
+    if not dep_status then
+        error("Could not load "..path..": "..required_dep)
+    else
+        return required_dep
+    end
+end
 
-local status_inspect, inspect = pcall(require, "inspect")
-if not status_inspect then error("Could not load inspect lib") end
+local inspect = require_dependency("inspect")
+--local xml2lua = require_dependency("xml2lua")
+--local iniparser = require_dependency("iniparser")
+--local quaternionLib = require_dependency("quaternionLib")
+--local json = require_dependency("json")
+local constructor_lib = require_dependency("constructor/constructor_lib")
+local constants = require_dependency("constructor/constants")
+local convertors = require_dependency("constructor/convertors")
+local curated_attachments = require_dependency("constructor/curated_attachments")
+local translations = require_dependency("constructor/translations")
 
-local status_xml2lua, xml2lua = pcall(require, "xml2lua")
-if not status_xml2lua then error("Could not load xml2lua lib") end
-
-local status_iniparser, iniparser = pcall(require, "iniparser")
-if not status_iniparser then error("Could not load iniparser lib") end
-
-local status_constants, constants = pcall(require, "constructor/constants")
-if not status_constants then error("Could not load constructor/constants lib") end
-
-local status_constructor_lib, constructor_lib = pcall(require, "constructor/constructor_lib")
-if not status_constructor_lib then error("Could not load constructor/constructor_lib lib") end
-
-local status_convertors, convertors = pcall(require, "constructor/convertors")
-if not status_convertors then error("Could not load constructor/convertors lib") end
-
-local status_curated_attachments, curated_attachments = pcall(require, "constructor/curated_attachments")
-if not status_curated_attachments then error("Could not load constructor/curated_attachments lib") end
-
-local status_translations, translations = pcall(require, "constructor/translations")
-if not status_translations then error("Could not load constructor/translations lib") end
-
-util.ensure_package_is_installed('lua/natives-1663599433')
-local status_natives, natives = pcall(require, "natives-1663599433")
-if not status_natives then error("Could not load natives lib. Make sure it is selected under Stand > Lua Scripts > Repository > natives-1663599433") end
+util.ensure_package_is_installed('lua/natives-1672190175')
+local natives = require_dependency("natives-1672190175")
 
 ---
 --- Debug Log
@@ -664,6 +657,69 @@ local function draw_editing_attachment_bounding_box_tick()
     for _, construct in pairs(spawned_constructs) do
         draw_editing_bounding_box(construct)
     end
+end
+
+---
+--- Gizmo Edit
+---
+
+local gizmo_scale = 0.02
+local colour = {r = 255, g = 0, b = 255, a = 255}
+local current_gizmo_entity = -1
+local grabbed_gizmo_index = -1
+
+local function gizmo_edit_mode_tick()
+    if not state.gizmo_edit_mode then return end
+    GRAPHICS.SET_DEPTHWRITING(true)
+    HUD.SET_MOUSE_CURSOR_THIS_FRAME()
+
+    PAD.DISABLE_CONTROL_ACTION(2, 25, true) --aim
+    PAD.DISABLE_CONTROL_ACTION(2, 24, true) --attack
+    PAD.DISABLE_CONTROL_ACTION(2, 257, true) --attack2
+    if PAD.IS_DISABLED_CONTROL_PRESSED(2, 25) then return true end
+
+    PAD.DISABLE_CONTROL_ACTION(2, 1, true) --look lr
+    PAD.DISABLE_CONTROL_ACTION(2, 2, true) --look ud
+
+    local mouse_dir = constructor_lib.get_mouse_cursor_dir()
+
+    if current_gizmo_entity ~= -1 then
+        local cam_dir = CAM.GET_FINAL_RENDERED_CAM_ROT(2):toDir()
+        local gizmos = constructor_lib.get_gizmos(current_gizmo_entity)
+        local hovered_gizmo = constructor_lib.get_gizmo_hovered(gizmos, gizmo_scale)
+
+        if hovered_gizmo.index ~= -1 and PAD.IS_DISABLED_CONTROL_JUST_PRESSED(2, 237) then
+            grabbed_gizmo_index = hovered_gizmo.index
+        elseif PAD.IS_DISABLED_CONTROL_JUST_RELEASED(2, 237) then
+            grabbed_gizmo_index = -1
+        end
+
+        for i, g in ipairs(gizmos) do
+            g.colour = colour
+            if i == hovered_gizmo.index or i == grabbed_gizmo_index then
+                g.colour = {r = 255, g = 255, b = 255, a = 255}
+            end
+        end
+
+        if grabbed_gizmo_index ~= -1 then
+            gizmos = {gizmos[grabbed_gizmo_index]}
+            local grabbed_gizmo = gizmos[1]
+            local gizmo_dir = grabbed_gizmo.rot:mul_v3(v3.new(0, 0, 1))
+            local point = constructor_lib.closest_point_on_lines(gizmo_dir, mouse_dir, grabbed_gizmo.pos, CAM.GET_FINAL_RENDERED_CAM_COORD())
+            ENTITY.SET_ENTITY_COORDS_NO_OFFSET(current_gizmo_entity,point.x - grabbed_gizmo.offset.x, point.y - grabbed_gizmo.offset.y, point.z - grabbed_gizmo.offset.z, false, false, false)
+        end
+
+        constructor_lib.draw_all_gizmos(gizmos, gizmo_scale)
+    end
+
+    if grabbed_gizmo_index == -1 and PAD.IS_DISABLED_CONTROL_JUST_PRESSED(2, 237) then
+        ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, false)
+        PHYSICS.ACTIVATE_PHYSICS(current_gizmo_entity)
+        current_gizmo_entity = constructor_lib.get_ent_clicked_on(mouse_dir)
+        ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, true)
+    end
+    GRAPHICS.SET_DEPTHWRITING(false)
+    return true
 end
 
 ---
@@ -1424,18 +1480,32 @@ end
 --- Curated Constructs Installer
 ---
 
+local CURATED_CONSTRUCTS_DIR = CONSTRUCTS_DIR..'/Curated'
+filesystem.mkdirs(CURATED_CONSTRUCTS_DIR)
+
 local function install_curated_constructs()
-    local to_path = filesystem.scripts_dir().."/Constructs Installer.lua"
-    local write_file = io.open(to_path, "wb")
-    if write_file == nil then util.toast("Error writing to "..to_path..".") end
-    write_file:write(constants.CONSTRUCTS_INSTALLER_SCRIPT)
-    write_file:close()
-    util.yield(100)
-    menu.focus(menu.ref_by_path("Stand>Lua Scripts"))
-    util.yield(100)
-    menu.focus(menu.ref_by_path("Stand>Lua Scripts>Repository"))
-    util.yield(100)
-    menu.trigger_commands("luaconstructsinstaller")
+    local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
+    local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
+
+    if filesystem.exists(DOWNLOADED_ZIP_FILE_PATH) then
+        os.remove(DOWNLOADED_ZIP_FILE_PATH)
+    end
+
+    auto_updater.run_auto_update({
+        source_url="https://codeload.github.com/hexarobi/stand-curated-constructs/zip/refs/heads/main",
+        script_relpath="store"..ZIP_FILE_STORE_PATH,
+        auto_restart=false,
+        http_timeout=300000,
+        check_interval = 0,
+        extractions={
+            {
+                from="stand-curated-constructs-main",
+                to="Constructs/Curated",
+            }
+        }
+    })
+
+    util.toast("Successfully installed curated constructs!", TOAST_ALL)
 end
 
 ---
@@ -1585,6 +1655,22 @@ constructor.add_attachment_position_menu = function(attachment)
         end
 
         menu.divider(attachment.menus.position, t("Options"))
+
+        attachment.menus.gizmo_edit_mode = menu.toggle(attachment.menus.position, "Gizmo Edit", {}, "Position this object using clickable arrow handles", function(on)
+            if (on) then
+                attachment.temp.is_gizmo_editing = true
+                current_gizmo_entity = attachment.handle
+                state.gizmo_edit_mode = true
+            else
+                attachment.temp.is_gizmo_editing = false
+                state.gizmo_edit_mode = false
+            end
+        end)
+        menu.on_blur(attachment.menus.gizmo_edit_mode, function()
+            if attachment.temp.is_gizmo_editing then
+                menu.set_value(attachment.menus.gizmo_edit_mode, false)
+            end
+        end)
 
         attachment.menus.free_edit_mode = menu.toggle(attachment.menus.position, "Free Edit", {}, "Position this object using controller or mouse", function(on)
             if (on) then
@@ -1806,7 +1892,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     end)
 
     attachment.menus.vehicle_options_paint = menu.list(attachment.menus.vehicle_options, t("Paint"), {}, t("Set vehicle paint colors"))
-    
+
     attachment.menus.vehicle_options_primary = menu.list(attachment.menus.vehicle_options_paint, t("Primary"), {}, t("Primary vehicle paint color"))
     attachment.menus.vehicle_options_primary_standard_colors = menu.list(attachment.menus.vehicle_options_primary, t("Standard Color"), {}, t("Select from a list of standard paint colors"))
     for _, standard_color in pairs(constants.standard_colors) do
@@ -1854,7 +1940,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             constructor_lib.deserialize_vehicle_paint(attachment)
         end)
     end
-    
+
     attachment.menus.vehicle_options_wheels = menu.list(attachment.menus.vehicle_options_paint, t("Wheels"), {}, t("Select from a list of wheel paint colors"))
     for _, standard_color in pairs(constants.standard_colors) do
         menu.action(attachment.menus.vehicle_options_wheels, standard_color.name, {}, "", function()
@@ -1876,7 +1962,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_mods(attachment)
         constructor_lib.deserialize_vehicle_headlights(attachment)
     end)
-    
+
     attachment.menus.vehicle_options_neon = menu.colour(attachment.menus.vehicle_options_paint, t("Neon Lights"), {}, t("Set up a custom neon light color"), color_menu_input(attachment.vehicle_attributes.neon.color), false, function(color)
         attachment.vehicle_attributes.neon.color = color_menu_output(color)
         if attachment.vehicle_attributes.neon.lights == nil then
@@ -1884,7 +1970,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end
         constructor_lib.deserialize_vehicle_neon(attachment)
     end)
-    
+
     menu.toggle_loop(attachment.menus.vehicle_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
         attachment.options.engine_running = true
         VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
@@ -2842,9 +2928,11 @@ end)
 
 menus.load_construct_options = menu.list(menus.load_construct, t("Options"))
 menu.hyperlink(menus.load_construct_options, t("Open Constructs Folder"), "file:///"..CONSTRUCTS_DIR, t("Open constructs folder. Share your creations or add new creations here."))
-menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs from https://github.com/hexarobi/stand-curated-constructs"), function(click_type)
+menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs. This may take up to 5 minutes."), function(click_type)
     install_curated_constructs()
 end)
+-- menu.hyperlink(menus.load_construct_options, t("Open Curated Constructs Collection"), "https://github.com/hexarobi/stand-curated-constructs", t("Open curated constructs collection website for manual installation."))
+
 menu.toggle(menus.load_construct_options, t("Drive Spawned Vehicles"), {}, t("When spawning vehicles, automatically place you into the drivers seat."), function(on)
     config.drive_spawned_vehicles = on
 end, config.drive_spawned_vehicles)
@@ -2972,6 +3060,9 @@ end)
 menu.slider(menus.editing_settings, t("Edit Rotation Step"), {}, t("The amount of change each time you edit an attachment rotation (hold SHIFT for fine tuning)"), 1, 30, config.edit_rotation_step, 1, function(value)
     config.edit_rotation_step = value
 end)
+menu.toggle(menus.editing_settings, t("Gizmo Edit Mode"), {}, t("Enabled mouse-based edit mode. Click any world object to enable edit handles."), function(toggle)
+    state.gizmo_edit_mode = toggle
+end, state.gizmo_edit_mode)
 
 menus.preview_settings = menu.list(menus.settings_menu, t("Previews"), {}, t("Set configuration options relating to previewing constructs."))
 menu.toggle(menus.preview_settings, t("Show Previews"), {}, t("Show previews when adding attachments"), function(on)
@@ -3032,8 +3123,9 @@ menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/2u5HbHPB9y", 
 menus.credits = menu.list(script_meta_menu, t("Credits"))
 menu.divider(menus.credits, t("Developers"))
 menu.readonly(menus.credits, "Hexarobi", t("Main developer"))
-menu.readonly(menus.credits, "BigTuna", t("Development, Testing, Suggestions and Support"))
-menu.readonly(menus.credits, "acjoker", t("Development, Ped Curation"))
+menu.readonly(menus.credits, "BigTuna", t("Development, testing, suggestions and support"))
+menu.readonly(menus.credits, "acjoker", t("Development, curation and more"))
+menu.readonly(menus.credits, "Murten", t("Development, created the Gizmo edit mode"))
 menu.divider(menus.credits, t("Inspirations"))
 menu.readonly(menus.credits, "Jackz Vehicle Builder", t("Much of Constructor is based on code originally copied from Jackz Vehicle Builder and this script wouldn't be possible without it. Constructor is just my own copy of Jackz's amazing work. Thank you Jackz!"))
 menu.readonly(menus.credits, "LanceSpooner", t("LanceSpooner is also a huge inspiration to this script. Thanks Lance!"))
@@ -3080,5 +3172,6 @@ util.create_tick_handler(sensitivity_modifier_check_tick)
 util.create_tick_handler(update_constructs_tick)
 util.create_tick_handler(draw_editing_attachment_bounding_box_tick)
 util.create_tick_handler(free_edit_mode_tick)
+util.create_tick_handler(gizmo_edit_mode_tick)
 
 util.on_stop(cleanup_constructs_handler)
