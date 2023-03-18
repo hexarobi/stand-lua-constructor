@@ -1503,6 +1503,7 @@ local function install_curated_constructs()
     })
 
     util.toast("Successfully installed curated constructs!", TOAST_ALL)
+    menu.ref_by_rel_path(menus.load_construct, "Curated"):focus()
 end
 
 ---
