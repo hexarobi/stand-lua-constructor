@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.35.1r"
+local SCRIPT_VERSION = "0.35.2r"
 
 ---
 --- Config
@@ -2925,7 +2925,9 @@ menus.load_construct_search = menu.text_input(menus.search_constructs, t("Search
 end)
 
 menus.load_construct_options = menu.list(menus.load_construct, t("Options"))
-menu.hyperlink(menus.load_construct_options, t("Open Constructs Folder"), "file:///"..CONSTRUCTS_DIR, t("Open constructs folder. Share your creations or add new creations here."))
+menu.action(menus.load_construct_options, t("Open Constructs Folder"), {}, t("Open constructs folder. Share your creations or add new creations here."), function()
+    util.open_folder(CONSTRUCTS_DIR)
+end)
 menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs. This may take up to 5 minutes."), function(click_type)
     install_curated_constructs()
 end)
