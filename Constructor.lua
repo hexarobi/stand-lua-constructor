@@ -3038,9 +3038,11 @@ menu.action(menus.create_new_construct, t("From Current Ped"), { "constructcreat
         util.toast(t("Player is already a construct"))
         return
     end
+    local max_health = ENTITY.GET_ENTITY_MAX_HEALTH(players.user_ped())
     get_player_construct()
     constructor_lib.serialize_ped_attributes(player_construct)
     build_construct_from_plan(player_construct)
+    ENTITY.SET_ENTITY_MAX_HEALTH(players.user_ped(), max_health)
 end)
 
 menus.create_from_ped_list = menu.list(menus.create_new_construct, t("From Ped List"), {}, t("Create a new construct from a list of peds"), function()
