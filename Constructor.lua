@@ -1051,6 +1051,38 @@ local function clear_free_edit_attachment()
     destroy_free_edit_cam()
 end
 
+local function gizmo_attachment(attachment)
+    ENTITY.FREEZE_ENTITY_POSITION(attachment.root.handle, true)
+    if attachment.options.is_attached then
+        config.gizmo_parent = attachment.parent
+        attachment.temp.is_gizmo_editing = true
+        current_gizmo_entity = attachment.handle
+        state.gizmo_edit_mode = true
+        constructor_lib.separate_attachment(attachment)
+    else
+        config.gizmo_parent = nil
+    end
+    config.gizmo_attachment = attachment
+    config.gizmo_edit_mode = true
+
+end
+
+local function clear_gizmo_attachment()
+    if config.gizmo_attachment then
+        if config.gizmo_parent then
+            constructor_lib.serialize_entity_attributes(config.gizmo_attachment)
+            constructor_lib.join_attachments(config.gizmo_parent, config.gizmo_attachment)
+            constructor.refresh_position_menu(config.gizmo_attachment)
+        end
+        ENTITY.FREEZE_ENTITY_POSITION(config.gizmo_attachment.root.handle, false)
+        --config.gizmo_attachment = nil
+    end
+    config.gizmo_edit_mode = false
+    state.gizmo_edit_mode = false
+
+end
+
+
 ---
 --- Player Spawn Management
 
@@ -1850,19 +1882,17 @@ constructor.add_attachment_position_menu = function(attachment)
         end
 
         menu.divider(attachment.menus.position, t("Options"))
-
         attachment.menus.gizmo_edit_mode = menu.toggle(attachment.menus.position, "Gizmo Edit", {}, "Position this object using clickable arrow handles", function(on)
             if (on) then
-                attachment.temp.is_gizmo_editing = true
-                current_gizmo_entity = attachment.handle
-                state.gizmo_edit_mode = true
+                gizmo_attachment(attachment)
             else
+                clear_gizmo_attachment()
                 attachment.temp.is_gizmo_editing = false
-                state.gizmo_edit_mode = false
             end
-        end)
+        end, attachment.temp.is_gizmo_editing)
         menu.on_blur(attachment.menus.gizmo_edit_mode, function()
             if attachment.temp.is_gizmo_editing then
+                clear_gizmo_attachment()
                 menu.set_value(attachment.menus.gizmo_edit_mode, false)
             end
         end)
