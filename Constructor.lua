@@ -952,7 +952,6 @@ local free_edit_mode_tick = function()
     constructor_lib.move_attachment(attachment)
 
     local sensitivity = 0.3
-    local cam_z = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.handle, 0, 2, 3)
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 32) then
         --local offset = get_offset_from_cam_in_world_coords(cam, {x=1,y=0,z=0})
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
