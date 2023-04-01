@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.36b3"
+local SCRIPT_VERSION = "0.36b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -208,6 +208,7 @@ local function require_dependency(path)
     end
 end
 
+util.ensure_package_is_installed('lua/ScaleformLib')
 local inspect = require_dependency("inspect")
 local constructor_lib = require_dependency("constructor/constructor_lib")
 local constants = require_dependency("constructor/constants")
@@ -431,6 +432,43 @@ end
 
 local function color_menu_output(output_color)
     return { r=math.floor(output_color.r * 255), g=math.floor(output_color.g * 255), b=math.floor(output_color.b * 255) }
+end
+
+---
+--- ScaleformLib
+---
+
+local scaleform = require('ScaleformLib')
+local sf = scaleform('instructional_buttons')
+local function hud_hide()
+    HUD.HIDE_HUD_COMPONENT_THIS_FRAME(6)
+    HUD.HIDE_HUD_COMPONENT_THIS_FRAME(7)
+    HUD.HIDE_HUD_COMPONENT_THIS_FRAME(8)
+    HUD.HIDE_HUD_COMPONENT_THIS_FRAME(9)
+    ---@diagnostic disable-next-line: param-type-mismatch
+    memory.write_int(memory.script_global(1645739+1121), 1)
+    sf.CLEAR_ALL()
+    sf.TOGGLE_MOUSE_BUTTONS(false)
+end
+
+local function sf_free_edit()
+    hud_hide()
+    sf.SET_DATA_SLOT(0,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 33, true) , t("Forward"))
+    sf.SET_DATA_SLOT(1,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 32, true), t('Back'))
+    sf.SET_DATA_SLOT(2,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 34, true), t('Left'))
+    sf.SET_DATA_SLOT(3,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 35, true) , t("Right"))
+    sf.SET_DATA_SLOT(4,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 22, true) , t("Up"))
+    sf.SET_DATA_SLOT(5,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 36, true) , t("Down"))
+    sf.DRAW_INSTRUCTIONAL_BUTTONS()
+    sf:draw_fullscreen()
+end
+
+local function sf_gizmo_edit()
+    hud_hide()
+    sf.SET_DATA_SLOT(0,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 238, true) , t("Select gizmo arrow"))
+    sf.SET_DATA_SLOT(1,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 237, true), t('Hold to spin camera'))
+    sf.DRAW_INSTRUCTIONAL_BUTTONS()
+    sf:draw_fullscreen()
 end
 
 ---
@@ -861,6 +899,7 @@ local grabbed_gizmo_index = -1
 
 local function gizmo_edit_mode_tick()
     if not state.gizmo_edit_mode then return end
+    sf_gizmo_edit()
     GRAPHICS.SET_DEPTHWRITING(true)
     HUD.SET_MOUSE_CURSOR_THIS_FRAME()
 
@@ -930,6 +969,7 @@ end
 
 local free_edit_mode_tick = function()
     if not config.free_edit_mode then return true end
+    sf_free_edit()
     local attachment = config.free_edit_attachment
     local forward, right, up = get_cam_vectors()
     --local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(free_edit_cam, 0, -2, -2)
