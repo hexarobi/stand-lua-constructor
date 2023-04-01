@@ -941,7 +941,6 @@ local free_edit_mode_tick = function()
     --attachment.position = get_offset_from_camera({x=0, y=2, z=2})
 
     local camera_sensitivity = 2
-
     local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
     attachment.position = {
         x = cam_pos.x + (forward.x * camera_sensitivity) + (up.x * camera_sensitivity),
@@ -953,36 +952,35 @@ local free_edit_mode_tick = function()
     constructor_lib.move_attachment(attachment)
 
     local sensitivity = 0.3
-
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 32) then
         --local offset = get_offset_from_cam_in_world_coords(cam, {x=1,y=0,z=0})
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (forward.x * sensitivity), cam_pos.y + (forward.y * sensitivity), cam_pos.z + (forward.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x + (forward.x * sensitivity), cam_pos.y + (forward.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 33) then
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (forward.x * sensitivity), cam_pos.y - (forward.y * sensitivity), cam_pos.z - (forward.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x - (forward.x * sensitivity), cam_pos.y - (forward.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 35) then
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (right.x * sensitivity), cam_pos.y + (right.y * sensitivity), cam_pos.z + (right.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x + (right.x * sensitivity), cam_pos.y + (right.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 34) then
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (right.x * sensitivity), cam_pos.y - (right.y * sensitivity), cam_pos.z - (right.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x - (right.x * sensitivity), cam_pos.y - (right.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 22) then
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (up.x * sensitivity), cam_pos.y + (up.y * sensitivity), cam_pos.z + (up.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x, cam_pos.y, cam_pos.z + (up.z * sensitivity))
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 36) then
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (up.x * sensitivity), cam_pos.y - (up.y * sensitivity), cam_pos.z - (up.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x, cam_pos.y, cam_pos.z - (up.z * sensitivity))
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
 
@@ -995,7 +993,13 @@ local free_edit_mode_tick = function()
         cam_rot = v3(cam_rot.x, cam_rot.y, cam_rot.z - (move_lr * 5))
     end
     CAM.SET_CAM_ROT(free_edit_cam, cam_rot.x, cam_rot.y, cam_rot.z, 2)
-
+    if PAD.IS_CONTROL_JUST_PRESSED(2, 241) then
+        local fov = CAM.GET_CAM_FOV(free_edit_cam)
+        CAM.SET_CAM_FOV(free_edit_cam, fov + 5)
+    elseif PAD.IS_CONTROL_JUST_PRESSED(2, 242) then
+        local fov = CAM.GET_CAM_FOV(free_edit_cam)
+        CAM.SET_CAM_FOV(free_edit_cam, fov - 5)
+    end
     return true
 end
 
@@ -1041,8 +1045,9 @@ end
 local function clear_free_edit_attachment()
     if config.free_edit_attachment then
         if config.free_edit_parent then
+            constructor_lib.serialize_entity_attributes(config.free_edit_attachment)
             constructor_lib.join_attachments(config.free_edit_parent, config.free_edit_attachment)
-            constructor.refresh_position_menu(config.free_edit_attachment)
+            constructor.refresh_position_menu(config.free_edit_attachment)            
         end
         ENTITY.FREEZE_ENTITY_POSITION(config.free_edit_attachment.root.handle, false)
         config.free_edit_attachment = nil
@@ -1050,6 +1055,38 @@ local function clear_free_edit_attachment()
     config.free_edit_mode = false
     destroy_free_edit_cam()
 end
+
+local function gizmo_attachment(attachment)
+    ENTITY.FREEZE_ENTITY_POSITION(attachment.root.handle, true)
+    if attachment.options.is_attached then
+        config.gizmo_parent = attachment.parent
+        attachment.temp.is_gizmo_editing = true
+        current_gizmo_entity = attachment.handle
+        state.gizmo_edit_mode = true
+        constructor_lib.separate_attachment(attachment)
+    else
+        config.gizmo_parent = nil
+    end
+    config.gizmo_attachment = attachment
+    config.gizmo_edit_mode = true
+
+end
+
+local function clear_gizmo_attachment()
+    if config.gizmo_attachment then
+        if config.gizmo_parent then
+            constructor_lib.serialize_entity_attributes(config.gizmo_attachment)
+            constructor_lib.join_attachments(config.gizmo_parent, config.gizmo_attachment)
+            constructor.refresh_position_menu(config.gizmo_attachment)
+        end
+        ENTITY.FREEZE_ENTITY_POSITION(config.gizmo_attachment.root.handle, false)
+        --config.gizmo_attachment = nil
+    end
+    config.gizmo_edit_mode = false
+    state.gizmo_edit_mode = false
+
+end
+
 
 ---
 --- Player Spawn Management
@@ -1850,19 +1887,17 @@ constructor.add_attachment_position_menu = function(attachment)
         end
 
         menu.divider(attachment.menus.position, t("Options"))
-
         attachment.menus.gizmo_edit_mode = menu.toggle(attachment.menus.position, "Gizmo Edit", {}, "Position this object using clickable arrow handles", function(on)
             if (on) then
-                attachment.temp.is_gizmo_editing = true
-                current_gizmo_entity = attachment.handle
-                state.gizmo_edit_mode = true
+                gizmo_attachment(attachment)
             else
+                clear_gizmo_attachment()
                 attachment.temp.is_gizmo_editing = false
-                state.gizmo_edit_mode = false
             end
-        end)
+        end, attachment.temp.is_gizmo_editing)
         menu.on_blur(attachment.menus.gizmo_edit_mode, function()
             if attachment.temp.is_gizmo_editing then
+                clear_gizmo_attachment()
                 menu.set_value(attachment.menus.gizmo_edit_mode, false)
             end
         end)
