@@ -45,6 +45,15 @@ constants.tire_position_names = {
     { name="6 Wheeler Right", index=47 },
 }
 
+constants.tire_index = {
+    { name="Front Left", index=0 },
+    { name="Front Right", index=1 },
+    { name="Mid Left", index=4 },
+    { name="Mid Right", index=5 },
+    { name="Rear Left", index=2 },
+    { name="Rear Right", index=3 },
+}
+
 constants.door_lock_status = {
     "None",
     "Unlocked",
