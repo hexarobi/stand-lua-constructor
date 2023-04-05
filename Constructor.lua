@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.36b4"
+local SCRIPT_VERSION = "0.36b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2302,6 +2302,16 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             attachment.vehicle_attributes.wheels.tires_burst["_"..tire_position.index] = value
             constructor_lib.deserialize_vehicle_wheels(attachment)
         end, attachment.vehicle_attributes.wheels.tires_burst["_"..tire_position.index])
+    end
+
+    attachment.menus.tires_detach = menu.list(attachment.menus.vehicle_options, t("Detach Wheels"), {}, t("Detach wheels from construct"))
+    if attachment.vehicle_attributes.wheels.detached == nil then attachment.vehicle_attributes.wheels.detached = {} end
+    for _, tire_position in pairs(constants.detached_wheel_names) do
+        menu.toggle(attachment.menus.tires_detach, tire_position.name, {}, "", function(value)
+            if value then attachment.vehicle_attributes.wheels.bulletproof_tires = false end
+            attachment.vehicle_attributes.wheels.detached["_"..tire_position.index] = value
+            constructor_lib.deserialize_vehicle_wheels(attachment)
+        end, attachment.vehicle_attributes.wheels.detached["_"..tire_position.index])
     end
 
     attachment.menus.broken_doors = menu.list(attachment.menus.vehicle_options, t("Broken Doors"), {}, t("Remove doors and trunks"))
