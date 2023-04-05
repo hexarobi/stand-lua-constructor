@@ -1269,6 +1269,7 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes.neon.color == nil then vehicle.vehicle_attributes.neon.color = {} end
     if vehicle.vehicle_attributes.wheels == nil then vehicle.vehicle_attributes.wheels = {} end
     if vehicle.vehicle_attributes.wheels.tires_burst == nil then vehicle.vehicle_attributes.wheels.tires_burst = {} end
+    if vehicle.vehicle_attributes.wheels.tires_detach == nil then vehicle.vehicle_attributes.wheels.tires_detach = {} end
     if vehicle.vehicle_attributes.wheels.tire_smoke_color == nil then vehicle.vehicle_attributes.wheels.tire_smoke_color = {} end
     if vehicle.vehicle_attributes.headlights == nil then vehicle.vehicle_attributes.headlights = {} end
     if vehicle.vehicle_attributes.headlights.headlight_color == nil
@@ -1610,6 +1611,13 @@ constructor_lib.deserialize_vehicle_wheels = function(vehicle)
                 VEHICLE.SET_VEHICLE_TYRE_BURST(vehicle.handle, tire_position.index, true, 1.0)
             else
                 VEHICLE.SET_VEHICLE_TYRE_FIXED(vehicle.handle, tire_position.index)
+            end
+        end
+    end
+     if vehicle.vehicle_attributes.wheels.tires_detach then
+        for _, tire_position in pairs(constants.tire_position_names) do
+            if vehicle.vehicle_attributes.wheels.tires_detach["_"..tire_position.index] then
+                entities.detach_wheel(entities.handle_to_pointer(vehicle.handle), tire_position.index)
             end
         end
     end
