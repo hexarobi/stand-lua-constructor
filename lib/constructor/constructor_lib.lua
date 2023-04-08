@@ -1377,7 +1377,7 @@ constructor_lib.serialize_vehicle_paint = function(vehicle)
     vehicle.vehicle_attributes.paint.extra_colors = { pearlescent = memory.read_int(color.r), wheel = memory.read_int(color.g) }
     VEHICLE.GET_VEHICLE_EXTRA_COLOUR_6(vehicle.handle, color.r)
     vehicle.vehicle_attributes.paint.dashboard_color = memory.read_int(color.r)
-    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, color.r)
+    VEHICLE.GET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, color.r)
     vehicle.vehicle_attributes.paint.interior_color = memory.read_int(color.r)
     vehicle.vehicle_attributes.paint.fade = VEHICLE.GET_VEHICLE_ENVEFF_SCALE(vehicle.handle)
     vehicle.vehicle_attributes.paint.dirt_level = VEHICLE.GET_VEHICLE_DIRT_LEVEL(vehicle.handle)
