@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.35"
+local SCRIPT_VERSION = "0.36"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -892,7 +892,7 @@ end
 constructor_lib.load_hash_for_attachment = function(attachment)
     if not STREAMING.IS_MODEL_VALID(attachment.hash) then
         util.toast("Warning: Ignored invalid model: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]", TOAST_ALL)
-        return false
+        --return false
     end
     if STREAMING.IS_MODEL_A_VEHICLE(attachment.hash) then
         attachment.type = "VEHICLE"
@@ -1377,7 +1377,7 @@ constructor_lib.serialize_vehicle_paint = function(vehicle)
     vehicle.vehicle_attributes.paint.extra_colors = { pearlescent = memory.read_int(color.r), wheel = memory.read_int(color.g) }
     VEHICLE.GET_VEHICLE_EXTRA_COLOUR_6(vehicle.handle, color.r)
     vehicle.vehicle_attributes.paint.dashboard_color = memory.read_int(color.r)
-    VEHICLE.SET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, color.r)
+    VEHICLE.GET_VEHICLE_EXTRA_COLOUR_5(vehicle.handle, color.r)
     vehicle.vehicle_attributes.paint.interior_color = memory.read_int(color.r)
     vehicle.vehicle_attributes.paint.fade = VEHICLE.GET_VEHICLE_ENVEFF_SCALE(vehicle.handle)
     vehicle.vehicle_attributes.paint.dirt_level = VEHICLE.GET_VEHICLE_DIRT_LEVEL(vehicle.handle)
@@ -1587,6 +1587,7 @@ constructor_lib.serialize_vehicle_wheels = function(vehicle)
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.wheels == nil then vehicle.vehicle_attributes.wheels = {} end
     if vehicle.vehicle_attributes.wheels.tires_burst == nil then vehicle.vehicle_attributes.wheels.tires_burst = {} end
+    if vehicle.vehicle_attributes.wheels.detached == nil then vehicle.vehicle_attributes.wheels.detached = {} end
     vehicle.vehicle_attributes.wheels.wheel_type = VEHICLE.GET_VEHICLE_WHEEL_TYPE(vehicle.handle)
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, color.r, color.g, color.b)
@@ -1610,6 +1611,13 @@ constructor_lib.deserialize_vehicle_wheels = function(vehicle)
                 VEHICLE.SET_VEHICLE_TYRE_BURST(vehicle.handle, tire_position.index, true, 1.0)
             else
                 VEHICLE.SET_VEHICLE_TYRE_FIXED(vehicle.handle, tire_position.index)
+            end
+        end
+    end
+    if vehicle.vehicle_attributes.wheels.detached then
+        for _, tire_position in pairs(constants.detached_wheel_names) do
+            if vehicle.vehicle_attributes.wheels.detached["_"..tire_position.index] then
+                entities.detach_wheel(entities.handle_to_pointer(vehicle.handle), tire_position.index)
             end
         end
     end

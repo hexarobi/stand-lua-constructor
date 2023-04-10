@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.35.2"
+local SCRIPT_VERSION = "0.36"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -208,11 +208,8 @@ local function require_dependency(path)
     end
 end
 
+util.ensure_package_is_installed('lua/ScaleformLib')
 local inspect = require_dependency("inspect")
---local xml2lua = require_dependency("xml2lua")
---local iniparser = require_dependency("iniparser")
---local quaternionLib = require_dependency("quaternionLib")
---local json = require_dependency("json")
 local constructor_lib = require_dependency("constructor/constructor_lib")
 local constants = require_dependency("constructor/constants")
 local convertors = require_dependency("constructor/convertors")
@@ -435,6 +432,43 @@ end
 
 local function color_menu_output(output_color)
     return { r=math.floor(output_color.r * 255), g=math.floor(output_color.g * 255), b=math.floor(output_color.b * 255) }
+end
+
+---
+--- ScaleformLib
+---
+
+local scaleform = require('ScaleformLib')
+local sf = scaleform('instructional_buttons')
+local function hud_hide()
+    HUD.HIDE_HUD_COMPONENT_THIS_FRAME(6)
+    HUD.HIDE_HUD_COMPONENT_THIS_FRAME(7)
+    HUD.HIDE_HUD_COMPONENT_THIS_FRAME(8)
+    HUD.HIDE_HUD_COMPONENT_THIS_FRAME(9)
+    ---@diagnostic disable-next-line: param-type-mismatch
+    memory.write_int(memory.script_global(1645739+1121), 1)
+    sf.CLEAR_ALL()
+    sf.TOGGLE_MOUSE_BUTTONS(false)
+end
+
+local function sf_free_edit()
+    hud_hide()
+    sf.SET_DATA_SLOT(0,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 33, true) , t("Forward"))
+    sf.SET_DATA_SLOT(1,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 32, true), t('Back'))
+    sf.SET_DATA_SLOT(2,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 34, true), t('Left'))
+    sf.SET_DATA_SLOT(3,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 35, true) , t("Right"))
+    sf.SET_DATA_SLOT(4,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 22, true) , t("Up"))
+    sf.SET_DATA_SLOT(5,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 36, true) , t("Down"))
+    sf.DRAW_INSTRUCTIONAL_BUTTONS()
+    sf:draw_fullscreen()
+end
+
+local function sf_gizmo_edit()
+    hud_hide()
+    sf.SET_DATA_SLOT(0,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 238, true) , t("Select gizmo arrow"))
+    sf.SET_DATA_SLOT(1,PAD.GET_CONTROL_INSTRUCTIONAL_BUTTONS_STRING(0, 237, true), t('Hold to spin camera'))
+    sf.DRAW_INSTRUCTIONAL_BUTTONS()
+    sf:draw_fullscreen()
 end
 
 ---
@@ -865,6 +899,7 @@ local grabbed_gizmo_index = -1
 
 local function gizmo_edit_mode_tick()
     if not state.gizmo_edit_mode then return end
+    sf_gizmo_edit()
     GRAPHICS.SET_DEPTHWRITING(true)
     HUD.SET_MOUSE_CURSOR_THIS_FRAME()
 
@@ -934,6 +969,7 @@ end
 
 local free_edit_mode_tick = function()
     if not config.free_edit_mode then return true end
+    sf_free_edit()
     local attachment = config.free_edit_attachment
     local forward, right, up = get_cam_vectors()
     --local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(free_edit_cam, 0, -2, -2)
@@ -941,7 +977,6 @@ local free_edit_mode_tick = function()
     --attachment.position = get_offset_from_camera({x=0, y=2, z=2})
 
     local camera_sensitivity = 2
-
     local cam_pos = CAM.GET_FINAL_RENDERED_CAM_COORD()
     attachment.position = {
         x = cam_pos.x + (forward.x * camera_sensitivity) + (up.x * camera_sensitivity),
@@ -953,36 +988,35 @@ local free_edit_mode_tick = function()
     constructor_lib.move_attachment(attachment)
 
     local sensitivity = 0.3
-
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 32) then
         --local offset = get_offset_from_cam_in_world_coords(cam, {x=1,y=0,z=0})
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (forward.x * sensitivity), cam_pos.y + (forward.y * sensitivity), cam_pos.z + (forward.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x + (forward.x * sensitivity), cam_pos.y + (forward.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 33) then
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (forward.x * sensitivity), cam_pos.y - (forward.y * sensitivity), cam_pos.z - (forward.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x - (forward.x * sensitivity), cam_pos.y - (forward.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 35) then
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (right.x * sensitivity), cam_pos.y + (right.y * sensitivity), cam_pos.z + (right.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x + (right.x * sensitivity), cam_pos.y + (right.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 34) then
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (right.x * sensitivity), cam_pos.y - (right.y * sensitivity), cam_pos.z - (right.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x - (right.x * sensitivity), cam_pos.y - (right.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 22) then
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (up.x * sensitivity), cam_pos.y + (up.y * sensitivity), cam_pos.z + (up.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x, cam_pos.y, cam_pos.z + (up.z * sensitivity))
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 36) then
         local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (up.x * sensitivity), cam_pos.y - (up.y * sensitivity), cam_pos.z - (up.z * sensitivity))
+        local new_cam_pos = v3(cam_pos.x, cam_pos.y, cam_pos.z - (up.z * sensitivity))
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
 
@@ -995,7 +1029,13 @@ local free_edit_mode_tick = function()
         cam_rot = v3(cam_rot.x, cam_rot.y, cam_rot.z - (move_lr * 5))
     end
     CAM.SET_CAM_ROT(free_edit_cam, cam_rot.x, cam_rot.y, cam_rot.z, 2)
-
+    if PAD.IS_CONTROL_JUST_PRESSED(2, 241) then
+        local fov = CAM.GET_CAM_FOV(free_edit_cam)
+        CAM.SET_CAM_FOV(free_edit_cam, fov + 5)
+    elseif PAD.IS_CONTROL_JUST_PRESSED(2, 242) then
+        local fov = CAM.GET_CAM_FOV(free_edit_cam)
+        CAM.SET_CAM_FOV(free_edit_cam, fov - 5)
+    end
     return true
 end
 
@@ -1041,6 +1081,7 @@ end
 local function clear_free_edit_attachment()
     if config.free_edit_attachment then
         if config.free_edit_parent then
+            constructor_lib.serialize_entity_attributes(config.free_edit_attachment)
             constructor_lib.join_attachments(config.free_edit_parent, config.free_edit_attachment)
             constructor.refresh_position_menu(config.free_edit_attachment)
         end
@@ -1050,6 +1091,38 @@ local function clear_free_edit_attachment()
     config.free_edit_mode = false
     destroy_free_edit_cam()
 end
+
+local function gizmo_attachment(attachment)
+    ENTITY.FREEZE_ENTITY_POSITION(attachment.root.handle, true)
+    if attachment.options.is_attached then
+        config.gizmo_parent = attachment.parent
+        attachment.temp.is_gizmo_editing = true
+        current_gizmo_entity = attachment.handle
+        state.gizmo_edit_mode = true
+        constructor_lib.separate_attachment(attachment)
+    else
+        config.gizmo_parent = nil
+    end
+    config.gizmo_attachment = attachment
+    config.gizmo_edit_mode = true
+
+end
+
+local function clear_gizmo_attachment()
+    if config.gizmo_attachment then
+        if config.gizmo_parent then
+            constructor_lib.serialize_entity_attributes(config.gizmo_attachment)
+            constructor_lib.join_attachments(config.gizmo_parent, config.gizmo_attachment)
+            constructor.refresh_position_menu(config.gizmo_attachment)
+        end
+        ENTITY.FREEZE_ENTITY_POSITION(config.gizmo_attachment.root.handle, false)
+        --config.gizmo_attachment = nil
+    end
+    config.gizmo_edit_mode = false
+    state.gizmo_edit_mode = false
+
+end
+
 
 ---
 --- Player Spawn Management
@@ -1675,9 +1748,6 @@ end
 --- Curated Constructs Installer
 ---
 
-local CURATED_CONSTRUCTS_DIR = CONSTRUCTS_DIR..'/Curated'
-filesystem.mkdirs(CURATED_CONSTRUCTS_DIR)
-
 local function install_curated_constructs()
     local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
     local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
@@ -1850,19 +1920,17 @@ constructor.add_attachment_position_menu = function(attachment)
         end
 
         menu.divider(attachment.menus.position, t("Options"))
-
         attachment.menus.gizmo_edit_mode = menu.toggle(attachment.menus.position, "Gizmo Edit", {}, "Position this object using clickable arrow handles", function(on)
             if (on) then
-                attachment.temp.is_gizmo_editing = true
-                current_gizmo_entity = attachment.handle
-                state.gizmo_edit_mode = true
+                gizmo_attachment(attachment)
             else
+                clear_gizmo_attachment()
                 attachment.temp.is_gizmo_editing = false
-                state.gizmo_edit_mode = false
             end
-        end)
+        end, attachment.temp.is_gizmo_editing)
         menu.on_blur(attachment.menus.gizmo_edit_mode, function()
             if attachment.temp.is_gizmo_editing then
+                clear_gizmo_attachment()
                 menu.set_value(attachment.menus.gizmo_edit_mode, false)
             end
         end)
@@ -2231,6 +2299,16 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             attachment.vehicle_attributes.wheels.tires_burst["_"..tire_position.index] = value
             constructor_lib.deserialize_vehicle_wheels(attachment)
         end, attachment.vehicle_attributes.wheels.tires_burst["_"..tire_position.index])
+    end
+
+    attachment.menus.tires_detach = menu.list(attachment.menus.vehicle_options, t("Detach Wheels"), {}, t("Detach wheels from construct"))
+    if attachment.vehicle_attributes.wheels.detached == nil then attachment.vehicle_attributes.wheels.detached = {} end
+    for _, tire_position in pairs(constants.detached_wheel_names) do
+        menu.toggle(attachment.menus.tires_detach, tire_position.name, {}, "", function(value)
+            if value then attachment.vehicle_attributes.wheels.bulletproof_tires = false end
+            attachment.vehicle_attributes.wheels.detached["_"..tire_position.index] = value
+            constructor_lib.deserialize_vehicle_wheels(attachment)
+        end, attachment.vehicle_attributes.wheels.detached["_"..tire_position.index])
     end
 
     attachment.menus.broken_doors = menu.list(attachment.menus.vehicle_options, t("Broken Doors"), {}, t("Remove doors and trunks"))
@@ -3080,17 +3158,15 @@ local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
     menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
     menu.on_blur(construct_plan_file.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
 end
-
 local load_constructs_root_menu_file
 menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {"constructorloadconstruct"}, t("Load a previously saved or shared construct into the world"), function()
     menus.rebuild_load_construct_menu()
-    if #load_constructs_root_menu_file.menus == 0 then
-        util.toast("No constructs found!", TOAST_ALL)
-        menu.show_warning(menu.my_root(), CLICK_COMMAND, t(
-                "No constructs found! Would you like to download a curated collection of constructs? "
-                        .."This includes popular vehicles, maps and skins to get started with Constructor. "
-                        .."Installer requires special permissions for direct access to system for unzipping."), function()
-            download_and_extract_curated_constructs()
+    if #load_constructs_root_menu_file.menus == 0 or (#load_constructs_root_menu_file.menus == 1 and load_constructs_root_menu_file.menus[1] == menus.load_jackz_builds) then
+        menus.update_curated_constructs = menu.action(menus.load_construct, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs. This may take up to 5 minutes."), function()
+            install_curated_constructs()
+            if menu.is_ref_valid(menus.update_curated_constructs) then
+                menu.delete(menus.update_curated_constructs)
+            end
             menus.rebuild_load_construct_menu()
         end)
     end
@@ -3165,9 +3241,10 @@ constructor.add_directory_to_load_constructs = function(path, parent_construct_p
 
     if path == CONSTRUCTS_DIR and filesystem.exists(JACKZ_BUILD_DIR) then
         local jackz_builds = {}
-        jackz_builds.menu = menu.list(load_constructs_root_menu_file.menu, "Jackz Builds", {}, "Builds from Jackz Vehicle Builder", function()
+        menus.load_jackz_builds = menu.list(load_constructs_root_menu_file.menu, "Jackz Builds", {}, "Builds from Jackz Vehicle Builder", function()
             constructor.add_directory_to_load_constructs(JACKZ_BUILD_DIR, jackz_builds, action_function)
         end)
+        jackz_builds.menu=menus.load_jackz_builds
         table.insert(load_constructs_root_menu_file.menus, jackz_builds.menu)
     end
 
