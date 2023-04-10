@@ -1,6 +1,6 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.35"
+local SCRIPT_VERSION = "0.36"
 local constants = {}
 
 constants.rotation_orders = {
@@ -43,6 +43,15 @@ constants.tire_position_names = {
     { name="Rear Right", index=5 },
     { name="6 Wheeler Left", index=45 },
     { name="6 Wheeler Right", index=47 },
+}
+
+constants.detached_wheel_names = {
+    { name="Front Left", index=0 },
+    { name="Front Right", index=1 },
+    { name="Mid Left", index=4 },
+    { name="Mid Right", index=5 },
+    { name="Rear Left", index=2 },
+    { name="Rear Right", index=3 },
 }
 
 constants.door_lock_status = {
