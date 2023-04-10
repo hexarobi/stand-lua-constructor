@@ -2066,9 +2066,7 @@ end
 convertor.convert_ini_to_construct_plan = function(construct_plan_file)
     local construct_plan = constructor_lib.table_copy(constructor_lib.construct_base)
 
-    os.setlocale("fr-FR")   -- Handle files with comma as decimal separator
     local status_ini_parse, data = pcall(iniparser.parse, construct_plan_file.filepath, "")
-    os.setlocale("en-US")
     if not status_ini_parse then
         util.toast("Error parsing INI file. "..construct_plan_file.filepath.." "..data)
         return
