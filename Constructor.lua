@@ -8,6 +8,7 @@ local SCRIPT_VERSION = "0.37b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
+    --{ "stand_repository", {}, "The version used by the stand repository. Removes this picker so you can't easily undo this action.", "stand_repository", },
 }
 local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
@@ -208,7 +209,6 @@ local function require_dependency(path)
     end
 end
 
-util.ensure_package_is_installed('lua/ScaleformLib')
 local inspect = require_dependency("inspect")
 local constructor_lib = require_dependency("constructor/constructor_lib")
 local constants = require_dependency("constructor/constants")
@@ -218,6 +218,9 @@ local translations = require_dependency("constructor/translations")
 
 util.ensure_package_is_installed('lua/natives-1672190175')
 local natives = require_dependency("natives-1672190175")
+
+util.ensure_package_is_installed('lua/ScaleformLib')
+local scaleform = require_dependency("ScaleformLib")
 
 -- Call require() on all required dependencies
 local missing_required_dependencies = {}
@@ -274,7 +277,6 @@ end
 
 ---
 --- Translations
----
 
 -- Shorthand wrapper for translation function
 local function t(text)
@@ -438,7 +440,6 @@ end
 --- ScaleformLib
 ---
 
-local scaleform = require('ScaleformLib')
 local sf = scaleform('instructional_buttons')
 local function hud_hide()
     HUD.HIDE_HUD_COMPONENT_THIS_FRAME(6)
@@ -1045,9 +1046,9 @@ local function create_free_edit_cam(attachment)
     constructor_lib.serialize_entity_attributes(attachment)
     local cam_pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.handle, 0, 2, 2)
     free_edit_cam = CAM.CREATE_CAM_WITH_PARAMS(
-        "DEFAULT_SCRIPTED_CAMERA",
-        cam_pos.x, cam_pos.y, cam_pos.z,
-        0.0, 0.0, 0.0, 70.0, false, false
+            "DEFAULT_SCRIPTED_CAMERA",
+            cam_pos.x, cam_pos.y, cam_pos.z,
+            0.0, 0.0, 0.0, 70.0, false, false
     )
     CAM.POINT_CAM_AT_ENTITY(free_edit_cam, attachment.handle, 0, 0, 0, true)
     CAM.SET_CAM_ACTIVE(free_edit_cam, true)
