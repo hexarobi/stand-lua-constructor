@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.36b5"
+local SCRIPT_VERSION = "0.36b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -274,7 +274,6 @@ end
 
 ---
 --- Translations
----
 
 -- Shorthand wrapper for translation function
 local function t(text)
@@ -1748,9 +1747,6 @@ end
 --- Curated Constructs Installer
 ---
 
-local CURATED_CONSTRUCTS_DIR = CONSTRUCTS_DIR..'/Curated'
-filesystem.mkdirs(CURATED_CONSTRUCTS_DIR)
-
 local function install_curated_constructs()
     local ZIP_FILE_STORE_PATH = "/Constructor/downloads/CuratedConstructs.zip"
     local DOWNLOADED_ZIP_FILE_PATH = filesystem.store_dir() .. ZIP_FILE_STORE_PATH
@@ -3161,17 +3157,15 @@ local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
     menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
     menu.on_blur(construct_plan_file.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
 end
-
 local load_constructs_root_menu_file
 menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {"constructorloadconstruct"}, t("Load a previously saved or shared construct into the world"), function()
     menus.rebuild_load_construct_menu()
-    if #load_constructs_root_menu_file.menus == 0 then
-        util.toast("No constructs found!", TOAST_ALL)
-        menu.show_warning(menu.my_root(), CLICK_COMMAND, t(
-                "No constructs found! Would you like to download a curated collection of constructs? "
-                        .."This includes popular vehicles, maps and skins to get started with Constructor. "
-                        .."Installer requires special permissions for direct access to system for unzipping."), function()
-            download_and_extract_curated_constructs()
+    if #load_constructs_root_menu_file.menus == 0 or (#load_constructs_root_menu_file.menus == 1 and load_constructs_root_menu_file.menus[1] == menus.load_jackz_builds) then
+        menus.update_curated_constructs = menu.action(menus.load_construct, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs. This may take up to 5 minutes."), function()
+            install_curated_constructs()
+            if menu.is_ref_valid(menus.update_curated_constructs) then
+                menu.delete(menus.update_curated_constructs)
+            end
             menus.rebuild_load_construct_menu()
         end)
     end
@@ -3246,9 +3240,10 @@ constructor.add_directory_to_load_constructs = function(path, parent_construct_p
 
     if path == CONSTRUCTS_DIR and filesystem.exists(JACKZ_BUILD_DIR) then
         local jackz_builds = {}
-        jackz_builds.menu = menu.list(load_constructs_root_menu_file.menu, "Jackz Builds", {}, "Builds from Jackz Vehicle Builder", function()
+        menus.load_jackz_builds = menu.list(load_constructs_root_menu_file.menu, "Jackz Builds", {}, "Builds from Jackz Vehicle Builder", function()
             constructor.add_directory_to_load_constructs(JACKZ_BUILD_DIR, jackz_builds, action_function)
         end)
+        jackz_builds.menu=menus.load_jackz_builds
         table.insert(load_constructs_root_menu_file.menus, jackz_builds.menu)
     end
 
