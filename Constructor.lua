@@ -4,12 +4,12 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.36b6"
+local SCRIPT_VERSION = "0.36"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
 }
-local SELECTED_BRANCH_INDEX = 2
+local SELECTED_BRANCH_INDEX = 1
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
@@ -62,7 +62,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = true,
+    debug_mode = false,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -274,6 +274,7 @@ end
 
 ---
 --- Translations
+---
 
 -- Shorthand wrapper for translation function
 local function t(text)
@@ -1044,9 +1045,9 @@ local function create_free_edit_cam(attachment)
     constructor_lib.serialize_entity_attributes(attachment)
     local cam_pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.handle, 0, 2, 2)
     free_edit_cam = CAM.CREATE_CAM_WITH_PARAMS(
-            "DEFAULT_SCRIPTED_CAMERA",
-            cam_pos.x, cam_pos.y, cam_pos.z,
-            0.0, 0.0, 0.0, 70.0, false, false
+        "DEFAULT_SCRIPTED_CAMERA",
+        cam_pos.x, cam_pos.y, cam_pos.z,
+        0.0, 0.0, 0.0, 70.0, false, false
     )
     CAM.POINT_CAM_AT_ENTITY(free_edit_cam, attachment.handle, 0, 0, 0, true)
     CAM.SET_CAM_ACTIVE(free_edit_cam, true)
