@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37b1"
+local SCRIPT_VERSION = "0.37b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1330,12 +1330,17 @@ local function add_attachment_from_vehicle_handle(parent_attachment, vehicle_han
     return attachment
 end
 
+local function delete_all_constructs()
+    for _, construct in pairs(spawned_constructs) do
+        constructor.delete_construct(construct)
+    end
+end
+
+
 local function cleanup_constructs_handler()
     if config.deconstruct_all_spawned_constructs_on_unload then
         config.is_final_cleanup = true
-        for _, construct in pairs(spawned_constructs) do
-            constructor.delete_construct(construct)
-        end
+        delete_all_constructs()
     end
 end
 
@@ -2239,10 +2244,16 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         attachment.options.engine_running = true
         VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
     end, function() attachment.options.engine_running = false end)
+
+    menu.list_select(attachment.menus.vehicle_options, t("Radio Station"), {}, "", constants.radio_station_names, 1, function(value)
+        attachment.vehicle_attributes.options.radio_station = constants.radio_station_codes[value]
+        constructor_lib.deserialize_vehicle_options(attachment)
+    end)
+
     menu.toggle(attachment.menus.vehicle_options, t("Radio Loud"), {}, t("If enabled, vehicle radio will play loud enough to be heard outside the vehicle."), function(toggle)
-        attachment.options.radio_loud = toggle
-        constructor_lib.attach_entity(attachment)
-    end, attachment.options.radio_loud)
+        attachment.vehicle_attributes.options.radio_loud = toggle
+        constructor_lib.deserialize_vehicle_options(attachment)
+    end, attachment.vehicle_attributes.options.radio_loud)
 
     menu.slider(attachment.menus.vehicle_options, t("Steering Bias"), {"constructorsteeringbias"..attachment.id}, t("Set wheel position. Must be driving to set, but will stay when you exit until someone else drives."), -1, 1, math.floor(attachment.vehicle_attributes.wheels.steering_bias or 0), 1, function(value)
         attachment.vehicle_attributes.wheels.steering_bias = value
@@ -3318,6 +3329,10 @@ players.dispatch_on_join()
 ---
 
 menus.loaded_constructs = menu.list(menu.my_root(), t("Loaded Constructs").." ("..#spawned_constructs..")", {}, t("View and edit already loaded constructs"))
+
+menu.action(menus.loaded_constructs, t("Delete all Loaded Constructs"), {}, "", function()
+    delete_all_constructs()
+end)
 menus.refresh_loaded_constructs = function()
     menu.set_menu_name(menus.loaded_constructs, t("Loaded Constructs").." ("..#spawned_constructs..")")
 end
