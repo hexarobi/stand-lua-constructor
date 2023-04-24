@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37b2"
+local SCRIPT_VERSION = "0.37b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -514,7 +514,7 @@ end
 
 local function remove_player_construct()
     if player_construct == nil then return end
-    constructor.delete_construct(player_construct)
+    constructor.delete_spawned_construct(player_construct)
     restore_original_player_skin()
     player_construct = nil
 end
@@ -1144,7 +1144,7 @@ end
 local function remove_tracked_construct_for_player(pid)
     local player_spawned_constructs = get_player_spawned_constructs(pid)
     if #player_spawned_constructs.constructs >= config.num_allowed_spawned_constructs_per_player then
-        constructor.delete_construct(player_spawned_constructs.constructs[1])
+        constructor.delete_spawned_construct(player_spawned_constructs.constructs[1])
         table.remove(player_spawned_constructs.constructs, 1)
     end
 end
@@ -1243,6 +1243,10 @@ constructor.delete_construct =  function(construct)
             player_construct = nil
         end
     end
+end
+
+constructor.delete_spawned_construct =  function(construct)
+    constructor.delete_construct(construct)
     constructor_lib.array_remove(spawned_constructs, function(t, i)
         local spawned_construct = t[i]
         return spawned_construct ~= construct
@@ -1331,9 +1335,12 @@ local function add_attachment_from_vehicle_handle(parent_attachment, vehicle_han
 end
 
 local function delete_all_constructs()
+    debug_log("Deleting all "..#spawned_constructs.." spawned constructs")
     for _, construct in pairs(spawned_constructs) do
         constructor.delete_construct(construct)
     end
+    spawned_constructs = {}
+    menus.refresh_loaded_constructs()
 end
 
 
@@ -1348,7 +1355,7 @@ local function rebuild_attachment(attachment)
     debug_log("Rebuilding "..tostring(attachment.name))
     attachment.root.menu_auto_focus = false
     local construct_plan = constructor_lib.clone_attachment(attachment)
-    constructor.delete_construct(attachment)
+    constructor.delete_spawned_construct(attachment)
     construct_plan.root.menu_auto_focus = true
     build_construct_from_plan(construct_plan)
 end
@@ -1597,7 +1604,7 @@ local function animate_peds(attachment)
         if attachment.ped_attributes.animation_dict then
             debug_log("Rebuilding ped "..attachment.name)
             local construct_plan = constructor_lib.clone_attachment(attachment)
-            constructor.delete_construct(attachment)
+            constructor.delete_spawned_construct(attachment)
             construct_plan.root.menu_auto_focus = false
             build_construct_from_plan(construct_plan)
             construct_plan.root.menu_auto_focus = true
@@ -2122,6 +2129,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     if attachment.menus.vehicle_options ~= nil then return end
     attachment.menus.vehicle_options = menu.list(attachment.menus.options, t("Vehicle Options"), {}, t("Additional options available for all vehicle entities"))
 
+    --- LS Customs
     attachment.menus.vehicle_options_ls_customs = menu.list(attachment.menus.vehicle_options, t("LS Customs"), {}, "Vehicle modifications normally available in Los Santos Customs")
     for _, vehicle_mod in pairs(vehicle_mod_menus) do
         if vehicle_mod.type == "separator" then
@@ -2146,7 +2154,8 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end
     end
 
-    attachment.menus.vehicle_options_extras = menu.list(attachment.menus.vehicle_options, t("Extras"), {}, t("Some vehicles include parts that can fall off and be removed when damaged"), function()
+    --- Extras
+    attachment.menus.vehicle_options_extras = menu.list(attachment.menus.vehicle_options, t("Vehicle Extras"), {}, t("Some vehicles include parts that can fall off and be removed when damaged"), function()
         if attachment.temp.extra_menus == nil then attachment.temp.extra_menus = {} end
         delete_menu_list(attachment.temp.extra_menus)
         for extra_index = 0, 60 do
@@ -2160,7 +2169,8 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end
     end)
 
-    attachment.menus.vehicle_options_paint = menu.list(attachment.menus.vehicle_options, t("Paint"), {}, t("Set vehicle paint colors"))
+    --- Paint
+    attachment.menus.vehicle_options_paint = menu.list(attachment.menus.vehicle_options, t("Paint Options"), {}, t("Set vehicle paint colors"))
 
     attachment.menus.vehicle_options_primary = menu.list(attachment.menus.vehicle_options_paint, t("Primary"), {}, t("Primary vehicle paint color"))
     attachment.menus.vehicle_options_primary_standard_colors = menu.list(attachment.menus.vehicle_options_primary, t("Standard Color"), {}, t("Select from a list of standard paint colors"))
@@ -2210,29 +2220,40 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end)
     end
 
-    attachment.menus.vehicle_options_wheels = menu.list(attachment.menus.vehicle_options_paint, t("Wheels"), {}, t("Select from a list of wheel paint colors"))
-    for _, standard_color in pairs(constants.standard_colors) do
-        menu.action(attachment.menus.vehicle_options_wheels, standard_color.name, {}, "", function()
-            attachment.vehicle_attributes.paint.extra_colors.wheel = standard_color.index
-            constructor_lib.deserialize_vehicle_paint(attachment)
-        end)
-    end
-
-    attachment.menus.vehicle_options_tire_smoke = menu.colour(attachment.menus.vehicle_options_paint, t("Tire Smoke"), {}, t("Mix up a custom tire smoke color"), color_menu_input(attachment.vehicle_attributes.wheels.tire_smoke_color), false, function(color)
-        attachment.vehicle_attributes.wheels.tire_smoke_color = color_menu_output(color)
-        attachment.vehicle_attributes.mods["_20"] = true    -- Turn on tire smoke mod
-        constructor_lib.deserialize_vehicle_mods(attachment)
-        constructor_lib.deserialize_vehicle_wheels(attachment)
+    menu.slider_float(attachment.menus.vehicle_options_paint, t("Paint Fade"), {"constructorfadelevel"..attachment.id}, t("How dirty is the vehicle"), 0, 100, math.floor(attachment.vehicle_attributes.paint.fade * 100), 1, function(value)
+        attachment.vehicle_attributes.paint.fade = value / 100
+        constructor_lib.deserialize_vehicle_paint(attachment)
     end)
 
-    menu.list_select(attachment.menus.vehicle_options_paint, t("Headlights"), {}, t("Select from a list of headlight colors"), constants.headlight_colors, attachment.vehicle_attributes.headlights.headlight_color + 2, function(index)
+    menu.slider(attachment.menus.vehicle_options_paint, t("Dirt Level"), {"constructordirtlevel"..attachment.id}, t("How dirty is the vehicle"), 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
+        attachment.vehicle_attributes.paint.dirt_level = value
+        constructor_lib.deserialize_vehicle_paint(attachment)
+    end)
+
+    --- Engine Options
+    attachment.menus.vehicle_options_engine_options = menu.list(attachment.menus.vehicle_options, t("Engine Options"), {}, t("Options about the vehicles engine"))
+
+    menu.toggle_loop(attachment.menus.vehicle_options_engine_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
+        attachment.options.engine_running = true
+        VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
+    end, function() attachment.options.engine_running = false end)
+
+    menu.text_input(attachment.menus.vehicle_options_engine_options, t("Engine Sound"), {"constructorenginesound"..attachment.id}, t("Set vehicle engine sound from another vehicle name."), function(value)
+        attachment.vehicle_attributes.engine_sound = value
+        constructor_lib.deserialize_vehicle_options(attachment)
+    end, attachment.vehicle_attributes.engine_sound or "")
+
+    --- Lights Options
+    attachment.menus.vehicle_options_lights_options = menu.list(attachment.menus.vehicle_options, t("Lights Options"), {}, t("Options about the vehicles lights"))
+
+    menu.list_select(attachment.menus.vehicle_options_lights_options, t("Headlights Color"), {}, t("Select from a list of headlight colors"), constants.headlight_colors, attachment.vehicle_attributes.headlights.headlight_color + 2, function(index)
         attachment.vehicle_attributes.headlights.headlights_color = index - 2
         attachment.vehicle_attributes.headlights.headlights_type = true
         constructor_lib.deserialize_vehicle_mods(attachment)
         constructor_lib.deserialize_vehicle_headlights(attachment)
     end)
 
-    attachment.menus.vehicle_options_neon = menu.colour(attachment.menus.vehicle_options_paint, t("Neon Lights"), {}, t("Set up a custom neon light color"), color_menu_input(attachment.vehicle_attributes.neon.color), false, function(color)
+    attachment.menus.vehicle_options_neon = menu.colour(attachment.menus.vehicle_options_lights_options, t("Neon Lights Color"), {}, t("Set up a custom neon light color"), color_menu_input(attachment.vehicle_attributes.neon.color), false, function(color)
         attachment.vehicle_attributes.neon.color = color_menu_output(color)
         if attachment.vehicle_attributes.neon.lights == nil then
             attachment.vehicle_attributes.neon.lights = { left = true, right = true, front = true, back = true }
@@ -2240,70 +2261,45 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_neon(attachment)
     end)
 
-    menu.toggle_loop(attachment.menus.vehicle_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
-        attachment.options.engine_running = true
-        VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
-    end, function() attachment.options.engine_running = false end)
+    --- Wheels Options
+    attachment.menus.vehicle_options_wheels_options = menu.list(attachment.menus.vehicle_options, t("Wheels Options"), {}, t("Options about the vehicles wheels"))
 
-    menu.list_select(attachment.menus.vehicle_options, t("Radio Station"), {}, "", constants.radio_station_names, 1, function(value)
-        attachment.vehicle_attributes.options.radio_station = constants.radio_station_codes[value]
-        constructor_lib.deserialize_vehicle_options(attachment)
+    attachment.menus.vehicle_options_wheel_color = menu.list(attachment.menus.vehicle_options_wheels_options, t("Wheel Color"), {}, t("Select from a list of wheel paint colors"))
+    for _, standard_color in pairs(constants.standard_colors) do
+        menu.action(attachment.menus.vehicle_options_wheels_options, standard_color.name, {}, "", function()
+            attachment.vehicle_attributes.paint.extra_colors.wheel = standard_color.index
+            constructor_lib.deserialize_vehicle_paint(attachment)
+        end)
+    end
+
+    attachment.menus.vehicle_options_tire_smoke = menu.colour(attachment.menus.vehicle_options_wheels_options, t("Tire Smoke Color"), {}, t("Mix up a custom tire smoke color"), color_menu_input(attachment.vehicle_attributes.wheels.tire_smoke_color), false, function(color)
+        attachment.vehicle_attributes.wheels.tire_smoke_color = color_menu_output(color)
+        attachment.vehicle_attributes.mods["_20"] = true    -- Turn on tire smoke mod
+        constructor_lib.deserialize_vehicle_mods(attachment)
+        constructor_lib.deserialize_vehicle_wheels(attachment)
     end)
 
-    menu.toggle(attachment.menus.vehicle_options, t("Radio Loud"), {}, t("If enabled, vehicle radio will play loud enough to be heard outside the vehicle."), function(toggle)
-        attachment.vehicle_attributes.options.radio_loud = toggle
-        constructor_lib.deserialize_vehicle_options(attachment)
-    end, attachment.vehicle_attributes.options.radio_loud)
-
-    menu.slider(attachment.menus.vehicle_options, t("Steering Bias"), {"constructorsteeringbias"..attachment.id}, t("Set wheel position. Must be driving to set, but will stay when you exit until someone else drives."), -1, 1, math.floor(attachment.vehicle_attributes.wheels.steering_bias or 0), 1, function(value)
+    menu.slider(attachment.menus.vehicle_options_wheels_options, t("Steering Bias"), {"constructorsteeringbias"..attachment.id}, t("Set wheel position. Must be driving to set, but will stay when you exit until someone else drives."), -1, 1, math.floor(attachment.vehicle_attributes.wheels.steering_bias or 0), 1, function(value)
         attachment.vehicle_attributes.wheels.steering_bias = value
         constructor_lib.deserialize_vehicle_wheels(attachment)
     end)
 
-    menu.list_select(attachment.menus.vehicle_options, t("Sirens"), {}, "", { t("Off"), t("Lights Only"), t("Sirens and Lights") }, 1, function(value)
-        local previous_siren_status = attachment.options.siren_status
-        attachment.options.siren_status = value
-        refresh_siren_status(attachment, previous_siren_status)
-    end)
-    menu.toggle(attachment.menus.vehicle_options, t("Siren Control"), {}, t("If enabled, and this vehicle has a siren, then siren controls will effect this vehicle. Has no effect on vehicles without a siren."), function(value)
-        attachment.options.has_siren = value
-    end, attachment.options.has_siren)
-    menu.text_input(attachment.menus.vehicle_options, t("Engine Sound"), {"constructorenginesound"..attachment.id}, t("Set vehicle engine sound from another vehicle name."), function(value)
-        attachment.vehicle_attributes.engine_sound = value
-        constructor_lib.deserialize_vehicle_options(attachment)
-    end, attachment.vehicle_attributes.engine_sound or "")
-
-    menu.toggle(attachment.menus.vehicle_options, t("Invisible Wheels"), {}, t("If enabled, the vehicle wheels will be invisible"), function(value)
+    menu.toggle(attachment.menus.vehicle_options_wheels_options, t("Invisible Wheels"), {}, t("If enabled, the vehicle wheels will be invisible"), function(value)
         attachment.vehicle_attributes.wheels.invisible_wheels = value
         constructor_lib.deserialize_vehicle_wheels(attachment)
     end, attachment.vehicle_attributes.wheels.invisible_wheels)
 
-    menu.toggle(attachment.menus.vehicle_options, t("Drift Tires"), {}, t("If enabled, the vehicle tires will have low grip"), function(value)
+    menu.toggle(attachment.menus.vehicle_options_wheels_options, t("Drift Tires"), {}, t("If enabled, the vehicle tires will have low grip"), function(value)
         attachment.vehicle_attributes.wheels.drift_tires = value
         constructor_lib.deserialize_vehicle_wheels(attachment)
     end, attachment.vehicle_attributes.wheels.drift_tires)
 
-    menu.list_select(attachment.menus.vehicle_options, t("Door Lock Status"), {}, t("Vehicle door locks"), constants.door_lock_status, attachment.vehicle_attributes.doors.lock_status or 1, function(value)
-        attachment.vehicle_attributes.doors.lock_status = value
-        constructor_lib.deserialize_vehicle_doors(attachment)
-    end)
-
-    menu.slider_float(attachment.menus.vehicle_options, t("Paint Fade"), {"constructorfadelevel"..attachment.id}, t("How dirty is the vehicle"), 0, 100, math.floor(attachment.vehicle_attributes.paint.fade * 100), 1, function(value)
-        attachment.vehicle_attributes.paint.fade = value / 100
-        constructor_lib.deserialize_vehicle_paint(attachment)
-    end)
-
-    menu.slider(attachment.menus.vehicle_options, t("Dirt Level"), {"constructordirtlevel"..attachment.id}, t("How dirty is the vehicle"), 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
-        attachment.vehicle_attributes.paint.dirt_level = value
-        constructor_lib.deserialize_vehicle_paint(attachment)
-    end)
-
-    menu.toggle(attachment.menus.vehicle_options, t("Bullet Proof Tires"), {}, "", function(value)
+    menu.toggle(attachment.menus.vehicle_options_wheels_options, t("Bullet Proof Tires"), {}, "", function(value)
         attachment.vehicle_attributes.wheels.bulletproof_tires = value
         constructor_lib.deserialize_vehicle_wheels(attachment)
     end, attachment.vehicle_attributes.wheels.bulletproof_tires)
 
-    attachment.menus.tires_burst = menu.list(attachment.menus.vehicle_options, t("Burst Tires"), {}, t("Are tires burst"))
+    attachment.menus.tires_burst = menu.list(attachment.menus.vehicle_options_wheels_options, t("Burst Tires"), {}, t("Are tires burst"))
     if attachment.vehicle_attributes.wheels.tires_burst == nil then attachment.vehicle_attributes.wheels.tires_burst = {} end
     for _, tire_position in pairs(constants.tire_position_names) do
         menu.toggle(attachment.menus.tires_burst, tire_position.name, {}, "", function(value)
@@ -2313,7 +2309,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end, attachment.vehicle_attributes.wheels.tires_burst["_"..tire_position.index])
     end
 
-    attachment.menus.tires_detach = menu.list(attachment.menus.vehicle_options, t("Detach Wheels"), {}, t("Detach wheels from construct"))
+    attachment.menus.tires_detach = menu.list(attachment.menus.vehicle_options_wheels_options, t("Detach Wheels"), {}, t("Detach wheels from construct"))
     if attachment.vehicle_attributes.wheels.detached == nil then attachment.vehicle_attributes.wheels.detached = {} end
     for _, tire_position in pairs(constants.detached_wheel_names) do
         menu.toggle(attachment.menus.tires_detach, tire_position.name, {}, "", function(value)
@@ -2323,7 +2319,15 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end, attachment.vehicle_attributes.wheels.detached["_"..tire_position.index])
     end
 
-    attachment.menus.broken_doors = menu.list(attachment.menus.vehicle_options, t("Broken Doors"), {}, t("Remove doors and trunks"))
+    --- Door Options
+    attachment.menus.vehicle_options_door_options = menu.list(attachment.menus.vehicle_options, t("Door Options"), {}, t("Options about the vehicles doors"))
+
+    menu.list_select(attachment.menus.vehicle_options_door_options, t("Door Lock Status"), {}, t("Vehicle door locks"), constants.door_lock_status, attachment.vehicle_attributes.doors.lock_status or 1, function(value)
+        attachment.vehicle_attributes.doors.lock_status = value
+        constructor_lib.deserialize_vehicle_doors(attachment)
+    end)
+
+    attachment.menus.broken_doors = menu.list(attachment.menus.vehicle_options_door_options, t("Broken Doors"), {}, t("Remove doors and trunks"))
     attachment.menus.option_doors_broken_frontleft = menu.action(attachment.menus.broken_doors, t("Break Door: Front Left"), {}, t("Remove door."), function()
         attachment.vehicle_attributes.doors.broken.frontleft = true
         constructor_lib.deserialize_vehicle_doors(attachment)
@@ -2353,7 +2357,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_doors(attachment)
     end)
 
-    attachment.menus.windows = menu.list(attachment.menus.vehicle_options, t("Windows Rolled Down"), {}, t("Roll up and down windows"))
+    attachment.menus.windows = menu.list(attachment.menus.vehicle_options_door_options, t("Windows Rolled Down"), {}, t("Roll up and down windows"))
     for window_index = 1, 8 do
         local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
         menu.toggle(attachment.menus.windows, t("Window Rolled Down: ")..window_name, {}, t("Roll down the window."), function(on)
@@ -2362,7 +2366,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end, attachment.vehicle_attributes.windows.rolled_down[window_name])
     end
 
-    attachment.menus.windows = menu.list(attachment.menus.vehicle_options, t("Windows Broken"), {}, t("Roll up and down windows"))
+    attachment.menus.windows = menu.list(attachment.menus.vehicle_options_door_options, t("Windows Broken"), {}, t("Roll up and down windows"))
     for window_index = 1, 8 do
         local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
         menu.toggle(attachment.menus.windows, t("Window Broken: ")..window_name, {}, t("Break the window."), function(on)
@@ -2370,6 +2374,31 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             constructor_lib.deserialize_vehicle_windows(attachment)
         end, attachment.vehicle_attributes.windows.rolled_down[window_name])
     end
+
+    --- Radio Options
+    attachment.menus.vehicle_options_radio_options = menu.list(attachment.menus.vehicle_options, t("Radio Options"), {}, t("Options about the vehicles radio"))
+
+    menu.list_select(attachment.menus.vehicle_options_radio_options, t("Radio Station"), {}, "", constants.radio_station_names, 1, function(value)
+        attachment.vehicle_attributes.options.radio_station = constants.radio_station_codes[value]
+        constructor_lib.deserialize_vehicle_options(attachment)
+    end)
+    menu.toggle(attachment.menus.vehicle_options_radio_options, t("Radio Loud"), {}, t("If enabled, vehicle radio will play loud enough to be heard outside the vehicle."), function(toggle)
+        attachment.vehicle_attributes.options.radio_loud = toggle
+        constructor_lib.deserialize_vehicle_options(attachment)
+    end, attachment.vehicle_attributes.options.radio_loud)
+
+    --- Siren Options
+    attachment.menus.vehicle_options_siren_options = menu.list(attachment.menus.vehicle_options, t("Siren Options"), {}, t("Options about the vehicles siren"))
+
+    menu.list_select(attachment.menus.vehicle_options_siren_options, t("Sirens"), {}, "", { t("Off"), t("Lights Only"), t("Sirens and Lights") }, 1, function(value)
+        local previous_siren_status = attachment.options.siren_status
+        attachment.options.siren_status = value
+        refresh_siren_status(attachment, previous_siren_status)
+    end)
+
+    menu.toggle(attachment.menus.vehicle_options_siren_options, t("Siren Control"), {}, t("If enabled, and this vehicle has a siren, then siren controls will effect this vehicle. Has no effect on vehicles without a siren."), function(value)
+        attachment.options.has_siren = value
+    end, attachment.options.has_siren)
 
 end
 
@@ -2926,10 +2955,10 @@ constructor.add_attachment_delete_attachment_option = function(attachment)
         if #attachment.children > 0 then
             debug_log("Show warning "..attachment.name)
             menu.show_warning(attachment.menus.main, CLICK_COMMAND, t("Are you sure you want to delete this construct? ")..#attachment.children..t(" children will also be deleted."), function()
-                constructor.delete_construct(attachment)
+                constructor.delete_spawned_construct(attachment)
             end)
         else
-            constructor.delete_construct(attachment)
+            constructor.delete_spawned_construct(attachment)
         end
     end)
 end
@@ -3330,7 +3359,7 @@ players.dispatch_on_join()
 
 menus.loaded_constructs = menu.list(menu.my_root(), t("Loaded Constructs").." ("..#spawned_constructs..")", {}, t("View and edit already loaded constructs"))
 
-menu.action(menus.loaded_constructs, t("Delete all Loaded Constructs"), {}, "", function()
+menu.action(menus.loaded_constructs, t("Delete all loaded constructs"), {}, "", function()
     delete_all_constructs()
 end)
 menus.refresh_loaded_constructs = function()
