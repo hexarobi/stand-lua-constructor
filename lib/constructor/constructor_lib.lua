@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37b2"
+local SCRIPT_VERSION = "0.37b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1264,7 +1264,7 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes.paint.extra_colors == nil then vehicle.vehicle_attributes.paint.extra_colors = {} end
     if vehicle.vehicle_attributes.neon == nil then vehicle.vehicle_attributes.neon = {} end
     if vehicle.vehicle_attributes.neon.lights == nil then vehicle.vehicle_attributes.neon.lights = {} end
-    if vehicle.vehicle_attributes.neon.color == nil then vehicle.vehicle_attributes.neon.color = {} end
+    if vehicle.vehicle_attributes.neon.color == nil then vehicle.vehicle_attributes.neon.color = {r=255, g=0, b=0} end
     if vehicle.vehicle_attributes.wheels == nil then vehicle.vehicle_attributes.wheels = {} end
     if vehicle.vehicle_attributes.wheels.tires_burst == nil then vehicle.vehicle_attributes.wheels.tires_burst = {} end
     if vehicle.vehicle_attributes.wheels.tire_smoke_color == nil then vehicle.vehicle_attributes.wheels.tire_smoke_color = {} end
@@ -1490,6 +1490,14 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
     end
 end
 
+constructor_lib.is_any_neon_enabled = function(vehicle)
+    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.neon == nil or vehicle.vehicle_attributes.neon.lights == nil then
+        return false
+    end
+    return (vehicle.vehicle_attributes.neon.lights.left or vehicle.vehicle_attributes.neon.lights.right
+            or vehicle.vehicle_attributes.neon.lights.front or vehicle.vehicle_attributes.neon.lights.back)
+end
+
 constructor_lib.serialize_vehicle_neon = function(vehicle)
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.neon == nil then vehicle.vehicle_attributes.neon = {} end
@@ -1500,8 +1508,7 @@ constructor_lib.serialize_vehicle_neon = function(vehicle)
         back = VEHICLE.GET_VEHICLE_NEON_ENABLED(vehicle.handle, 3),
     }
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
-    if (vehicle.vehicle_attributes.neon.lights.left or vehicle.vehicle_attributes.neon.lights.right
-            or vehicle.vehicle_attributes.neon.lights.front or vehicle.vehicle_attributes.neon.lights.back) then
+    if constructor_lib.is_any_neon_enabled(vehicle) then
         VEHICLE.GET_VEHICLE_NEON_COLOUR(vehicle.handle, color.r, color.g, color.b)
         vehicle.vehicle_attributes.neon.color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     end
@@ -1510,11 +1517,17 @@ end
 
 constructor_lib.deserialize_vehicle_neon = function(vehicle)
     if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.neon == nil then return end
-    if vehicle.vehicle_attributes.neon.lights then
+    if vehicle.vehicle_attributes.neon.lights ~= nil then
         VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 0, vehicle.vehicle_attributes.neon.lights.left or false)
         VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 1, vehicle.vehicle_attributes.neon.lights.right or false)
         VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 2, vehicle.vehicle_attributes.neon.lights.front or false)
         VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 3, vehicle.vehicle_attributes.neon.lights.back or false)
+        if vehicle.vehicle_attributes.neon.lights.all == true then
+            VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 0, true)
+            VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 1, true)
+            VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 2, true)
+            VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 3, true)
+        end
     end
     if vehicle.vehicle_attributes.neon.color then
         VEHICLE.SET_VEHICLE_NEON_COLOUR(
