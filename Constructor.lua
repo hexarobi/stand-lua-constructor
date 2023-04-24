@@ -1135,12 +1135,16 @@ local function add_attachment_from_vehicle_handle(parent_attachment, vehicle_han
     return attachment
 end
 
+local function delete_all_constructs()
+    for _, construct in pairs(spawned_constructs) do
+        constructor.delete_construct(construct)
+    end
+end
+
 local function cleanup_constructs_handler()
     if config.deconstruct_all_spawned_constructs_on_unload then
         config.is_final_cleanup = true
-        for _, construct in pairs(spawned_constructs) do
-            constructor.delete_construct(construct)
-        end
+        delete_all_constructs()
     end
 end
 
