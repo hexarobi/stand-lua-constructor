@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37b1"
+local SCRIPT_VERSION = "0.37b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -54,7 +54,11 @@ constructor_lib.construct_base = {
 ---
 
 local function t(text)
-    return CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+    if CONSTRUCTOR_TRANSLATE_FUNCTION ~= nil then
+        return CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+    else
+        return text
+    end
 end
 
 local function debug_log(message, additional_details)
@@ -784,15 +788,9 @@ constructor_lib.remove_attachment = function(attachment)
         constructor_lib.delete_attachment(attachment)
         debug_log("Removed attachment. "..tostring(attachment.name))
     end
-    if attachment.menus then
-        for _, attachment_menu in pairs(attachment.menus) do
-            -- Sometimes these menu handles are invalid but I don't know why,
-            -- so wrap them in pcall to avoid errors if delete fails
-            if attachment_menu:isValid() then
-                debug_log("Deleting attachment menu ".._.." "..tostring(attachment_menu))
-                menu.delete(attachment_menu)
-            end
-        end
+    if attachment.menus ~= nil and attachment.menus.main ~= nil and attachment.menus.main:isValid()  then
+        --debug_log("Deleting attachment main menu "..tostring(attachment.menus.main))
+        menu.delete(attachment.menus.main)
     end
 end
 
