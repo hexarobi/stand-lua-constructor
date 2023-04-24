@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37b3"
+local SCRIPT_VERSION = "0.37b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2220,7 +2220,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end)
     end
 
-    menu.slider_float(attachment.menus.vehicle_options_paint, t("Paint Fade"), {"constructorfadelevel"..attachment.id}, t("How dirty is the vehicle"), 0, 100, math.floor(attachment.vehicle_attributes.paint.fade * 100), 1, function(value)
+    menu.slider_float(attachment.menus.vehicle_options_paint, t("Paint Fade"), {"constructorfadelevel"..attachment.id}, t("How faded is the vehicles paint"), 0, 100, math.floor(attachment.vehicle_attributes.paint.fade * 100), 1, function(value)
         attachment.vehicle_attributes.paint.fade = value / 100
         constructor_lib.deserialize_vehicle_paint(attachment)
     end)
@@ -2253,13 +2253,34 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_headlights(attachment)
     end)
 
-    attachment.menus.vehicle_options_neon = menu.colour(attachment.menus.vehicle_options_lights_options, t("Neon Lights Color"), {}, t("Set up a custom neon light color"), color_menu_input(attachment.vehicle_attributes.neon.color), false, function(color)
+    attachment.menus.vehicle_options_neon = menu.colour(attachment.menus.vehicle_options_lights_options, t("Neon Color"), {}, t("Set up a custom neon light color"), color_menu_input(attachment.vehicle_attributes.neon.color), false, function(color)
         attachment.vehicle_attributes.neon.color = color_menu_output(color)
-        if attachment.vehicle_attributes.neon.lights == nil then
-            attachment.vehicle_attributes.neon.lights = { left = true, right = true, front = true, back = true }
+        if not constructor_lib.is_any_neon_enabled(attachment) then
+            attachment.menus.vehicle_options_lights_options_neon_all.value = true
         end
         constructor_lib.deserialize_vehicle_neon(attachment)
     end)
+
+    attachment.menus.vehicle_options_lights_options_neon_all = menu.toggle(attachment.menus.vehicle_options_lights_options, t("Neon All"), {}, t("Enable vehicle neon everywhere"), function(value)
+        attachment.vehicle_attributes.neon.lights.all = value
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end, attachment.vehicle_attributes.neon.lights.all)
+    menu.toggle(attachment.menus.vehicle_options_lights_options, t("Neon Left"), {}, t("Enable vehicle neon on the left"), function(value)
+        attachment.vehicle_attributes.neon.lights.left = value
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end, attachment.vehicle_attributes.neon.lights.left)
+    menu.toggle(attachment.menus.vehicle_options_lights_options, t("Neon Right"), {}, t("Enable vehicle neon on the right"), function(value)
+        attachment.vehicle_attributes.neon.lights.right = value
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end, attachment.vehicle_attributes.neon.lights.right)
+    menu.toggle(attachment.menus.vehicle_options_lights_options, t("Neon Front"), {}, t("Enable vehicle neon on the front"), function(value)
+        attachment.vehicle_attributes.neon.lights.front = value
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end, attachment.vehicle_attributes.neon.lights.front)
+    menu.toggle(attachment.menus.vehicle_options_lights_options, t("Neon Back"), {}, t("Enable vehicle neon on the back"), function(value)
+        attachment.vehicle_attributes.neon.lights.back = value
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end, attachment.vehicle_attributes.neon.lights.back)
 
     --- Wheels Options
     attachment.menus.vehicle_options_wheels_options = menu.list(attachment.menus.vehicle_options, t("Wheels Options"), {}, t("Options about the vehicles wheels"))
