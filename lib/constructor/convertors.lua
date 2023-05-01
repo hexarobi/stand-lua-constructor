@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.37b1"
+local SCRIPT_VERSION = "0.37b2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -304,7 +304,7 @@ local function convert_jackz_object_to_attachment(jackz_object, jackz_save_data,
     if (jackz_object.type or type) then attachment.type = jackz_object.type or type end
     if jackz_object.collision ~= nil then attachment.options.has_collision = jackz_object.collision end
     if jackz_object.visible ~= nil then attachment.options.is_visible = jackz_object.visible end
-    if jackz_object.bone_index ~= nil then attachment.options.bone_index = jackz_object.bone_index end
+    if jackz_object.boneIndex ~= nil then attachment.options.bone_index = jackz_object.boneIndex end
     if jackz_object.offset then
         attachment.rotation = {
             x=jackz_object.rotation.x,
