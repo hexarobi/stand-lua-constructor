@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.36"
+local SCRIPT_VERSION = "0.37b1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -831,21 +831,27 @@ local function map_ped_placement(attachment, placement)
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
     if placement.PedProperties.PedProps ~= nil then
         for index = 0, 9 do
-            local values = value_splitter(placement.PedProperties.PedProps["_"..index])
-            attachment.ped_attributes.props["_"..index] = {
-                drawable_variation=values[1],
-                texture_variation=values[2],
-            }
+            local value = placement.PedProperties.PedProps["_"..index]
+            if value ~= nil then
+                local values = value_splitter(value)
+                attachment.ped_attributes.props["_"..index] = {
+                    drawable_variation=values[1],
+                    texture_variation=values[2],
+                }
+            end
         end
     end
     if attachment.ped_attributes.components == nil then attachment.ped_attributes.components = {} end
     if placement.PedProperties.PedComps ~= nil then
         for index = 0, 11 do
-            local values = value_splitter(placement.PedProperties.PedComps["_"..index])
-            attachment.ped_attributes.components["_"..index] = {
-                drawable_variation=values[1],
-                texture_variation=values[2],
-            }
+            local value = placement.PedProperties.PedComps["_"..index]
+            if value ~= nil then
+                local values = value_splitter(value)
+                attachment.ped_attributes.components["_"..index] = {
+                    drawable_variation=values[1],
+                    texture_variation=values[2],
+                }
+            end
         end
     end
 
@@ -1041,13 +1047,15 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
         local root = vehicle_handler.root.OutfitPedData
         if root[1] == nil then root = {root} end
         map_placement(construct_plan, root[1])
-        local attachments = root[1].SpoonerAttachments.Attachment
-        if attachments then
-            if attachments[1] == nil then attachments = {attachments} end
-            for _, placement in pairs(attachments) do
-                local attachment = {}
-                map_placement(attachment, placement)
-                table.insert(construct_plan.children, attachment)
+        if root[1].SpoonerAttachments ~= nil then
+            local attachments = root[1].SpoonerAttachments.Attachment
+            if attachments then
+                if attachments[1] == nil then attachments = {attachments} end
+                for _, placement in pairs(attachments) do
+                    local attachment = {}
+                    map_placement(attachment, placement)
+                    table.insert(construct_plan.children, attachment)
+                end
             end
         end
     elseif vehicle_handler.root.Map ~= nil then
