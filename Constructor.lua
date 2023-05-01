@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37b4"
+local SCRIPT_VERSION = "0.37b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1995,13 +1995,13 @@ constructor.add_attachment_options_menu = function(attachment)
                 attachment.options.is_invincible = on
                 constructor_lib.attach_entity(attachment)
             end, attachment.options.is_invincible)
-            if constructor_lib.is_attachment_root(attachment) then
-                attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
-                    attachment.options.is_frozen = on
-                    constructor_lib.serialize_entity_attributes(attachment)
-                    constructor_lib.attach_entity(attachment)
-                end, attachment.options.is_frozen)
-            end
+            --if constructor_lib.is_attachment_root(attachment) then
+            --    attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
+            --        attachment.options.is_frozen = on
+            --        constructor_lib.serialize_entity_attributes(attachment)
+            --        constructor_lib.attach_entity(attachment)
+            --    end, attachment.options.is_frozen)
+            --end
         end
 
         if attachment.type == "PARTICLE" then
@@ -2994,7 +2994,7 @@ end
 menus.rebuild_attachment_menu = function(attachment)
     if constructor_lib.is_attachment_entity(attachment) and (not attachment.handle) then error("Attachment missing handle "..tostring(attachment.name)) end
     if attachment.menus ~= nil then return end
-    debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
+    --debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
     attachment.menus = {}
 
     local parent_menu
