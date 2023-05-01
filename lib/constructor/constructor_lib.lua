@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37b3"
+local SCRIPT_VERSION = "0.37b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -176,7 +176,7 @@ local function ensure_unique_id(attachment)
 end
 
 constructor_lib.default_attachment_attributes = function(attachment)
-    debug_log("Defaulting attachment attributes "..tostring(attachment.name))
+    --debug_log("Defaulting attachment attributes "..tostring(attachment.name))
     ensure_unique_id(attachment)
     if attachment.children == nil then attachment.children = {} end
     if attachment.temp == nil then attachment.temp = {} end
@@ -190,7 +190,7 @@ constructor_lib.default_attachment_attributes = function(attachment)
 end
 
 constructor_lib.default_entity_attributes = function(attachment)
-    debug_log("Defaulting entity attributes "..tostring(attachment.name))
+    --debug_log("Defaulting entity attributes "..tostring(attachment.name))
     constructor_lib.serialize_hash_and_model(attachment)
     if attachment.name == nil then attachment.name = attachment.model end
     if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
@@ -231,8 +231,8 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
     if attachment.options.object_tint == nil then attachment.options.object_tint = 0 end
     if attachment.options.is_attached == nil then attachment.options.is_attached = (not constructor_lib.is_attachment_root(attachment)) end
-    if attachment.options.is_frozen == nil and attachment.options.is_attached ~= true and attachment.type == "OBJECT" then
-        attachment.options.is_frozen = true
+    if attachment.options.is_frozen == nil then
+        attachment.options.is_frozen = attachment.options.is_attached ~= true and attachment.type == "OBJECT"
     end
     if attachment == attachment.parent then
         if attachment.blip_sprite == nil then attachment.blip_sprite = 1 end
@@ -329,10 +329,10 @@ constructor_lib.attach_entity = function(attachment)
             else
                 debug_log("Attaching entity to entity "..tostring(attachment.name))
                 ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                        attachment.handle, attachment.parent.handle, attachment.options.bone_index,
-                        attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
-                        attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                        false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, attachment.rotation_order, true
+                    attachment.handle, attachment.parent.handle, attachment.options.bone_index,
+                    attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
+                    attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
+                    false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, attachment.rotation_order, true
                 )
             end
         end
@@ -660,7 +660,7 @@ constructor_lib.create_entity = function(attachment)
 end
 
 constructor_lib.reattach_attachment_with_children = function(attachment)
-    debug_log("Reattaching attachment with children "..tostring(attachment.name))
+    --debug_log("Reattaching attachment with children "..tostring(attachment.name))
     constructor_lib.validate_children(attachment)
     constructor_lib.create_entity(attachment)
     for index, child_attachment in pairs(attachment.children) do
@@ -865,7 +865,7 @@ end
 ---
 
 constructor_lib.load_hash = function(hash, timeout)
-    if timeout == nil then timeout = 3000 end
+    if timeout == nil then timeout = 6000 end
     STREAMING.REQUEST_MODEL(hash)
     local end_time = util.current_time_millis() + timeout
     repeat util.yield() until STREAMING.HAS_MODEL_LOADED(hash) or util.current_time_millis() >= end_time
@@ -873,7 +873,7 @@ constructor_lib.load_hash = function(hash, timeout)
 end
 
 constructor_lib.load_particle_fx_asset = function(asset, timeout)
-    if timeout == nil then timeout = 3000 end
+    if timeout == nil then timeout = 6000 end
     STREAMING.REQUEST_NAMED_PTFX_ASSET(asset)
     local end_time = util.current_time_millis() + timeout
     repeat util.yield() until STREAMING.HAS_NAMED_PTFX_ASSET_LOADED(asset) or util.current_time_millis() >= end_time
@@ -881,7 +881,7 @@ constructor_lib.load_particle_fx_asset = function(asset, timeout)
 end
 
 constructor_lib.load_animation_dictionary = function(dictionary, timeout)
-    if timeout == nil then timeout = 3000 end
+    if timeout == nil then timeout = 6000 end
     STREAMING.REQUEST_ANIM_DICT(dictionary)
     local end_time = util.current_time_millis() + timeout
     repeat util.yield() until STREAMING.HAS_ANIM_DICT_LOADED(dictionary) or util.current_time_millis() >= end_time
@@ -899,7 +899,7 @@ constructor_lib.load_hash_for_attachment = function(attachment)
     else
         attachment.type = "OBJECT"
     end
-    debug_log("Loading hash: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]")
+    --debug_log("Loading hash: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]")
     constructor_lib.load_hash(attachment.hash)
     return true
 end
@@ -1252,7 +1252,7 @@ end
 
 constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
-    debug_log("Defaulting vehicle attributes "..tostring(vehicle.name))
+    --debug_log("Defaulting vehicle attributes "..tostring(vehicle.name))
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.paint == nil then vehicle.vehicle_attributes.paint = {} end
     if vehicle.vehicle_attributes.paint.primary == nil then vehicle.vehicle_attributes.paint.primary = {} end
