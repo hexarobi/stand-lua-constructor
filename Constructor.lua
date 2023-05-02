@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37b6"
+local SCRIPT_VERSION = "0.37b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1294,6 +1294,7 @@ local function spawn_construct_from_plan(construct_plan)
     end
     constructor_lib.deserialize_vehicle_attributes(construct)   -- Re-deserialize to make sure invis wheels are applied
     OBJECT.PLACE_OBJECT_ON_GROUND_OR_OBJECT_PROPERLY(construct.handle)
+    constructor_lib.serialize_entity_position(construct)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
     construct.functions.refresh()
@@ -3130,9 +3131,10 @@ menu.divider(menus.create_new_construct, t("Structure (Map)"))
 
 menu.action(menus.create_new_construct, t("From New Construction Cone"), { "constructcreatestructure"}, t("Create a new stationary construct"), function()
     local construct_plan = {
-        model = "prop_air_conelight",
+        model = "prop_roadcone01b",
         options = {
             is_frozen = true,
+            is_networked = false,
             has_collision = false,
             alpha = 205,
         },
