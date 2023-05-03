@@ -4,7 +4,41 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.36r"
+local SCRIPT_VERSION = "0.37"
+local AUTO_UPDATE_BRANCHES = {
+    { "main", {}, "More stable, but updated less often.", "main", },
+    { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
+    --{ "stand_repository", {}, "The version used by the stand repository. Removes this picker so you can't easily undo this action.", "stand_repository", },
+}
+local SELECTED_BRANCH_INDEX = 1
+local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
+
+---
+--- Auto-Updater Lib Install
+---
+
+-- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
+local status, auto_updater = pcall(require, "auto-updater")
+if not status then
+    local auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
+    async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
+            function(result, headers, status_code)
+                local function parse_auto_update_result(result, headers, status_code)
+                    local error_prefix = "Error downloading auto-updater: "
+                    if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
+                    if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
+                    filesystem.mkdir(filesystem.scripts_dir() .. "lib")
+                    local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
+                    if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
+                    file:write(result) file:close() util.toast("Successfully installed auto-updater lib", TOAST_ALL) return true
+                end
+                auto_update_complete = parse_auto_update_result(result, headers, status_code)
+            end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
+    async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 40) do util.yield(250) i = i + 1 end
+    if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
+    auto_updater = require("auto-updater")
+end
+if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
 
 ---
 --- Config
@@ -41,6 +75,128 @@ local config = CONSTRUCTOR_CONFIG
 local state = {}
 
 ---
+--- Auto-Update
+---
+
+local default_check_interval = 604800
+local auto_update_config = {
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua",
+    script_relpath=SCRIPT_RELPATH,
+    switch_to_branch=selected_branch,
+    verify_file_begins_with="--",
+    check_interval=config.auto_update_check_interval,
+    dependencies={
+        {
+            name="inspect",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/inspect.lua",
+            script_relpath="lib/inspect.lua",
+            verify_file_begins_with="local",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="xml2lua",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/xml2lua.lua",
+            script_relpath="lib/xml2lua.lua",
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+        },
+        --{
+        --    name="json",
+        --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/json.lua",
+        --    script_relpath="lib/json.lua",
+        --    verify_file_begins_with="--",
+        --    check_interval=default_check_interval,
+        --    is_required=true,
+        --},
+        {
+            name="constants",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
+            script_relpath="lib/constructor/constants.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="constructor_lib",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
+            script_relpath="lib/constructor/constructor_lib.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="iniparser",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/iniparser.lua",
+            script_relpath="lib/iniparser.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+        },
+        {
+            name="quaternionLib",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/quaternionLib.lua",
+            script_relpath="lib/quaternionLib.lua",
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="convertors",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/convertors.lua",
+            script_relpath="lib/constructor/convertors.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="curated_attachments",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
+            script_relpath="lib/constructor/curated_attachments.lua",
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="translations",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
+            script_relpath="lib/constructor/translations.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="constructor_logo",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
+            script_relpath="lib/constructor/constructor_logo.png",
+            check_interval=default_check_interval,
+        },
+        {
+            name="objects_complete",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
+            script_relpath="lib/constructor/objects_complete.txt",
+            verify_file_begins_with="ba_prop_glass_garage_opaque",
+            check_interval=default_check_interval,
+        },
+        {
+            name="natives-1672190175",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1672190175.lua",
+            script_relpath="lib/natives-1672190175.lua",
+            verify_file_begins_with="--",
+            is_required=true,
+        },
+    }
+}
+local update_success
+if config.auto_update then
+    update_success = auto_updater.run_auto_update(auto_update_config)
+end
+
+---
 --- Dependencies
 ---
 
@@ -53,8 +209,6 @@ local function require_dependency(path)
     end
 end
 
-util.ensure_package_is_installed('lua/ScaleformLib')
-local auto_updater = require_dependency("auto-updater")
 local inspect = require_dependency("inspect")
 local constructor_lib = require_dependency("constructor/constructor_lib")
 local constants = require_dependency("constructor/constants")
@@ -64,6 +218,49 @@ local translations = require_dependency("constructor/translations")
 
 util.ensure_package_is_installed('lua/natives-1672190175')
 local natives = require_dependency("natives-1672190175")
+
+util.ensure_package_is_installed('lua/ScaleformLib')
+local scaleform = require_dependency("ScaleformLib")
+
+-- Call require() on all required dependencies
+local missing_required_dependencies = {}
+for _, dependency in pairs(auto_update_config.dependencies) do
+    if dependency.is_required then
+        local var_name = dependency.name
+        if dependency.loaded_lib ~= nil then
+            _G[var_name] = dependency.loaded_lib
+        else
+            local lib_require_status, loaded_lib = pcall(require, dependency.script_relpath:gsub("[.]lua$", ""))
+            if lib_require_status then
+                _G[var_name] = loaded_lib
+            else
+                table.insert(missing_required_dependencies, dependency.name)
+            end
+        end
+    end
+end
+
+if #missing_required_dependencies > 0 then
+    local missing_files = table.concat(missing_required_dependencies, ", ")
+    if not update_success then
+        menu.readonly(menu.my_root(), "Error: Install Failed", "Auto-update failed and required files are missing ("..missing_files..") Please re-install from the project zip file.")
+        menu.hyperlink(menu.my_root(), "Download Full Project Zip", "https://github.com/hexarobi/stand-lua-constructor")
+        error("Error: Install Failed. Auto-update failed and required files are missing ("..missing_files..") Please re-install from the project zip file @ https://github.com/hexarobi/stand-lua-constructor")
+    else
+        menu.readonly(menu.my_root(), "Error: Load Failed", "Required files are missing. ("..missing_files..")")
+        if config.auto_update then
+            menu.hyperlink(menu.my_root(), "Discord Help", "https://discord.gg/2u5HbHPB9y")
+        else
+            menu.readonly(menu.my_root(), "Please Update", "Please clean reinstall or manually update from the project homepage.")
+            menu.action(menu.my_root(), "Clean Reinstall", {}, "Force an update to the latest version, regardless of current version.", function()
+                auto_update_config.clean_reinstall = true
+                auto_updater.run_auto_update(auto_update_config)
+            end)
+            menu.hyperlink(menu.my_root(), "Download Full Project Zip", "https://github.com/hexarobi/stand-lua-constructor")
+        end
+        error("Error: Load Failed. Auto-update successful but required files are missing. This is likely a bug. Please report this issue on Discord @ https://discord.gg/2u5HbHPB9y")
+    end
+end
 
 ---
 --- Debug Log
@@ -80,7 +277,6 @@ end
 
 ---
 --- Translations
----
 
 -- Shorthand wrapper for translation function
 local function t(text)
@@ -244,7 +440,6 @@ end
 --- ScaleformLib
 ---
 
-local scaleform = require('ScaleformLib')
 local sf = scaleform('instructional_buttons')
 local function hud_hide()
     HUD.HIDE_HUD_COMPONENT_THIS_FRAME(6)
@@ -319,7 +514,7 @@ end
 
 local function remove_player_construct()
     if player_construct == nil then return end
-    constructor.delete_construct(player_construct)
+    constructor.delete_spawned_construct(player_construct)
     restore_original_player_skin()
     player_construct = nil
 end
@@ -851,9 +1046,9 @@ local function create_free_edit_cam(attachment)
     constructor_lib.serialize_entity_attributes(attachment)
     local cam_pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.handle, 0, 2, 2)
     free_edit_cam = CAM.CREATE_CAM_WITH_PARAMS(
-        "DEFAULT_SCRIPTED_CAMERA",
-        cam_pos.x, cam_pos.y, cam_pos.z,
-        0.0, 0.0, 0.0, 70.0, false, false
+            "DEFAULT_SCRIPTED_CAMERA",
+            cam_pos.x, cam_pos.y, cam_pos.z,
+            0.0, 0.0, 0.0, 70.0, false, false
     )
     CAM.POINT_CAM_AT_ENTITY(free_edit_cam, attachment.handle, 0, 0, 0, true)
     CAM.SET_CAM_ACTIVE(free_edit_cam, true)
@@ -949,7 +1144,7 @@ end
 local function remove_tracked_construct_for_player(pid)
     local player_spawned_constructs = get_player_spawned_constructs(pid)
     if #player_spawned_constructs.constructs >= config.num_allowed_spawned_constructs_per_player then
-        constructor.delete_construct(player_spawned_constructs.constructs[1])
+        constructor.delete_spawned_construct(player_spawned_constructs.constructs[1])
         table.remove(player_spawned_constructs.constructs, 1)
     end
 end
@@ -1048,6 +1243,10 @@ constructor.delete_construct =  function(construct)
             player_construct = nil
         end
     end
+end
+
+constructor.delete_spawned_construct =  function(construct)
+    constructor.delete_construct(construct)
     constructor_lib.array_remove(spawned_constructs, function(t, i)
         local spawned_construct = t[i]
         return spawned_construct ~= construct
@@ -1095,6 +1294,7 @@ local function spawn_construct_from_plan(construct_plan)
     end
     constructor_lib.deserialize_vehicle_attributes(construct)   -- Re-deserialize to make sure invis wheels are applied
     OBJECT.PLACE_OBJECT_ON_GROUND_OR_OBJECT_PROPERLY(construct.handle)
+    constructor_lib.serialize_entity_position(construct)
     menus.refresh_loaded_constructs()
     menus.rebuild_attachment_menu(construct)
     construct.functions.refresh()
@@ -1136,10 +1336,14 @@ local function add_attachment_from_vehicle_handle(parent_attachment, vehicle_han
 end
 
 local function delete_all_constructs()
+    debug_log("Deleting all "..#spawned_constructs.." spawned constructs")
     for _, construct in pairs(spawned_constructs) do
         constructor.delete_construct(construct)
     end
+    spawned_constructs = {}
+    menus.refresh_loaded_constructs()
 end
+
 
 local function cleanup_constructs_handler()
     if config.deconstruct_all_spawned_constructs_on_unload then
@@ -1152,7 +1356,7 @@ local function rebuild_attachment(attachment)
     debug_log("Rebuilding "..tostring(attachment.name))
     attachment.root.menu_auto_focus = false
     local construct_plan = constructor_lib.clone_attachment(attachment)
-    constructor.delete_construct(attachment)
+    constructor.delete_spawned_construct(attachment)
     construct_plan.root.menu_auto_focus = true
     build_construct_from_plan(construct_plan)
 end
@@ -1401,7 +1605,7 @@ local function animate_peds(attachment)
         if attachment.ped_attributes.animation_dict then
             debug_log("Rebuilding ped "..attachment.name)
             local construct_plan = constructor_lib.clone_attachment(attachment)
-            constructor.delete_construct(attachment)
+            constructor.delete_spawned_construct(attachment)
             construct_plan.root.menu_auto_focus = false
             build_construct_from_plan(construct_plan)
             construct_plan.root.menu_auto_focus = true
@@ -1581,7 +1785,6 @@ local function install_curated_constructs()
     })
 
     util.toast("Successfully installed curated constructs!", TOAST_ALL)
-    menu.ref_by_rel_path(menus.load_construct, "Curated"):focus()
 end
 
 ---
@@ -1670,63 +1873,75 @@ constructor.add_attachment_position_menu = function(attachment)
 
             if attachment.menus.edit_offset_x ~= nil then return end
             menu.divider(attachment.menus.position, t("Offset"))
-            attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.x * 100), config.edit_offset_step, function(value)
-                attachment.offset.x = value / 100
+            attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -10000000, 10000000, math.floor(attachment.offset.x * 1000), config.edit_offset_step, function(value)
+                attachment.offset.x = value / 1000
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.y * -100), config.edit_offset_step, function(value)
-                attachment.offset.y = value / -100
+            attachment.menus.edit_offset_x.precision = 3
+            attachment.menus.edit_offset_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructoroffset"..attachment.id.."y"}, t(EDIT_MENU_HELP), -10000000, 10000000, math.floor(attachment.offset.y * -1000), config.edit_offset_step, function(value)
+                attachment.offset.y = value / -1000
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.offset.z * -100), config.edit_offset_step, function(value)
-                attachment.offset.z = value / -100
+            attachment.menus.edit_offset_y.precision = 3
+            attachment.menus.edit_offset_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructoroffset"..attachment.id.."z"}, t(EDIT_MENU_HELP), -10000000, 10000000, math.floor(attachment.offset.z * -1000), config.edit_offset_step, function(value)
+                attachment.offset.z = value / -1000
                 constructor_lib.move_attachment(attachment)
             end)
+            attachment.menus.edit_offset_z.precision = 3
 
             menu.divider(attachment.menus.position, t("Rotation"))
-            attachment.menus.edit_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.x), config.edit_rotation_step, function(value)
-                attachment.rotation.x = value
+            attachment.menus.edit_rotation_x = menu.slider_float(attachment.menus.position, t("X: Pitch"), {"constructorrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1800, 1800, math.floor(attachment.rotation.x * 10), config.edit_rotation_step, function(value)
+                attachment.rotation.x = value / 10
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.y), config.edit_rotation_step, function(value)
-                attachment.rotation.y = value
+            attachment.menus.edit_rotation_x.precision = 1
+            attachment.menus.edit_rotation_y = menu.slider_float(attachment.menus.position, t("Y: Roll"), {"constructorrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1800, 1800, math.floor(attachment.rotation.y * 10), config.edit_rotation_step, function(value)
+                attachment.rotation.y = value / 10
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.rotation.z), config.edit_rotation_step, function(value)
-                attachment.rotation.z = value
+            attachment.menus.edit_rotation_y.precision = 1
+            attachment.menus.edit_rotation_z = menu.slider_float(attachment.menus.position, t("Z: Yaw"), {"constructorrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1800, 1800, math.floor(attachment.rotation.z * 10), config.edit_rotation_step, function(value)
+                attachment.rotation.z = value / 10
                 constructor_lib.move_attachment(attachment)
             end)
+            attachment.menus.edit_rotation_z.precision = 1
 
         else
 
             if attachment.menus.edit_position_x ~= nil then return end
             menu.divider(attachment.menus.position, t("World Position"))
-            attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.x * 100), config.edit_offset_step, function(value)
-                attachment.position.x = value / 100
+            attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -10000000, 10000000, math.floor(attachment.position.x * 1000), config.edit_offset_step, function(value)
+                attachment.position.x = value / 1000
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.y * -100), config.edit_offset_step, function(value)
-                attachment.position.y = value / -100
+            attachment.menus.edit_position_x.precision = 3
+            attachment.menus.edit_position_y = menu.slider_float(attachment.menus.position, t("Y: Forward / Back"), {"constructorposition"..attachment.id.."y"}, t(EDIT_MENU_HELP), -10000000, 10000000, math.floor(attachment.position.y * -1000), config.edit_offset_step, function(value)
+                attachment.position.y = value / -1000
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1000000, 1000000, math.floor(attachment.position.z * -100), config.edit_offset_step, function(value)
-                attachment.position.z = value / -100
+            attachment.menus.edit_position_y.precision = 3
+            attachment.menus.edit_position_z = menu.slider_float(attachment.menus.position, t("Z: Up / Down"), {"constructorposition"..attachment.id.."z"}, t(EDIT_MENU_HELP), -10000000, 10000000, math.floor(attachment.position.z * -1000), config.edit_offset_step, function(value)
+                attachment.position.z = value / -1000
                 constructor_lib.move_attachment(attachment)
             end)
+            attachment.menus.edit_position_z.precision = 3
 
             menu.divider(attachment.menus.position, t("World Rotation"))
-            attachment.menus.edit_world_rotation_x = menu.slider(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.x), config.edit_rotation_step, function(value)
-                attachment.world_rotation.x = value
+            attachment.menus.edit_world_rotation_x = menu.slider_float(attachment.menus.position, t("X: Pitch"), {"constructorworldrotate"..attachment.id.."x"}, t(EDIT_MENU_HELP), -1800, 1800, math.floor(attachment.world_rotation.x * 10), config.edit_rotation_step, function(value)
+                attachment.world_rotation.x = value / 10
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_world_rotation_y = menu.slider(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.y), config.edit_rotation_step, function(value)
-                attachment.world_rotation.y = value
+            attachment.menus.edit_world_rotation_x.precision = 1
+            attachment.menus.edit_world_rotation_y = menu.slider_float(attachment.menus.position, t("Y: Roll"), {"constructorworldrotate"..attachment.id.."y"}, t(EDIT_MENU_HELP), -1800, 1800, math.floor(attachment.world_rotation.y * 10), config.edit_rotation_step, function(value)
+                attachment.world_rotation.y = value / 10
                 constructor_lib.move_attachment(attachment)
             end)
-            attachment.menus.edit_world_rotation_z = menu.slider(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -180, 180, math.floor(attachment.world_rotation.z), config.edit_rotation_step, function(value)
-                attachment.world_rotation.z = value
+            attachment.menus.edit_world_rotation_y.precision = 1
+            attachment.menus.edit_world_rotation_z = menu.slider_float(attachment.menus.position, t("Z: Yaw"), {"constructorworldrotate"..attachment.id.."z"}, t(EDIT_MENU_HELP), -1800, 1800, math.floor(attachment.world_rotation.z * 10), config.edit_rotation_step, function(value)
+                attachment.world_rotation.z = value / 10
                 constructor_lib.move_attachment(attachment)
             end)
+            attachment.menus.edit_world_rotation_z.precision = 1
 
         end
 
@@ -1793,13 +2008,13 @@ constructor.add_attachment_options_menu = function(attachment)
                 attachment.options.is_invincible = on
                 constructor_lib.attach_entity(attachment)
             end, attachment.options.is_invincible)
-            if constructor_lib.is_attachment_root(attachment) then
-                attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
-                    attachment.options.is_frozen = on
-                    constructor_lib.serialize_entity_attributes(attachment)
-                    constructor_lib.attach_entity(attachment)
-                end, attachment.options.is_frozen)
-            end
+            --if constructor_lib.is_attachment_root(attachment) then
+            --    attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
+            --        attachment.options.is_frozen = on
+            --        constructor_lib.serialize_entity_attributes(attachment)
+            --        constructor_lib.attach_entity(attachment)
+            --    end, attachment.options.is_frozen)
+            --end
         end
 
         if attachment.type == "PARTICLE" then
@@ -1927,6 +2142,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     if attachment.menus.vehicle_options ~= nil then return end
     attachment.menus.vehicle_options = menu.list(attachment.menus.options, t("Vehicle Options"), {}, t("Additional options available for all vehicle entities"))
 
+    --- LS Customs
     attachment.menus.vehicle_options_ls_customs = menu.list(attachment.menus.vehicle_options, t("LS Customs"), {}, "Vehicle modifications normally available in Los Santos Customs")
     for _, vehicle_mod in pairs(vehicle_mod_menus) do
         if vehicle_mod.type == "separator" then
@@ -1951,7 +2167,8 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end
     end
 
-    attachment.menus.vehicle_options_extras = menu.list(attachment.menus.vehicle_options, t("Extras"), {}, t("Some vehicles include parts that can fall off and be removed when damaged"), function()
+    --- Extras
+    attachment.menus.vehicle_options_extras = menu.list(attachment.menus.vehicle_options, t("Vehicle Extras"), {}, t("Some vehicles include parts that can fall off and be removed when damaged"), function()
         if attachment.temp.extra_menus == nil then attachment.temp.extra_menus = {} end
         delete_menu_list(attachment.temp.extra_menus)
         for extra_index = 0, 60 do
@@ -1965,7 +2182,8 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end
     end)
 
-    attachment.menus.vehicle_options_paint = menu.list(attachment.menus.vehicle_options, t("Paint"), {}, t("Set vehicle paint colors"))
+    --- Paint
+    attachment.menus.vehicle_options_paint = menu.list(attachment.menus.vehicle_options, t("Paint Options"), {}, t("Set vehicle paint colors"))
 
     attachment.menus.vehicle_options_primary = menu.list(attachment.menus.vehicle_options_paint, t("Primary"), {}, t("Primary vehicle paint color"))
     attachment.menus.vehicle_options_primary_standard_colors = menu.list(attachment.menus.vehicle_options_primary, t("Standard Color"), {}, t("Select from a list of standard paint colors"))
@@ -2015,94 +2233,107 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end)
     end
 
-    attachment.menus.vehicle_options_wheels = menu.list(attachment.menus.vehicle_options_paint, t("Wheels"), {}, t("Select from a list of wheel paint colors"))
-    for _, standard_color in pairs(constants.standard_colors) do
-        menu.action(attachment.menus.vehicle_options_wheels, standard_color.name, {}, "", function()
-            attachment.vehicle_attributes.paint.extra_colors.wheel = standard_color.index
-            constructor_lib.deserialize_vehicle_paint(attachment)
-        end)
-    end
-
-    attachment.menus.vehicle_options_tire_smoke = menu.colour(attachment.menus.vehicle_options_paint, t("Tire Smoke"), {}, t("Mix up a custom tire smoke color"), color_menu_input(attachment.vehicle_attributes.wheels.tire_smoke_color), false, function(color)
-        attachment.vehicle_attributes.wheels.tire_smoke_color = color_menu_output(color)
-        attachment.vehicle_attributes.mods["_20"] = true    -- Turn on tire smoke mod
-        constructor_lib.deserialize_vehicle_mods(attachment)
-        constructor_lib.deserialize_vehicle_wheels(attachment)
+    menu.slider_float(attachment.menus.vehicle_options_paint, t("Paint Fade"), {"constructorfadelevel"..attachment.id}, t("How faded is the vehicles paint"), 0, 100, math.floor(attachment.vehicle_attributes.paint.fade * 100), 1, function(value)
+        attachment.vehicle_attributes.paint.fade = value / 100
+        constructor_lib.deserialize_vehicle_paint(attachment)
     end)
 
-    menu.list_select(attachment.menus.vehicle_options_paint, t("Headlights"), {}, t("Select from a list of headlight colors"), constants.headlight_colors, attachment.vehicle_attributes.headlights.headlight_color + 2, function(index)
+    menu.slider(attachment.menus.vehicle_options_paint, t("Dirt Level"), {"constructordirtlevel"..attachment.id}, t("How dirty is the vehicle"), 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
+        attachment.vehicle_attributes.paint.dirt_level = value
+        constructor_lib.deserialize_vehicle_paint(attachment)
+    end)
+
+    --- Engine Options
+    attachment.menus.vehicle_options_engine_options = menu.list(attachment.menus.vehicle_options, t("Engine Options"), {}, t("Options about the vehicles engine"))
+
+    menu.toggle_loop(attachment.menus.vehicle_options_engine_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
+        attachment.options.engine_running = true
+        VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
+    end, function() attachment.options.engine_running = false end)
+
+    menu.text_input(attachment.menus.vehicle_options_engine_options, t("Engine Sound"), {"constructorenginesound"..attachment.id}, t("Set vehicle engine sound from another vehicle name."), function(value)
+        attachment.vehicle_attributes.engine_sound = value
+        constructor_lib.deserialize_vehicle_options(attachment)
+    end, attachment.vehicle_attributes.engine_sound or "")
+
+    --- Lights Options
+    attachment.menus.vehicle_options_lights_options = menu.list(attachment.menus.vehicle_options, t("Lights Options"), {}, t("Options about the vehicles lights"))
+
+    menu.list_select(attachment.menus.vehicle_options_lights_options, t("Headlights Color"), {}, t("Select from a list of headlight colors"), constants.headlight_colors, attachment.vehicle_attributes.headlights.headlight_color + 2, function(index)
         attachment.vehicle_attributes.headlights.headlights_color = index - 2
         attachment.vehicle_attributes.headlights.headlights_type = true
         constructor_lib.deserialize_vehicle_mods(attachment)
         constructor_lib.deserialize_vehicle_headlights(attachment)
     end)
 
-    attachment.menus.vehicle_options_neon = menu.colour(attachment.menus.vehicle_options_paint, t("Neon Lights"), {}, t("Set up a custom neon light color"), color_menu_input(attachment.vehicle_attributes.neon.color), false, function(color)
+    attachment.menus.vehicle_options_neon = menu.colour(attachment.menus.vehicle_options_lights_options, t("Neon Color"), {}, t("Set up a custom neon light color"), color_menu_input(attachment.vehicle_attributes.neon.color), false, function(color)
         attachment.vehicle_attributes.neon.color = color_menu_output(color)
-        if attachment.vehicle_attributes.neon.lights == nil then
-            attachment.vehicle_attributes.neon.lights = { left = true, right = true, front = true, back = true }
+        if not constructor_lib.is_any_neon_enabled(attachment) then
+            attachment.menus.vehicle_options_lights_options_neon_all.value = true
         end
         constructor_lib.deserialize_vehicle_neon(attachment)
     end)
 
-    menu.toggle_loop(attachment.menus.vehicle_options, t("Engine Always On"), {}, t("If enabled, vehicle will stay running even when unoccupied"), function()
-        attachment.options.engine_running = true
-        VEHICLE.SET_VEHICLE_ENGINE_ON(attachment.handle, true, true, true)
-    end, function() attachment.options.engine_running = false end)
-    menu.toggle(attachment.menus.vehicle_options, t("Radio Loud"), {}, t("If enabled, vehicle radio will play loud enough to be heard outside the vehicle."), function(toggle)
-        attachment.options.radio_loud = toggle
-        constructor_lib.attach_entity(attachment)
-    end, attachment.options.radio_loud)
+    attachment.menus.vehicle_options_lights_options_neon_all = menu.toggle(attachment.menus.vehicle_options_lights_options, t("Neon All"), {}, t("Enable vehicle neon everywhere"), function(value)
+        attachment.vehicle_attributes.neon.lights.all = value
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end, attachment.vehicle_attributes.neon.lights.all)
+    menu.toggle(attachment.menus.vehicle_options_lights_options, t("Neon Left"), {}, t("Enable vehicle neon on the left"), function(value)
+        attachment.vehicle_attributes.neon.lights.left = value
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end, attachment.vehicle_attributes.neon.lights.left)
+    menu.toggle(attachment.menus.vehicle_options_lights_options, t("Neon Right"), {}, t("Enable vehicle neon on the right"), function(value)
+        attachment.vehicle_attributes.neon.lights.right = value
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end, attachment.vehicle_attributes.neon.lights.right)
+    menu.toggle(attachment.menus.vehicle_options_lights_options, t("Neon Front"), {}, t("Enable vehicle neon on the front"), function(value)
+        attachment.vehicle_attributes.neon.lights.front = value
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end, attachment.vehicle_attributes.neon.lights.front)
+    menu.toggle(attachment.menus.vehicle_options_lights_options, t("Neon Back"), {}, t("Enable vehicle neon on the back"), function(value)
+        attachment.vehicle_attributes.neon.lights.back = value
+        constructor_lib.deserialize_vehicle_neon(attachment)
+    end, attachment.vehicle_attributes.neon.lights.back)
 
-    menu.slider(attachment.menus.vehicle_options, t("Steering Bias"), {"constructorsteeringbias"..attachment.id}, t("Set wheel position. Must be driving to set, but will stay when you exit until someone else drives."), -1, 1, math.floor(attachment.vehicle_attributes.wheels.steering_bias or 0), 1, function(value)
+    --- Wheels Options
+    attachment.menus.vehicle_options_wheels_options = menu.list(attachment.menus.vehicle_options, t("Wheels Options"), {}, t("Options about the vehicles wheels"))
+
+    attachment.menus.vehicle_options_wheel_color = menu.list(attachment.menus.vehicle_options_wheels_options, t("Wheel Color"), {}, t("Select from a list of wheel paint colors"))
+    for _, standard_color in pairs(constants.standard_colors) do
+        menu.action(attachment.menus.vehicle_options_wheels_options, standard_color.name, {}, "", function()
+            attachment.vehicle_attributes.paint.extra_colors.wheel = standard_color.index
+            constructor_lib.deserialize_vehicle_paint(attachment)
+        end)
+    end
+
+    attachment.menus.vehicle_options_tire_smoke = menu.colour(attachment.menus.vehicle_options_wheels_options, t("Tire Smoke Color"), {}, t("Mix up a custom tire smoke color"), color_menu_input(attachment.vehicle_attributes.wheels.tire_smoke_color), false, function(color)
+        attachment.vehicle_attributes.wheels.tire_smoke_color = color_menu_output(color)
+        attachment.vehicle_attributes.mods["_20"] = true    -- Turn on tire smoke mod
+        constructor_lib.deserialize_vehicle_mods(attachment)
+        constructor_lib.deserialize_vehicle_wheels(attachment)
+    end)
+
+    menu.slider(attachment.menus.vehicle_options_wheels_options, t("Steering Bias"), {"constructorsteeringbias"..attachment.id}, t("Set wheel position. Must be driving to set, but will stay when you exit until someone else drives."), -1, 1, math.floor(attachment.vehicle_attributes.wheels.steering_bias or 0), 1, function(value)
         attachment.vehicle_attributes.wheels.steering_bias = value
         constructor_lib.deserialize_vehicle_wheels(attachment)
     end)
 
-    menu.list_select(attachment.menus.vehicle_options, t("Sirens"), {}, "", { t("Off"), t("Lights Only"), t("Sirens and Lights") }, 1, function(value)
-        local previous_siren_status = attachment.options.siren_status
-        attachment.options.siren_status = value
-        refresh_siren_status(attachment, previous_siren_status)
-    end)
-    menu.toggle(attachment.menus.vehicle_options, t("Siren Control"), {}, t("If enabled, and this vehicle has a siren, then siren controls will effect this vehicle. Has no effect on vehicles without a siren."), function(value)
-        attachment.options.has_siren = value
-    end, attachment.options.has_siren)
-    menu.text_input(attachment.menus.vehicle_options, t("Engine Sound"), {"constructorenginesound"..attachment.id}, t("Set vehicle engine sound from another vehicle name."), function(value)
-        attachment.vehicle_attributes.engine_sound = value
-        constructor_lib.deserialize_vehicle_options(attachment)
-    end, attachment.vehicle_attributes.engine_sound or "")
-
-    menu.toggle(attachment.menus.vehicle_options, t("Invisible Wheels"), {}, t("If enabled, the vehicle wheels will be invisible"), function(value)
+    menu.toggle(attachment.menus.vehicle_options_wheels_options, t("Invisible Wheels"), {}, t("If enabled, the vehicle wheels will be invisible"), function(value)
         attachment.vehicle_attributes.wheels.invisible_wheels = value
         constructor_lib.deserialize_vehicle_wheels(attachment)
     end, attachment.vehicle_attributes.wheels.invisible_wheels)
 
-    menu.toggle(attachment.menus.vehicle_options, t("Drift Tires"), {}, t("If enabled, the vehicle tires will have low grip"), function(value)
+    menu.toggle(attachment.menus.vehicle_options_wheels_options, t("Drift Tires"), {}, t("If enabled, the vehicle tires will have low grip"), function(value)
         attachment.vehicle_attributes.wheels.drift_tires = value
         constructor_lib.deserialize_vehicle_wheels(attachment)
     end, attachment.vehicle_attributes.wheels.drift_tires)
 
-    menu.list_select(attachment.menus.vehicle_options, t("Door Lock Status"), {}, t("Vehicle door locks"), constants.door_lock_status, attachment.vehicle_attributes.doors.lock_status or 1, function(value)
-        attachment.vehicle_attributes.doors.lock_status = value
-        constructor_lib.deserialize_vehicle_doors(attachment)
-    end)
-
-    menu.slider_float(attachment.menus.vehicle_options, t("Paint Fade"), {"constructorfadelevel"..attachment.id}, t("How dirty is the vehicle"), 0, 100, math.floor(attachment.vehicle_attributes.paint.fade * 100), 1, function(value)
-        attachment.vehicle_attributes.paint.fade = value / 100
-        constructor_lib.deserialize_vehicle_paint(attachment)
-    end)
-
-    menu.slider(attachment.menus.vehicle_options, t("Dirt Level"), {"constructordirtlevel"..attachment.id}, t("How dirty is the vehicle"), 0, 15, math.floor(attachment.vehicle_attributes.paint.dirt_level), 1, function(value)
-        attachment.vehicle_attributes.paint.dirt_level = value
-        constructor_lib.deserialize_vehicle_paint(attachment)
-    end)
-
-    menu.toggle(attachment.menus.vehicle_options, t("Bullet Proof Tires"), {}, "", function(value)
+    menu.toggle(attachment.menus.vehicle_options_wheels_options, t("Bullet Proof Tires"), {}, "", function(value)
         attachment.vehicle_attributes.wheels.bulletproof_tires = value
         constructor_lib.deserialize_vehicle_wheels(attachment)
     end, attachment.vehicle_attributes.wheels.bulletproof_tires)
 
-    attachment.menus.tires_burst = menu.list(attachment.menus.vehicle_options, t("Burst Tires"), {}, t("Are tires burst"))
+    attachment.menus.tires_burst = menu.list(attachment.menus.vehicle_options_wheels_options, t("Burst Tires"), {}, t("Are tires burst"))
     if attachment.vehicle_attributes.wheels.tires_burst == nil then attachment.vehicle_attributes.wheels.tires_burst = {} end
     for _, tire_position in pairs(constants.tire_position_names) do
         menu.toggle(attachment.menus.tires_burst, tire_position.name, {}, "", function(value)
@@ -2112,7 +2343,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end, attachment.vehicle_attributes.wheels.tires_burst["_"..tire_position.index])
     end
 
-    attachment.menus.tires_detach = menu.list(attachment.menus.vehicle_options, t("Detach Wheels"), {}, t("Detach wheels from construct"))
+    attachment.menus.tires_detach = menu.list(attachment.menus.vehicle_options_wheels_options, t("Detach Wheels"), {}, t("Detach wheels from construct"))
     if attachment.vehicle_attributes.wheels.detached == nil then attachment.vehicle_attributes.wheels.detached = {} end
     for _, tire_position in pairs(constants.detached_wheel_names) do
         menu.toggle(attachment.menus.tires_detach, tire_position.name, {}, "", function(value)
@@ -2122,7 +2353,15 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end, attachment.vehicle_attributes.wheels.detached["_"..tire_position.index])
     end
 
-    attachment.menus.broken_doors = menu.list(attachment.menus.vehicle_options, t("Broken Doors"), {}, t("Remove doors and trunks"))
+    --- Door Options
+    attachment.menus.vehicle_options_door_options = menu.list(attachment.menus.vehicle_options, t("Door Options"), {}, t("Options about the vehicles doors"))
+
+    menu.list_select(attachment.menus.vehicle_options_door_options, t("Door Lock Status"), {}, t("Vehicle door locks"), constants.door_lock_status, attachment.vehicle_attributes.doors.lock_status or 1, function(value)
+        attachment.vehicle_attributes.doors.lock_status = value
+        constructor_lib.deserialize_vehicle_doors(attachment)
+    end)
+
+    attachment.menus.broken_doors = menu.list(attachment.menus.vehicle_options_door_options, t("Broken Doors"), {}, t("Remove doors and trunks"))
     attachment.menus.option_doors_broken_frontleft = menu.action(attachment.menus.broken_doors, t("Break Door: Front Left"), {}, t("Remove door."), function()
         attachment.vehicle_attributes.doors.broken.frontleft = true
         constructor_lib.deserialize_vehicle_doors(attachment)
@@ -2152,7 +2391,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_doors(attachment)
     end)
 
-    attachment.menus.windows = menu.list(attachment.menus.vehicle_options, t("Windows Rolled Down"), {}, t("Roll up and down windows"))
+    attachment.menus.windows = menu.list(attachment.menus.vehicle_options_door_options, t("Windows Rolled Down"), {}, t("Roll up and down windows"))
     for window_index = 1, 8 do
         local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
         menu.toggle(attachment.menus.windows, t("Window Rolled Down: ")..window_name, {}, t("Roll down the window."), function(on)
@@ -2161,7 +2400,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         end, attachment.vehicle_attributes.windows.rolled_down[window_name])
     end
 
-    attachment.menus.windows = menu.list(attachment.menus.vehicle_options, t("Windows Broken"), {}, t("Roll up and down windows"))
+    attachment.menus.windows = menu.list(attachment.menus.vehicle_options_door_options, t("Windows Broken"), {}, t("Roll up and down windows"))
     for window_index = 1, 8 do
         local window_name = constructor_lib.WINDOW_INDEX_NAMES[window_index]
         menu.toggle(attachment.menus.windows, t("Window Broken: ")..window_name, {}, t("Break the window."), function(on)
@@ -2169,6 +2408,31 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             constructor_lib.deserialize_vehicle_windows(attachment)
         end, attachment.vehicle_attributes.windows.rolled_down[window_name])
     end
+
+    --- Radio Options
+    attachment.menus.vehicle_options_radio_options = menu.list(attachment.menus.vehicle_options, t("Radio Options"), {}, t("Options about the vehicles radio"))
+
+    menu.list_select(attachment.menus.vehicle_options_radio_options, t("Radio Station"), {}, "", constants.radio_station_names, 1, function(value)
+        attachment.vehicle_attributes.options.radio_station = constants.radio_station_codes[value]
+        constructor_lib.deserialize_vehicle_options(attachment)
+    end)
+    menu.toggle(attachment.menus.vehicle_options_radio_options, t("Radio Loud"), {}, t("If enabled, vehicle radio will play loud enough to be heard outside the vehicle."), function(toggle)
+        attachment.vehicle_attributes.options.radio_loud = toggle
+        constructor_lib.deserialize_vehicle_options(attachment)
+    end, attachment.vehicle_attributes.options.radio_loud)
+
+    --- Siren Options
+    attachment.menus.vehicle_options_siren_options = menu.list(attachment.menus.vehicle_options, t("Siren Options"), {}, t("Options about the vehicles siren"))
+
+    menu.list_select(attachment.menus.vehicle_options_siren_options, t("Sirens"), {}, "", { t("Off"), t("Lights Only"), t("Sirens and Lights") }, 1, function(value)
+        local previous_siren_status = attachment.options.siren_status
+        attachment.options.siren_status = value
+        refresh_siren_status(attachment, previous_siren_status)
+    end)
+
+    menu.toggle(attachment.menus.vehicle_options_siren_options, t("Siren Control"), {}, t("If enabled, and this vehicle has a siren, then siren controls will effect this vehicle. Has no effect on vehicles without a siren."), function(value)
+        attachment.options.has_siren = value
+    end, attachment.options.has_siren)
 
 end
 
@@ -2725,10 +2989,10 @@ constructor.add_attachment_delete_attachment_option = function(attachment)
         if #attachment.children > 0 then
             debug_log("Show warning "..attachment.name)
             menu.show_warning(attachment.menus.main, CLICK_COMMAND, t("Are you sure you want to delete this construct? ")..#attachment.children..t(" children will also be deleted."), function()
-                constructor.delete_construct(attachment)
+                constructor.delete_spawned_construct(attachment)
             end)
         else
-            constructor.delete_construct(attachment)
+            constructor.delete_spawned_construct(attachment)
         end
     end)
 end
@@ -2743,7 +3007,7 @@ end
 menus.rebuild_attachment_menu = function(attachment)
     if constructor_lib.is_attachment_entity(attachment) and (not attachment.handle) then error("Attachment missing handle "..tostring(attachment.name)) end
     if attachment.menus ~= nil then return end
-    debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
+    --debug_log("Rebuilding attachment menu "..tostring(attachment.name), attachment)
     attachment.menus = {}
 
     local parent_menu
@@ -2867,9 +3131,10 @@ menu.divider(menus.create_new_construct, t("Structure (Map)"))
 
 menu.action(menus.create_new_construct, t("From New Construction Cone"), { "constructcreatestructure"}, t("Create a new stationary construct"), function()
     local construct_plan = {
-        model = "prop_air_conelight",
+        model = "prop_roadcone01b",
         options = {
             is_frozen = true,
+            is_networked = false,
             has_collision = false,
             alpha = 205,
         },
@@ -3128,6 +3393,10 @@ players.dispatch_on_join()
 ---
 
 menus.loaded_constructs = menu.list(menu.my_root(), t("Loaded Constructs").." ("..#spawned_constructs..")", {}, t("View and edit already loaded constructs"))
+
+menu.action(menus.loaded_constructs, t("Delete all loaded constructs"), {}, "", function()
+    delete_all_constructs()
+end)
 menus.refresh_loaded_constructs = function()
     menu.set_menu_name(menus.loaded_constructs, t("Loaded Constructs").." ("..#spawned_constructs..")")
 end
@@ -3202,6 +3471,23 @@ end)
 local script_meta_menu = menu.list(menu.my_root(), t("Script Meta"), {}, t("Information and options about the Constructor script itself."))
 menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
+menu.toggle(script_meta_menu, t("Auto-Update"), {}, t("Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."), function()  end, config.auto_update)
+menu.list_select(script_meta_menu, t("Release Branch"), {}, t("Switch from main to dev to get cutting edge updates, but also potentially more bugs."), AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
+    if click_type ~= 0 then return end
+    auto_update_config.switch_to_branch = AUTO_UPDATE_BRANCHES[index][1]
+    auto_update_config.check_interval = 0
+    auto_updater.run_auto_update(auto_update_config)
+end)
+menu.action(script_meta_menu, t("Check for Update"), {}, t("The script will automatically check for updates at most daily, but you can manually check using this option anytime."), function()
+    auto_update_config.check_interval = 0
+    if auto_updater.run_auto_update(auto_update_config) then
+        util.toast(t("No updates found"))
+    end
+end)
+menu.action(script_meta_menu, t("Clean Reinstall"), {}, t("Force an update to the latest version, regardless of current version."), function()
+    auto_update_config.clean_reinstall = true
+    auto_updater.run_auto_update(auto_update_config)
+end)
 menu.hyperlink(script_meta_menu, t("Github Source"), "https://github.com/hexarobi/stand-lua-constructor", t("View source files on Github"))
 menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/2u5HbHPB9y", t("Open Discord Server"))
 
