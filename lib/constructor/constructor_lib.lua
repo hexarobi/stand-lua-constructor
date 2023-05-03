@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.36"
+local SCRIPT_VERSION = "0.37b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -54,11 +54,15 @@ constructor_lib.construct_base = {
 ---
 
 local function t(text)
-    return CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+    if CONSTRUCTOR_TRANSLATE_FUNCTION ~= nil then
+        return CONSTRUCTOR_TRANSLATE_FUNCTION(text)
+    else
+        return text
+    end
 end
 
 local function debug_log(message, additional_details)
-    if CONSTRUCTOR_CONFIG.debug_mode then
+    if CONSTRUCTOR_CONFIG ~= nil and CONSTRUCTOR_CONFIG.debug_mode then
         if CONSTRUCTOR_CONFIG.debug_mode == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
@@ -172,7 +176,7 @@ local function ensure_unique_id(attachment)
 end
 
 constructor_lib.default_attachment_attributes = function(attachment)
-    debug_log("Defaulting attachment attributes "..tostring(attachment.name))
+    --debug_log("Defaulting attachment attributes "..tostring(attachment.name))
     ensure_unique_id(attachment)
     if attachment.children == nil then attachment.children = {} end
     if attachment.temp == nil then attachment.temp = {} end
@@ -186,7 +190,7 @@ constructor_lib.default_attachment_attributes = function(attachment)
 end
 
 constructor_lib.default_entity_attributes = function(attachment)
-    debug_log("Defaulting entity attributes "..tostring(attachment.name))
+    --debug_log("Defaulting entity attributes "..tostring(attachment.name))
     constructor_lib.serialize_hash_and_model(attachment)
     if attachment.name == nil then attachment.name = attachment.model end
     if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
@@ -227,8 +231,8 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
     if attachment.options.object_tint == nil then attachment.options.object_tint = 0 end
     if attachment.options.is_attached == nil then attachment.options.is_attached = (not constructor_lib.is_attachment_root(attachment)) end
-    if attachment.options.is_frozen == nil and attachment.options.is_attached ~= true and attachment.type == "OBJECT" then
-        attachment.options.is_frozen = true
+    if attachment.options.is_frozen == nil then
+        attachment.options.is_frozen = attachment.options.is_attached ~= true and attachment.type == "OBJECT"
     end
     if attachment == attachment.parent then
         if attachment.blip_sprite == nil then attachment.blip_sprite = 1 end
@@ -325,10 +329,10 @@ constructor_lib.attach_entity = function(attachment)
             else
                 debug_log("Attaching entity to entity "..tostring(attachment.name))
                 ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                        attachment.handle, attachment.parent.handle, attachment.options.bone_index,
-                        attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
-                        attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                        false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, attachment.rotation_order, true
+                    attachment.handle, attachment.parent.handle, attachment.options.bone_index,
+                    attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
+                    attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
+                    false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, attachment.rotation_order, true
                 )
             end
         end
@@ -656,7 +660,7 @@ constructor_lib.create_entity = function(attachment)
 end
 
 constructor_lib.reattach_attachment_with_children = function(attachment)
-    debug_log("Reattaching attachment with children "..tostring(attachment.name))
+    --debug_log("Reattaching attachment with children "..tostring(attachment.name))
     constructor_lib.validate_children(attachment)
     constructor_lib.create_entity(attachment)
     for index, child_attachment in pairs(attachment.children) do
@@ -784,15 +788,9 @@ constructor_lib.remove_attachment = function(attachment)
         constructor_lib.delete_attachment(attachment)
         debug_log("Removed attachment. "..tostring(attachment.name))
     end
-    if attachment.menus then
-        for _, attachment_menu in pairs(attachment.menus) do
-            -- Sometimes these menu handles are invalid but I don't know why,
-            -- so wrap them in pcall to avoid errors if delete fails
-            if attachment_menu:isValid() then
-                debug_log("Deleting attachment menu ".._.." "..tostring(attachment_menu))
-                menu.delete(attachment_menu)
-            end
-        end
+    if attachment.menus ~= nil and attachment.menus.main ~= nil and attachment.menus.main:isValid()  then
+        --debug_log("Deleting attachment main menu "..tostring(attachment.menus.main))
+        menu.delete(attachment.menus.main)
     end
 end
 
@@ -867,7 +865,7 @@ end
 ---
 
 constructor_lib.load_hash = function(hash, timeout)
-    if timeout == nil then timeout = 3000 end
+    if timeout == nil then timeout = 6000 end
     STREAMING.REQUEST_MODEL(hash)
     local end_time = util.current_time_millis() + timeout
     repeat util.yield() until STREAMING.HAS_MODEL_LOADED(hash) or util.current_time_millis() >= end_time
@@ -875,7 +873,7 @@ constructor_lib.load_hash = function(hash, timeout)
 end
 
 constructor_lib.load_particle_fx_asset = function(asset, timeout)
-    if timeout == nil then timeout = 3000 end
+    if timeout == nil then timeout = 6000 end
     STREAMING.REQUEST_NAMED_PTFX_ASSET(asset)
     local end_time = util.current_time_millis() + timeout
     repeat util.yield() until STREAMING.HAS_NAMED_PTFX_ASSET_LOADED(asset) or util.current_time_millis() >= end_time
@@ -883,7 +881,7 @@ constructor_lib.load_particle_fx_asset = function(asset, timeout)
 end
 
 constructor_lib.load_animation_dictionary = function(dictionary, timeout)
-    if timeout == nil then timeout = 3000 end
+    if timeout == nil then timeout = 6000 end
     STREAMING.REQUEST_ANIM_DICT(dictionary)
     local end_time = util.current_time_millis() + timeout
     repeat util.yield() until STREAMING.HAS_ANIM_DICT_LOADED(dictionary) or util.current_time_millis() >= end_time
@@ -901,7 +899,7 @@ constructor_lib.load_hash_for_attachment = function(attachment)
     else
         attachment.type = "OBJECT"
     end
-    debug_log("Loading hash: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]")
+    --debug_log("Loading hash: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]")
     constructor_lib.load_hash(attachment.hash)
     return true
 end
@@ -1254,7 +1252,7 @@ end
 
 constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
-    debug_log("Defaulting vehicle attributes "..tostring(vehicle.name))
+    --debug_log("Defaulting vehicle attributes "..tostring(vehicle.name))
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.paint == nil then vehicle.vehicle_attributes.paint = {} end
     if vehicle.vehicle_attributes.paint.primary == nil then vehicle.vehicle_attributes.paint.primary = {} end
@@ -1266,7 +1264,7 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes.paint.extra_colors == nil then vehicle.vehicle_attributes.paint.extra_colors = {} end
     if vehicle.vehicle_attributes.neon == nil then vehicle.vehicle_attributes.neon = {} end
     if vehicle.vehicle_attributes.neon.lights == nil then vehicle.vehicle_attributes.neon.lights = {} end
-    if vehicle.vehicle_attributes.neon.color == nil then vehicle.vehicle_attributes.neon.color = {} end
+    if vehicle.vehicle_attributes.neon.color == nil then vehicle.vehicle_attributes.neon.color = {r=255, g=0, b=0} end
     if vehicle.vehicle_attributes.wheels == nil then vehicle.vehicle_attributes.wheels = {} end
     if vehicle.vehicle_attributes.wheels.tires_burst == nil then vehicle.vehicle_attributes.wheels.tires_burst = {} end
     if vehicle.vehicle_attributes.wheels.tire_smoke_color == nil then vehicle.vehicle_attributes.wheels.tire_smoke_color = {} end
@@ -1492,6 +1490,14 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
     end
 end
 
+constructor_lib.is_any_neon_enabled = function(vehicle)
+    if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.neon == nil or vehicle.vehicle_attributes.neon.lights == nil then
+        return false
+    end
+    return (vehicle.vehicle_attributes.neon.lights.left or vehicle.vehicle_attributes.neon.lights.right
+            or vehicle.vehicle_attributes.neon.lights.front or vehicle.vehicle_attributes.neon.lights.back)
+end
+
 constructor_lib.serialize_vehicle_neon = function(vehicle)
     if vehicle.vehicle_attributes == nil then vehicle.vehicle_attributes = {} end
     if vehicle.vehicle_attributes.neon == nil then vehicle.vehicle_attributes.neon = {} end
@@ -1502,8 +1508,7 @@ constructor_lib.serialize_vehicle_neon = function(vehicle)
         back = VEHICLE.GET_VEHICLE_NEON_ENABLED(vehicle.handle, 3),
     }
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
-    if (vehicle.vehicle_attributes.neon.lights.left or vehicle.vehicle_attributes.neon.lights.right
-            or vehicle.vehicle_attributes.neon.lights.front or vehicle.vehicle_attributes.neon.lights.back) then
+    if constructor_lib.is_any_neon_enabled(vehicle) then
         VEHICLE.GET_VEHICLE_NEON_COLOUR(vehicle.handle, color.r, color.g, color.b)
         vehicle.vehicle_attributes.neon.color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
     end
@@ -1512,11 +1517,17 @@ end
 
 constructor_lib.deserialize_vehicle_neon = function(vehicle)
     if vehicle.vehicle_attributes == nil or vehicle.vehicle_attributes.neon == nil then return end
-    if vehicle.vehicle_attributes.neon.lights then
+    if vehicle.vehicle_attributes.neon.lights ~= nil then
         VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 0, vehicle.vehicle_attributes.neon.lights.left or false)
         VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 1, vehicle.vehicle_attributes.neon.lights.right or false)
         VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 2, vehicle.vehicle_attributes.neon.lights.front or false)
         VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 3, vehicle.vehicle_attributes.neon.lights.back or false)
+        if vehicle.vehicle_attributes.neon.lights.all == true then
+            VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 0, true)
+            VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 1, true)
+            VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 2, true)
+            VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 3, true)
+        end
     end
     if vehicle.vehicle_attributes.neon.color then
         VEHICLE.SET_VEHICLE_NEON_COLOUR(
@@ -1835,6 +1846,9 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
         if (VEHICLE.GET_VEHICLE_CLASS(vehicle.handle) == 15 or VEHICLE.GET_VEHICLE_CLASS(vehicle.handle) == 16) then
             VEHICLE.SET_HELI_BLADES_FULL_SPEED(vehicle.handle)
         end
+    end
+    if vehicle.vehicle_attributes.options.radio_station ~= nil then
+        AUDIO.SET_VEH_RADIO_STATION(vehicle.handle, vehicle.vehicle_attributes.options.radio_station)
     end
     if vehicle.vehicle_attributes.options.doors_locked ~= nil then
         VEHICLE.SET_VEHICLE_DOORS_LOCKED(vehicle.handle, vehicle.vehicle_attributes.options.doors_locked or false)
