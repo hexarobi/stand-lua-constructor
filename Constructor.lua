@@ -3275,23 +3275,6 @@ end)
 local script_meta_menu = menu.list(menu.my_root(), t("Script Meta"), {}, t("Information and options about the Constructor script itself."))
 menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
-menu.toggle(script_meta_menu, t("Auto-Update"), {}, t("Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."), function()  end, config.auto_update)
-menu.list_select(script_meta_menu, t("Release Branch"), {}, t("Switch from main to dev to get cutting edge updates, but also potentially more bugs."), AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
-    if click_type ~= 0 then return end
-    auto_update_config.switch_to_branch = AUTO_UPDATE_BRANCHES[index][1]
-    auto_update_config.check_interval = 0
-    auto_updater.run_auto_update(auto_update_config)
-end)
-menu.action(script_meta_menu, t("Check for Update"), {}, t("The script will automatically check for updates at most daily, but you can manually check using this option anytime."), function()
-    auto_update_config.check_interval = 0
-    if auto_updater.run_auto_update(auto_update_config) then
-        util.toast(t("No updates found"))
-    end
-end)
-menu.action(script_meta_menu, t("Clean Reinstall"), {}, t("Force an update to the latest version, regardless of current version."), function()
-    auto_update_config.clean_reinstall = true
-    auto_updater.run_auto_update(auto_update_config)
-end)
 menu.hyperlink(script_meta_menu, t("Github Source"), "https://github.com/hexarobi/stand-lua-constructor", t("View source files on Github"))
 menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/2u5HbHPB9y", t("Open Discord Server"))
 
