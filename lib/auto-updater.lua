@@ -1,4 +1,4 @@
--- Auto-Updater v2.5.8
+-- Auto-Updater v2.5.9
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -269,6 +269,9 @@ end
 local function get_default_branch(auto_update_config)
     local user, project = parse_github_user_and_project(auto_update_config.project_url)
     local response = fetch_json("https://api.github.com/repos/"..user.."/"..project.."/branches")
+    if response[1] == nil then
+        error("Error fetching project default branch. Make sure the project URL is correct, and use CloudFlare DNS 1.1.1.1")
+    end
     return response[1].name
 end
 
