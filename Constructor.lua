@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.38b1"
+local SCRIPT_VERSION = "0.38b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -277,7 +277,6 @@ end
 
 ---
 --- Translations
----
 
 -- Shorthand wrapper for translation function
 local function t(text)
@@ -2491,6 +2490,18 @@ local function create_ped_prop_menu(attachment, root_menu, index, name)
     end)
 end
 
+
+local function create_ped_head_overlays_menu(attachment, root_menu, ped_head_overlay)
+    local index = ped_head_overlay.overlay_id
+    local name = ped_head_overlay.name
+    local head_value = attachment.ped_attributes.head_overlays["_"..index]
+    attachment.menus["ped_head_overlay_"..index] = menu.slider(root_menu, name, {}, "", -1, ped_head_overlay.max_index, head_value or -1, 1, function(value)
+        attachment.ped_attributes.head_overlays["_"..index] = value
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end)
+end
+
+
 local function refresh_current_animation(attachment)
     local current_animation_name = "None"
     local current_refresh_timer = 0
@@ -2554,6 +2565,16 @@ constructor.add_attachment_ped_menu = function(attachment)
     for _, ped_prop in pairs(constants.ped_props) do
         create_ped_prop_menu(attachment, attachment.menus.ped_options_props, ped_prop.index, ped_prop.name)
     end
+
+    attachment.menus.ped_options_head_overlays = menu.list(attachment.menus.ped_options, t("Head Overlays"))
+    for _, ped_head_overlay in pairs(constants.ped_head_overlays) do
+        create_ped_head_overlays_menu(attachment, attachment.menus.ped_options_head_overlays, ped_head_overlay)
+    end
+
+    attachment.menus.ped_eye_color = menu.slider(attachment.menus.ped_options, "Eye Color", {}, "", -1, 31, attachment.ped_attributes.eye_color or -1, 1, function(value)
+        attachment.ped_attributes.eye_color = value
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end)
 
     attachment.menus.ped_options_animation = menu.list(attachment.menus.ped_options, t("Animation"), {}, t("Configure animation options"), function()
         refresh_current_animation(attachment)
