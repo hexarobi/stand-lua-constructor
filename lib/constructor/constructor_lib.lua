@@ -1869,6 +1869,7 @@ constructor_lib.default_ped_attributes = function(attachment)
     if attachment.ped_attributes.armor == nil then attachment.ped_attributes.armor = 0 end
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
     if attachment.ped_attributes.components == nil then attachment.ped_attributes.components = {} end
+    if attachment.ped_attributes.head_overlays == nil then attachment.ped_attributes.head_overlays = {} end
     if attachment.ped_attributes.weapon == nil then attachment.ped_attributes.weapon = {} end
     if attachment.ped_attributes.seat == nil then attachment.ped_attributes.seat = -3 end
     if attachment.ped_attributes.ignore_events == nil then attachment.ped_attributes.ignore_events = true end
@@ -1906,6 +1907,10 @@ constructor_lib.serialize_ped_attributes = function(attachment)
             texture_variation = PED.GET_PED_TEXTURE_VARIATION(attachment.handle, index),
             palette_variation = PED.GET_PED_PALETTE_VARIATION(attachment.handle, index),
         }
+    end
+    for _, ped_head_overlay in pairs(constants.ped_head_overlays) do
+        local index = ped_head_overlay.overlay_id
+        attachment.ped_attributes.head_overlays["_"..index] = PED.GET_PED_HEAD_OVERLAY(attachment.handle, index)
     end
 end
 
@@ -2002,6 +2007,16 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
                 )
                 component.num_drawable_variations = PED.GET_NUMBER_OF_PED_DRAWABLE_VARIATIONS(attachment.handle, index) - 1
                 component.num_texture_variations = PED.GET_NUMBER_OF_PED_TEXTURE_VARIATIONS(attachment.handle, index, attachment.ped_attributes.components["_".. index].drawable_variation) - 1
+            end
+        end
+    end
+    if attachment.ped_attributes.head_overlays ~= nil then
+        for _, ped_head_overlay in pairs(constants.ped_head_overlays) do
+            local index = ped_head_overlay.overlay_id
+            local value = attachment.ped_attributes.head_overlays["_".. index]
+            if value ~= nil then
+                if value == -1 then value = 255 end
+                PED.SET_PED_HEAD_OVERLAY(attachment.handle, value)
             end
         end
     end
