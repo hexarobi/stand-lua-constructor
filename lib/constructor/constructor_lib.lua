@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37"
+local SCRIPT_VERSION = "0.38b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1869,6 +1869,7 @@ constructor_lib.default_ped_attributes = function(attachment)
     if attachment.ped_attributes.armor == nil then attachment.ped_attributes.armor = 0 end
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
     if attachment.ped_attributes.components == nil then attachment.ped_attributes.components = {} end
+    if attachment.ped_attributes.head_overlays == nil then attachment.ped_attributes.head_overlays = {} end
     if attachment.ped_attributes.weapon == nil then attachment.ped_attributes.weapon = {} end
     if attachment.ped_attributes.seat == nil then attachment.ped_attributes.seat = -3 end
     if attachment.ped_attributes.ignore_events == nil then attachment.ped_attributes.ignore_events = true end
@@ -1907,6 +1908,13 @@ constructor_lib.serialize_ped_attributes = function(attachment)
             palette_variation = PED.GET_PED_PALETTE_VARIATION(attachment.handle, index),
         }
     end
+    for _, ped_head_overlays in pairs(constants.ped_head_overlays) do
+        local index = ped_head_overlays.overlay_id
+        local value = PED.GET_PED_HEAD_OVERLAY(attachment.handle, index)
+        if value == 255 then value = -1 end
+        attachment.ped_attributes.head_overlays["_"..index] = value
+    end
+    attachment.ped_attributes.eye_color = PED.GET_HEAD_BLEND_EYE_COLOR(attachment.handle)
 end
 
 constructor_lib.deserialize_ped_weapon = function(attachment)
@@ -2004,6 +2012,19 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
                 component.num_texture_variations = PED.GET_NUMBER_OF_PED_TEXTURE_VARIATIONS(attachment.handle, index, attachment.ped_attributes.components["_".. index].drawable_variation) - 1
             end
         end
+    end
+    if attachment.ped_attributes.head_overlays ~= nil then
+        for _, ped_head_overlays in pairs(constants.ped_head_overlays) do
+            local index = ped_head_overlays.overlay_id
+            local value = attachment.ped_attributes.head_overlays["_".. index]
+            if value ~= nil then
+                if value == -1 then value = 255 end
+                PED.SET_PED_HEAD_OVERLAY(attachment.handle, index, value, 1.0)
+            end
+        end
+    end
+    if attachment.ped_attributes.eye_color ~= nil then
+        PED.SET_HEAD_BLEND_EYE_COLOR(attachment.handle, attachment.ped_attributes.eye_color)
     end
     constructor_lib.animate_peds(attachment)
 end
