@@ -1084,7 +1084,7 @@ local function clear_free_edit_attachment()
         if config.free_edit_parent then
             constructor_lib.serialize_entity_attributes(config.free_edit_attachment)
             constructor_lib.join_attachments(config.free_edit_parent, config.free_edit_attachment)
-            constructor.refresh_position_menu(config.free_edit_attachment)
+            constructor_lib.update_attachment_position(config.free_edit_attachment)
         end
         ENTITY.FREEZE_ENTITY_POSITION(config.free_edit_attachment.root.handle, false)
         config.free_edit_attachment = nil
@@ -1114,7 +1114,7 @@ local function clear_gizmo_attachment()
         if config.gizmo_parent then
             constructor_lib.serialize_entity_attributes(config.gizmo_attachment)
             constructor_lib.join_attachments(config.gizmo_parent, config.gizmo_attachment)
-            constructor.refresh_position_menu(config.gizmo_attachment)
+            constructor_lib.update_attachment_position(config.gizmo_attachment)
         end
         ENTITY.FREEZE_ENTITY_POSITION(config.gizmo_attachment.root.handle, false)
         --config.gizmo_attachment = nil
