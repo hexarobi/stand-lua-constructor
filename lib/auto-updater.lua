@@ -1,4 +1,4 @@
--- Auto-Updater v2.5.10
+-- Auto-Updater v2.5.11
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -453,9 +453,7 @@ local function is_due_for_update_check(auto_update_config)
 end
 
 local function is_update_disabled()
-    local disable_internet_access_menu = menu.ref_by_path("Stand>Lua Scripts>Settings>Disable Internet Access")
-    if not disable_internet_access_menu then util.toast("Could not find disable_internet_access_menu") end
-    return disable_internet_access_menu.value
+    return not async_http.have_access()
 end
 
 ---
