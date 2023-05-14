@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.38b2"
+local SCRIPT_VERSION = "0.38b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -63,7 +63,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = true,
+    debug_mode = false,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -1084,7 +1084,7 @@ local function clear_free_edit_attachment()
         if config.free_edit_parent then
             constructor_lib.serialize_entity_attributes(config.free_edit_attachment)
             constructor_lib.join_attachments(config.free_edit_parent, config.free_edit_attachment)
-            constructor.refresh_position_menu(config.free_edit_attachment)
+            constructor_lib.update_attachment_position(config.free_edit_attachment)
         end
         ENTITY.FREEZE_ENTITY_POSITION(config.free_edit_attachment.root.handle, false)
         config.free_edit_attachment = nil
@@ -1114,7 +1114,7 @@ local function clear_gizmo_attachment()
         if config.gizmo_parent then
             constructor_lib.serialize_entity_attributes(config.gizmo_attachment)
             constructor_lib.join_attachments(config.gizmo_parent, config.gizmo_attachment)
-            constructor.refresh_position_menu(config.gizmo_attachment)
+            constructor_lib.update_attachment_position(config.gizmo_attachment)
         end
         ENTITY.FREEZE_ENTITY_POSITION(config.gizmo_attachment.root.handle, false)
         --config.gizmo_attachment = nil
