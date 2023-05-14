@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37"
+local SCRIPT_VERSION = "0.38b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1895,6 +1895,7 @@ constructor_lib.serialize_ped_attributes = function(attachment)
     debug_log("Serializing ped attributes "..tostring(attachment.name))
     constructor_lib.default_ped_attributes(attachment)
     constructor_lib.serialize_hash_and_model(attachment)
+    attachment.ped_attributes.max_health = ENTITY.GET_ENTITY_MAX_HEALTH(attachment.handle)
     for index = 0, 9 do
         attachment.ped_attributes.props["_"..index] = {
             drawable_variation = PED.GET_PED_PROP_INDEX(attachment.handle, index),
@@ -1908,10 +1909,13 @@ constructor_lib.serialize_ped_attributes = function(attachment)
             palette_variation = PED.GET_PED_PALETTE_VARIATION(attachment.handle, index),
         }
     end
-    for _, ped_head_overlay in pairs(constants.ped_head_overlays) do
-        local index = ped_head_overlay.overlay_id
-        attachment.ped_attributes.head_overlays["_"..index] = PED.GET_PED_HEAD_OVERLAY(attachment.handle, index)
+    for _, ped_head_overlays in pairs(constants.ped_head_overlays) do
+        local index = ped_head_overlays.overlay_id
+        local value = PED.GET_PED_HEAD_OVERLAY(attachment.handle, index)
+        if value == 255 then value = -1 end
+        attachment.ped_attributes.head_overlays["_"..index] = value
     end
+    attachment.ped_attributes.eye_color = PED.GET_HEAD_BLEND_EYE_COLOR(attachment.handle)
 end
 
 constructor_lib.deserialize_ped_weapon = function(attachment)
@@ -1951,6 +1955,9 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
         PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
     end
     constructor_lib.deserialize_ped_weapon(attachment)
+    if attachment.ped_attributes.max_health then
+        ENTITY.SET_ENTITY_MAX_HEALTH(attachment.handle, attachment.ped_attributes.max_health)
+    end
     if attachment.ped_attributes.armour then
         PED.SET_PED_ARMOUR(attachment.handle, attachment.ped_attributes.armour)
     end
@@ -2011,14 +2018,17 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
         end
     end
     if attachment.ped_attributes.head_overlays ~= nil then
-        for _, ped_head_overlay in pairs(constants.ped_head_overlays) do
-            local index = ped_head_overlay.overlay_id
+        for _, ped_head_overlays in pairs(constants.ped_head_overlays) do
+            local index = ped_head_overlays.overlay_id
             local value = attachment.ped_attributes.head_overlays["_".. index]
             if value ~= nil then
                 if value == -1 then value = 255 end
-                PED.SET_PED_HEAD_OVERLAY(attachment.handle, value)
+                PED.SET_PED_HEAD_OVERLAY(attachment.handle, index, value, 1.0)
             end
         end
+    end
+    if attachment.ped_attributes.eye_color ~= nil then
+        PED.SET_HEAD_BLEND_EYE_COLOR(attachment.handle, attachment.ped_attributes.eye_color)
     end
     constructor_lib.animate_peds(attachment)
 end
