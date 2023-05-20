@@ -1,4 +1,4 @@
--- Auto-Updater v2.5.11
+-- Auto-Updater v2.6
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -146,12 +146,35 @@ end
 ---
 
 local function force_full_restart(auto_update_config)
-    local script_body = "util.yield(50) menu.trigger_commands(\"lua"..auto_update_config.script_run_name.."\")\
-                        io.remove(filesystem.scripts_dir()..SCRIPT_RELPATH) util.stop_script()"
+    local menu_script_path = "Stand>Lua Scripts>"..auto_update_config.script_name
+    if not menu.is_ref_valid(menu.ref_by_path(menu_script_path)) then
+        error("Failed to restart. Menu script path is invalid.")
+    end
+    local script_body = "\
+util.yield(50)\
+local script_stop_command_ref = menu.ref_by_path(\""..menu_script_path..">Stop Script\")\
+if menu.is_ref_valid(script_stop_command_ref) then\
+    menu.focus(script_stop_command_ref)\
+    util.yield(50)\
+    menu.trigger_command(script_stop_command_ref)\
+end\
+util.yield(50)\
+local script_command_ref = menu.ref_by_path(\""..menu_script_path..">Start Script\")\
+if menu.is_ref_valid(script_command_ref) then\
+    menu.focus(script_command_ref)\
+    util.yield(50)\
+  menu.trigger_command(script_command_ref)\
+end\
+--io.remove(filesystem.scripts_dir()..SCRIPT_RELPATH)\
+util.stop_script()\
+    "
     update_file(filesystem.scripts_dir().."\\restartscript.lua", script_body)
-    menu.trigger_command(menu.ref_by_path("Stand>Lua Scripts"))
-    util.yield(50)
-    menu.trigger_commands("luarestartscript")
+    local restart_script = menu.ref_by_path("Stand>Lua Scripts>restartscript>Start Script")
+    if menu.is_ref_valid(restart_script) then
+        menu.focus(restart_script)
+        util.yield(50)
+        menu.trigger_command(restart_script)
+    end
     util.stop_script()
 end
 
@@ -328,14 +351,17 @@ local function expand_auto_update_config(auto_update_config)
     if auto_update_config.script_filename == nil then
         auto_update_config.script_filename = ("/"..auto_update_config.script_relpath):match("^.*/(.+)$")
     end
+    if auto_update_config.script_name == nil then
+        auto_update_config.script_name = auto_update_config.script_filename:match(".-([^\\/]-%.?)[.]lua$")
+        if auto_update_config.script_name == nil then
+            auto_update_config.script_name = auto_update_config.script_filename:match(".-([^\\/]-%.?)[.]pluto$")
+        end
+    end
     if auto_update_config.name == nil then
         auto_update_config.name = auto_update_config.script_filename
     end
-    if auto_update_config.script_run_name == nil and auto_update_config.script_filename then
-        auto_update_config.script_run_name = build_script_run_name(auto_update_config.script_filename:match(".-([^\\/]-%.?)[.]lua$"))
-        if auto_update_config.script_run_name == nil then
-            auto_update_config.script_run_name = build_script_run_name(auto_update_config.script_filename:match(".-([^\\/]-%.?)[.]pluto"))
-        end
+    if auto_update_config.script_run_name == nil and auto_update_config.script_name then
+        auto_update_config.script_run_name = build_script_run_name(auto_update_config.script_name)
     end
     auto_update_config.script_reldirpath = ("/"..auto_update_config.script_relpath):match("^(.*)/[^/]+$")
     filesystem.mkdirs(filesystem.scripts_dir() .. auto_update_config.script_reldirpath)
@@ -481,7 +507,7 @@ function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
     debug_log("Running auto-update on "..auto_update_config.script_filename.."...", TOAST_ALL)
     if is_update_disabled() then
-        util.toast("Cannot auto-update due to disabled internet access. To enable auto-updates uncheck Stand > Lua Scripts > Settings > Disable Internet Access", TOAST_ALL)
+        util.toast("Cannot auto-update due to disabled internet access. To enable auto-updates uncheck Disable Internet Access for this script.", TOAST_ALL)
         return false
     end
     if not auto_update_config.is_dependency then util.set_busy(true) end
@@ -555,15 +581,15 @@ end
 --- Self-Update
 ---
 
-util.create_thread(function()
-    run_auto_update({
-        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
-        script_relpath="lib/auto-updater.lua",
-        auto_restart = false,
-        verify_file_begins_with="--",
-        check_interval = 86400,
-    })
-end)
+ util.create_thread(function()
+     run_auto_update({
+         source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
+         script_relpath="lib/auto-updater.lua",
+         auto_restart = false,
+         verify_file_begins_with="--",
+         check_interval = 86400,
+     })
+ end)
 
 ---
 --- Return Object
