@@ -986,6 +986,7 @@ end
 local function map_mapobject_placement(attachment, placement)
     --util.log("Processing "..inspect(placement))
     if attachment == nil then attachment = {} end
+    if attachment.options == nil then attachment.options = {} end
 
     attachment.hash = tonumber(placement.Hash)
     if attachment.model == nil and attachment.hash ~= nil then
