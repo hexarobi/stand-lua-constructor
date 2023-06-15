@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.38b3"
+local SCRIPT_VERSION = "0.38b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -63,7 +63,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = false,
+    debug_mode = true,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -130,7 +130,7 @@ local auto_update_config = {
         {
             name="iniparser",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/iniparser.lua",
-            script_relpath="lib/iniparser.lua",
+            script_relpath="lib/constructor/iniparser.lua",
             switch_to_branch=selected_branch,
             verify_file_begins_with="--",
             check_interval=default_check_interval,
