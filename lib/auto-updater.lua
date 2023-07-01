@@ -1,10 +1,10 @@
--- Auto-Updater v2.7
+-- Auto-Updater v2.7.1
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
 
 local config = {
-    debug_mode = true,
+    debug_mode = false,
     http_check_delay = 250,
     extraction_ignored_filenames = {
         "readme",
@@ -474,7 +474,9 @@ end
 
 local function is_due_for_update_check(auto_update_config)
     return (
-        auto_update_config.clean_reinstall == true
+        auto_update_config == nil
+        or auto_update_config.clean_reinstall == true
+        or auto_update_config.version_data == nil
         or auto_update_config.version_data.last_checked == nil
         or auto_update_config.check_interval == 0
         or ((util.current_unix_time_seconds() - auto_update_config.version_data.last_checked) > auto_update_config.check_interval)
