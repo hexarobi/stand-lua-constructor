@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.38b4"
+local SCRIPT_VERSION = "0.38b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -642,7 +642,7 @@ end
 local function calculate_camera_distance(attachment)
     if attachment.hash == nil then attachment.hash = util.joaat(attachment.model) end
     constructor_lib.load_hash_for_attachment(attachment)
-    local l, w, h = calculate_model_size(attachment.hash, minVec, maxVec)
+    local l, w, h = calculate_model_size(attachment.hash)
     attachment.camera_distance = math.max(l, w, h) + config.preview_camera_distance
     calculate_construct_size(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
@@ -2256,6 +2256,16 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_options(attachment)
     end, attachment.vehicle_attributes.engine_sound or "")
 
+    menu.slider(attachment.menus.vehicle_options_engine_options, t("Top Speed"), {"constructortopspeed"..attachment.id}, t("The top speed for the vehicle"), 1, 10000, attachment.vehicle_attributes.paint.top_speed or 1, 1, function(value)
+        attachment.vehicle_attributes.options.top_speed = value
+        constructor_lib.deserialize_vehicle_options(attachment)
+    end)
+
+    menu.slider_float(attachment.menus.vehicle_options_engine_options, t("Engine Power"), {"constructorenginepower"..attachment.id}, t("Additional torque boost"), -10000, 10000, math.floor((attachment.vehicle_attributes.paint.engine_power or 1) * 1000), 1, function(value)
+        attachment.vehicle_attributes.options.engine_power = value / 1000
+        constructor_lib.deserialize_vehicle_options(attachment)
+    end)
+
     --- Lights Options
     attachment.menus.vehicle_options_lights_options = menu.list(attachment.menus.vehicle_options, t("Lights Options"), {}, t("Options about the vehicles lights"))
 
@@ -2300,7 +2310,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
 
     attachment.menus.vehicle_options_wheel_color = menu.list(attachment.menus.vehicle_options_wheels_options, t("Wheel Color"), {}, t("Select from a list of wheel paint colors"))
     for _, standard_color in pairs(constants.standard_colors) do
-        menu.action(attachment.menus.vehicle_options_wheels_options, standard_color.name, {}, "", function()
+        menu.action(attachment.menus.vehicle_options_wheel_color, standard_color.name, {}, "", function()
             attachment.vehicle_attributes.paint.extra_colors.wheel = standard_color.index
             constructor_lib.deserialize_vehicle_paint(attachment)
         end)
@@ -2352,6 +2362,11 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             constructor_lib.deserialize_vehicle_wheels(attachment)
         end, attachment.vehicle_attributes.wheels.detached["_"..tire_position.index])
     end
+
+    menu.list_select(attachment.menus.vehicle_options_wheels_options, t("Landing Gear"), {}, t("For air vehicles with retractable landing gear"), constants.landing_gear_states, (attachment.vehicle_attributes.wheels.landing_gear_state or 0) + 1, function(value)
+        attachment.vehicle_attributes.wheels.landing_gear_state = value - 1
+        constructor_lib.deserialize_vehicle_wheels(attachment)
+    end)
 
     --- Door Options
     attachment.menus.vehicle_options_door_options = menu.list(attachment.menus.vehicle_options, t("Door Options"), {}, t("Options about the vehicles doors"))
@@ -2425,9 +2440,8 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     attachment.menus.vehicle_options_siren_options = menu.list(attachment.menus.vehicle_options, t("Siren Options"), {}, t("Options about the vehicles siren"))
 
     menu.list_select(attachment.menus.vehicle_options_siren_options, t("Sirens"), {}, "", { t("Off"), t("Lights Only"), t("Sirens and Lights") }, 1, function(value)
-        local previous_siren_status = attachment.options.siren_status
         attachment.options.siren_status = value
-        refresh_siren_status(attachment, previous_siren_status)
+        refresh_siren_status(attachment)
     end)
 
     menu.toggle(attachment.menus.vehicle_options_siren_options, t("Siren Control"), {}, t("If enabled, and this vehicle has a siren, then siren controls will effect this vehicle. Has no effect on vehicles without a siren."), function(value)
@@ -3490,7 +3504,7 @@ end)
 --- Script Meta Menu
 ---
 
-local script_meta_menu = menu.list(menu.my_root(), t("Script Meta"), {}, t("Information and options about the Constructor script itself."))
+local script_meta_menu = menu.list(menu.my_root(), t("About Constructor"), {}, t("Information and options about the Constructor script itself."))
 menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
 menu.toggle(script_meta_menu, t("Auto-Update"), {}, t("Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."), function()  end, config.auto_update)
