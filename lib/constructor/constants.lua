@@ -1,7 +1,14 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.38b1"
+local SCRIPT_VERSION = "0.38b2"
 local constants = {}
+
+constants.landing_gear_states = {
+    "Deployed",
+    "Closing",
+    "Opening",
+    "Retracted",
+}
 
 constants.ped_max_hair_tint = 63
 constants.ped_max_makeup_tint = 63
