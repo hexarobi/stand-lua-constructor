@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.37"
+local SCRIPT_VERSION = "0.38b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -854,6 +854,9 @@ constructor_lib.update_attachment_tick = function(attachment)
     if attachment.options ~= nil and attachment.options.is_frozen ~= nil then
         ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
     end
+    if attachment.vehicle_attributes ~= nil and attachment.vehicle_attributes.options ~= nil and attachment.vehicle_attributes.options.engine_power ~= nil then
+        VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, attachment.vehicle_attributes.options.engine_power)
+    end
     --constructor_lib.serialize_entity_position(attachment)
     constructor_lib.deserialize_vehicle_tick(attachment)
     constructor_lib.update_particle_tick(attachment)
@@ -1603,7 +1606,7 @@ constructor_lib.serialize_vehicle_wheels = function(vehicle)
     local color = { r = memory.alloc(8), g = memory.alloc(8), b = memory.alloc(8) }
     VEHICLE.GET_VEHICLE_TYRE_SMOKE_COLOR(vehicle.handle, color.r, color.g, color.b)
     vehicle.vehicle_attributes.wheels.tire_smoke_color = { r = memory.read_int(color.r), g = memory.read_int(color.g), b = memory.read_int(color.b) }
-    --memory.free(color)
+    --vehicle.vehicle_attributes.wheels.landing_gear_state = VEHICLE.GET_LANDING_GEAR_STATE(vehicle.handle)
 end
 
 constructor_lib.deserialize_vehicle_wheels = function(vehicle)
@@ -1641,6 +1644,9 @@ constructor_lib.deserialize_vehicle_wheels = function(vehicle)
     end
     if vehicle.vehicle_attributes.wheels.drift_tires ~= nil then
         VEHICLE.SET_VEHICLE_REDUCE_GRIP(vehicle.handle, vehicle.vehicle_attributes.wheels.drift_tires)
+    end
+    if vehicle.vehicle_attributes.wheels.landing_gear_state ~= nil then
+        VEHICLE.CONTROL_LANDING_GEAR(vehicle.handle, vehicle.vehicle_attributes.wheels.landing_gear_state)
     end
 end
 
@@ -1847,6 +1853,13 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
             VEHICLE.SET_HELI_BLADES_FULL_SPEED(vehicle.handle)
         end
     end
+    if vehicle.vehicle_attributes.options.top_speed ~= nil then
+        VEHICLE.MODIFY_VEHICLE_TOP_SPEED(vehicle.handle, vehicle.vehicle_attributes.options.top_speed)
+        ENTITY.SET_ENTITY_MAX_SPEED(vehicle.handle, vehicle.vehicle_attributes.options.top_speed)
+    end
+    if vehicle.vehicle_attributes.options.engine_power ~= nil then
+        VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(vehicle.handle, vehicle.vehicle_attributes.options.engine_power)
+    end
     if vehicle.vehicle_attributes.options.radio_station ~= nil then
         AUDIO.SET_VEH_RADIO_STATION(vehicle.handle, vehicle.vehicle_attributes.options.radio_station)
     end
@@ -1869,6 +1882,7 @@ constructor_lib.default_ped_attributes = function(attachment)
     if attachment.ped_attributes.armor == nil then attachment.ped_attributes.armor = 0 end
     if attachment.ped_attributes.props == nil then attachment.ped_attributes.props = {} end
     if attachment.ped_attributes.components == nil then attachment.ped_attributes.components = {} end
+    if attachment.ped_attributes.head_overlays == nil then attachment.ped_attributes.head_overlays = {} end
     if attachment.ped_attributes.weapon == nil then attachment.ped_attributes.weapon = {} end
     if attachment.ped_attributes.seat == nil then attachment.ped_attributes.seat = -3 end
     if attachment.ped_attributes.ignore_events == nil then attachment.ped_attributes.ignore_events = true end
@@ -1894,6 +1908,7 @@ constructor_lib.serialize_ped_attributes = function(attachment)
     debug_log("Serializing ped attributes "..tostring(attachment.name))
     constructor_lib.default_ped_attributes(attachment)
     constructor_lib.serialize_hash_and_model(attachment)
+    attachment.ped_attributes.max_health = ENTITY.GET_ENTITY_MAX_HEALTH(attachment.handle)
     for index = 0, 9 do
         attachment.ped_attributes.props["_"..index] = {
             drawable_variation = PED.GET_PED_PROP_INDEX(attachment.handle, index),
@@ -1907,6 +1922,13 @@ constructor_lib.serialize_ped_attributes = function(attachment)
             palette_variation = PED.GET_PED_PALETTE_VARIATION(attachment.handle, index),
         }
     end
+    for _, ped_head_overlays in pairs(constants.ped_head_overlays) do
+        local index = ped_head_overlays.overlay_id
+        local value = PED.GET_PED_HEAD_OVERLAY(attachment.handle, index)
+        if value == 255 then value = -1 end
+        attachment.ped_attributes.head_overlays["_"..index] = value
+    end
+    attachment.ped_attributes.eye_color = PED.GET_HEAD_BLEND_EYE_COLOR(attachment.handle)
 end
 
 constructor_lib.deserialize_ped_weapon = function(attachment)
@@ -1936,6 +1958,7 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
     if attachment.parent.type == "VEHICLE" then
         if attachment.ped_attributes.seat ~= -3 then    -- -3 is special value to mean unseated
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, attachment.ped_attributes.seat)
+            --debug_log("Setting ped into seat "..attachment.ped_attributes.seat)
         elseif PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
             TASK.TASK_LEAVE_VEHICLE(attachment.handle, attachment.parent.handle, 16)
             util.yield(100)
@@ -1946,6 +1969,9 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
         PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
     end
     constructor_lib.deserialize_ped_weapon(attachment)
+    if attachment.ped_attributes.max_health then
+        ENTITY.SET_ENTITY_MAX_HEALTH(attachment.handle, attachment.ped_attributes.max_health)
+    end
     if attachment.ped_attributes.armour then
         PED.SET_PED_ARMOUR(attachment.handle, attachment.ped_attributes.armour)
     end
@@ -2004,6 +2030,19 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
                 component.num_texture_variations = PED.GET_NUMBER_OF_PED_TEXTURE_VARIATIONS(attachment.handle, index, attachment.ped_attributes.components["_".. index].drawable_variation) - 1
             end
         end
+    end
+    if attachment.ped_attributes.head_overlays ~= nil then
+        for _, ped_head_overlays in pairs(constants.ped_head_overlays) do
+            local index = ped_head_overlays.overlay_id
+            local value = attachment.ped_attributes.head_overlays["_".. index]
+            if value ~= nil then
+                if value == -1 then value = 255 end
+                PED.SET_PED_HEAD_OVERLAY(attachment.handle, index, value, 1.0)
+            end
+        end
+    end
+    if attachment.ped_attributes.eye_color ~= nil then
+        PED.SET_HEAD_BLEND_EYE_COLOR(attachment.handle, attachment.ped_attributes.eye_color)
     end
     constructor_lib.animate_peds(attachment)
 end
