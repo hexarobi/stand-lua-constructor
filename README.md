@@ -6,10 +6,10 @@ Allows for creation of custom vehicles and maps using the in-game props and vehi
 
 ## Easy Install
 
-The current stable version of Constructor is available via the Stand Lua Script Respository at (Stand > Lua Scripts > Repository > Constructor).
+The current stable version of Constructor is available via the Stand Lua Script Respository at `Stand > Lua Scripts > Repository > Constructor`.
 This version is slightly slower to get updates, but is also less likely to have issues.
 
-Alternatively, you can use ScriptManager to Constructor (and many other scripts)
+Alternatively, you can use ScriptManager to install Constructor (and many other scripts)
 
 1. Download and install [ScriptManager](https://github.com/hexarobi/stand-lua-scriptmanager/raw/main/ScriptManagerInstaller.exe)
 2. In game, goto `Stand > Lua Scripts > ScriptManager > Install Scripts > Constructor > Install`
