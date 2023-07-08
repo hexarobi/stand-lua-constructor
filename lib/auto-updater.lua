@@ -1,4 +1,4 @@
--- Auto-Updater v2.7.1r
+-- Auto-Updater v2.8r
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -168,10 +168,19 @@ if menu.is_ref_valid(script_command_ref) then\
     util.yield(50)\
   menu.trigger_command(script_command_ref)\
 end\
---io.remove(filesystem.scripts_dir()..SCRIPT_RELPATH)\
+io.remove(filesystem.scripts_dir()..SCRIPT_RELPATH)\
 util.stop_script()\
     "
     update_file(filesystem.scripts_dir().."\\restartscript.lua", script_body)
+
+    local menu_item
+    menu_item = menu.ref_by_path("Stand>Lua Scripts")
+    if menu.is_ref_valid(menu_item) then
+        menu.focus(menu_item)
+        menu.trigger_command(menu_item)
+        util.yield(50)
+    end
+
     local restart_script = menu.ref_by_path("Stand>Lua Scripts>restartscript>Start Script")
     if menu.is_ref_valid(restart_script) then
         menu.focus(restart_script)
@@ -474,13 +483,13 @@ end
 
 local function is_due_for_update_check(auto_update_config)
     return (
-        auto_update_config == nil
-        or auto_update_config.clean_reinstall == true
-        or auto_update_config.version_data == nil
-        or auto_update_config.version_data.last_checked == nil
-        or auto_update_config.check_interval == 0
-        or ((util.current_unix_time_seconds() - auto_update_config.version_data.last_checked) > auto_update_config.check_interval)
-        or (not filesystem.exists(auto_update_config.script_path))
+            auto_update_config == nil
+                    or auto_update_config.clean_reinstall == true
+                    or auto_update_config.version_data == nil
+                    or auto_update_config.version_data.last_checked == nil
+                    or auto_update_config.check_interval == 0
+                    or ((util.current_unix_time_seconds() - auto_update_config.version_data.last_checked) > auto_update_config.check_interval)
+                    or (not filesystem.exists(auto_update_config.script_path))
     )
 end
 
@@ -516,7 +525,11 @@ function run_auto_update(auto_update_config)
         util.toast("Cannot auto-update due to disabled internet access. To enable auto-updates uncheck Disable Internet Access for this script.", TOAST_ALL)
         return false
     end
-    if not auto_update_config.is_dependency then util.set_busy(true) end
+    local busy_menu
+    if not auto_update_config.is_dependency then
+        util.set_busy(true)
+        busy_menu = menu.divider(menu.my_root(), "Please wait...")
+    end
     if is_due_for_update_check(auto_update_config) then
         is_download_complete = nil
         util.create_thread(function()
@@ -567,7 +580,12 @@ function run_auto_update(auto_update_config)
         force_full_restart(auto_update_config)
         return
     end
-    if not auto_update_config.is_dependency then util.set_busy(false) end
+    if not auto_update_config.is_dependency then
+        util.set_busy(false)
+        if menu.is_ref_valid(busy_menu) then
+            menu.delete(busy_menu)
+        end
+    end
     return true
 end
 
