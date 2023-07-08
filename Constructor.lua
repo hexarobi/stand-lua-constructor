@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.38b5"
+local SCRIPT_VERSION = "0.38b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1081,11 +1081,12 @@ end
 
 local function clear_free_edit_attachment()
     if config.free_edit_attachment then
+        constructor_lib.serialize_entity_attributes(config.free_edit_attachment)
         if config.free_edit_parent then
-            constructor_lib.serialize_entity_attributes(config.free_edit_attachment)
             constructor_lib.join_attachments(config.free_edit_parent, config.free_edit_attachment)
-            constructor_lib.update_attachment_position(config.free_edit_attachment)
         end
+        constructor_lib.update_attachment_position(config.free_edit_attachment)
+        constructor.refresh_position_menu(config.free_edit_attachment)
         ENTITY.FREEZE_ENTITY_POSITION(config.free_edit_attachment.root.handle, false)
         config.free_edit_attachment = nil
     end
@@ -1859,10 +1860,17 @@ end
 ---
 
 constructor.refresh_position_menu = function(attachment)
-    if attachment == nil or attachment.menus == nil or attachment.menus.edit_offset_x == nil then return end
-    attachment.menus.edit_offset_x.value = math.floor(attachment.offset.x * 100)
-    attachment.menus.edit_offset_y.value = math.floor(attachment.offset.y * -100)
-    attachment.menus.edit_offset_z.value = math.floor(attachment.offset.z * -100)
+    if attachment == nil or attachment.menus == nil then return end
+    if attachment.menus.edit_offset_x ~= nil then
+        attachment.menus.edit_offset_x.value = math.floor(attachment.offset.x * 1000)
+        attachment.menus.edit_offset_y.value = math.floor(attachment.offset.y * -1000)
+        attachment.menus.edit_offset_z.value = math.floor(attachment.offset.z * -1000)
+    end
+    if attachment.menus.edit_position_x ~= nil then
+        attachment.menus.edit_position_x.value = math.floor(attachment.position.x * 1000)
+        attachment.menus.edit_position_y.value = math.floor(attachment.position.y * -1000)
+        attachment.menus.edit_position_z.value = math.floor(attachment.position.z * -1000)
+    end
 end
 
 local EDIT_MENU_HELP = "Hold SHIFT to fine tune, or hold CONTROL to move ten steps at once."
