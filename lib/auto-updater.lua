@@ -1,4 +1,4 @@
--- Auto-Updater v2.6r
+-- Auto-Updater v2.7.1r
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -29,6 +29,9 @@ local config = {
 
 local status_crypto, crypto = pcall(require, "crypto")
 if not status_crypto then util.log("Could not load crypto lib") end
+
+--local status_inspect, inspect = pcall(require, "inspect")
+--if not status_inspect then util.log("Could not load inspect lib") end
 
 ---
 --- Utilities
@@ -456,6 +459,7 @@ local function process_auto_update(auto_update_config)
         end
     end, function()
         util.toast("Error updating "..auto_update_config.name..": Update failed to download.", TOAST_ALL)
+        is_download_complete = true
     end)
     -- Only use cached version if this is not a clean reinstall, and if the file still exists on disk
     if auto_update_config.clean_reinstall ~= true and filesystem.exists(auto_update_config.script_path) then
@@ -470,7 +474,9 @@ end
 
 local function is_due_for_update_check(auto_update_config)
     return (
-        auto_update_config.clean_reinstall == true
+        auto_update_config == nil
+        or auto_update_config.clean_reinstall == true
+        or auto_update_config.version_data == nil
         or auto_update_config.version_data.last_checked == nil
         or auto_update_config.check_interval == 0
         or ((util.current_unix_time_seconds() - auto_update_config.version_data.last_checked) > auto_update_config.check_interval)
@@ -505,7 +511,7 @@ end
 
 function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
-    debug_log("Running auto-update on "..auto_update_config.script_filename.."...", TOAST_ALL)
+    debug_log("Running auto-update on "..auto_update_config.script_filename.."...")
     if is_update_disabled() then
         util.toast("Cannot auto-update due to disabled internet access. To enable auto-updates uncheck Disable Internet Access for this script.", TOAST_ALL)
         return false
@@ -520,16 +526,14 @@ function run_auto_update(auto_update_config)
         while (is_download_complete == nil and i < (auto_update_config.http_timeout / config.http_check_delay)) do
             util.yield(config.http_check_delay)
             i = i + 1
-            if not auto_update_config.silent_updates then
-                util.toast("Downloading "..auto_update_config.script_filename.."...")
-            end
+            debug_log("Checking "..auto_update_config.script_filename.."...")
         end
         if is_download_complete == nil then
             util.toast("Error updating "..auto_update_config.script_filename..": HTTP Timeout. This error can often be resolved by using Cloudflare DNS settings: 1.1.1.1 and 1.0.0.1 For more info visit http://1.1.1.1/dns/", TOAST_ALL)
             return false
         end
         if (auto_update_config.script_updated and not auto_update_config.is_dependency) and auto_update_config.auto_restart ~= false then
-            debug_log("Restarting...", TOAST_ALL)
+            debug_log("Restarting...")
             if auto_update_config.restart_delay then util.yield(auto_update_config.restart_delay) end
             force_full_restart(auto_update_config)
             return
@@ -558,7 +562,7 @@ function run_auto_update(auto_update_config)
         save_version_data(auto_update_config)
     end
     if (dependency_updated) and auto_update_config.auto_restart ~= false then
-        debug_log("Dependency updated. Restarting...", TOAST_ALL)
+        debug_log("Dependency updated. Restarting...")
         if auto_update_config.restart_delay then util.yield(auto_update_config.restart_delay) end
         force_full_restart(auto_update_config)
         return

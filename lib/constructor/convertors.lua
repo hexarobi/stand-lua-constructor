@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.37"
+local SCRIPT_VERSION = "0.38"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -21,7 +21,7 @@ end
 
 local inspect = require_dependency("inspect")
 local xml2lua = require_dependency("xml2lua")
-local iniparser = require_dependency("iniparser")
+local iniparser = require_dependency("constructor/iniparser")
 local json = require_dependency("json")
 local constructor_lib = require_dependency("constructor/constructor_lib")
 
@@ -986,6 +986,7 @@ end
 local function map_mapobject_placement(attachment, placement)
     --util.log("Processing "..inspect(placement))
     if attachment == nil then attachment = {} end
+    if attachment.options == nil then attachment.options = {} end
 
     attachment.hash = tonumber(placement.Hash)
     if attachment.model == nil and attachment.hash ~= nil then
@@ -1904,7 +1905,7 @@ local function map_ini_vehicle_flavor_7(attachment, data)
     if data.neon_b ~= nil then attachment.vehicle_attributes.neon.color.b = tonumber(data.neon_b) end
     if data.windowTint ~= nil then attachment.vehicle_attributes.options.window_tint = tonumber(data.windowTint) end
     if data.headlightColor ~= nil then attachment.vehicle_attributes.headlights.headlights_color = tonumber(data.headlightColor) end
-    if data.hasTireSmoke ~= nil then 
+    if data.hasTireSmoke ~= nil then
         attachment.vehicle_attributes.wheels.tire_smoke_color.r = tonumber(data.tyressmoke_r)
         attachment.vehicle_attributes.wheels.tire_smoke_color.g = tonumber(data.tyressmoke_g)
         attachment.vehicle_attributes.wheels.tire_smoke_color.b = tonumber(data.tyressmoke_b)
