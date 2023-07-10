@@ -1,6 +1,6 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.38b2"
+local SCRIPT_VERSION = "0.38"
 local constants = {}
 
 constants.landing_gear_states = {

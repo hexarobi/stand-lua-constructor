@@ -10,6 +10,7 @@
 --
 -- Other Credits:
 --      - kektram#8996 (743564698699563020); significantly assisted with parse optimizations, and other areas such as garbage collection.
+--      - Hexarobi - Hacked to allow for comma as decimal separator
 
 local ini = {
     version = "0.2.8",
