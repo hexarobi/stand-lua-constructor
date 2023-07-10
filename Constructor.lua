@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39b1"
+local SCRIPT_VERSION = "0.39b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1072,6 +1072,7 @@ local function gizmo_attachment(attachment)
         current_gizmo_entity = attachment.handle
         state.gizmo_edit_mode = true
         constructor_lib.separate_attachment(attachment)
+        ENTITY.FREEZE_ENTITY_POSITION(attachment.root.handle, true)
     else
         config.gizmo_parent = nil
     end
@@ -3124,7 +3125,7 @@ menus.create_from_vehicle_list = menu.list(menus.create_new_construct, t("From V
     for _, curated_section in pairs(curated_attachments) do
         if curated_section.name == "Vehicles" then
             for _, curated_item in pairs(curated_section.items) do
-                build_curated_constructs_menu(menus.create_from_vehicle_list, curated_item)
+                build_curated_constructs_menu(menus.create_from_vehicle_list, constructor_lib.table_copy(curated_item))
             end
         end
     end
