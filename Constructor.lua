@@ -4,13 +4,13 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.38"
+local SCRIPT_VERSION = "0.39b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
     --{ "stand_repository", {}, "The version used by the stand repository. Removes this picker so you can't easily undo this action.", "stand_repository", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
@@ -63,7 +63,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = false,
+    debug_mode = true,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -209,58 +209,28 @@ local function require_dependency(path)
     end
 end
 
-local inspect = require_dependency("inspect")
-local constructor_lib = require_dependency("constructor/constructor_lib")
-local constants = require_dependency("constructor/constants")
-local convertors = require_dependency("constructor/convertors")
-local curated_attachments = require_dependency("constructor/curated_attachments")
-local translations = require_dependency("constructor/translations")
+local inspect
+local constructor_lib
+local constants
+local convertors
+local curated_attachments
+local translations
+local scaleform
 
-util.ensure_package_is_installed('lua/natives-1672190175')
-local natives = require_dependency("natives-1672190175")
+util.execute_in_os_thread(function()
+    inspect = require_dependency("inspect")
+    constructor_lib = require_dependency("constructor/constructor_lib")
+    constants = require_dependency("constructor/constants")
+    convertors = require_dependency("constructor/convertors")
+    curated_attachments = require_dependency("constructor/curated_attachments")
+    translations = require_dependency("constructor/translations")
 
-util.ensure_package_is_installed('lua/ScaleformLib')
-local scaleform = require_dependency("ScaleformLib")
+    util.ensure_package_is_installed('lua/natives-1672190175')
+    require_dependency("natives-1672190175")
 
--- Call require() on all required dependencies
-local missing_required_dependencies = {}
-for _, dependency in pairs(auto_update_config.dependencies) do
-    if dependency.is_required then
-        local var_name = dependency.name
-        if dependency.loaded_lib ~= nil then
-            _G[var_name] = dependency.loaded_lib
-        else
-            local lib_require_status, loaded_lib = pcall(require, dependency.script_relpath:gsub("[.]lua$", ""))
-            if lib_require_status then
-                _G[var_name] = loaded_lib
-            else
-                table.insert(missing_required_dependencies, dependency.name)
-            end
-        end
-    end
-end
-
-if #missing_required_dependencies > 0 then
-    local missing_files = table.concat(missing_required_dependencies, ", ")
-    if not update_success then
-        menu.readonly(menu.my_root(), "Error: Install Failed", "Auto-update failed and required files are missing ("..missing_files..") Please re-install from the project zip file.")
-        menu.hyperlink(menu.my_root(), "Download Full Project Zip", "https://github.com/hexarobi/stand-lua-constructor")
-        error("Error: Install Failed. Auto-update failed and required files are missing ("..missing_files..") Please re-install from the project zip file @ https://github.com/hexarobi/stand-lua-constructor")
-    else
-        menu.readonly(menu.my_root(), "Error: Load Failed", "Required files are missing. ("..missing_files..")")
-        if config.auto_update then
-            menu.hyperlink(menu.my_root(), "Discord Help", "https://discord.gg/2u5HbHPB9y")
-        else
-            menu.readonly(menu.my_root(), "Please Update", "Please clean reinstall or manually update from the project homepage.")
-            menu.action(menu.my_root(), "Clean Reinstall", {}, "Force an update to the latest version, regardless of current version.", function()
-                auto_update_config.clean_reinstall = true
-                auto_updater.run_auto_update(auto_update_config)
-            end)
-            menu.hyperlink(menu.my_root(), "Download Full Project Zip", "https://github.com/hexarobi/stand-lua-constructor")
-        end
-        error("Error: Load Failed. Auto-update successful but required files are missing. This is likely a bug. Please report this issue on Discord @ https://discord.gg/2u5HbHPB9y")
-    end
-end
+    util.ensure_package_is_installed('lua/ScaleformLib')
+    scaleform = require_dependency("ScaleformLib")
+end)
 
 ---
 --- Debug Log
@@ -3515,23 +3485,25 @@ end)
 local script_meta_menu = menu.list(menu.my_root(), t("About Constructor"), {}, t("Information and options about the Constructor script itself."))
 menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
-menu.toggle(script_meta_menu, t("Auto-Update"), {}, t("Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."), function()  end, config.auto_update)
-menu.list_select(script_meta_menu, t("Release Branch"), {}, t("Switch from main to dev to get cutting edge updates, but also potentially more bugs."), AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
-    if click_type ~= 0 then return end
-    auto_update_config.switch_to_branch = AUTO_UPDATE_BRANCHES[index][1]
-    auto_update_config.check_interval = 0
-    auto_updater.run_auto_update(auto_update_config)
-end)
-menu.action(script_meta_menu, t("Check for Update"), {}, t("The script will automatically check for updates at most daily, but you can manually check using this option anytime."), function()
-    auto_update_config.check_interval = 0
-    if auto_updater.run_auto_update(auto_update_config) then
-        util.toast(t("No updates found"))
-    end
-end)
-menu.action(script_meta_menu, t("Clean Reinstall"), {}, t("Force an update to the latest version, regardless of current version."), function()
-    auto_update_config.clean_reinstall = true
-    auto_updater.run_auto_update(auto_update_config)
-end)
+if auto_update_config ~= nil then
+    menu.toggle(script_meta_menu, t("Auto-Update"), {}, t("Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."), function()  end, config.auto_update)
+    menu.list_select(script_meta_menu, t("Release Branch"), {}, t("Switch from main to dev to get cutting edge updates, but also potentially more bugs."), AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
+        if click_type ~= 0 then return end
+        auto_update_config.switch_to_branch = AUTO_UPDATE_BRANCHES[index][1]
+        auto_update_config.check_interval = 0
+        auto_updater.run_auto_update(auto_update_config)
+    end)
+    menu.action(script_meta_menu, t("Check for Update"), {}, t("The script will automatically check for updates at most daily, but you can manually check using this option anytime."), function()
+        auto_update_config.check_interval = 0
+        if auto_updater.run_auto_update(auto_update_config) then
+            util.toast(t("No updates found"))
+        end
+    end)
+    menu.action(script_meta_menu, t("Clean Reinstall"), {}, t("Force an update to the latest version, regardless of current version."), function()
+        auto_update_config.clean_reinstall = true
+        auto_updater.run_auto_update(auto_update_config)
+    end)
+end
 menu.hyperlink(script_meta_menu, t("Github Source"), "https://github.com/hexarobi/stand-lua-constructor", t("View source files on Github"))
 menu.hyperlink(script_meta_menu, t("Discord"), "https://discord.gg/2u5HbHPB9y", t("Open Discord Server"))
 
