@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.38"
+local SCRIPT_VERSION = "0.39b1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -1494,7 +1494,14 @@ local function map_ini_attachment_flavor_4(attachment, data)
     if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
     if data["Gravity"] ~= nil then attachment.options.has_gravity = toboolean(data["Gravity"]) end
     if data["Invincible"] ~= nil then attachment.options.is_invincible = toboolean(data["Invincible"]) end
-    if data["Freeze"] ~= nil then attachment.options.is_frozen = toboolean(data["Freeze"]) end
+    if data["Freeze"] ~= nil then
+        attachment.options.is_frozen = toboolean(data["Freeze"])
+    else
+        if attachment.type == "OBJECT" then
+            attachment.options.is_frozen = true
+        end
+    end
+
     if data["Lights"] ~= nil then attachment.options.lights = toboolean(data["Lights"]) end
     if data["Dynamic"] ~= nil then attachment.options.is_dynamic = toboolean(data["Dynamic"]) end
     if data["Health"] ~= nil then attachment.options.health = tonumber(data["Health"]) end
@@ -1972,6 +1979,7 @@ local function map_ini_attachment_flavor_8(attachment, data)
     if attachment.name == nil then attachment.name = attachment.model end
     constructor_lib.default_attachment_attributes(attachment)
     attachment.type = "OBJECT"
+    attachment.options.is_frozen = true
     attachment.options.is_attached = false
     attachment.always_spawn_at_position = true
 
@@ -2075,7 +2083,7 @@ end
 convertor.convert_ini_to_construct_plan = function(construct_plan_file)
     local construct_plan = constructor_lib.table_copy(constructor_lib.construct_base)
 
-    local status_ini_parse, data = pcall(iniparser.parse, construct_plan_file.filepath, "")
+    local status_ini_parse, data = pcall(iniparser.parse, construct_plan_file.filepath, {commaCompat=true})
     if not status_ini_parse then
         util.toast("Error parsing INI file. "..construct_plan_file.filepath.." "..data)
         return
