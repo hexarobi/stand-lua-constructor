@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39b1"
+local SCRIPT_VERSION = "0.39b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -249,6 +249,10 @@ constructor_lib.serialize_entity_position = function(attachment)
     attachment.world_rotation = {x=rot.x, y=rot.y, z=rot.z}
 end
 
+constructor_lib.deserialize_entity_position = function(attachment)
+    constructor_lib.update_attachment_position(attachment)
+end
+
 constructor_lib.serialize_entity_attributes = function(attachment)
     constructor_lib.serialize_entity_position(attachment)
     attachment.options.object_tint = OBJECT.GET_OBJECT_TINT_INDEX(attachment.handle)
@@ -332,7 +336,8 @@ constructor_lib.attach_entity = function(attachment)
                     attachment.handle, attachment.parent.handle, attachment.options.bone_index,
                     attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
                     attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                    false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, attachment.rotation_order, true
+                    false, attachment.options.use_soft_pinning, attachment.options.has_collision,
+                    false, attachment.rotation_order, true
                 )
             end
         end
@@ -729,18 +734,23 @@ end
 --- Removing
 ---
 
+constructor_lib.set_offset_from_parent = function(attachment)
+    local offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(
+        attachment.parent.handle,
+        attachment.position.x,
+        attachment.position.y,
+        attachment.position.z
+    )
+    attachment.offset = {x=offset.x, y=offset.y, z=offset.z}
+end
+
+
 constructor_lib.join_attachments = function(parent_attachment, child_attachment)
     debug_log("Joining "..tostring(child_attachment.name).." to "..tostring(parent_attachment.name))
     child_attachment.parent = parent_attachment
     child_attachment.root = parent_attachment.root
     child_attachment.options.is_attached = true
-    local offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(
-        parent_attachment.handle,
-        child_attachment.position.x,
-        child_attachment.position.y,
-        child_attachment.position.z
-    )
-    child_attachment.offset = {x=offset.x, y=offset.y, z=offset.z}
+    constructor_lib.set_offset_from_parent(child_attachment)
     constructor_lib.validate_children(parent_attachment.root)
     constructor_lib.attach_entity(child_attachment)
     constructor_lib.update_attachment_position(child_attachment)
