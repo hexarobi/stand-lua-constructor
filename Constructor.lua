@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39b4"
+local SCRIPT_VERSION = "0.39b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1780,26 +1780,26 @@ end
 --constructor.search_items = function(folder, query)
 --
 --end
-
-constructor.browse_items = function(root_menu, folder, context)
-    --menu.action(root_menu, t("Search"), {}, "", function()  end)
-    --if context.additional_page_menus ~= nil then
-    --    context.additional_page_menus(context, root_menu)
-    --end
-    --menu.divider(root_menu, t("Browse"))
-    for _, item in pairs(folder.items) do
-        if item.is_folder == true then
-            local menu_list = menu.list(root_menu, item.name)
-            constructor.browse_items(menu_list, item, context)
-        else
-            if context.action_function ~= nil then
-                menu.action(root_menu, item.name, {}, item.description or "", function()
-                    context.action_function(item)
-                end)
-            end
-        end
-    end
-end
+--
+--constructor.browse_items = function(root_menu, folder, context)
+--    --menu.action(root_menu, t("Search"), {}, "", function()  end)
+--    --if context.additional_page_menus ~= nil then
+--    --    context.additional_page_menus(context, root_menu)
+--    --end
+--    --menu.divider(root_menu, t("Browse"))
+--    for _, item in pairs(folder.items) do
+--        if item.is_folder == true then
+--            local menu_list = menu.list(root_menu, item.name)
+--            constructor.browse_items(menu_list, item, context)
+--        else
+--            if context.action_function ~= nil then
+--                menu.action(root_menu, item.name, {}, item.description or "", function()
+--                    context.action_function(item)
+--                end)
+--            end
+--        end
+--    end
+--end
 
 
 ---
@@ -2616,24 +2616,22 @@ constructor.add_attachment_ped_menu = function(attachment)
     attachment.menus.ped_options_animation_list = browser.browse_item(
         attachment.menus.ped_options_animation,
         {name="Browse Animations", items=constructor_lib.table_copy(constants.animations.items)},
-        {
-            add_item_menu_function=function(root_menu, item)
-                item.load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
-                    set_current_animation(attachment, item)
-                end)
-                menu.on_focus(item.load_menu, function(direction) if direction ~= 0 then
-                    local preview = {
-                        hash=attachment.hash,
-                        ped_attributes={animation=item},
-                        temp={},
-                    }
-                    add_preview(preview)
-                    constructor_lib.animate_peds(preview)
-                end end)
-                menu.on_blur(item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
-                return item.load_menu
-            end
-        }
+        function(root_menu, item)
+            item.load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
+                set_current_animation(attachment, item)
+            end)
+            menu.on_focus(item.load_menu, function(direction) if direction ~= 0 then
+                local preview = {
+                    hash=attachment.hash,
+                    ped_attributes={animation=item},
+                    temp={},
+                }
+                add_preview(preview)
+                constructor_lib.animate_peds(preview)
+            end end)
+            menu.on_blur(item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+            return item.load_menu
+        end
     )
 
     --attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Browse Animations"), {}, t("Select from a curated set of animations"))
@@ -2836,19 +2834,9 @@ constructor.add_attachment_add_attachment_options = function(attachment)
         attachment.menus.curated_attachments = browser.browse_item(
             attachment.menus.add_attachment,
             {name="Curated", items=constructor_lib.table_copy(curated_attachments)},
-            {
-                add_item_menu_function=function(root_menu, item)
-                    item.load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
-                        local construct_plan = copy_construct_plan(item)
-                        construct_plan.root = attachment.root
-                        construct_plan.parent = attachment
-                        build_construct_from_plan(construct_plan)
-                    end)
-                    menu.on_focus(item.load_menu, function(direction) if direction ~= 0 then add_preview(item) end end)
-                    menu.on_blur(item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
-                    return item.load_menu
-                end
-            }
+            function(root_menu, root_item)
+                constructor.add_load_item_menu(root_menu, root_item, attachment)
+            end
         )
 
         attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, t("Search"), {}, t("Search for a prop by name"), function()
@@ -3133,6 +3121,23 @@ menus.rebuild_attachment_menu = function(attachment)
 
 end
 
+constructor.add_load_item_menu = function(root_menu, item, parent)
+    item.load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
+        local construct_plan = copy_construct_plan(item)
+        if parent then
+            construct_plan.root = parent.root
+            construct_plan.parent = parent
+        else
+            construct_plan.root = construct_plan
+            construct_plan.parent = construct_plan
+        end
+        build_construct_from_plan(construct_plan)
+    end)
+    menu.on_focus(item.load_menu, function(direction) if direction ~= 0 then add_preview(item) end end)
+    menu.on_blur(item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+    return item.load_menu
+end
+
 ---
 --- Create New Construct Menu
 ---
@@ -3214,37 +3219,8 @@ end
 browser.browse_item(
     menus.create_new_construct,
     {name="From Vehicle List", items=build_vehicles_items()},
-    {
-        add_item_menu_function=function(root_menu, item)
-            item.load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
-                local construct_plan = copy_construct_plan(item)
-                construct_plan.root = construct_plan
-                construct_plan.parent = construct_plan
-                build_construct_from_plan(construct_plan)
-            end)
-            menu.on_focus(item.load_menu, function(direction) if direction ~= 0 then add_preview(item) end end)
-            menu.on_blur(item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
-            return item.load_menu
-        end
-    }
+    constructor.add_load_item_menu
 )
-
---menus.create_from_vehicle_list = menu.list(menus.create_new_construct, t("From Vehicle List"), {}, t("Create a new construct from a list of vehicles"), function()
---    for _, vehicle in pairs(util.get_vehicles()) do
---        local help_text = util.get_label_text(vehicle.name).."\n"..util.get_label_text(vehicle.manufacturer).."\n"..lang.get_localised(vehicle.class)
---        menus.create_from_vehicle_list:action(vehicle.name, {}, help_text, function()
---            util.toast("foo")
---        end)
---    end
---
---    for _, curated_section in pairs(curated_attachments) do
---        if curated_section.name == "Vehicles" then
---            for _, curated_item in pairs(curated_section.items) do
---                build_curated_constructs_menu(menus.create_from_vehicle_list, constructor_lib.table_copy(curated_item))
---            end
---        end
---    end
---end)
 
 menu.text_input(menus.create_new_construct, t("From Vehicle Name"), { "constructcreatefromvehiclename"}, t("Create a new construct from an exact vehicle name"), function(value, click_type)
     if click_type ~= 1 then return end
@@ -3327,15 +3303,21 @@ menu.action(menus.create_new_construct, t("From Current Ped"), { "constructcreat
     build_construct_from_plan(player_construct)
 end)
 
-menus.create_from_ped_list = menu.list(menus.create_new_construct, t("From Ped List"), {}, t("Create a new construct from a list of peds"), function()
+local function get_ped_items()
     for _, curated_section in pairs(curated_attachments) do
         if curated_section.name == "Peds" then
-            for _, curated_item in pairs(curated_section.items) do
-                build_curated_constructs_menu(menus.create_from_ped_list, curated_item)
-            end
+            return curated_section.items
         end
     end
-end)
+    return {}
+end
+
+menus.create_from_ped_list = browser.browse_item(
+    menus.create_new_construct,
+    {name="From Ped List", items=get_ped_items()},
+    constructor.add_load_item_menu
+)
+
 
 menu.text_input(menus.create_new_construct, t("From Ped Name"), {"constructorcreatepedfromname"}, t("Create a new Ped construct from exact name"), function(value)
     local construct_plan = {
@@ -3351,7 +3333,7 @@ end)
 --- Load Construct Menu
 ---
 
-local function add_load_construct_plan_file_menu(root_menu, construct_plan_file)
+constructor.add_load_construct_plan_file_menu = function(root_menu, construct_plan_file)
     construct_plan_file.load_menu = menu.action(root_menu, construct_plan_file.name, {}, "", function()
         remove_preview()
         local construct_plan = load_construct_plan_file(construct_plan_file)
@@ -3397,7 +3379,7 @@ menus.load_construct_search = menu.text_input(menus.search_constructs, t("Search
         table.insert(previous_search_results, divider)
     else
         for _, result in pairs(results) do
-            add_load_construct_plan_file_menu(menus.search_constructs, result)
+            constructor.add_load_construct_plan_file_menu(menus.search_constructs, result)
             table.insert(previous_search_results, result)
         end
     end
