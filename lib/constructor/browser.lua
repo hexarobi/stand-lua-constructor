@@ -1,5 +1,5 @@
 --- Browser Lib
---- 0.1
+--- 0.2
 --- by Hexarobi
 ---
 --- Add browsable and searchable hierarchical menu structures to Stand
@@ -97,7 +97,7 @@ browser.search_items = function(folder, query, results)
     return results
 end
 
-browser.browse_item = function(root_menu, root_item, browse_params)
+browser.browse_item = function(root_menu, root_item, add_item_menu_function)
     if root_item.items ~= nil then
         local menu_list = root_menu:list(root_item.name)
         state.search_menu_counter = state.search_menu_counter + 1
@@ -121,23 +121,23 @@ browser.browse_item = function(root_menu, root_item, browse_params)
                     end
                 end,
                 add_item_menu_function=function(search_params, item)
-                    if browse_params.add_item_menu_function ~= nil then
-                        return browse_params.add_item_menu_function(search_params.menus.root, item)
+                    if add_item_menu_function ~= nil then
+                        return add_item_menu_function(search_params.menus.root, item)
                     end
                 end,
             })
         end)
-        if browse_params.additional_page_menus ~= nil then
-            browse_params.additional_page_menus(browse_params, root_menu)
-        end
+        --if browse_params.additional_page_menus ~= nil then
+        --    browse_params.additional_page_menus(browse_params, root_menu)
+        --end
         menu_list:divider("Browse")
         for _, item in pairs(root_item.items) do
             if type(item) == "table" then
                 if item.items ~= nil then
-                    browser.browse_item(menu_list, item, browse_params)
+                    browser.browse_item(menu_list, item, add_item_menu_function)
                 else
-                    if browse_params.add_item_menu_function ~= nil then
-                        browse_params.add_item_menu_function(menu_list, item)
+                    if add_item_menu_function ~= nil then
+                        add_item_menu_function(menu_list, item)
                     end
                 end
             end
