@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39b2"
+local SCRIPT_VERSION = "0.39b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -128,6 +128,15 @@ local auto_update_config = {
             is_required=true,
         },
         {
+            name="browser",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/dev/lib/constructor/browser.lua",
+            script_relpath="lib/constructor/browser.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
             name="iniparser",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/iniparser.lua",
             script_relpath="lib/constructor/iniparser.lua",
@@ -213,6 +222,7 @@ local inspect
 local constructor_lib
 local constants
 local convertors
+local browser
 local curated_attachments
 local translations
 local scaleform
@@ -222,6 +232,7 @@ util.execute_in_os_thread(function()
     constructor_lib = require_dependency("constructor/constructor_lib")
     constants = require_dependency("constructor/constants")
     convertors = require_dependency("constructor/convertors")
+    browser = require_dependency("constructor/browser")
     curated_attachments = require_dependency("constructor/curated_attachments")
     translations = require_dependency("constructor/translations")
 
@@ -1114,10 +1125,12 @@ local function get_player_spawned_constructs(pid)
 end
 
 local function remove_tracked_construct_for_player(pid)
-    local player_spawned_constructs = get_player_spawned_constructs(pid)
-    if #player_spawned_constructs.constructs >= config.num_allowed_spawned_constructs_per_player then
-        constructor.delete_spawned_construct(player_spawned_constructs.constructs[1])
-        table.remove(player_spawned_constructs.constructs, 1)
+    if pid ~= players.user() then
+        local player_spawned_constructs = get_player_spawned_constructs(pid)
+        if #player_spawned_constructs.constructs >= config.num_allowed_spawned_constructs_per_player then
+            constructor.delete_spawned_construct(player_spawned_constructs.constructs[1])
+            table.remove(player_spawned_constructs.constructs, 1)
+        end
     end
 end
 
@@ -2601,12 +2614,35 @@ constructor.add_attachment_ped_menu = function(attachment)
         cancel_current_animation(attachment)
     end)
 
-    attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Browse Animations"), {}, t("Select from a curated set of animations"))
-    constructor.browse_items(attachment.menus.ped_options_animation_list, constants.animations, {
-        action_function=function(item)
-            set_current_animation(attachment, item)
-        end
-    })
+    attachment.menus.ped_options_animation_list = browser.browse_item(
+        attachment.menus.ped_options_animation,
+        {name="Browse Animations", items=constructor_lib.table_copy(constants.animations.items)},
+        {
+            add_item_menu_function=function(root_menu, item)
+                item.load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
+                    set_current_animation(attachment, item)
+                end)
+                menu.on_focus(item.load_menu, function(direction) if direction ~= 0 then
+                    local preview = {
+                        hash=attachment.hash,
+                        ped_attributes={animation=item},
+                        temp={},
+                    }
+                    add_preview(preview)
+                    constructor_lib.animate_peds(preview)
+                end end)
+                menu.on_blur(item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+                return item.load_menu
+            end
+        }
+    )
+
+    --attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Browse Animations"), {}, t("Select from a curated set of animations"))
+    --constructor.browse_items(attachment.menus.ped_options_animation_list, constants.animations, {
+    --    action_function=function(item)
+    --        set_current_animation(attachment, item)
+    --    end
+    --})
 
     attachment.menus.animation_set_by_name = menu.list(attachment.menus.ped_options_animation, t("Set by Name"), {}, t("Set a specific animation dictionary+clip or scenario"))
     attachment.menus.ped_animation_set_dict_and_clip = menu.text_input(attachment.menus.animation_set_by_name, t("Dictionary and Clip"), {"constructoranimationdictionaryclip"..attachment.id}, t("Set the animation dictionary and clip (separated by a space)."), function(animation_name)
@@ -2798,10 +2834,23 @@ constructor.add_attachment_add_attachment_options = function(attachment)
     attachment.menus.add_attachment = menu.list(attachment.menus.main, t("Add Attachment"), {}, t("Options for attaching other entities to this construct"), function()
 
         if attachment.menus.curated_attachments ~= nil then return end
-        attachment.menus.curated_attachments = menu.list(attachment.menus.add_attachment, t("Curated"), {}, t("Browse a curated collection of attachments"))
-        for _, curated_item in pairs(constructor_lib.table_copy(curated_attachments)) do
-            build_curated_attachments_menu(attachment, attachment.menus.curated_attachments, curated_item)
-        end
+        attachment.menus.curated_attachments = browser.browse_item(
+            attachment.menus.add_attachment,
+            {name="Curated", items=constructor_lib.table_copy(curated_attachments)},
+            {
+                add_item_menu_function=function(root_menu, item)
+                    item.load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
+                        local construct_plan = copy_construct_plan(item)
+                        construct_plan.root = attachment.root
+                        construct_plan.parent = attachment
+                        build_construct_from_plan(construct_plan)
+                    end)
+                    menu.on_focus(item.load_menu, function(direction) if direction ~= 0 then add_preview(item) end end)
+                    menu.on_blur(item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+                    return item.load_menu
+                end
+            }
+        )
 
         attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, t("Search"), {}, t("Search for a prop by name"), function()
             menu.show_command_box("constructorsearchprop"..attachment.id.." ")
@@ -3121,15 +3170,82 @@ end)
 --    --debug_log("Vehicles  "..inspect(vehicles))
 --end
 
-menus.create_from_vehicle_list = menu.list(menus.create_new_construct, t("From Vehicle List"), {}, t("Create a new construct from a list of vehicles"), function()
-    for _, curated_section in pairs(curated_attachments) do
-        if curated_section.name == "Vehicles" then
-            for _, curated_item in pairs(curated_section.items) do
-                build_curated_constructs_menu(menus.create_from_vehicle_list, constructor_lib.table_copy(curated_item))
-            end
+local function sort_items_by_name(items)
+    table.sort(items, function(a, b) return a.name:lower() < b.name:lower() end)
+    for _, item in items do
+        if item.items ~= nil then
+            sort_items_by_name(item.items)
         end
     end
-end)
+end
+
+local function build_vehicles_items()
+    local vehicles_items_by_class = {}
+    for _, vehicle in pairs(util.get_vehicles()) do
+        local item = {
+            name = vehicle.name,
+            model = vehicle.name,
+            class = lang.get_localised(vehicle.class) or "Unknown",
+        }
+        if util.get_label_text(vehicle.name) ~= "NULL" then
+            item.name = util.get_label_text(vehicle.name)
+        end
+        if util.get_label_text(vehicle.manufacturer) ~= "NULL" then
+            item.manufacturer = util.get_label_text(vehicle.manufacturer)
+        else
+            item.manufacturer = "Unknown"
+        end
+        if vehicles_items_by_class[item.class] == nil then
+            vehicles_items_by_class[item.class] = {
+                name=item.class,
+                items={},
+            }
+        end
+        table.insert(vehicles_items_by_class[item.class].items, item)
+    end
+
+    local vehicles_items = {}
+    for _, class_item in vehicles_items_by_class do
+        table.insert(vehicles_items, class_item)
+    end
+    sort_items_by_name(vehicles_items)
+    return vehicles_items
+end
+
+browser.browse_item(
+    menus.create_new_construct,
+    {name="From Vehicle List", items=build_vehicles_items()},
+    {
+        add_item_menu_function=function(root_menu, item)
+            item.load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
+                local construct_plan = copy_construct_plan(item)
+                construct_plan.root = construct_plan
+                construct_plan.parent = construct_plan
+                build_construct_from_plan(construct_plan)
+            end)
+            menu.on_focus(item.load_menu, function(direction) if direction ~= 0 then add_preview(item) end end)
+            menu.on_blur(item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+            return item.load_menu
+        end
+    }
+)
+
+--menus.create_from_vehicle_list = menu.list(menus.create_new_construct, t("From Vehicle List"), {}, t("Create a new construct from a list of vehicles"), function()
+--    for _, vehicle in pairs(util.get_vehicles()) do
+--        local help_text = util.get_label_text(vehicle.name).."\n"..util.get_label_text(vehicle.manufacturer).."\n"..lang.get_localised(vehicle.class)
+--        menus.create_from_vehicle_list:action(vehicle.name, {}, help_text, function()
+--            util.toast("foo")
+--        end)
+--    end
+--
+--    for _, curated_section in pairs(curated_attachments) do
+--        if curated_section.name == "Vehicles" then
+--            for _, curated_item in pairs(curated_section.items) do
+--                build_curated_constructs_menu(menus.create_from_vehicle_list, constructor_lib.table_copy(curated_item))
+--            end
+--        end
+--    end
+--end)
 
 menu.text_input(menus.create_new_construct, t("From Vehicle Name"), { "constructcreatefromvehiclename"}, t("Create a new construct from an exact vehicle name"), function(value, click_type)
     if click_type ~= 1 then return end
