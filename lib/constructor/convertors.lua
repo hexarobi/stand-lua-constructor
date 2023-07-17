@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.39"
+local SCRIPT_VERSION = "0.39.1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -24,7 +24,7 @@ util.ensure_package_is_installed('lua/xml2lua')
 
 local inspect = require_dependency("inspect")
 local xml2lua = require_dependency("xml2lua")
-local iniparser = require_dependency("constructor/iniparser")
+local iniparser = require_dependency("iniparser")
 local json = require_dependency("json")
 local constructor_lib = require_dependency("constructor/constructor_lib")
 
