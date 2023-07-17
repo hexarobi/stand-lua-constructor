@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.38"
+local SCRIPT_VERSION = "0.39"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -23,6 +23,8 @@ local function require_dependency(path)
         return required_dep
     end
 end
+
+util.ensure_package_is_installed('lua/quaternionLib')
 
 local inspect = require_dependency("inspect")
 local constants = require_dependency("constructor/constants")
@@ -249,6 +251,10 @@ constructor_lib.serialize_entity_position = function(attachment)
     attachment.world_rotation = {x=rot.x, y=rot.y, z=rot.z}
 end
 
+constructor_lib.deserialize_entity_position = function(attachment)
+    constructor_lib.update_attachment_position(attachment)
+end
+
 constructor_lib.serialize_entity_attributes = function(attachment)
     constructor_lib.serialize_entity_position(attachment)
     attachment.options.object_tint = OBJECT.GET_OBJECT_TINT_INDEX(attachment.handle)
@@ -332,7 +338,8 @@ constructor_lib.attach_entity = function(attachment)
                     attachment.handle, attachment.parent.handle, attachment.options.bone_index,
                     attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
                     attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                    false, attachment.options.use_soft_pinning, attachment.options.has_collision, false, attachment.rotation_order, true
+                    false, attachment.options.use_soft_pinning, attachment.options.has_collision,
+                    false, attachment.rotation_order, true
                 )
             end
         end
@@ -729,18 +736,23 @@ end
 --- Removing
 ---
 
+constructor_lib.set_offset_from_parent = function(attachment)
+    local offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(
+        attachment.parent.handle,
+        attachment.position.x,
+        attachment.position.y,
+        attachment.position.z
+    )
+    attachment.offset = {x=offset.x, y=offset.y, z=offset.z}
+end
+
+
 constructor_lib.join_attachments = function(parent_attachment, child_attachment)
     debug_log("Joining "..tostring(child_attachment.name).." to "..tostring(parent_attachment.name))
     child_attachment.parent = parent_attachment
     child_attachment.root = parent_attachment.root
     child_attachment.options.is_attached = true
-    local offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(
-        parent_attachment.handle,
-        child_attachment.position.x,
-        child_attachment.position.y,
-        child_attachment.position.z
-    )
-    child_attachment.offset = {x=offset.x, y=offset.y, z=offset.z}
+    constructor_lib.set_offset_from_parent(child_attachment)
     constructor_lib.validate_children(parent_attachment.root)
     constructor_lib.attach_entity(child_attachment)
     constructor_lib.update_attachment_position(child_attachment)
@@ -1043,7 +1055,8 @@ local function attach_animation_props(attachment)
 end
 
 constructor_lib.animate_peds = function(attachment)
-    constructor_lib.cancel_animation(attachment)
+    --cancelling animation removes ped from vehicle seats
+    --constructor_lib.cancel_animation(attachment)
     if attachment.ped_attributes == nil or attachment.ped_attributes.animation == nil then return end
     local animation = attachment.ped_attributes.animation
     if animation.scenario ~= nil then
@@ -1958,7 +1971,6 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
     if attachment.parent.type == "VEHICLE" then
         if attachment.ped_attributes.seat ~= -3 then    -- -3 is special value to mean unseated
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, attachment.ped_attributes.seat)
-            --debug_log("Setting ped into seat "..attachment.ped_attributes.seat)
         elseif PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
             TASK.TASK_LEAVE_VEHICLE(attachment.handle, attachment.parent.handle, 16)
             util.yield(100)

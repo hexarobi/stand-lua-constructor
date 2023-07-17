@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.38r"
+local SCRIPT_VERSION = "0.39"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -19,9 +19,12 @@ local function require_dependency(path)
     end
 end
 
+util.ensure_package_is_installed('lua/iniparser')
+util.ensure_package_is_installed('lua/xml2lua')
+
 local inspect = require_dependency("inspect")
 local xml2lua = require_dependency("xml2lua")
-local iniparser = require_dependency("iniparser") -- Repo version doesn't support comma decimal separators
+local iniparser = require_dependency("constructor/iniparser")
 local json = require_dependency("json")
 local constructor_lib = require_dependency("constructor/constructor_lib")
 
@@ -974,12 +977,14 @@ end
 local function map_mapobject_vehicle(attachment, placement)
     if placement.Type ~= "Vehicle" then return end
     if attachment.vehicle_attributes == nil then attachment.vehicle_attributes = {} end
+    if attachment.vehicle_attributes.primary == nil then attachment.vehicle_attributes.primary = {} end
+    if attachment.vehicle_attributes.secondary == nil then attachment.vehicle_attributes.secondary = {} end
 
     if placement.PrimaryColor ~= nil then
-        attachment.vehicle_options.primary.vehicle_standard_color = placement.PrimaryColor
+        attachment.vehicle_attributes.primary.vehicle_standard_color = placement.PrimaryColor
     end
     if placement.SecondaryColor ~= nil then
-        attachment.vehicle_options.secondary.vehicle_standard_color = placement.SecondaryColor
+        attachment.vehicle_attributes.secondary.vehicle_standard_color = placement.SecondaryColor
     end
 end
 
@@ -1028,6 +1033,9 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
         end
     elseif vehicle_handler.root.SpoonerPlacements ~= nil then
         local placements = vehicle_handler.root.SpoonerPlacements.Placement
+        if placements == nil then
+            placements = vehicle_handler.root.SpoonerPlacements.Attachment
+        end
         if placements[1] == nil then placements = {placements} end -- Single prop maps need to be forced into a list
         for _, placement in pairs(placements) do
             if construct_plan.model == nil then
@@ -1494,7 +1502,14 @@ local function map_ini_attachment_flavor_4(attachment, data)
     if data["Visible"] ~= nil then attachment.options.is_visible = toboolean(data["Visible"]) end
     if data["Gravity"] ~= nil then attachment.options.has_gravity = toboolean(data["Gravity"]) end
     if data["Invincible"] ~= nil then attachment.options.is_invincible = toboolean(data["Invincible"]) end
-    if data["Freeze"] ~= nil then attachment.options.is_frozen = toboolean(data["Freeze"]) end
+    if data["Freeze"] ~= nil then
+        attachment.options.is_frozen = toboolean(data["Freeze"])
+    else
+        if attachment.type == "OBJECT" then
+            attachment.options.is_frozen = true
+        end
+    end
+
     if data["Lights"] ~= nil then attachment.options.lights = toboolean(data["Lights"]) end
     if data["Dynamic"] ~= nil then attachment.options.is_dynamic = toboolean(data["Dynamic"]) end
     if data["Health"] ~= nil then attachment.options.health = tonumber(data["Health"]) end
@@ -1972,6 +1987,7 @@ local function map_ini_attachment_flavor_8(attachment, data)
     if attachment.name == nil then attachment.name = attachment.model end
     constructor_lib.default_attachment_attributes(attachment)
     attachment.type = "OBJECT"
+    attachment.options.is_frozen = true
     attachment.options.is_attached = false
     attachment.always_spawn_at_position = true
 
@@ -2075,7 +2091,7 @@ end
 convertor.convert_ini_to_construct_plan = function(construct_plan_file)
     local construct_plan = constructor_lib.table_copy(constructor_lib.construct_base)
 
-    local status_ini_parse, data = pcall(iniparser.parse, construct_plan_file.filepath, "")
+    local status_ini_parse, data = pcall(iniparser.parse, construct_plan_file.filepath, {commaCompat=true})
     if not status_ini_parse then
         util.toast("Error parsing INI file. "..construct_plan_file.filepath.." "..data)
         return
