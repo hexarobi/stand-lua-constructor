@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39b3"
+local SCRIPT_VERSION = "0.39"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
