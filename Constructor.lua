@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39b8"
+local SCRIPT_VERSION = "0.39b10"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -88,21 +88,21 @@ local auto_update_config = {
     verify_file_begins_with="--",
     check_interval=config.auto_update_check_interval,
     dependencies={
-        {
-            name="inspect",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/inspect.lua",
-            script_relpath="lib/inspect.lua",
-            verify_file_begins_with="local",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
-        {
-            name="xml2lua",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/xml2lua.lua",
-            script_relpath="lib/xml2lua.lua",
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-        },
+        --{
+        --    name="inspect",
+        --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/inspect.lua",
+        --    script_relpath="lib/inspect.lua",
+        --    verify_file_begins_with="local",
+        --    check_interval=default_check_interval,
+        --    is_required=true,
+        --},
+        --{
+        --    name="xml2lua",
+        --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/xml2lua.lua",
+        --    script_relpath="lib/xml2lua.lua",
+        --    verify_file_begins_with="--",
+        --    check_interval=default_check_interval,
+        --},
         --{
         --    name="json",
         --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/json.lua",
@@ -129,21 +129,21 @@ local auto_update_config = {
             check_interval=default_check_interval,
             is_required=true,
         },
-        {
-            name="iniparser",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/iniparser.lua",
-            script_relpath="lib/constructor/iniparser.lua",
-            switch_to_branch=selected_branch,
-            check_interval=default_check_interval,
-        },
-        {
-            name="quaternionLib",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/quaternionLib.lua",
-            script_relpath="lib/quaternionLib.lua",
-            verify_file_begins_with="--",
-            check_interval=default_check_interval,
-            is_required=true,
-        },
+        --{
+        --    name="iniparser",
+        --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/iniparser.lua",
+        --    script_relpath="lib/constructor/iniparser.lua",
+        --    switch_to_branch=selected_branch,
+        --    check_interval=default_check_interval,
+        --},
+        --{
+        --    name="quaternionLib",
+        --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/quaternionLib.lua",
+        --    script_relpath="lib/quaternionLib.lua",
+        --    verify_file_begins_with="--",
+        --    check_interval=default_check_interval,
+        --    is_required=true,
+        --},
         {
             name="convertors",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/convertors.lua",
@@ -183,13 +183,13 @@ local auto_update_config = {
             verify_file_begins_with="ba_prop_glass_garage_opaque",
             check_interval=default_check_interval,
         },
-        {
-            name="natives-1672190175",
-            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1672190175.lua",
-            script_relpath="lib/natives-1672190175.lua",
-            verify_file_begins_with="--",
-            is_required=true,
-        },
+        --{
+        --    name="natives-1672190175",
+        --    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/natives-1672190175.lua",
+        --    script_relpath="lib/natives-1672190175.lua",
+        --    verify_file_begins_with="--",
+        --    is_required=true,
+        --},
     }
 }
 local update_success
@@ -219,18 +219,20 @@ local translations
 local scaleform
 
 util.execute_in_os_thread(function()
-    inspect = require_dependency("inspect")
     constructor_lib = require_dependency("constructor/constructor_lib")
     constants = require_dependency("constructor/constants")
     convertors = require_dependency("constructor/convertors")
     curated_attachments = require_dependency("constructor/curated_attachments")
     translations = require_dependency("constructor/translations")
 
-    util.ensure_package_is_installed('lua/natives-1672190175')
-    require_dependency("natives-1672190175")
+    util.ensure_package_is_installed('lua/inspect')
+    inspect = require_dependency("inspect")
 
     util.ensure_package_is_installed('lua/ScaleformLib')
     scaleform = require_dependency("ScaleformLib")
+
+    util.ensure_package_is_installed('lua/natives-1672190175')
+    require_dependency("natives-1672190175")
 end)
 
 ---
