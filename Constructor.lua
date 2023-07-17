@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.40b1"
+local SCRIPT_VERSION = "0.40b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -142,7 +142,6 @@ local auto_update_config = {
             name="objects_complete",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
             script_relpath="lib/constructor/objects_complete.txt",
-            verify_file_begins_with="ba_prop_glass_garage_opaque",
             check_interval=default_check_interval,
         },
     }
@@ -595,6 +594,7 @@ local function get_construct_plan_description(construct_plan)
     debug_log("Building construct plan description "..tostring(construct_plan.name), construct_plan)
     local descriptions = {}
     if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
+    if construct_plan.model ~= nil then table.insert(descriptions, construct_plan.model) end
     table.insert(descriptions, t(get_type(construct_plan)))
     if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, t(construct_plan.temp.source_file_type)) end
     if construct_plan.author ~= nil then table.insert(descriptions, t("Created By: ")..construct_plan.author) end
@@ -3283,7 +3283,14 @@ end)
 --end
 
 local function sort_items_by_name(items)
-    table.sort(items, function(a, b) return a.name:lower() < b.name:lower() end)
+    table.sort(items, function(a, b)
+        if a.name:lower() ~= b.name:lower() then
+            return a.name:lower() < b.name:lower()
+        end
+        if a.model~= nil and b.model ~= nil and a.model:lower() ~= b.model:lower() then
+            return a.model:lower() < b.model:lower()
+        end
+    end)
     for _, item in items do
         if item.items ~= nil then
             sort_items_by_name(item.items)
@@ -3295,13 +3302,10 @@ local function build_vehicles_items()
     local vehicles_items_by_class = {}
     for _, vehicle in pairs(util.get_vehicles()) do
         local item = {
-            name = vehicle.name,
+            name = util.get_label_text(VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(util.joaat(vehicle.name))),
             model = vehicle.name,
             class = lang.get_localised(vehicle.class) or "Unknown",
         }
-        if util.get_label_text(vehicle.name) ~= "NULL" then
-            item.name = util.get_label_text(vehicle.name)
-        end
         if util.get_label_text(vehicle.manufacturer) ~= "NULL" then
             item.manufacturer = util.get_label_text(vehicle.manufacturer)
         else
