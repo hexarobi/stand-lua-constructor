@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.39b1"
+local SCRIPT_VERSION = "0.39b2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -974,12 +974,14 @@ end
 local function map_mapobject_vehicle(attachment, placement)
     if placement.Type ~= "Vehicle" then return end
     if attachment.vehicle_attributes == nil then attachment.vehicle_attributes = {} end
+    if attachment.vehicle_attributes.primary == nil then attachment.vehicle_attributes.primary = {} end
+    if attachment.vehicle_attributes.secondary == nil then attachment.vehicle_attributes.secondary = {} end
 
     if placement.PrimaryColor ~= nil then
-        attachment.vehicle_options.primary.vehicle_standard_color = placement.PrimaryColor
+        attachment.vehicle_attributes.primary.vehicle_standard_color = placement.PrimaryColor
     end
     if placement.SecondaryColor ~= nil then
-        attachment.vehicle_options.secondary.vehicle_standard_color = placement.SecondaryColor
+        attachment.vehicle_attributes.secondary.vehicle_standard_color = placement.SecondaryColor
     end
 end
 
@@ -1028,6 +1030,9 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
         end
     elseif vehicle_handler.root.SpoonerPlacements ~= nil then
         local placements = vehicle_handler.root.SpoonerPlacements.Placement
+        if placements == nil then
+            placements = vehicle_handler.root.SpoonerPlacements.Attachment
+        end
         if placements[1] == nil then placements = {placements} end -- Single prop maps need to be forced into a list
         for _, placement in pairs(placements) do
             if construct_plan.model == nil then
