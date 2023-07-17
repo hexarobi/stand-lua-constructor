@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39b2"
+local SCRIPT_VERSION = "0.39b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -23,6 +23,8 @@ local function require_dependency(path)
         return required_dep
     end
 end
+
+util.ensure_package_is_installed('lua/quaternionLib')
 
 local inspect = require_dependency("inspect")
 local constants = require_dependency("constructor/constants")
