@@ -142,7 +142,6 @@ local auto_update_config = {
             name="objects_complete",
             source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
             script_relpath="lib/constructor/objects_complete.txt",
-            verify_file_begins_with="ba_prop_glass_garage_opaque",
             check_interval=default_check_interval,
         },
     }
