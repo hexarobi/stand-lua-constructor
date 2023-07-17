@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39b7"
+local SCRIPT_VERSION = "0.39b8"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -884,6 +884,10 @@ local function aim_info_tick()
     local info = get_aim_info()
     if info.handle ~= 0 then
         local text = "Shoot (or press J) to add " .. info.type .. " `" .. info.model .. "` to construct " .. config.add_attachment_gun_recipient.name
+        directx.draw_text(0.501, 0.301, text, 5, 0.5, {r=0,g=0,b=0,a=0.3}, true)
+        directx.draw_text(0.499, 0.299, text, 5, 0.5, {r=0,g=0,b=0,a=0.3}, true)
+        directx.draw_text(0.501, 0.299, text, 5, 0.5, {r=0,g=0,b=0,a=0.3}, true)
+        directx.draw_text(0.499, 0.301, text, 5, 0.5, {r=0,g=0,b=0,a=0.3}, true)
         directx.draw_text(0.5, 0.3, text, 5, 0.5, {r=1,g=1,b=1,a=1}, true)
         constructor_lib.draw_bounding_box(info.handle, config.preview_bounding_box_color)
         if util.is_key_down(0x4A) or PED.IS_PED_SHOOTING(players.user_ped()) then
@@ -3049,6 +3053,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
                         root = attachment.root, parent = attachment, name = value, model = value, type = "PED",
                     })
                 end)
+        menu.hyperlink(attachment.menus.exact_name, t("Open PlebMasters"), "https://forge.plebmasters.de/objects", t("Website for browsing and searching for props"))
         menu.hyperlink(attachment.menus.exact_name, t("Open gta-objects.xyz"), "https://gta-objects.xyz/", t("Website for browsing and searching for props"))
 
         menu.action(attachment.menus.add_attachment, t("Add Current Vehicle"), {}, t("Attach your current vehicle to the construct"), function(on)
@@ -3128,8 +3133,11 @@ constructor.add_attachment_teleport_options = function(attachment)
     attachment.menus.teleport = menu.list(attachment.menus.main, t("Teleport"), {}, t("Move your player to the construct, or vice versa."), function()
         if attachment.menus.teleport_to_construct ~= nil then return end
         if attachment.type == "VEHICLE" then
-            attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, t("Teleport Into Vehicle"), {}, t("Move your player into the vehicle driver seat"), function()
+            attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, t("Drive Vehicle"), {}, t("Move your player into the vehicle driver seat"), function()
                 PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), attachment.handle, -1)
+            end)
+            attachment.menus.enter_drivers_seat = menu.action(attachment.menus.teleport, t("Ride In Vehicle"), {}, t("Move your player into the first available passenger seat"), function()
+                PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), attachment.handle, -2)
             end)
         end
         attachment.menus.teleport_to_construct = menu.action(attachment.menus.teleport, t("Teleport Me to Construct"), {}, t("Move your player nearby the construct, but not inside of it."), function()
