@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.40b3"
+local SCRIPT_VERSION = "0.40b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -3473,13 +3473,13 @@ menus.load_construct_search = menu.text_input(menus.search_constructs, t("Search
 end)
 
 menus.load_construct_options = menu.list(menus.load_construct, t("Options"))
-menu.action(menus.load_construct_options, t("Open Constructs Folder"), {}, t("Open constructs folder. Share your creations or add new creations here."), function()
+menu.action(menus.load_construct_options, t("Open Constructs Folder"), {}, t("Open constructs folder. Save construct files here. May be organized with sub-folders."), function()
     util.open_folder(CONSTRUCTS_DIR)
 end)
-menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs. This may take up to 5 minutes."), function(click_type)
+menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Auto-Install Curated Constructs"), {}, t("Download and install a curated collection of constructs. If this takes longer than 5 minutes it has failed and you should try the download option."), function(click_type)
     install_curated_constructs()
 end)
--- menu.hyperlink(menus.load_construct_options, t("Open Curated Constructs Collection"), "https://github.com/hexarobi/stand-curated-constructs", t("Open curated constructs collection website for manual installation."))
+menu.hyperlink(menus.load_construct_options, t("Download Curated Constructs"), "https://github.com/hexarobi/stand-curated-constructs", t("If the install option fails, you can manually download the curated constructs collection and save into your Constructs folder."))
 
 menu.toggle(menus.load_construct_options, t("Drive Spawned Vehicles"), {}, t("When spawning vehicles, automatically place you into the drivers seat."), function(on)
     config.drive_spawned_vehicles = on
