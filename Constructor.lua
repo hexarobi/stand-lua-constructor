@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39r"
+local SCRIPT_VERSION = "0.40r"
 
 ---
 --- Config
@@ -83,6 +83,7 @@ util.execute_in_os_thread(function()
     util.ensure_package_is_installed('lua/auto-updater')
     auto_updater = require_dependency("auto-updater")
 end)
+
 ---
 --- Debug Log
 ---
@@ -258,7 +259,7 @@ local function color_menu_output(output_color)
 end
 
 ---
---- Browser
+--- Item Browser
 ---
 
 local browser = {}
@@ -488,6 +489,7 @@ local function get_construct_plan_description(construct_plan)
     debug_log("Building construct plan description "..tostring(construct_plan.name), construct_plan)
     local descriptions = {}
     if construct_plan.name ~= nil then table.insert(descriptions, construct_plan.name) end
+    if construct_plan.model ~= nil then table.insert(descriptions, construct_plan.model) end
     table.insert(descriptions, t(get_type(construct_plan)))
     if construct_plan.temp.source_file_type ~= nil then table.insert(descriptions, t(construct_plan.temp.source_file_type)) end
     if construct_plan.author ~= nil then table.insert(descriptions, t("Created By: ")..construct_plan.author) end
@@ -1137,9 +1139,13 @@ end
 
 local function write_file(filepath, content)
     local file = io.open(filepath, "wb")
-    if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
+    if not file then
+        error("Cannot write to file " .. filepath, TOAST_ALL)
+        return false
+    end
     file:write(content)
     file:close()
+    return true
 end
 
 local function write_json_file(filepath, object)
@@ -1149,10 +1155,11 @@ local function write_json_file(filepath, object)
         debug_log("Error encoding object: "..content.." object: "..inspect(object))
     end
     if content == "" or (not string.startswith(content, "{")) then
-        util.toast("Cannot save object as JSON: Error serializing.", TOAST_ALL)
+        util.toast("Cannot save object as JSON: Error serializing. "..content, TOAST_ALL)
+        debug_log("Failed to JSON serialize object: "..inspect(object))
         return
     end
-    write_file(filepath, content)
+    return write_file(filepath, content)
 end
 
 local function set_save_defaults(construct)
@@ -1167,10 +1174,11 @@ local function save_vehicle(construct)
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local serialized_construct = constructor_lib.serialize_attachment(construct)
     --debug_log("Serialized construct "..inspect(serialized_construct))
-    write_json_file(filepath, serialized_construct)
-    util.toast("Saved ".. construct.name)
-    util.log("Saved ".. construct.name .. " to " ..filepath)
-    menus.rebuild_load_construct_menu()
+    if write_json_file(filepath, serialized_construct) then
+        util.toast("Saved ".. construct.name)
+        util.log("Saved ".. construct.name .. " to " ..filepath)
+        menus.rebuild_load_construct_menu()
+    end
 end
 
 ---
@@ -1709,37 +1717,6 @@ local function install_curated_constructs()
 
     util.toast("Successfully installed curated constructs!", TOAST_ALL)
 end
-
----
---- Item Browser
----
-
--- TODO: In progress
-
---constructor.search_items = function(folder, query)
---
---end
---
---constructor.browse_items = function(root_menu, folder, context)
---    --menu.action(root_menu, t("Search"), {}, "", function()  end)
---    --if context.additional_page_menus ~= nil then
---    --    context.additional_page_menus(context, root_menu)
---    --end
---    --menu.divider(root_menu, t("Browse"))
---    for _, item in pairs(folder.items) do
---        if item.is_folder == true then
---            local menu_list = menu.list(root_menu, item.name)
---            constructor.browse_items(menu_list, item, context)
---        else
---            if context.action_function ~= nil then
---                menu.action(root_menu, item.name, {}, item.description or "", function()
---                    context.action_function(item)
---                end)
---            end
---        end
---    end
---end
-
 
 ---
 --- Info Attachment Menu
@@ -2599,10 +2576,10 @@ constructor.add_attachment_ped_menu = function(attachment)
         attachment.menus.ped_options_animation,
         {name="Browse Animations", items=constructor_lib.table_copy(constants.animations.items)},
         function(root_menu, item)
-            item.load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
+            local load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
                 set_current_animation(attachment, item)
             end)
-            menu.on_focus(item.load_menu, function(direction) if direction ~= 0 then
+            menu.on_focus(load_menu, function(direction) if direction ~= 0 then
                 local preview = {
                     hash=attachment.hash,
                     ped_attributes={animation=item},
@@ -2611,8 +2588,8 @@ constructor.add_attachment_ped_menu = function(attachment)
                 add_preview(preview)
                 constructor_lib.animate_peds(preview)
             end end)
-            menu.on_blur(item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
-            return item.load_menu
+            menu.on_blur(load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+            return load_menu
         end
     )
 
@@ -3176,7 +3153,14 @@ end)
 --end
 
 local function sort_items_by_name(items)
-    table.sort(items, function(a, b) return a.name:lower() < b.name:lower() end)
+    table.sort(items, function(a, b)
+        if a.name:lower() ~= b.name:lower() then
+            return a.name:lower() < b.name:lower()
+        end
+        if a.model~= nil and b.model ~= nil and a.model:lower() ~= b.model:lower() then
+            return a.model:lower() < b.model:lower()
+        end
+    end)
     for _, item in items do
         if item.items ~= nil then
             sort_items_by_name(item.items)
@@ -3188,13 +3172,10 @@ local function build_vehicles_items()
     local vehicles_items_by_class = {}
     for _, vehicle in pairs(util.get_vehicles()) do
         local item = {
-            name = vehicle.name,
+            name = util.get_label_text(VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(util.joaat(vehicle.name))),
             model = vehicle.name,
             class = lang.get_localised(vehicle.class) or "Unknown",
         }
-        if util.get_label_text(vehicle.name) ~= "NULL" then
-            item.name = util.get_label_text(vehicle.name)
-        end
         if util.get_label_text(vehicle.manufacturer) ~= "NULL" then
             item.manufacturer = util.get_label_text(vehicle.manufacturer)
         else
@@ -3387,13 +3368,13 @@ menus.load_construct_search = menu.text_input(menus.search_constructs, t("Search
 end)
 
 menus.load_construct_options = menu.list(menus.load_construct, t("Options"))
-menu.action(menus.load_construct_options, t("Open Constructs Folder"), {}, t("Open constructs folder. Share your creations or add new creations here."), function()
+menu.action(menus.load_construct_options, t("Open Constructs Folder"), {}, t("Open constructs folder. Save construct files here. May be organized with sub-folders."), function()
     util.open_folder(CONSTRUCTS_DIR)
 end)
-menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs. This may take up to 5 minutes."), function(click_type)
+menus.update_curated_constructs = menu.action(menus.load_construct_options, t("Auto-Install Curated Constructs"), {}, t("Download and install a curated collection of constructs. If this takes longer than 5 minutes it has failed and you should try the download option."), function(click_type)
     install_curated_constructs()
 end)
--- menu.hyperlink(menus.load_construct_options, t("Open Curated Constructs Collection"), "https://github.com/hexarobi/stand-curated-constructs", t("Open curated constructs collection website for manual installation."))
+menu.hyperlink(menus.load_construct_options, t("Download Curated Constructs"), "https://github.com/hexarobi/stand-curated-constructs", t("If the install option fails, you can manually download the curated constructs collection and save into your Constructs folder."))
 
 menu.toggle(menus.load_construct_options, t("Drive Spawned Vehicles"), {}, t("When spawning vehicles, automatically place you into the drivers seat."), function(on)
     config.drive_spawned_vehicles = on
