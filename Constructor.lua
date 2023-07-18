@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.40b2"
+local SCRIPT_VERSION = "0.40b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -364,7 +364,7 @@ local function color_menu_output(output_color)
 end
 
 ---
---- Browser
+--- Item Browser
 ---
 
 local browser = {}
@@ -1244,9 +1244,13 @@ end
 
 local function write_file(filepath, content)
     local file = io.open(filepath, "wb")
-    if not file then error("Cannot write to file " .. filepath, TOAST_ALL) end
+    if not file then
+        error("Cannot write to file " .. filepath, TOAST_ALL)
+        return false
+    end
     file:write(content)
     file:close()
+    return true
 end
 
 local function write_json_file(filepath, object)
@@ -1256,10 +1260,11 @@ local function write_json_file(filepath, object)
         debug_log("Error encoding object: "..content.." object: "..inspect(object))
     end
     if content == "" or (not string.startswith(content, "{")) then
-        util.toast("Cannot save object as JSON: Error serializing.", TOAST_ALL)
+        util.toast("Cannot save object as JSON: Error serializing. "..content, TOAST_ALL)
+        debug_log("Failed to JSON serialize object: "..inspect(object))
         return
     end
-    write_file(filepath, content)
+    return write_file(filepath, content)
 end
 
 local function set_save_defaults(construct)
@@ -1274,10 +1279,11 @@ local function save_vehicle(construct)
     local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
     local serialized_construct = constructor_lib.serialize_attachment(construct)
     --debug_log("Serialized construct "..inspect(serialized_construct))
-    write_json_file(filepath, serialized_construct)
-    util.toast("Saved ".. construct.name)
-    util.log("Saved ".. construct.name .. " to " ..filepath)
-    menus.rebuild_load_construct_menu()
+    if write_json_file(filepath, serialized_construct) then
+        util.toast("Saved ".. construct.name)
+        util.log("Saved ".. construct.name .. " to " ..filepath)
+        menus.rebuild_load_construct_menu()
+    end
 end
 
 ---
@@ -1816,37 +1822,6 @@ local function install_curated_constructs()
 
     util.toast("Successfully installed curated constructs!", TOAST_ALL)
 end
-
----
---- Item Browser
----
-
--- TODO: In progress
-
---constructor.search_items = function(folder, query)
---
---end
---
---constructor.browse_items = function(root_menu, folder, context)
---    --menu.action(root_menu, t("Search"), {}, "", function()  end)
---    --if context.additional_page_menus ~= nil then
---    --    context.additional_page_menus(context, root_menu)
---    --end
---    --menu.divider(root_menu, t("Browse"))
---    for _, item in pairs(folder.items) do
---        if item.is_folder == true then
---            local menu_list = menu.list(root_menu, item.name)
---            constructor.browse_items(menu_list, item, context)
---        else
---            if context.action_function ~= nil then
---                menu.action(root_menu, item.name, {}, item.description or "", function()
---                    context.action_function(item)
---                end)
---            end
---        end
---    end
---end
-
 
 ---
 --- Info Attachment Menu
@@ -2706,10 +2681,10 @@ constructor.add_attachment_ped_menu = function(attachment)
         attachment.menus.ped_options_animation,
         {name="Browse Animations", items=constructor_lib.table_copy(constants.animations.items)},
         function(root_menu, item)
-            item.load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
+            local load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
                 set_current_animation(attachment, item)
             end)
-            menu.on_focus(item.load_menu, function(direction) if direction ~= 0 then
+            menu.on_focus(load_menu, function(direction) if direction ~= 0 then
                 local preview = {
                     hash=attachment.hash,
                     ped_attributes={animation=item},
@@ -2718,8 +2693,8 @@ constructor.add_attachment_ped_menu = function(attachment)
                 add_preview(preview)
                 constructor_lib.animate_peds(preview)
             end end)
-            menu.on_blur(item.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
-            return item.load_menu
+            menu.on_blur(load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+            return load_menu
         end
     )
 
