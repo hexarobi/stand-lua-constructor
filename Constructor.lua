@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.40b4"
+local SCRIPT_VERSION = "0.41b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -71,10 +71,7 @@ CONSTRUCTOR_CONFIG = {
 }
 -- Short local alias
 local config = CONSTRUCTOR_CONFIG
-
-local state = {
-    search_menu_counter = 1
-}
+local state = {}
 
 ---
 --- Auto-Update
@@ -368,6 +365,9 @@ end
 ---
 
 local browser = {}
+browser.state = {
+    search_menu_counter = 1
+}
 
 browser.table_copy = function(obj)
     if type(obj) ~= 'table' then return obj end
@@ -432,16 +432,16 @@ browser.browse_item = function(parent_menu, this_item, add_item_menu_function, b
                 {},
                 this_item.description or ""
         )
-        state.search_menu_counter = state.search_menu_counter + 1
-        local search_command = "search"..state.search_menu_counter
+        browser.state.search_menu_counter = browser.state.search_menu_counter + 1
+        local search_command = "search"..browser.state.search_menu_counter
         local search_menu = menu_list:list("Search", {}, "Search this folder and sub-folders", function() menu.show_command_box(search_command.." ") end)
         search_menu:text_input("Search", {search_command}, "", function(query)
-            delete_menu_list(state.search_results_menus)
-            state.search_results_menus = {}
+            delete_menu_list(browser.state.search_results_menus)
+            browser.state.search_results_menus = {}
             browser.search({
                 this_item=this_item,
                 query=query,
-                results=state.search_results_menus,
+                results=browser.state.search_results_menus,
                 menus={
                     root=search_menu,
                 },
@@ -1404,6 +1404,7 @@ end
 
 local function cleanup_constructs_handler()
     if config.deconstruct_all_spawned_constructs_on_unload then
+        debug_log("Final cleanup")
         config.is_final_cleanup = true
         delete_all_constructs()
     end
@@ -1875,10 +1876,13 @@ constructor.refresh_position_menu = function(attachment)
         attachment.menus.edit_position_y.value = math.floor(attachment.position.y * -1000)
         attachment.menus.edit_position_z.value = math.floor(attachment.position.z * -1000)
     end
+    if attachment.options.is_frozen ~= nil then
+        attachment.menus.option_position_frozen.value = attachment.options.is_frozen
+    end
 end
 
 constructor.refresh_position_menu_visibility = function(attachment)
-    local is_attached = (attachment.options.is_attached or attachment.type == "PARTICLE")
+    local is_attached = (constructor_lib.is_spawn_mode_offset(attachment) or attachment.type == "PARTICLE")
     if attachment.menus.edit_offset_divider ~= nil then
         attachment.menus.edit_offset_divider.visible = is_attached
         attachment.menus.edit_offset_x.visible = is_attached
@@ -1904,16 +1908,35 @@ constructor.refresh_position_menu_visibility = function(attachment)
         attachment.menus.edit_world_rotation_z.visible = not is_attached
     end
     if attachment.menus.option_position_frozen ~= nil then
-        attachment.menus.option_position_frozen.visible = (
-            constructor_lib.is_attachment_root(attachment) or attachment.options.is_attached == false
-        )
+        attachment.menus.option_position_frozen.visible = constructor_lib.is_freezable(attachment)
     end
 end
 
 local EDIT_MENU_HELP = "Hold SHIFT to fine tune, or hold CONTROL to move ten steps at once."
 
+constructor.update_position_menu = function(attachment)
+    constructor_lib.serialize_entity_position(attachment)
+    if constructor_lib.is_spawn_mode_position(attachment) then
+        attachment.options.is_frozen = true
+    else
+        constructor_lib.set_offset_from_parent(attachment)
+    end
+    constructor_lib.attach_entity(attachment)
+    constructor_lib.deserialize_entity_position(attachment)
+    constructor.refresh_position_menu(attachment)
+    constructor.refresh_position_menu_visibility(attachment)
+end
+
 constructor.add_attachment_position_menu = function(attachment)
     attachment.menus.position = menu.list(attachment.menus.main, t("Position"), {}, t("Position and Rotation options"), function()
+
+        if not constructor_lib.is_attachment_root(attachment) then
+            if attachment.menus.spawn_mode ~= nil then return end
+            attachment.menus.spawn_mode = menu.list_select(attachment.menus.position, t("Spawn At"), {}, "", constants.spawn_modes, attachment.options.spawn_mode, function(index)
+                attachment.options.spawn_mode = index
+                constructor.update_position_menu(attachment)
+            end)
+        end
 
         if attachment.menus.edit_offset_divider ~= nil then return end
         attachment.menus.edit_offset_divider = menu.divider(attachment.menus.position, t("Offset"))
@@ -1950,7 +1973,6 @@ constructor.add_attachment_position_menu = function(attachment)
         end)
         attachment.menus.edit_rotation_z.precision = 1
 
-        if attachment.menus.edit_position_divider ~= nil then return end
         attachment.menus.edit_position_divider = menu.divider(attachment.menus.position, t("World Position"))
         attachment.menus.edit_position_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructorposition"..attachment.id.."x"}, t(EDIT_MENU_HELP), -10000000, 10000000, math.floor(attachment.position.x * 1000), config.edit_offset_step, function(value)
             attachment.position.x = value / 1000
@@ -2016,21 +2038,11 @@ constructor.add_attachment_position_menu = function(attachment)
         end)
 
         menu.divider(attachment.menus.position, t("Options"))
-        if not constructor_lib.is_attachment_root(attachment) then
-            attachment.menus.position_attached = menu.toggle(attachment.menus.position, t("Attached to Parent"), {}, t("Is this child physically attached to the parent, or does it move freely on its own."), function(on)
-                attachment.options.is_attached = on
-                constructor_lib.serialize_entity_position(attachment)
-                if not on then
-                    attachment.options.is_frozen = true
-                else
-                    constructor_lib.set_offset_from_parent(attachment)
-                end
-                constructor_lib.attach_entity(attachment)
-                constructor_lib.deserialize_entity_position(attachment)
-                constructor.refresh_position_menu(attachment)
-                constructor.refresh_position_menu_visibility(attachment)
-            end, attachment.options.is_attached)
-        end
+        attachment.menus.match_parents_rotation = menu.toggle(attachment.menus.position, t("Match Parents Rotation"), {}, t("When spawning, should the rotation match the parent. Useful for trailers."), function(on)
+            attachment.options.match_parents_rotation = on
+            constructor_lib.update_attachment_position(attachment)
+        end, attachment.options.match_parents_rotation)
+
         attachment.menus.option_position_frozen = menu.toggle(attachment.menus.position, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
             attachment.options.is_frozen = on
             constructor_lib.serialize_entity_attributes(attachment)
@@ -2038,85 +2050,6 @@ constructor.add_attachment_position_menu = function(attachment)
         end, attachment.options.is_frozen)
 
         constructor.refresh_position_menu_visibility(attachment)
-        menus.refresh_attachment_menu_is_editing(attachment)
-    end)
-end
-
----
---- Options Menu
----
-
-constructor.add_attachment_options_menu = function(attachment)
-    attachment.menus.options = menu.list(attachment.menus.main, t("Options"), {}, t("Configuration options for this entity"), function()
-
-        if constructor_lib.is_attachment_entity(attachment) then
-            if attachment.menus.option_visible ~= nil then return end
-            attachment.menus.option_visible = menu.toggle(attachment.menus.options, t("Visible"), {}, t("Will the attachment be visible, or invisible"), function(on)
-                attachment.options.is_visible = on
-                constructor_lib.set_attachment_visibility(attachment)
-            end, attachment.options.is_visible)
-            attachment.menus.option_collision = menu.toggle(attachment.menus.options, t("Collision"), {}, t("Will the attachment collide with things, or pass through them"), function(on)
-                attachment.options.has_collision = on
-                constructor_lib.attach_entity(attachment)
-            end, attachment.options.has_collision)
-            attachment.menus.option_invincible = menu.toggle(attachment.menus.options, t("Invincible"), {}, t("Will the attachment be impervious to damage, or be damageable. AKA Godmode."), function(on)
-                attachment.options.is_invincible = on
-                constructor_lib.attach_entity(attachment)
-            end, attachment.options.is_invincible)
-            --if constructor_lib.is_attachment_root(attachment) then
-            --    attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
-            --        attachment.options.is_frozen = on
-            --        constructor_lib.serialize_entity_attributes(attachment)
-            --        constructor_lib.attach_entity(attachment)
-            --    end, attachment.options.is_frozen)
-            --end
-        end
-
-        if attachment.type == "PARTICLE" then
-            if attachment.menus.option_particle_asset ~= nil then return end
-
-            attachment.menus.option_particle_asset = menu.text_input(attachment.menus.options, t("Particle Asset"), { "constructorsetparticleasset"..attachment.id}, t("Set the name of the particle asset"), function(value)
-                attachment.particle_attributes.asset = value
-                constructor_lib.update_particle(attachment)
-            end, attachment.particle_attributes.asset or "")
-            attachment.menus.option_particle_effect_name = menu.text_input(attachment.menus.options, t("Particle Effect"), { "constructorsetparticleeffect"..attachment.id}, t("Set the name of the particle effect"), function(value)
-                attachment.particle_attributes.effect_name = value
-                constructor_lib.update_particle(attachment)
-            end, attachment.particle_attributes.effect_name or "")
-
-            attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.options, t("Scale"), {"constructorpfxscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
-                attachment.particle_attributes.scale = value / 100
-                constructor_lib.update_particle(attachment)
-            end)
-            attachment.menus.option_particle_bone_index = menu.slider(attachment.menus.options, t("Bone Index"), {"constructorpfxbone"..attachment.id}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.particle_attributes.bone_index or -1, 1, function(value)
-                attachment.particle_attributes.bone_index = value
-                constructor_lib.update_particle(attachment)
-            end)
-            attachment.menus.option_particle_loop_timer = menu.slider(attachment.menus.options, t("Loop Timer"), {"constructorpfxlooptimer"..attachment.id}, t("How often should the effect repeat. If this is 0 then it should try to loop forever."), 0, 60000, attachment.particle_attributes.loop_timer or 0, 1, function(value)
-                attachment.particle_attributes.loop_timer = value
-                constructor_lib.update_particle(attachment)
-            end)
-            attachment.menus.option_particle_color = menu.colour(attachment.menus.options, t("Particle Color"), {}, "Local only :(", attachment.particle_attributes.color, true, function(color)
-                attachment.particle_attributes.color = color
-                constructor_lib.update_particle(attachment)
-            end)
-        end
-
-        if attachment.type == "VEHICLE" then
-            constructor.add_attachment_vehicle_menu(attachment)
-        end
-
-        if attachment.type == "PED" then
-            constructor.add_attachment_ped_menu(attachment)
-        end
-
-        if constructor_lib.is_attachment_entity(attachment) then
-            if not constructor_lib.is_attachment_root(attachment) then
-                constructor.add_child_attachment_menu(attachment)
-            end
-            constructor.add_attachment_entity_options(attachment)
-        end
-
         menus.refresh_attachment_menu_is_editing(attachment)
     end)
 end
@@ -2195,7 +2128,7 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     if attachment.type ~= "VEHICLE" then return end
     if attachment.vehicle_attributes == nil then attachment.vehicle_attributes = {} end
     if attachment.menus.vehicle_options ~= nil then return end
-    attachment.menus.vehicle_options = menu.list(attachment.menus.options, t("Vehicle Options"), {}, t("Additional options available for all vehicle entities"))
+    attachment.menus.vehicle_options = menu.list(attachment.menus.main, t("Vehicle Options"), {}, t("Additional options available for all vehicle entities"))
 
     --- LS Customs
     attachment.menus.vehicle_options_ls_customs = menu.list(attachment.menus.vehicle_options, t("LS Customs"), {}, "Vehicle modifications normally available in Los Santos Customs")
@@ -2598,7 +2531,9 @@ end
 constructor.add_attachment_ped_menu = function(attachment)
     if attachment.type ~= "PED" then return end
     if attachment.menus.ped_options ~= nil then return end
-    attachment.menus.ped_options = menu.list(attachment.menus.options, t("Ped Options"), {}, t("Additional options available for Ped entities."))
+    attachment.menus.ped_options = menu.list(attachment.menus.main, t("Ped Options"), {}, t("Additional options available for Ped entities."))
+
+    constructor.add_attachment_ped_animation_menu(attachment)
 
     local ped_seats = { t("Unseated"), t("Any free seat"), t("Driver"), t("Passenger"), t("Backseat Driver Side"), t("Backseat Passenger Side") }
     attachment.menus.option_ped_seat_select = menu.list_select(attachment.menus.ped_options, t("Seat"), {}, t("If attached to a vehicle, which seat should this ped occupy."), ped_seats, 1, function(value)
@@ -2644,6 +2579,11 @@ constructor.add_attachment_ped_menu = function(attachment)
         attachment.ped_attributes.eye_color = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
+end
+
+constructor.add_attachment_ped_animation_menu = function(attachment)
+    if attachment.type ~= "PED" then return end
+    if attachment.menus.ped_options_animation ~= nil then return end
 
     attachment.menus.ped_options_animation = menu.list(attachment.menus.ped_options, t("Animation"), {}, t("Configure animation options"), function()
         refresh_current_animation(attachment)
@@ -2678,32 +2618,25 @@ constructor.add_attachment_ped_menu = function(attachment)
     end)
 
     attachment.menus.ped_options_animation_list = browser.browse_item(
-        attachment.menus.ped_options_animation,
-        {name="Browse Animations", items=constructor_lib.table_copy(constants.animations.items)},
-        function(root_menu, item)
-            local load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
-                set_current_animation(attachment, item)
-            end)
-            menu.on_focus(load_menu, function(direction) if direction ~= 0 then
-                local preview = {
-                    hash=attachment.hash,
-                    ped_attributes={animation=item},
-                    temp={},
-                }
-                add_preview(preview)
-                constructor_lib.animate_peds(preview)
-            end end)
-            menu.on_blur(load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
-            return load_menu
-        end
+            attachment.menus.ped_options_animation,
+            {name="Browse Animations", items=constructor_lib.table_copy(constants.animations.items)},
+            function(root_menu, item)
+                local load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
+                    set_current_animation(attachment, item)
+                end)
+                menu.on_focus(load_menu, function(direction) if direction ~= 0 then
+                    local preview = {
+                        hash=attachment.hash,
+                        ped_attributes={animation=item},
+                        temp={},
+                    }
+                    add_preview(preview)
+                    constructor_lib.animate_peds(preview)
+                end end)
+                menu.on_blur(load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+                return load_menu
+            end
     )
-
-    --attachment.menus.ped_options_animation_list = menu.list(attachment.menus.ped_options_animation, t("Browse Animations"), {}, t("Select from a curated set of animations"))
-    --constructor.browse_items(attachment.menus.ped_options_animation_list, constants.animations, {
-    --    action_function=function(item)
-    --        set_current_animation(attachment, item)
-    --    end
-    --})
 
     attachment.menus.animation_set_by_name = menu.list(attachment.menus.ped_options_animation, t("Set by Name"), {}, t("Set a specific animation dictionary+clip or scenario"))
     attachment.menus.ped_animation_set_dict_and_clip = menu.text_input(attachment.menus.animation_set_by_name, t("Dictionary and Clip"), {"constructoranimationdictionaryclip"..attachment.id}, t("Set the animation dictionary and clip (separated by a space)."), function(animation_name)
@@ -2727,14 +2660,47 @@ constructor.add_attachment_ped_menu = function(attachment)
 
 end
 
+constructor.add_attachment_particle_menu = function(attachment)
+    if attachment.type ~= "PARTICLE" then return end
+    if attachment.menus.particle_options ~= nil then return end
+
+    attachment.menus.particle_options = menu.list(attachment.menus.main, t("Particle Options"), {}, t("Additional options available for customizing particles."))
+
+    attachment.menus.option_particle_asset = menu.text_input(attachment.menus.particle_options, t("Particle Asset"), { "constructorsetparticleasset"..attachment.id}, t("Set the name of the particle asset"), function(value)
+        attachment.particle_attributes.asset = value
+        constructor_lib.update_particle(attachment)
+    end, attachment.particle_attributes.asset or "")
+    attachment.menus.option_particle_effect_name = menu.text_input(attachment.menus.particle_options, t("Particle Effect"), { "constructorsetparticleeffect"..attachment.id}, t("Set the name of the particle effect"), function(value)
+        attachment.particle_attributes.effect_name = value
+        constructor_lib.update_particle(attachment)
+    end, attachment.particle_attributes.effect_name or "")
+
+    attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.particle_options, t("Scale"), {"constructorpfxscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
+        attachment.particle_attributes.scale = value / 100
+        constructor_lib.update_particle(attachment)
+    end)
+    attachment.menus.option_particle_bone_index = menu.slider(attachment.menus.particle_options, t("Bone Index"), {"constructorpfxbone"..attachment.id}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.particle_attributes.bone_index or -1, 1, function(value)
+        attachment.particle_attributes.bone_index = value
+        constructor_lib.update_particle(attachment)
+    end)
+    attachment.menus.option_particle_loop_timer = menu.slider(attachment.menus.particle_options, t("Loop Timer"), {"constructorpfxlooptimer"..attachment.id}, t("How often should the effect repeat. If this is 0 then it should try to loop forever."), 0, 60000, attachment.particle_attributes.loop_timer or 0, 1, function(value)
+        attachment.particle_attributes.loop_timer = value
+        constructor_lib.update_particle(attachment)
+    end)
+    attachment.menus.option_particle_color = menu.colour(attachment.menus.particle_options, t("Particle Color"), {}, "Local only :(", attachment.particle_attributes.color, true, function(color)
+        attachment.particle_attributes.color = color
+        constructor_lib.update_particle(attachment)
+    end)
+
+end
+
 ---
 --- Attachment Options Menu
 ---
 
 constructor.add_child_attachment_menu = function(attachment)
-    if attachment == attachment.parent then return end
-
-    attachment.menus.attachment_options = menu.list(attachment.menus.options, t("Attachment Options"), {}, t("Additional options available for all entities attached to a parent object."), function()
+    if not constructor_lib.is_attachment_entity(attachment) or constructor_lib.is_attachment_root(attachment) then return end
+    attachment.menus.attachment_options = menu.list(attachment.menus.main, t("Attachment Options"), {}, t("Additional options available for all entities attached to a parent object."), function()
 
         if attachment.menus.option_attached ~= nil then
             attachment.menus.option_attached.value = attachment.options.is_attached
@@ -2795,10 +2761,33 @@ end
 ---
 
 constructor.add_attachment_entity_options = function(attachment)
-
-    attachment.menus.more_options = menu.list(attachment.menus.options, t("Entity Options"), {}, t("Additional options available for all entities."), function()
+    if not constructor_lib.is_attachment_entity(attachment) then return end
+    attachment.menus.more_options = menu.list(attachment.menus.main, t("Entity Options"), {}, t("Additional options available for all entities."), function()
 
         if attachment.menus.option_has_special_physics ~= nil then return end
+
+        if constructor_lib.is_attachment_entity(attachment) then
+            if attachment.menus.option_visible ~= nil then return end
+            attachment.menus.option_visible = menu.toggle(attachment.menus.more_options, t("Visible"), {}, t("Will the attachment be visible, or invisible"), function(on)
+                attachment.options.is_visible = on
+                constructor_lib.set_attachment_visibility(attachment)
+            end, attachment.options.is_visible)
+            attachment.menus.option_collision = menu.toggle(attachment.menus.more_options, t("Collision"), {}, t("Will the attachment collide with things, or pass through them"), function(on)
+                attachment.options.has_collision = on
+                constructor_lib.attach_entity(attachment)
+            end, attachment.options.has_collision)
+            attachment.menus.option_invincible = menu.toggle(attachment.menus.more_options, t("Invincible"), {}, t("Will the attachment be impervious to damage, or be damageable. AKA Godmode."), function(on)
+                attachment.options.is_invincible = on
+                constructor_lib.attach_entity(attachment)
+            end, attachment.options.is_invincible)
+            --if constructor_lib.is_attachment_root(attachment) then
+            --    attachment.menus.option_frozen = menu.toggle(attachment.menus.options, t("Freeze Position"), {}, t("Will the construct be frozen in place, or allowed to move freely"), function(on)
+            --        attachment.options.is_frozen = on
+            --        constructor_lib.serialize_entity_attributes(attachment)
+            --        constructor_lib.attach_entity(attachment)
+            --    end, attachment.options.is_frozen)
+            --end
+        end
 
         attachment.menus.option_has_special_physics = menu.toggle(attachment.menus.more_options, t("Special Physics"), {}, t("Allow for special physics overrides"), function(on)
             attachment.options.has_special_physics = on
@@ -2834,10 +2823,6 @@ constructor.add_attachment_entity_options = function(attachment)
             attachment.options.is_mission_entity = on
             constructor_lib.attach_entity(attachment)
         end, attachment.options.is_mission_entity)
-
-        attachment.menus.spawn_at_position = menu.toggle(attachment.menus.more_options, t("Always Spawn at Position"), {}, t("Will this construct always spawn at the same world position it's in now (for stationary maps) or in front of the player (for props or small structures)"), function(on)
-            attachment.always_spawn_at_position = on
-        end, attachment.always_spawn_at_position)
 
         -- Blip
         if attachment == attachment.parent then
@@ -3161,12 +3146,20 @@ menus.rebuild_attachment_menu = function(attachment)
 
     constructor.add_attachment_info_menu(attachment)
     constructor.add_attachment_position_menu(attachment)
-    constructor.add_attachment_options_menu(attachment)
+
+    constructor.add_attachment_entity_options(attachment)
+    constructor.add_attachment_vehicle_menu(attachment)
+    constructor.add_attachment_ped_menu(attachment)
+    constructor.add_attachment_particle_menu(attachment)
+
+    constructor.add_child_attachment_menu(attachment)
 
     if constructor_lib.is_attachment_entity(attachment) then
         constructor.add_attachment_add_attachment_options(attachment)
         constructor.add_attachment_edit_attachments_options(attachment)
-        constructor.add_attachment_clone_attachments_options(attachment)
+    end
+    constructor.add_attachment_clone_attachments_options(attachment)
+    if constructor_lib.is_attachment_entity(attachment) then
         constructor.add_attachment_teleport_options(attachment)
     end
 
