@@ -1,7 +1,9 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.38"
+local SCRIPT_VERSION = "0.41b1"
 local constants = {}
+
+constants.spawn_modes = {"Offset From Parent", "World Position"}
 
 constants.landing_gear_states = {
     "Deployed",
