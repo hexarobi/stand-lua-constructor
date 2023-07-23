@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39"
+local SCRIPT_VERSION = "0.41b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -203,6 +203,13 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.heading == nil then
         attachment.heading = (attachment.root and attachment.root.heading or 0)
     end
+    if attachment.options.spawn_mode == nil then
+        if constructor_lib.is_attachment_root(attachment) then
+            attachment.options.spawn_mode = 2
+        else
+            attachment.options.spawn_mode = 1
+        end
+    end
     if attachment.options.is_visible == nil then attachment.options.is_visible = true end
     if attachment.options.alpha == nil then attachment.options.alpha = 255 end
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
@@ -242,6 +249,18 @@ constructor_lib.default_entity_attributes = function(attachment)
     end
     constructor_lib.default_vehicle_attributes(attachment)
     constructor_lib.default_ped_attributes(attachment)
+end
+
+constructor_lib.is_spawn_mode_offset = function(attachment)
+    return attachment.options.spawn_mode == 1
+end
+
+constructor_lib.is_spawn_mode_position = function(attachment)
+    return attachment.options.spawn_mode == 2
+end
+
+constructor_lib.is_freezable = function(attachment)
+    return constructor_lib.is_attachment_root(attachment) or attachment.options.is_attached == false
 end
 
 constructor_lib.serialize_entity_position = function(attachment)
@@ -326,7 +345,7 @@ end
 constructor_lib.attach_entity = function(attachment)
     --debug_log("Updating attachment "..tostring(attachment.name))
     constructor_lib.deserialize_entity_attributes(attachment)
-    if attachment.options.is_attached then
+    if attachment.options.is_attached or attachment.is_preview then
         if attachment.type == "PED" and attachment.parent.is_player then
             util.toast("Cannot attach ped to player. Spawning new ped "..tostring(attachment.name), TOAST_ALL)
         else
@@ -351,6 +370,7 @@ constructor_lib.attach_entity = function(attachment)
             ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
         end
         ENTITY.DETACH_ENTITY(attachment.handle, true, true)
+        constructor_lib.deserialize_entity_position(attachment)
     end
 end
 
@@ -462,7 +482,9 @@ end
 
 constructor_lib.update_attachment_position = function(attachment)
     --debug_log("Updating attachment position "..tostring(attachment.name))
-    if attachment == attachment.parent or not attachment.options.is_attached then
+    if constructor_lib.is_attachment_root(attachment) or (
+        not attachment.options.is_attached and constructor_lib.is_spawn_mode_position(attachment)
+    ) then
         --debug_log("Updating attachment world rotation "..tostring(attachment.name))
         if attachment.quaternion ~= nil then
             ENTITY.SET_ENTITY_QUATERNION(
@@ -498,12 +520,39 @@ constructor_lib.update_attachment_position = function(attachment)
                         attachment.rotation_order, true
                 )
             else
-                ENTITY.SET_ENTITY_COORDS(
+                ENTITY.SET_ENTITY_COORDS_NO_OFFSET(
                         attachment.handle,
                         attachment.position.x,
                         attachment.position.y,
                         attachment.position.z,
                         true, false, false
+                )
+            end
+        end
+    else
+        if constructor_lib.is_spawn_mode_offset(attachment) then
+            if attachment.offset ~= nil then
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(
+                        attachment.parent.handle,
+                        attachment.offset.x,
+                        attachment.offset.y,
+                        attachment.offset.z
+                )
+                ENTITY.SET_ENTITY_COORDS_NO_OFFSET(
+                        attachment.handle,
+                        pos.x,
+                        pos.y,
+                        pos.z,
+                        true, false, false
+                )
+            end
+            if attachment.options.match_parents_rotation then
+                ENTITY.SET_ENTITY_ROTATION(
+                        attachment.handle,
+                        attachment.parent.world_rotation.x,
+                        attachment.parent.world_rotation.y,
+                        attachment.parent.world_rotation.z,
+                        attachment.parent.rotation_order, true
                 )
             end
         end
@@ -1644,6 +1693,7 @@ constructor_lib.deserialize_vehicle_wheels = function(vehicle)
     if vehicle.vehicle_attributes.wheels.detached then
         for _, tire_position in pairs(constants.detached_wheel_names) do
             if vehicle.vehicle_attributes.wheels.detached["_"..tire_position.index] then
+                debug_log("detaching wheel "..tostring(tire_position.index))
                 entities.detach_wheel(entities.handle_to_pointer(vehicle.handle), tire_position.index)
             end
         end
