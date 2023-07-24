@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b1"
+local SCRIPT_VERSION = "0.41b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -203,13 +203,6 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.heading == nil then
         attachment.heading = (attachment.root and attachment.root.heading or 0)
     end
-    if attachment.options.spawn_mode == nil then
-        if constructor_lib.is_attachment_root(attachment) then
-            attachment.options.spawn_mode = 2
-        else
-            attachment.options.spawn_mode = 1
-        end
-    end
     if attachment.options.is_visible == nil then attachment.options.is_visible = true end
     if attachment.options.alpha == nil then attachment.options.alpha = 255 end
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
@@ -239,7 +232,16 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.is_dynamic == nil then attachment.options.is_dynamic = true end
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
     if attachment.options.object_tint == nil then attachment.options.object_tint = 0 end
-    if attachment.options.is_attached == nil then attachment.options.is_attached = (not constructor_lib.is_attachment_root(attachment)) end
+    if attachment.options.is_attached == nil then
+        attachment.options.is_attached = (not constructor_lib.is_attachment_root(attachment))
+    end
+    if attachment.options.spawn_mode == nil then
+        if constructor_lib.is_attachment_root(attachment) or not attachment.options.is_attached then
+            attachment.options.spawn_mode = 2
+        else
+            attachment.options.spawn_mode = 1
+        end
+    end
     if attachment.options.is_frozen == nil then
         attachment.options.is_frozen = attachment.options.is_attached ~= true and attachment.type == "OBJECT"
     end
@@ -689,9 +691,11 @@ constructor_lib.create_entity = function(attachment)
         )
     end
 
-    if is_networked
-        and not (attachment.type == "VEHICLE" and constructor_lib.is_attachment_root(attachment))
-    then
+    if is_networked and not (
+        attachment.type == "VEHICLE" and (
+            constructor_lib.is_attachment_root(attachment) or not attachment.options.is_attached
+        )
+    ) then
         constructor_lib.make_entity_networked(attachment)
     end
 
@@ -857,7 +861,7 @@ end
 
 constructor_lib.remove_attachment_from_parent = function(attachment)
     debug_log("Removing attachment from parent "..tostring(attachment.name))
-    if attachment == attachment.parent then
+    if constructor_lib.is_attachment_root(attachment) then
         constructor_lib.remove_attachment(attachment)
     elseif attachment.parent ~= nil then
         constructor_lib.array_remove(attachment.parent.children, function(t, i)
