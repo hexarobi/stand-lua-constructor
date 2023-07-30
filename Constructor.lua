@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b1"
+local SCRIPT_VERSION = "0.41b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -181,10 +181,9 @@ util.execute_in_os_thread(function()
 
     util.ensure_package_is_installed('lua/ScaleformLib')
     scaleform = require_dependency("ScaleformLib")
-
-    util.ensure_package_is_installed('lua/natives-1672190175')
-    require_dependency("natives-1672190175")
 end)
+
+util.require_natives("2944a")
 
 ---
 --- Debug Log
@@ -683,12 +682,14 @@ local function calculate_construct_size(construct, child_attachment)
 end
 
 local function calculate_camera_distance(attachment)
+    --debug_log("Calculating camera distance...")
     if attachment.hash == nil then attachment.hash = util.joaat(attachment.model) end
     constructor_lib.load_hash_for_attachment(attachment)
     local l, w, h = calculate_model_size(attachment.hash)
     attachment.camera_distance = math.max(l, w, h) + config.preview_camera_distance
     calculate_construct_size(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
+    --debug_log("Calculated camera distance "..inspect(attachment.camera_distance))
 end
 
 ---
@@ -735,7 +736,7 @@ local function add_preview(construct_plan, preview_image_path)
     remove_preview(construct_plan)
     if construct_plan == nil then return end
     debug_log("Adding preview for "..tostring(construct_plan.name), construct_plan)
-    if construct_plan.always_spawn_at_position then
+    if constructor_lib.is_spawn_mode_position(construct_plan) then
         if filesystem.exists(preview_image_path) then image_preview = directx.create_texture(preview_image_path) end
         return
     end
@@ -1311,9 +1312,17 @@ constructor.delete_spawned_construct =  function(construct)
     menus.refresh_loaded_constructs()
 end
 
+constructor.set_position_and_heading_from_player_camera = function(construct)
+    if construct.camera_distance == nil then calculate_camera_distance(construct) end
+    construct.position = get_offset_from_camera(construct.camera_distance)
+    local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(players.user())
+    construct.heading = ENTITY.GET_ENTITY_HEADING(target_ped)
+end
+
+
 local function set_spawned_construct_position(construct)
     calculate_camera_distance(construct)
-    if not construct.always_spawn_at_position then
+    if constructor_lib.is_spawn_mode_offset(construct) then
         if construct.options.spawn_for_player then
             local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(construct.options.spawn_for_player)
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(target_ped, 0, construct.camera_distance - config.preview_camera_distance, 0)
@@ -1930,15 +1939,12 @@ end
 constructor.add_attachment_position_menu = function(attachment)
     attachment.menus.position = menu.list(attachment.menus.main, t("Position"), {}, t("Position and Rotation options"), function()
 
-        if not constructor_lib.is_attachment_root(attachment) then
-            if attachment.menus.spawn_mode ~= nil then return end
-            attachment.menus.spawn_mode = menu.list_select(attachment.menus.position, t("Spawn At"), {}, "", constants.spawn_modes, attachment.options.spawn_mode, function(index)
-                attachment.options.spawn_mode = index
-                constructor.update_position_menu(attachment)
-            end)
-        end
+        if attachment.menus.spawn_mode ~= nil then return end
+        attachment.menus.spawn_mode = menu.list_select(attachment.menus.position, t("Spawn At"), {}, "", constants.spawn_modes, attachment.options.spawn_mode or 1, function(index)
+            attachment.options.spawn_mode = index
+            constructor.update_position_menu(attachment)
+        end)
 
-        if attachment.menus.edit_offset_divider ~= nil then return end
         attachment.menus.edit_offset_divider = menu.divider(attachment.menus.position, t("Offset"))
         attachment.menus.edit_offset_x = menu.slider_float(attachment.menus.position, t("X: Left / Right"), { "constructoroffset"..attachment.id.."x"}, t(EDIT_MENU_HELP), -10000000, 10000000, math.floor(attachment.offset.x * 1000), config.edit_offset_step, function(value)
             attachment.offset.x = value / 1000
@@ -2574,6 +2580,11 @@ constructor.add_attachment_ped_menu = function(attachment)
     for _, ped_head_overlay in pairs(constants.ped_head_overlays) do
         create_ped_head_overlays_menu(attachment, attachment.menus.ped_options_head_overlays, ped_head_overlay)
     end
+
+    attachment.menus.ped_hair_color = menu.slider(attachment.menus.ped_options, "Hair Color", {}, "", -1, constants.ped_max_hair_tint, attachment.ped_attributes.hair_color or -1, 1, function(value)
+        attachment.ped_attributes.hair_color = value
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end)
 
     attachment.menus.ped_eye_color = menu.slider(attachment.menus.ped_options, "Eye Color", {}, "", -1, 31, attachment.ped_attributes.eye_color or -1, 1, function(value)
         attachment.ped_attributes.eye_color = value
@@ -3319,6 +3330,7 @@ menu.action(menus.create_new_construct, t("From New Construction Cone"), { "cons
     local construct_plan = {
         model = "prop_roadcone01b",
         options = {
+            spawn_mode = 2,
             is_frozen = true,
             is_networked = false,
             has_collision = false,
@@ -3327,6 +3339,7 @@ menu.action(menus.create_new_construct, t("From New Construction Cone"), { "cons
     }
     construct_plan.root = construct_plan
     construct_plan.parent = construct_plan
+    constructor.set_position_and_heading_from_player_camera(construct_plan)
     build_construct_from_plan(construct_plan)
 end)
 
@@ -3359,9 +3372,13 @@ menu.text_input(menus.create_from_object_search, t("Search"), {"constructorcreat
                 local construct_plan = {
                     name = item.prop,
                     model = item.prop,
+                    options = {
+                        spawn_mode = 2,
+                    },
                 }
                 construct_plan.root = construct_plan
                 construct_plan.parent = construct_plan
+                constructor.set_position_and_heading_from_player_camera(construct_plan)
                 build_construct_from_plan(construct_plan)
             end)
             menu.on_focus(search_result_menu, function(direction) if direction ~= 0 then add_preview({ model=model}) end end)
