@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b2"
+local SCRIPT_VERSION = "0.41b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -254,11 +254,15 @@ constructor_lib.default_entity_attributes = function(attachment)
 end
 
 constructor_lib.is_spawn_mode_offset = function(attachment)
-    return attachment.options.spawn_mode == 1
+    if attachment.options ~= nil then
+        return attachment.options.spawn_mode == 1
+    end
 end
 
 constructor_lib.is_spawn_mode_position = function(attachment)
-    return attachment.options.spawn_mode == 2
+    if attachment.options ~= nil then
+        return attachment.options.spawn_mode == 2
+    end
 end
 
 constructor_lib.is_freezable = function(attachment)
@@ -2106,6 +2110,12 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
                 PED.SET_PED_HEAD_OVERLAY(attachment.handle, index, value, 1.0)
             end
         end
+    end
+    if attachment.ped_attributes.hair_color ~= nil then
+        local highlight_color = PED.GET_DEFAULT_SECONDARY_TINT_FOR_CREATOR(attachment.ped_attributes.hair_color)
+        debug_log("Setting ped hair color "..attachment.ped_attributes.hair_color)
+        -- Note this doesn't seem to work for some reason??
+        PED.SET_PED_HAIR_TINT(attachment.handle, attachment.ped_attributes.hair_color, 1)
     end
     if attachment.ped_attributes.eye_color ~= nil then
         PED.SET_HEAD_BLEND_EYE_COLOR(attachment.handle, attachment.ped_attributes.eye_color)
