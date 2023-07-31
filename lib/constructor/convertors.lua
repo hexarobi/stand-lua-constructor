@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.41b1"
+local SCRIPT_VERSION = "0.41b2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -110,8 +110,12 @@ local function convert_legacy_construct(construct_plan)
     end
 
     -- 0.41 Moved always_spawn_at_position to options.spawn_mode = 2
-    if construct_plan.always_spawn_at_position then
-        construct_plan.options.spawn_mode = 2
+    if construct_plan.always_spawn_at_position ~= nil then
+        if construct_plan.always_spawn_at_position then
+            construct_plan.options.spawn_mode = 2
+        else
+            construct_plan.options.spawn_mode = 1
+        end
     end
 
 end
