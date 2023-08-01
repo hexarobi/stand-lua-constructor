@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.41b2"
+local SCRIPT_VERSION = "0.41b3"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -76,6 +76,19 @@ end
 --- Constructor Format
 ---
 
+local function set_default_spawn_mode(attachment)
+    if attachment.options.spawn_mode == nil then
+        if (attachment.always_spawn_at_position == true or attachment.options.is_attached == false) then
+            attachment.options.spawn_mode = 2
+        else
+            attachment.options.spawn_mode = 1
+        end
+    end
+    for _, child_attachment in attachment.children do
+        set_default_spawn_mode(child_attachment)
+    end
+end
+
 local function convert_legacy_construct(construct_plan)
 
     -- 0.28 Renamed `rotation_axis` to `rotation_order`
@@ -110,13 +123,7 @@ local function convert_legacy_construct(construct_plan)
     end
 
     -- 0.41 Moved always_spawn_at_position to options.spawn_mode = 2
-    if construct_plan.always_spawn_at_position ~= nil then
-        if construct_plan.always_spawn_at_position then
-            construct_plan.options.spawn_mode = 2
-        else
-            construct_plan.options.spawn_mode = 1
-        end
-    end
+    set_default_spawn_mode(construct_plan)
 
 end
 
