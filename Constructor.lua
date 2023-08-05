@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b2"
+local SCRIPT_VERSION = "0.41b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2046,6 +2046,7 @@ constructor.add_attachment_position_menu = function(attachment)
         menu.divider(attachment.menus.position, t("Options"))
         attachment.menus.match_parents_rotation = menu.toggle(attachment.menus.position, t("Match Parents Rotation"), {}, t("When spawning, should the rotation match the parent. Useful for trailers."), function(on)
             attachment.options.match_parents_rotation = on
+            --constructor_lib.serialize_entity_position(attachment.parent)
             constructor_lib.update_attachment_position(attachment)
         end, attachment.options.match_parents_rotation)
 
@@ -2468,7 +2469,7 @@ end
 
 local function create_ped_component_menu(attachment, root_menu, index, name)
     local component = attachment.ped_attributes.components["_".. index]
-    attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {}, "", 0, component.num_drawable_variations or -1, component.drawable_variation or -1, 1, function(value)
+    attachment.menus["ped_components_drawable_"..index] = menu.slider(root_menu, name, {"constructorpedcomponent"..attachment.id..index}, "", 0, component.num_drawable_variations or -1, component.drawable_variation or -1, 1, function(value)
         component.drawable_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
         menu.set_max_value(attachment.menus["ped_components_drawable_"..index], component.num_drawable_variations)
@@ -2476,7 +2477,7 @@ local function create_ped_component_menu(attachment, root_menu, index, name)
         menu.set_value(attachment.menus["ped_components_texture_"..index], component.texture_variation)
         menu.set_max_value(attachment.menus["ped_components_texture_"..index], component.num_texture_variations)
     end)
-    attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, component.num_texture_variations or -1, component.texture_variation or -1, 1, function(value)
+    attachment.menus["ped_components_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {"constructorpedcomponentvar"..attachment.id..index}, "", 0, component.num_texture_variations or -1, component.texture_variation or -1, 1, function(value)
         component.texture_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
@@ -2484,7 +2485,7 @@ end
 
 local function create_ped_prop_menu(attachment, root_menu, index, name)
     local prop = attachment.ped_attributes.props["_".. index]
-    attachment.menus["ped_props_drawable_".. index] = menu.slider(root_menu, name, {}, "", -1, prop.num_drawable_variations or -1, prop.drawable_variation or -1, 1, function(value)
+    attachment.menus["ped_props_drawable_".. index] = menu.slider(root_menu, name, {"constructorpedprop"..attachment.id..index}, "", -1, prop.num_drawable_variations or -1, prop.drawable_variation or -1, 1, function(value)
         prop.drawable_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
         menu.set_max_value(attachment.menus["ped_props_drawable_".. index], prop.num_drawable_variations)
@@ -2492,7 +2493,7 @@ local function create_ped_prop_menu(attachment, root_menu, index, name)
         menu.set_value(attachment.menus["ped_props_texture_".. index], prop.texture_variation)
         menu.set_max_value(attachment.menus["ped_props_texture_".. index], prop.num_texture_variations)
     end)
-    attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {}, "", 0, prop.num_texture_variations or -1, prop.texture_variation or -1, 1, function(value)
+    attachment.menus["ped_props_texture_".. index] = menu.slider(root_menu, name.." "..t("Variation"), {"constructorpedpropvar"..attachment.id..index}, "", 0, prop.num_texture_variations or -1, prop.texture_variation or -1, 1, function(value)
         prop.texture_variation = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
@@ -2503,7 +2504,7 @@ local function create_ped_head_overlays_menu(attachment, root_menu, ped_head_ove
     local index = ped_head_overlay.overlay_id
     local name = ped_head_overlay.name
     local head_value = attachment.ped_attributes.head_overlays["_"..index]
-    attachment.menus["ped_head_overlay_"..index] = menu.slider(root_menu, name, {}, "", -1, ped_head_overlay.max_index, head_value or -1, 1, function(value)
+    attachment.menus["ped_head_overlay_"..index] = menu.slider(root_menu, name, {"constructorpedheadoverlay"..attachment.id..index}, "", -1, ped_head_overlay.max_index, head_value or -1, 1, function(value)
         attachment.ped_attributes.head_overlays["_"..index] = value
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
@@ -2589,6 +2590,19 @@ constructor.add_attachment_ped_menu = function(attachment)
     attachment.menus.ped_eye_color = menu.slider(attachment.menus.ped_options, "Eye Color", {}, "", -1, 31, attachment.ped_attributes.eye_color or -1, 1, function(value)
         attachment.ped_attributes.eye_color = value
         constructor_lib.deserialize_ped_attributes(attachment)
+    end)
+
+    attachment.menus.ped_options_config_flags = menu.list(attachment.menus.ped_options, t("Ped Config Flags"), {}, "", function()
+        if attachment.menus.ped_options_config_flag_1 ~= nil then return end
+        for _, ped_config_flag in constants.ped_config_flags do
+            attachment.menus["ped_options_config_flag_"..ped_config_flag.index] = attachment.menus.ped_options_config_flags:toggle(
+                ped_config_flag.name, {}, "",
+                function(toggle)
+                    attachment.ped_attributes.ped_config_flags["_".. ped_config_flag.index] = toggle
+                end,
+                attachment.ped_attributes.ped_config_flags["_".. ped_config_flag.index] or false
+            )
+        end
     end)
 end
 
@@ -2728,6 +2742,10 @@ constructor.add_child_attachment_menu = function(attachment)
             attachment.rotation_order = constants.rotation_orders[index][4]
             constructor_lib.move_attachment(attachment)
         end)
+        attachment.menus.option_trailer_attached = menu.toggle(attachment.menus.attachment_options, t("Trailer Attached"), {}, t(""), function(on)
+            attachment.options.is_trailer_attached = on
+            constructor_lib.deserialize_trailer_attachment(attachment)
+        end, attachment.options.is_trailer_attached)
 
         attachment.menus.option_bone_index = menu.slider(attachment.menus.attachment_options, t("Bone Index"), {}, t("Which bone of the parent should this entity be attached to"), -1, attachment.parent.num_bones or 200, attachment.options.bone_index or -1, 1, function(value)
             attachment.options.bone_index = value
