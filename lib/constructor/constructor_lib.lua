@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b4"
+local SCRIPT_VERSION = "0.41b5"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -348,6 +348,23 @@ constructor_lib.deserialize_entity_attributes = function(attachment)
         OBJECT.SET_OBJECT_TINT_INDEX(attachment.handle, attachment.options.object_tint)
     end
 
+    constructor_lib.deserialize_trailer_attachment(attachment)
+
+end
+
+constructor_lib.deserialize_trailer_attachment = function(attachment)
+    if constructor_lib.is_attachment_root(attachment) then return end
+    local trailer_parent = VEHICLE._GET_VEHICLE_TRAILER_PARENT_VEHICLE(attachment.handle)
+    if trailer_parent ~= nil and trailer_parent ~= attachment.parent.handle then
+        VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
+    end
+    if trailer_parent == nil and attachment.options.is_trailer_attached
+        and ENTITY.DOES_ENTITY_EXIST(attachment.parent.handle) and ENTITY.DOES_ENTITY_EXIST(attachment.handle) then
+            debug_log("attaching trailer "..attachment.name)
+            --VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
+            --util.yield(100)
+            VEHICLE.ATTACH_VEHICLE_TO_TRAILER(attachment.parent.handle, attachment.handle, 1065353216)
+    end
 end
 
 constructor_lib.attach_entity = function(attachment)
@@ -1881,6 +1898,12 @@ constructor_lib.deserialize_vehicle_tick = function(vehicle)
             AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
         end
     end
+    --if vehicle.temp.vehicle_next_update_tick_time == nil then vehicle.temp.vehicle_next_update_tick_time = util.current_time_millis() end
+    --if vehicle.temp.vehicle_next_update_tick_time < util.current_time_millis() then
+    --    debug_log(vehicle.name .. " = "..vehicle.temp.vehicle_next_update_tick_time)
+    --    vehicle.temp.vehicle_next_update_tick_time = util.current_time_millis() + 5000
+    --    constructor_lib.deserialize_trailer_attachment(vehicle)
+    --end
 end
 
 constructor_lib.deserialize_vehicle_options = function(vehicle)
@@ -1959,6 +1982,7 @@ constructor_lib.default_ped_attributes = function(attachment)
     if attachment.ped_attributes.weapon == nil then attachment.ped_attributes.weapon = {} end
     if attachment.ped_attributes.seat == nil then attachment.ped_attributes.seat = -3 end
     if attachment.ped_attributes.ignore_events == nil then attachment.ped_attributes.ignore_events = true end
+    if attachment.ped_attributes.ped_config_flags == nil then attachment.ped_attributes.ped_config_flags = {} end
     for prop_index = 0, 9 do
         if attachment.ped_attributes.props["_"..prop_index] == nil then attachment.ped_attributes.props["_"..prop_index] = {} end
         if attachment.ped_attributes.props["_"..prop_index].drawable_variation == nil then attachment.ped_attributes.props["_"..prop_index].drawable_variation = -1 end
