@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b5"
+local SCRIPT_VERSION = "0.41b6"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -355,10 +355,11 @@ end
 constructor_lib.deserialize_trailer_attachment = function(attachment)
     if constructor_lib.is_attachment_root(attachment) then return end
     local trailer_parent = VEHICLE._GET_VEHICLE_TRAILER_PARENT_VEHICLE(attachment.handle)
-    if trailer_parent ~= nil and trailer_parent ~= attachment.parent.handle then
+    debug_log("trailer parent " ..inspect(trailer_parent))
+    if trailer_parent ~= 0 and trailer_parent ~= attachment.parent.handle then
         VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
     end
-    if trailer_parent == nil and attachment.options.is_trailer_attached
+    if trailer_parent == 0 and attachment.options.is_trailer_attached
         and ENTITY.DOES_ENTITY_EXIST(attachment.parent.handle) and ENTITY.DOES_ENTITY_EXIST(attachment.handle) then
             debug_log("attaching trailer "..attachment.name)
             --VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
