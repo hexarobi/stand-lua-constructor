@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.41b3"
+local SCRIPT_VERSION = "0.41b4"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -76,7 +76,7 @@ end
 --- Constructor Format
 ---
 
-local function set_default_spawn_mode(attachment)
+convertor.set_default_spawn_mode = function(attachment)
     if attachment.options.spawn_mode == nil then
         if (attachment.always_spawn_at_position == true or attachment.options.is_attached == false) then
             attachment.options.spawn_mode = 2
@@ -85,7 +85,7 @@ local function set_default_spawn_mode(attachment)
         end
     end
     for _, child_attachment in attachment.children do
-        set_default_spawn_mode(child_attachment)
+        convertor.set_default_spawn_mode(child_attachment)
     end
 end
 
@@ -123,7 +123,7 @@ local function convert_legacy_construct(construct_plan)
     end
 
     -- 0.41 Moved always_spawn_at_position to options.spawn_mode = 2
-    set_default_spawn_mode(construct_plan)
+    convertor.set_default_spawn_mode(construct_plan)
 
 end
 
@@ -1101,6 +1101,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
     end
 
     convertor.rearrange_by_initial_attachment(construct_plan)
+    convertor.set_default_spawn_mode(construct_plan)
 
     --debug_log("Loaded XML construct plan: "..inspect(construct_plan))
 
