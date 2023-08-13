@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b3"
+local SCRIPT_VERSION = "0.41b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1215,7 +1215,7 @@ local function add_spawned_construct(construct)
     debug_log("Adding spawned construct to list "..tostring(construct.name))
     constructor_lib.default_attachment_attributes(construct)
     table.insert(spawned_constructs, construct)
-    if construct.options.spawn_for_player then track_construct_spawn_for_player(construct.options.spawn_for_player, construct) end
+    if construct.temp.spawn_for_player then track_construct_spawn_for_player(construct.temp.spawn_for_player, construct) end
     last_spawned_construct = construct
 end
 
@@ -1323,8 +1323,8 @@ end
 local function set_spawned_construct_position(construct)
     calculate_camera_distance(construct)
     if constructor_lib.is_spawn_mode_offset(construct) then
-        if construct.options.spawn_for_player then
-            local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(construct.options.spawn_for_player)
+        if construct.temp.spawn_for_player then
+            local target_ped = PLAYER.GET_PLAYER_PED_SCRIPT_INDEX(construct.temp.spawn_for_player)
             local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(target_ped, 0, construct.camera_distance - config.preview_camera_distance, 0)
             construct.position = { x=pos.x, y=pos.y, z=pos.z }
             construct.world_rotation = { x=0, y=0, z=ENTITY.GET_ENTITY_HEADING(target_ped) }
@@ -1348,7 +1348,7 @@ local function spawn_construct_from_plan(construct_plan)
     else
         set_spawned_construct_position(construct)
     end
-    if construct.options.spawn_for_player then remove_tracked_construct_for_player(construct.options.spawn_for_player) end
+    if construct.temp.spawn_for_player then remove_tracked_construct_for_player(construct.temp.spawn_for_player) end
     construct.root = construct
     construct.parent = construct
     constructor_lib.reattach_attachment_with_children(construct)
@@ -1367,7 +1367,7 @@ local function spawn_construct_from_plan(construct_plan)
     if construct.root.menu_auto_focus ~= false and config.focus_menu_on_spawned_constructs ~= false then
         construct.functions.focus()
     end
-    if construct.type == "VEHICLE" and config.drive_spawned_vehicles and construct.options.spawn_for_player == nil then
+    if construct.type == "VEHICLE" and config.drive_spawned_vehicles and construct.temp.spawn_for_player == nil then
         PED.SET_PED_INTO_VEHICLE(PLAYER.PLAYER_PED_ID(), construct.handle, -1)
     end
     --constructor_lib.set_attachment_visibility(construct)
@@ -2547,6 +2547,22 @@ constructor.add_attachment_ped_menu = function(attachment)
         attachment.ped_attributes.seat = value - 4
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
+
+    attachment.menus.option_keep_on_task = menu.toggle(attachment.menus.ped_options, t("Keep Task"), {}, t("Keep ped on assigned task"), function(on)
+        attachment.ped_attributes.keep_on_task = on
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end, attachment.ped_attributes.keep_on_task)
+
+    attachment.menus.option_task_vehicle_drive_wander = menu.toggle(attachment.menus.ped_options, t("Task Vehicle Drive Wander"), {}, t("Should driver wander around in vehicle"), function(on)
+        attachment.ped_attributes.task_vehicle_drive_wander = on
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end, attachment.ped_attributes.task_vehicle_drive_wander)
+
+    attachment.menus.option_task_vehicle_drive_wander_speed = menu.slider(attachment.menus.ped_options, t("Wander Speed"), {}, "", 1, 50, attachment.ped_attributes.task_vehicle_drive_wander_speed or 20, 1, function(value)
+        attachment.ped_attributes.task_vehicle_drive_wander_speed = value
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end)
+
     attachment.menus.option_ped_can_rag_doll = menu.toggle(attachment.menus.ped_options, t("Can Rag Doll"), {}, t("If enabled, the ped can go limp."), function(value)
         attachment.ped_attributes.can_rag_doll = value
         constructor_lib.deserialize_ped_attributes(attachment)
@@ -3465,6 +3481,7 @@ local load_constructs_root_menu_file
 menus.load_construct = menu.list(menu.my_root(), t("Load Construct"), {"constructorloadconstruct"}, t("Load a previously saved or shared construct into the world"), function()
     menus.rebuild_load_construct_menu()
     if #load_constructs_root_menu_file.menus == 0 or (#load_constructs_root_menu_file.menus == 1 and load_constructs_root_menu_file.menus[1] == menus.load_jackz_builds) then
+        if menus.update_curated_constructs ~= nil then return end
         menus.update_curated_constructs = menu.action(menus.load_construct, t("Install Curated Constructs"), {}, t("Download and install a curated collection of constructs. This may take up to 5 minutes."), function()
             install_curated_constructs()
             if menu.is_ref_valid(menus.update_curated_constructs) then
@@ -3602,7 +3619,7 @@ local player_menu_actions = function(pid)
                     construct_plan.root = construct_plan
                     construct_plan.parent = construct_plan
                     construct_plan.name = construct_plan.name .. " [".. PLAYER.GET_PLAYER_NAME(pid) .."]"
-                    construct_plan.options.spawn_for_player = pid
+                    construct_plan.temp.spawn_for_player = pid
                     construct_plan.menu_auto_focus = false
                     build_construct_from_plan(construct_plan)
                 end
