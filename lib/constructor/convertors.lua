@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.41b4"
+local SCRIPT_VERSION = "0.41b5"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -77,10 +77,11 @@ end
 ---
 
 convertor.set_default_spawn_mode = function(attachment)
-    if attachment.options.spawn_mode == nil then
-        if (attachment.always_spawn_at_position == true or attachment.options.is_attached == false) then
+    if attachment.options.spawn_mode == nil and attachment.always_spawn_at_position ~= nil then
+        if attachment.always_spawn_at_position == true then
             attachment.options.spawn_mode = 2
-        else
+        end
+        if attachment.always_spawn_at_position == false then
             attachment.options.spawn_mode = 1
         end
     end
