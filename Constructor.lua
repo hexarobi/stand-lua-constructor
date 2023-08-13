@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b4"
+local SCRIPT_VERSION = "0.41b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2078,6 +2078,8 @@ local vehicle_mod_menus = {
         menu.slider(attachment.menus.vehicle_options_ls_customs, "Wheel Type", {}, "", -1, 13, attachment.vehicle_attributes.wheels.wheel_type or -1, 1, function(value)
             attachment.vehicle_attributes.wheels.wheel_type = value
             constructor_lib.deserialize_vehicle_attributes(attachment)
+            local max_wheels_in_type = VEHICLE.GET_NUM_VEHICLE_MODS(attachment.handle, 23) - 1
+            attachment.menus.vehicle_optons_ls_customs_23.max_value = max_wheels_in_type
         end)
     end },
     { name="Wheels", index=23 },
@@ -2153,10 +2155,14 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             else
                 local max = VEHICLE.GET_NUM_VEHICLE_MODS(attachment.handle, vehicle_mod.index) - 1
                 if max > 0 then
-                    menu.slider(attachment.menus.vehicle_options_ls_customs, vehicle_mod.name, {}, "", -1, max, attachment.vehicle_attributes.mods["_"..vehicle_mod.index] or -1, 1, function(value)
-                        attachment.vehicle_attributes.mods["_"..vehicle_mod.index] = value
-                        constructor_lib.deserialize_vehicle_mods(attachment)
-                    end)
+                    attachment.menus["vehicle_optons_ls_customs_"..vehicle_mod.index] = menu.slider(
+                        attachment.menus.vehicle_options_ls_customs, vehicle_mod.name, {}, "",
+                        -1, max, attachment.vehicle_attributes.mods["_"..vehicle_mod.index] or -1, 1,
+                        function(value)
+                            attachment.vehicle_attributes.mods["_"..vehicle_mod.index] = value
+                            constructor_lib.deserialize_vehicle_mods(attachment)
+                        end
+                    )
                 end
             end
         end
