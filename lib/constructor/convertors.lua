@@ -84,6 +84,12 @@ convertor.set_default_spawn_mode = function(attachment)
         if attachment.always_spawn_at_position == false then
             attachment.options.spawn_mode = 1
         end
+    --else
+    --    if attachment.type == "OBJECT" and attachment.options.is_attached == false then
+    --        attachment.options.spawn_mode = 2
+    --    else
+    --        attachment.options.spawn_mode = 1
+    --    end
     end
     for _, child_attachment in attachment.children do
         convertor.set_default_spawn_mode(child_attachment)
@@ -125,6 +131,11 @@ local function convert_legacy_construct(construct_plan)
 
     -- 0.41 Moved always_spawn_at_position to options.spawn_mode = 2
     convertor.set_default_spawn_mode(construct_plan)
+
+    -- Moved to temp. Should not be a saved value.
+    if construct_plan.options.spawn_for_player then
+        construct_plan.options.spawn_for_player = nil
+    end
 
 end
 
