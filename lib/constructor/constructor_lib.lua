@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b6"
+local SCRIPT_VERSION = "0.41b7"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -268,7 +268,9 @@ constructor_lib.is_spawn_mode_position = function(attachment)
 end
 
 constructor_lib.is_freezable = function(attachment)
-    return constructor_lib.is_attachment_root(attachment) or attachment.options.is_attached == false
+    return constructor_lib.is_attachment_root(attachment)
+            or attachment.options.is_attached == false
+            or attachment.type == "PED"
 end
 
 constructor_lib.serialize_entity_position = function(attachment)
@@ -2061,6 +2063,17 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
             util.yield(100)
             constructor_lib.move_attachment(attachment)
         end
+    end
+    if attachment.ped_attributes.keep_on_task ~= nil then
+        PED.SET_PED_KEEP_TASK(attachment.handle, attachment.ped_attributes.keep_on_task)
+    end
+    if attachment.ped_attributes.task_vehicle_drive_wander == true
+            and PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+        if attachment.ped_attributes.task_vehicle_drive_wander_speed == nil then
+            attachment.ped_attributes.task_vehicle_drive_wander_speed = 20.0
+        end
+        TASK.TASK_VEHICLE_DRIVE_WANDER(attachment.handle, attachment.parent.handle,
+                attachment.ped_attributes.task_vehicle_drive_wander_speed, 786603)
     end
     if attachment.ped_attributes.can_rag_doll ~= nil then
         PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
