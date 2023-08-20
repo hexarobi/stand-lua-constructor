@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b5"
+local SCRIPT_VERSION = "0.41b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2722,7 +2722,7 @@ constructor.add_attachment_particle_menu = function(attachment)
         constructor_lib.update_particle(attachment)
     end, attachment.particle_attributes.effect_name or "")
 
-    attachment.menus.option_paritcle_edit_scale = menu.slider(attachment.menus.particle_options, t("Scale"), {"constructorpfxscale"..attachment.id}, t("Particle effect size"), 0, 10000, math.floor(attachment.particle_attributes.scale * 100), config.edit_offset_step, function(value)
+    attachment.menus.option_particle_edit_scale = menu.slider_float(attachment.menus.particle_options, t("Scale"), {"constructorpfxscale"..attachment.id}, t("Particle effect size"), 0, 1000, math.floor(attachment.particle_attributes.scale * 100), 1, function(value)
         attachment.particle_attributes.scale = value / 100
         constructor_lib.update_particle(attachment)
     end)
