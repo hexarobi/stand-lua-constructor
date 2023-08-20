@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.41b5"
+local SCRIPT_VERSION = "0.41b6"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -947,6 +947,30 @@ local function map_placement_position(attachment, placement)
     end
 end
 
+local function map_task_sequence_particles(attachment, placement)
+    if placement.TaskSequence == nil then return end
+    local task = placement.TaskSequence.Task
+    local particle = {type="PARTICLE", name=task.EffectName}
+    constructor_lib.default_attachment_attributes(particle)
+
+    if task.AssetName ~= nil then particle.particle_attributes.asset = task.AssetName end
+    if task.EffectName ~= nil then particle.particle_attributes.effect_name = task.EffectName end
+    if task.Scale ~= nil then particle.particle_attributes.scale = tonumber(task.Scale) end
+    if task.Delay ~= nil then particle.particle_attributes.loop_timer = tonumber(task.Delay) end
+    if task.RelativePosition ~= nil then
+        particle.offset.x = tonumber(task.RelativePosition._attr.X)
+        particle.offset.y = tonumber(task.RelativePosition._attr.Y)
+        particle.offset.z = tonumber(task.RelativePosition._attr.Z)
+    end
+    if task.RelativeRotation ~= nil then
+        particle.rotation.x = tonumber(task.RelativeRotation._attr.X)
+        particle.rotation.y = tonumber(task.RelativeRotation._attr.Y)
+        particle.rotation.z = tonumber(task.RelativeRotation._attr.Z)
+    end
+    debug_log("Inserting particle "..inspect(particle))
+    table.insert(attachment.children, particle)
+end
+
 local function map_placement(attachment, placement)
     --util.log("Processing "..inspect(placement))
     if attachment == nil then attachment = {} end
@@ -965,6 +989,7 @@ local function map_placement(attachment, placement)
     map_placement_position(attachment, placement)
     map_vehicle_attributes(attachment, placement)
     map_ped_placement(attachment, placement)
+    map_task_sequence_particles(attachment, placement)
 end
 
 ---
