@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b7"
+local SCRIPT_VERSION = "0.41b8"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -357,13 +357,13 @@ end
 constructor_lib.deserialize_trailer_attachment = function(attachment)
     if constructor_lib.is_attachment_root(attachment) then return end
     local trailer_parent = VEHICLE._GET_VEHICLE_TRAILER_PARENT_VEHICLE(attachment.handle)
-    debug_log("trailer parent " ..inspect(trailer_parent))
+    --debug_log("trailer parent " ..inspect(trailer_parent))
     if trailer_parent ~= 0 and trailer_parent ~= attachment.parent.handle then
         VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
     end
     if trailer_parent == 0 and attachment.options.is_trailer_attached
         and ENTITY.DOES_ENTITY_EXIST(attachment.parent.handle) and ENTITY.DOES_ENTITY_EXIST(attachment.handle) then
-            debug_log("attaching trailer "..attachment.name)
+            --debug_log("attaching trailer "..attachment.name)
             --VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
             --util.yield(100)
             VEHICLE.ATTACH_VEHICLE_TO_TRAILER(attachment.parent.handle, attachment.handle, 1065353216)
@@ -1552,6 +1552,15 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
     end
 
     if vehicle.vehicle_attributes.paint.extra_colors.pearlescent ~= nil or vehicle.vehicle_attributes.paint.extra_colors.wheel ~= nil then
+        local pearl_color = memory.alloc(8)
+        local wheel_color = memory.alloc(8)
+        VEHICLE.GET_VEHICLE_EXTRA_COLOURS(vehicle.handle, pearl_color, wheel_color)
+        if vehicle.vehicle_attributes.paint.extra_colors.pearlescent == nil then
+            vehicle.vehicle_attributes.paint.extra_colors.pearlescent = tonumber(pearl_color) or -1
+        end
+        if vehicle.vehicle_attributes.paint.extra_colors.wheel == nil then
+            vehicle.vehicle_attributes.paint.extra_colors.wheel = tonumber(wheel_color) or -1
+        end
         VEHICLE.SET_VEHICLE_EXTRA_COLOURS(
                 vehicle.handle,
                 vehicle.vehicle_attributes.paint.extra_colors.pearlescent,
@@ -1624,12 +1633,12 @@ constructor_lib.deserialize_vehicle_neon = function(vehicle)
             VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 3, true)
         end
     end
-    if vehicle.vehicle_attributes.neon.color then
+    if vehicle.vehicle_attributes.neon.color ~= nil and vehicle.vehicle_attributes.neon.color.r ~= nil then
         VEHICLE.SET_VEHICLE_NEON_COLOUR(
-                vehicle.handle,
-                vehicle.vehicle_attributes.neon.color.r,
-                vehicle.vehicle_attributes.neon.color.g,
-                vehicle.vehicle_attributes.neon.color.b
+            vehicle.handle,
+            vehicle.vehicle_attributes.neon.color.r,
+            vehicle.vehicle_attributes.neon.color.g,
+            vehicle.vehicle_attributes.neon.color.b
         )
     end
 end
