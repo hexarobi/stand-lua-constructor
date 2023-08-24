@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b6"
+local SCRIPT_VERSION = "0.41b7"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -658,17 +658,23 @@ local function calculate_construct_size(construct, child_attachment)
     if construct.dimensions == nil then construct.dimensions = {l=0, w=0, h=0, min_vec={x=0,y=0,z=0}, max_vec={x=0,y=0,z=0}} end
     if child_attachment == nil then child_attachment = construct end
     if child_attachment.offset == nil then child_attachment.offset = {x=0,y=0,z=0} end
-    MISC.GET_MODEL_DIMENSIONS(child_attachment.hash, minVec, maxVec)
+    if child_attachment.hash == nil and child_attachment.model ~= nil then
+        child_attachment.hash = util.joaat(child_attachment.model)
+    end
+    if child_attachment.hash ~= nil then
+        constructor_lib.load_hash_for_attachment(child_attachment)
+        MISC.GET_MODEL_DIMENSIONS(child_attachment.hash, minVec, maxVec)
 
-    --debug_log("Calc size "..inspect(child_attachment))
+        --debug_log("Calc size "..inspect(child_attachment))
 
-    construct.dimensions.min_vec.x = math.min(construct.dimensions.min_vec.x, minVec:getX() + child_attachment.offset.x)
-    construct.dimensions.min_vec.y = math.min(construct.dimensions.min_vec.y, minVec:getY() + child_attachment.offset.y)
-    construct.dimensions.min_vec.z = math.min(construct.dimensions.min_vec.z, minVec:getZ() + child_attachment.offset.z)
+        construct.dimensions.min_vec.x = math.min(construct.dimensions.min_vec.x, minVec:getX() + child_attachment.offset.x)
+        construct.dimensions.min_vec.y = math.min(construct.dimensions.min_vec.y, minVec:getY() + child_attachment.offset.y)
+        construct.dimensions.min_vec.z = math.min(construct.dimensions.min_vec.z, minVec:getZ() + child_attachment.offset.z)
 
-    construct.dimensions.max_vec.x = math.max(construct.dimensions.max_vec.x, maxVec:getX() + child_attachment.offset.x)
-    construct.dimensions.max_vec.y = math.max(construct.dimensions.max_vec.y, maxVec:getY() + child_attachment.offset.y)
-    construct.dimensions.max_vec.z = math.max(construct.dimensions.max_vec.z, maxVec:getZ() + child_attachment.offset.z)
+        construct.dimensions.max_vec.x = math.max(construct.dimensions.max_vec.x, maxVec:getX() + child_attachment.offset.x)
+        construct.dimensions.max_vec.y = math.max(construct.dimensions.max_vec.y, maxVec:getY() + child_attachment.offset.y)
+        construct.dimensions.max_vec.z = math.max(construct.dimensions.max_vec.z, maxVec:getZ() + child_attachment.offset.z)
+    end
 
     if child_attachment.children then
         for _, child in pairs(child_attachment.children) do
