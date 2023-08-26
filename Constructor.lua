@@ -688,14 +688,12 @@ local function calculate_construct_size(construct, child_attachment)
 end
 
 local function calculate_camera_distance(attachment)
-    --debug_log("Calculating camera distance...")
     if attachment.hash == nil then attachment.hash = util.joaat(attachment.model) end
     constructor_lib.load_hash_for_attachment(attachment)
     local l, w, h = calculate_model_size(attachment.hash)
     attachment.camera_distance = math.max(l, w, h) + config.preview_camera_distance
     calculate_construct_size(attachment)
     attachment.camera_distance = math.max(attachment.dimensions.l, attachment.dimensions.w, attachment.dimensions.h) + config.preview_camera_distance
-    --debug_log("Calculated camera distance "..inspect(attachment.camera_distance))
 end
 
 ---
@@ -1419,7 +1417,6 @@ end
 
 local function cleanup_constructs_handler()
     if config.deconstruct_all_spawned_constructs_on_unload then
-        debug_log("Final cleanup")
         config.is_final_cleanup = true
         delete_all_constructs()
     end
@@ -2671,24 +2668,24 @@ constructor.add_attachment_ped_animation_menu = function(attachment)
     end)
 
     attachment.menus.ped_options_animation_list = browser.browse_item(
-            attachment.menus.ped_options_animation,
-            {name="Browse Animations", items=constructor_lib.table_copy(constants.animations.items)},
-            function(root_menu, item)
-                local load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
-                    set_current_animation(attachment, item)
-                end)
-                menu.on_focus(load_menu, function(direction) if direction ~= 0 then
-                    local preview = {
-                        hash=attachment.hash,
-                        ped_attributes={animation=item},
-                        temp={},
-                    }
-                    add_preview(preview)
-                    constructor_lib.animate_peds(preview)
-                end end)
-                menu.on_blur(load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
-                return load_menu
-            end
+        attachment.menus.ped_options_animation,
+        {name="Browse Animations", items=constructor_lib.table_copy(constants.animations.items)},
+        function(root_menu, item)
+            local load_menu = menu.action(root_menu, item.name or "Unknown", {}, "", function()
+                set_current_animation(attachment, item)
+            end)
+            menu.on_focus(load_menu, function(direction) if direction ~= 0 then
+                local preview = {
+                    hash=attachment.hash,
+                    ped_attributes={animation=item},
+                    temp={},
+                }
+                add_preview(preview)
+                constructor_lib.animate_peds(preview)
+            end end)
+            menu.on_blur(load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
+            return load_menu
+        end
     )
 
     attachment.menus.animation_set_by_name = menu.list(attachment.menus.ped_options_animation, t("Set by Name"), {}, t("Set a specific animation dictionary+clip or scenario"))
