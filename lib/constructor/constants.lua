@@ -1,6 +1,6 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.41b2"
+local SCRIPT_VERSION = "0.41"
 local constants = {}
 
 constants.spawn_modes = {"Offset From Parent", "World Position"}
