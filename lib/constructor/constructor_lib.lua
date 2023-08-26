@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41b10"
+local SCRIPT_VERSION = "0.41b11"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -374,21 +374,19 @@ constructor_lib.attach_entity = function(attachment)
     --debug_log("Updating attachment "..tostring(attachment.name))
     constructor_lib.deserialize_entity_attributes(attachment)
     if attachment.options.is_attached or attachment.is_preview then
-        if attachment.type == "PED" and attachment.parent.is_player then
+        if constructor_lib.is_attachment_root(attachment) then
+            debug_log("Cannot attach attachment to itself "..tostring(attachment.name))
+        elseif attachment.type == "PED" and attachment.parent.is_player then
             util.toast("Cannot attach ped to player. Spawning new ped "..tostring(attachment.name), TOAST_ALL)
         else
-            if attachment == attachment.parent then
-                debug_log("Cannot attach attachment to itself "..tostring(attachment.name))
-            else
-                debug_log("Attaching entity to entity "..tostring(attachment.name))
-                ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                    attachment.handle, attachment.parent.handle, attachment.options.bone_index,
-                    attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
-                    attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                    false, attachment.options.use_soft_pinning, attachment.options.has_collision,
-                    false, attachment.rotation_order, true, 0
-                )
-            end
+            debug_log("Attaching entity to entity "..tostring(attachment.name))
+            ENTITY.ATTACH_ENTITY_TO_ENTITY(
+                attachment.handle, attachment.parent.handle, attachment.options.bone_index,
+                attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
+                attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
+                false, attachment.options.use_soft_pinning, attachment.options.has_collision,
+                false, attachment.rotation_order, true, 0
+            )
         end
     else
         if attachment.options.is_frozen ~= nil then
@@ -686,7 +684,13 @@ constructor_lib.create_entity = function(attachment)
             --constructor_lib.serialize_attachment(attachment)
             constructor_lib.serialize_entity_attributes(attachment)
         else
-            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
+            --debug_log("Creating ped "..inspect(attachment))
+            local pos
+            if attachment.spawn_mode == 1 and attachment.parent.handle then
+                pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
+            else
+                pos = attachment.position
+            end
             if is_networked then
                 attachment.handle = entities.create_ped(1, attachment.hash, pos, attachment.heading)
             else
@@ -1999,16 +2003,20 @@ constructor_lib.default_ped_attributes = function(attachment)
         if attachment.ped_attributes.props["_"..prop_index] == nil then attachment.ped_attributes.props["_"..prop_index] = {} end
         if attachment.ped_attributes.props["_"..prop_index].drawable_variation == nil then attachment.ped_attributes.props["_"..prop_index].drawable_variation = -1 end
         if attachment.ped_attributes.props["_"..prop_index].texture_variation == nil then attachment.ped_attributes.props["_"..prop_index].texture_variation = 0 end
-        attachment.ped_attributes.props["_"..prop_index].num_drawable_variations = PED.GET_NUMBER_OF_PED_PROP_DRAWABLE_VARIATIONS(attachment.handle, prop_index) - 1
-        attachment.ped_attributes.props["_"..prop_index].num_texture_variations = PED.GET_NUMBER_OF_PED_PROP_TEXTURE_VARIATIONS(attachment.handle, prop_index, attachment.ped_attributes.props["_"..prop_index].drawable_variation) - 1
+        if attachment.handle ~= nil then
+            attachment.ped_attributes.props["_"..prop_index].num_drawable_variations = PED.GET_NUMBER_OF_PED_PROP_DRAWABLE_VARIATIONS(attachment.handle, prop_index) - 1
+            attachment.ped_attributes.props["_"..prop_index].num_texture_variations = PED.GET_NUMBER_OF_PED_PROP_TEXTURE_VARIATIONS(attachment.handle, prop_index, attachment.ped_attributes.props["_"..prop_index].drawable_variation) - 1
+        end
     end
     for component_index = 0, 11 do
         if attachment.ped_attributes.components["_"..component_index] == nil then attachment.ped_attributes.components["_"..component_index] = {} end
         if attachment.ped_attributes.components["_"..component_index].drawable_variation == nil then attachment.ped_attributes.components["_"..component_index].drawable_variation = 0 end
         if attachment.ped_attributes.components["_"..component_index].texture_variation == nil then attachment.ped_attributes.components["_"..component_index].texture_variation = 0 end
         if attachment.ped_attributes.components["_"..component_index].palette_variation == nil then attachment.ped_attributes.components["_"..component_index].palette_variation = 1 end
-        attachment.ped_attributes.components["_"..component_index].num_drawable_variations = PED.GET_NUMBER_OF_PED_DRAWABLE_VARIATIONS(attachment.handle, component_index) - 1
-        attachment.ped_attributes.components["_"..component_index].num_texture_variations = PED.GET_NUMBER_OF_PED_TEXTURE_VARIATIONS(attachment.handle, component_index, attachment.ped_attributes.components["_".. component_index].drawable_variation) - 1
+        if attachment.handle ~= nil then
+            attachment.ped_attributes.components["_"..component_index].num_drawable_variations = PED.GET_NUMBER_OF_PED_DRAWABLE_VARIATIONS(attachment.handle, component_index) - 1
+            attachment.ped_attributes.components["_"..component_index].num_texture_variations = PED.GET_NUMBER_OF_PED_TEXTURE_VARIATIONS(attachment.handle, component_index, attachment.ped_attributes.components["_".. component_index].drawable_variation) - 1
+        end
     end
 end
 
@@ -2020,7 +2028,7 @@ constructor_lib.serialize_ped_attributes = function(attachment)
     attachment.ped_attributes.max_health = ENTITY.GET_ENTITY_MAX_HEALTH(attachment.handle)
     for index = 0, 9 do
         attachment.ped_attributes.props["_"..index] = {
-            drawable_variation = PED.GET_PED_PROP_INDEX(attachment.handle, index),
+            drawable_variation = PED.GET_PED_PROP_INDEX(attachment.handle, index, 0),
             texture_variation = PED.GET_PED_PROP_TEXTURE_INDEX(attachment.handle, index)
         }
     end
@@ -2124,10 +2132,11 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
                             index,
                             tonumber(prop.drawable_variation),
                             tonumber(prop.texture_variation),
-                            true
+                            true,
+                            0
                     )
                 else
-                    PED.CLEAR_PED_PROP(attachment.handle, index)
+                    PED.CLEAR_PED_PROP(attachment.handle, index, 0)
                 end
                 prop.num_drawable_variations = PED.GET_NUMBER_OF_PED_PROP_DRAWABLE_VARIATIONS(attachment.handle, index) - 1
                 prop.num_texture_variations = PED.GET_NUMBER_OF_PED_PROP_TEXTURE_VARIATIONS(attachment.handle, index, prop.drawable_variation) - 1
