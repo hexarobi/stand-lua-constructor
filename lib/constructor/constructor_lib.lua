@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.39"
+local SCRIPT_VERSION = "0.41"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -232,7 +232,18 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.is_dynamic == nil then attachment.options.is_dynamic = true end
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
     if attachment.options.object_tint == nil then attachment.options.object_tint = 0 end
-    if attachment.options.is_attached == nil then attachment.options.is_attached = (not constructor_lib.is_attachment_root(attachment)) end
+    if attachment.options.is_attached == nil then
+        attachment.options.is_attached = (not constructor_lib.is_attachment_root(attachment))
+    end
+    if attachment.options.spawn_mode == nil then
+        if (constructor_lib.is_attachment_root(attachment) or not attachment.options.is_attached)
+                and attachment.type == "OBJECT"
+        then
+            attachment.options.spawn_mode = 2
+        else
+            attachment.options.spawn_mode = 1
+        end
+    end
     if attachment.options.is_frozen == nil then
         attachment.options.is_frozen = attachment.options.is_attached ~= true and attachment.type == "OBJECT"
     end
@@ -242,6 +253,24 @@ constructor_lib.default_entity_attributes = function(attachment)
     end
     constructor_lib.default_vehicle_attributes(attachment)
     constructor_lib.default_ped_attributes(attachment)
+end
+
+constructor_lib.is_spawn_mode_offset = function(attachment)
+    if attachment.options ~= nil then
+        return attachment.options.spawn_mode == 1
+    end
+end
+
+constructor_lib.is_spawn_mode_position = function(attachment)
+    if attachment.options ~= nil then
+        return attachment.options.spawn_mode == 2
+    end
+end
+
+constructor_lib.is_freezable = function(attachment)
+    return constructor_lib.is_attachment_root(attachment)
+            or attachment.options.is_attached == false
+            or attachment.type == "PED"
 end
 
 constructor_lib.serialize_entity_position = function(attachment)
@@ -321,27 +350,43 @@ constructor_lib.deserialize_entity_attributes = function(attachment)
         OBJECT.SET_OBJECT_TINT_INDEX(attachment.handle, attachment.options.object_tint)
     end
 
+    constructor_lib.deserialize_trailer_attachment(attachment)
+
+end
+
+constructor_lib.deserialize_trailer_attachment = function(attachment)
+    if constructor_lib.is_attachment_root(attachment) then return end
+    local trailer_parent = VEHICLE._GET_VEHICLE_TRAILER_PARENT_VEHICLE(attachment.handle)
+    --debug_log("trailer parent " ..inspect(trailer_parent))
+    if trailer_parent ~= 0 and trailer_parent ~= attachment.parent.handle then
+        VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
+    end
+    if trailer_parent == 0 and attachment.options.is_trailer_attached
+        and ENTITY.DOES_ENTITY_EXIST(attachment.parent.handle) and ENTITY.DOES_ENTITY_EXIST(attachment.handle) then
+            --debug_log("attaching trailer "..attachment.name)
+            --VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
+            --util.yield(100)
+            VEHICLE.ATTACH_VEHICLE_TO_TRAILER(attachment.parent.handle, attachment.handle, 1065353216)
+    end
 end
 
 constructor_lib.attach_entity = function(attachment)
     --debug_log("Updating attachment "..tostring(attachment.name))
     constructor_lib.deserialize_entity_attributes(attachment)
-    if attachment.options.is_attached then
-        if attachment.type == "PED" and attachment.parent.is_player then
+    if attachment.options.is_attached or attachment.is_preview then
+        if constructor_lib.is_attachment_root(attachment) then
+            debug_log("Cannot attach attachment to itself "..tostring(attachment.name))
+        elseif attachment.type == "PED" and attachment.parent.is_player then
             util.toast("Cannot attach ped to player. Spawning new ped "..tostring(attachment.name), TOAST_ALL)
         else
-            if attachment == attachment.parent then
-                debug_log("Cannot attach attachment to itself "..tostring(attachment.name))
-            else
-                debug_log("Attaching entity to entity "..tostring(attachment.name))
-                ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                    attachment.handle, attachment.parent.handle, attachment.options.bone_index,
-                    attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
-                    attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                    false, attachment.options.use_soft_pinning, attachment.options.has_collision,
-                    false, attachment.rotation_order, true
-                )
-            end
+            debug_log("Attaching entity to entity "..tostring(attachment.name))
+            ENTITY.ATTACH_ENTITY_TO_ENTITY(
+                attachment.handle, attachment.parent.handle, attachment.options.bone_index,
+                attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
+                attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
+                false, attachment.options.use_soft_pinning, attachment.options.has_collision,
+                false, attachment.rotation_order, true, 0
+            )
         end
     else
         if attachment.options.is_frozen ~= nil then
@@ -351,6 +396,7 @@ constructor_lib.attach_entity = function(attachment)
             ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
         end
         ENTITY.DETACH_ENTITY(attachment.handle, true, true)
+        constructor_lib.deserialize_entity_position(attachment)
     end
 end
 
@@ -462,7 +508,9 @@ end
 
 constructor_lib.update_attachment_position = function(attachment)
     --debug_log("Updating attachment position "..tostring(attachment.name))
-    if attachment == attachment.parent or not attachment.options.is_attached then
+    if constructor_lib.is_attachment_root(attachment) or (
+        not attachment.options.is_attached and constructor_lib.is_spawn_mode_position(attachment)
+    ) then
         --debug_log("Updating attachment world rotation "..tostring(attachment.name))
         if attachment.quaternion ~= nil then
             ENTITY.SET_ENTITY_QUATERNION(
@@ -498,12 +546,39 @@ constructor_lib.update_attachment_position = function(attachment)
                         attachment.rotation_order, true
                 )
             else
-                ENTITY.SET_ENTITY_COORDS(
+                ENTITY.SET_ENTITY_COORDS_NO_OFFSET(
                         attachment.handle,
                         attachment.position.x,
                         attachment.position.y,
                         attachment.position.z,
                         true, false, false
+                )
+            end
+        end
+    else
+        if constructor_lib.is_spawn_mode_offset(attachment) then
+            if attachment.offset ~= nil then
+                local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(
+                        attachment.parent.handle,
+                        attachment.offset.x,
+                        attachment.offset.y,
+                        attachment.offset.z
+                )
+                ENTITY.SET_ENTITY_COORDS_NO_OFFSET(
+                        attachment.handle,
+                        pos.x,
+                        pos.y,
+                        pos.z,
+                        true, false, false
+                )
+            end
+            if attachment.options.match_parents_rotation then
+                ENTITY.SET_ENTITY_ROTATION(
+                        attachment.handle,
+                        attachment.parent.world_rotation.x,
+                        attachment.parent.world_rotation.y,
+                        attachment.parent.world_rotation.z,
+                        attachment.parent.rotation_order, true
                 )
             end
         end
@@ -609,7 +684,13 @@ constructor_lib.create_entity = function(attachment)
             --constructor_lib.serialize_attachment(attachment)
             constructor_lib.serialize_entity_attributes(attachment)
         else
-            local pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
+            --debug_log("Creating ped "..inspect(attachment))
+            local pos
+            if attachment.spawn_mode == 1 and attachment.parent.handle then
+                pos = ENTITY.GET_OFFSET_FROM_ENTITY_IN_WORLD_COORDS(attachment.parent.handle, attachment.offset.x, attachment.offset.y, attachment.offset.z)
+            else
+                pos = attachment.position
+            end
             if is_networked then
                 attachment.handle = entities.create_ped(1, attachment.hash, pos, attachment.heading)
             else
@@ -640,9 +721,11 @@ constructor_lib.create_entity = function(attachment)
         )
     end
 
-    if is_networked
-        and not (attachment.type == "VEHICLE" and constructor_lib.is_attachment_root(attachment))
-    then
+    if is_networked and not (
+        attachment.type == "VEHICLE" and (
+            constructor_lib.is_attachment_root(attachment) or not attachment.options.is_attached
+        )
+    ) then
         constructor_lib.make_entity_networked(attachment)
     end
 
@@ -808,7 +891,7 @@ end
 
 constructor_lib.remove_attachment_from_parent = function(attachment)
     debug_log("Removing attachment from parent "..tostring(attachment.name))
-    if attachment == attachment.parent then
+    if constructor_lib.is_attachment_root(attachment) then
         constructor_lib.remove_attachment(attachment)
     elseif attachment.parent ~= nil then
         constructor_lib.array_remove(attachment.parent.children, function(t, i)
@@ -1346,7 +1429,7 @@ end
 
 constructor_lib.deserialize_vehicle_headlights = function(vehicle)
     if vehicle.vehicle_attributes.headlights == nil then return end
-    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, vehicle.vehicle_attributes.headlights.headlights_color)
+    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, vehicle.vehicle_attributes.headlights.headlights_color or -1)
     VEHICLE.TOGGLE_VEHICLE_MOD(vehicle.handle, 22, vehicle.vehicle_attributes.headlights.headlights_type or false)
     VEHICLE.SET_VEHICLE_LIGHT_MULTIPLIER(vehicle.handle, vehicle.vehicle_attributes.headlights.multiplier or 1)
 end
@@ -1473,6 +1556,15 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
     end
 
     if vehicle.vehicle_attributes.paint.extra_colors.pearlescent ~= nil or vehicle.vehicle_attributes.paint.extra_colors.wheel ~= nil then
+        local pearl_color = memory.alloc(8)
+        local wheel_color = memory.alloc(8)
+        VEHICLE.GET_VEHICLE_EXTRA_COLOURS(vehicle.handle, pearl_color, wheel_color)
+        if vehicle.vehicle_attributes.paint.extra_colors.pearlescent == nil then
+            vehicle.vehicle_attributes.paint.extra_colors.pearlescent = tonumber(pearl_color) or -1
+        end
+        if vehicle.vehicle_attributes.paint.extra_colors.wheel == nil then
+            vehicle.vehicle_attributes.paint.extra_colors.wheel = tonumber(wheel_color) or -1
+        end
         VEHICLE.SET_VEHICLE_EXTRA_COLOURS(
                 vehicle.handle,
                 vehicle.vehicle_attributes.paint.extra_colors.pearlescent,
@@ -1545,12 +1637,12 @@ constructor_lib.deserialize_vehicle_neon = function(vehicle)
             VEHICLE.SET_VEHICLE_NEON_ENABLED(vehicle.handle, 3, true)
         end
     end
-    if vehicle.vehicle_attributes.neon.color then
+    if vehicle.vehicle_attributes.neon.color ~= nil and vehicle.vehicle_attributes.neon.color.r ~= nil then
         VEHICLE.SET_VEHICLE_NEON_COLOUR(
-                vehicle.handle,
-                vehicle.vehicle_attributes.neon.color.r,
-                vehicle.vehicle_attributes.neon.color.g,
-                vehicle.vehicle_attributes.neon.color.b
+            vehicle.handle,
+            vehicle.vehicle_attributes.neon.color.r,
+            vehicle.vehicle_attributes.neon.color.g,
+            vehicle.vehicle_attributes.neon.color.b
         )
     end
 end
@@ -1644,6 +1736,7 @@ constructor_lib.deserialize_vehicle_wheels = function(vehicle)
     if vehicle.vehicle_attributes.wheels.detached then
         for _, tire_position in pairs(constants.detached_wheel_names) do
             if vehicle.vehicle_attributes.wheels.detached["_"..tire_position.index] then
+                debug_log("detaching wheel "..tostring(tire_position.index))
                 entities.detach_wheel(entities.handle_to_pointer(vehicle.handle), tire_position.index)
             end
         end
@@ -1821,6 +1914,12 @@ constructor_lib.deserialize_vehicle_tick = function(vehicle)
             AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
         end
     end
+    --if vehicle.temp.vehicle_next_update_tick_time == nil then vehicle.temp.vehicle_next_update_tick_time = util.current_time_millis() end
+    --if vehicle.temp.vehicle_next_update_tick_time < util.current_time_millis() then
+    --    debug_log(vehicle.name .. " = "..vehicle.temp.vehicle_next_update_tick_time)
+    --    vehicle.temp.vehicle_next_update_tick_time = util.current_time_millis() + 5000
+    --    constructor_lib.deserialize_trailer_attachment(vehicle)
+    --end
 end
 
 constructor_lib.deserialize_vehicle_options = function(vehicle)
@@ -1899,20 +1998,25 @@ constructor_lib.default_ped_attributes = function(attachment)
     if attachment.ped_attributes.weapon == nil then attachment.ped_attributes.weapon = {} end
     if attachment.ped_attributes.seat == nil then attachment.ped_attributes.seat = -3 end
     if attachment.ped_attributes.ignore_events == nil then attachment.ped_attributes.ignore_events = true end
+    if attachment.ped_attributes.ped_config_flags == nil then attachment.ped_attributes.ped_config_flags = {} end
     for prop_index = 0, 9 do
         if attachment.ped_attributes.props["_"..prop_index] == nil then attachment.ped_attributes.props["_"..prop_index] = {} end
         if attachment.ped_attributes.props["_"..prop_index].drawable_variation == nil then attachment.ped_attributes.props["_"..prop_index].drawable_variation = -1 end
         if attachment.ped_attributes.props["_"..prop_index].texture_variation == nil then attachment.ped_attributes.props["_"..prop_index].texture_variation = 0 end
-        attachment.ped_attributes.props["_"..prop_index].num_drawable_variations = PED.GET_NUMBER_OF_PED_PROP_DRAWABLE_VARIATIONS(attachment.handle, prop_index) - 1
-        attachment.ped_attributes.props["_"..prop_index].num_texture_variations = PED.GET_NUMBER_OF_PED_PROP_TEXTURE_VARIATIONS(attachment.handle, prop_index, attachment.ped_attributes.props["_"..prop_index].drawable_variation) - 1
+        if attachment.handle ~= nil then
+            attachment.ped_attributes.props["_"..prop_index].num_drawable_variations = PED.GET_NUMBER_OF_PED_PROP_DRAWABLE_VARIATIONS(attachment.handle, prop_index) - 1
+            attachment.ped_attributes.props["_"..prop_index].num_texture_variations = PED.GET_NUMBER_OF_PED_PROP_TEXTURE_VARIATIONS(attachment.handle, prop_index, attachment.ped_attributes.props["_"..prop_index].drawable_variation) - 1
+        end
     end
     for component_index = 0, 11 do
         if attachment.ped_attributes.components["_"..component_index] == nil then attachment.ped_attributes.components["_"..component_index] = {} end
         if attachment.ped_attributes.components["_"..component_index].drawable_variation == nil then attachment.ped_attributes.components["_"..component_index].drawable_variation = 0 end
         if attachment.ped_attributes.components["_"..component_index].texture_variation == nil then attachment.ped_attributes.components["_"..component_index].texture_variation = 0 end
         if attachment.ped_attributes.components["_"..component_index].palette_variation == nil then attachment.ped_attributes.components["_"..component_index].palette_variation = 1 end
-        attachment.ped_attributes.components["_"..component_index].num_drawable_variations = PED.GET_NUMBER_OF_PED_DRAWABLE_VARIATIONS(attachment.handle, component_index) - 1
-        attachment.ped_attributes.components["_"..component_index].num_texture_variations = PED.GET_NUMBER_OF_PED_TEXTURE_VARIATIONS(attachment.handle, component_index, attachment.ped_attributes.components["_".. component_index].drawable_variation) - 1
+        if attachment.handle ~= nil then
+            attachment.ped_attributes.components["_"..component_index].num_drawable_variations = PED.GET_NUMBER_OF_PED_DRAWABLE_VARIATIONS(attachment.handle, component_index) - 1
+            attachment.ped_attributes.components["_"..component_index].num_texture_variations = PED.GET_NUMBER_OF_PED_TEXTURE_VARIATIONS(attachment.handle, component_index, attachment.ped_attributes.components["_".. component_index].drawable_variation) - 1
+        end
     end
 end
 
@@ -1924,7 +2028,7 @@ constructor_lib.serialize_ped_attributes = function(attachment)
     attachment.ped_attributes.max_health = ENTITY.GET_ENTITY_MAX_HEALTH(attachment.handle)
     for index = 0, 9 do
         attachment.ped_attributes.props["_"..index] = {
-            drawable_variation = PED.GET_PED_PROP_INDEX(attachment.handle, index),
+            drawable_variation = PED.GET_PED_PROP_INDEX(attachment.handle, index, 0),
             texture_variation = PED.GET_PED_PROP_TEXTURE_INDEX(attachment.handle, index)
         }
     end
@@ -1977,6 +2081,17 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
             constructor_lib.move_attachment(attachment)
         end
     end
+    if attachment.ped_attributes.keep_on_task ~= nil then
+        PED.SET_PED_KEEP_TASK(attachment.handle, attachment.ped_attributes.keep_on_task)
+    end
+    if attachment.ped_attributes.task_vehicle_drive_wander == true
+            and PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+        if attachment.ped_attributes.task_vehicle_drive_wander_speed == nil then
+            attachment.ped_attributes.task_vehicle_drive_wander_speed = 20.0
+        end
+        TASK.TASK_VEHICLE_DRIVE_WANDER(attachment.handle, attachment.parent.handle,
+                attachment.ped_attributes.task_vehicle_drive_wander_speed, 786603)
+    end
     if attachment.ped_attributes.can_rag_doll ~= nil then
         PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
     end
@@ -2017,10 +2132,11 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
                             index,
                             tonumber(prop.drawable_variation),
                             tonumber(prop.texture_variation),
-                            true
+                            true,
+                            0
                     )
                 else
-                    PED.CLEAR_PED_PROP(attachment.handle, index)
+                    PED.CLEAR_PED_PROP(attachment.handle, index, 0)
                 end
                 prop.num_drawable_variations = PED.GET_NUMBER_OF_PED_PROP_DRAWABLE_VARIATIONS(attachment.handle, index) - 1
                 prop.num_texture_variations = PED.GET_NUMBER_OF_PED_PROP_TEXTURE_VARIATIONS(attachment.handle, index, prop.drawable_variation) - 1
@@ -2052,6 +2168,12 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
                 PED.SET_PED_HEAD_OVERLAY(attachment.handle, index, value, 1.0)
             end
         end
+    end
+    if attachment.ped_attributes.hair_color ~= nil then
+        local highlight_color = PED.GET_DEFAULT_SECONDARY_TINT_FOR_CREATOR(attachment.ped_attributes.hair_color)
+        debug_log("Setting ped hair color "..attachment.ped_attributes.hair_color)
+        -- Note this doesn't seem to work for some reason??
+        PED.SET_PED_HAIR_TINT(attachment.handle, attachment.ped_attributes.hair_color, 1)
     end
     if attachment.ped_attributes.eye_color ~= nil then
         PED.SET_HEAD_BLEND_EYE_COLOR(attachment.handle, attachment.ped_attributes.eye_color)

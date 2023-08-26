@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.39.1"
+local SCRIPT_VERSION = "0.41"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -76,6 +76,26 @@ end
 --- Constructor Format
 ---
 
+convertor.set_default_spawn_mode = function(attachment)
+    if attachment.options.spawn_mode == nil and attachment.always_spawn_at_position ~= nil then
+        if attachment.always_spawn_at_position == true then
+            attachment.options.spawn_mode = 2
+        end
+        if attachment.always_spawn_at_position == false then
+            attachment.options.spawn_mode = 1
+        end
+    --else
+    --    if attachment.type == "OBJECT" and attachment.options.is_attached == false then
+    --        attachment.options.spawn_mode = 2
+    --    else
+    --        attachment.options.spawn_mode = 1
+    --    end
+    end
+    for _, child_attachment in attachment.children do
+        convertor.set_default_spawn_mode(child_attachment)
+    end
+end
+
 local function convert_legacy_construct(construct_plan)
 
     -- 0.28 Renamed `rotation_axis` to `rotation_order`
@@ -107,6 +127,14 @@ local function convert_legacy_construct(construct_plan)
             end
             construct_plan.ped_attributes.animation_scenario = nil
         end
+    end
+
+    -- 0.41 Moved always_spawn_at_position to options.spawn_mode = 2
+    convertor.set_default_spawn_mode(construct_plan)
+
+    -- Moved to temp. Should not be a saved value.
+    if construct_plan.options.spawn_for_player then
+        construct_plan.options.spawn_for_player = nil
     end
 
 end
@@ -919,6 +947,30 @@ local function map_placement_position(attachment, placement)
     end
 end
 
+local function map_task_sequence_particles(attachment, placement)
+    if placement.TaskSequence == nil then return end
+    local task = placement.TaskSequence.Task
+    local particle = {type="PARTICLE", name=task.EffectName}
+    constructor_lib.default_attachment_attributes(particle)
+
+    if task.AssetName ~= nil then particle.particle_attributes.asset = task.AssetName end
+    if task.EffectName ~= nil then particle.particle_attributes.effect_name = task.EffectName end
+    if task.Scale ~= nil then particle.particle_attributes.scale = tonumber(task.Scale) end
+    if task.Delay ~= nil then particle.particle_attributes.loop_timer = tonumber(task.Delay) end
+    if task.RelativePosition ~= nil then
+        particle.offset.x = tonumber(task.RelativePosition._attr.X)
+        particle.offset.y = tonumber(task.RelativePosition._attr.Y)
+        particle.offset.z = tonumber(task.RelativePosition._attr.Z)
+    end
+    if task.RelativeRotation ~= nil then
+        particle.rotation.x = tonumber(task.RelativeRotation._attr.X)
+        particle.rotation.y = tonumber(task.RelativeRotation._attr.Y)
+        particle.rotation.z = tonumber(task.RelativeRotation._attr.Z)
+    end
+    debug_log("Inserting particle "..inspect(particle))
+    table.insert(attachment.children, particle)
+end
+
 local function map_placement(attachment, placement)
     --util.log("Processing "..inspect(placement))
     if attachment == nil then attachment = {} end
@@ -937,6 +989,7 @@ local function map_placement(attachment, placement)
     map_placement_position(attachment, placement)
     map_vehicle_attributes(attachment, placement)
     map_ped_placement(attachment, placement)
+    map_task_sequence_particles(attachment, placement)
 end
 
 ---
@@ -1085,6 +1138,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
     end
 
     convertor.rearrange_by_initial_attachment(construct_plan)
+    convertor.set_default_spawn_mode(construct_plan)
 
     --debug_log("Loaded XML construct plan: "..inspect(construct_plan))
 
