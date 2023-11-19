@@ -59,6 +59,7 @@ local convertors
 local curated_attachments
 local translations
 local scaleform
+local auto_updater
 
 util.execute_in_os_thread(function()
     constructor_lib = require_dependency("constructor/constructor_lib")
@@ -72,6 +73,9 @@ util.execute_in_os_thread(function()
 
     util.ensure_package_is_installed('lua/ScaleformLib')
     scaleform = require_dependency("ScaleformLib")
+
+    util.ensure_package_is_installed('lua/auto_updater')
+    scaleform = require_dependency("auto_updater")
 end)
 
 util.require_natives("2944a")
