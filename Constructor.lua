@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.42.1r"
+local SCRIPT_VERSION = "0.42.2r"
 
 ---
 --- Config
@@ -75,7 +75,7 @@ util.execute_in_os_thread(function()
     scaleform = require_dependency("ScaleformLib")
 
     util.ensure_package_is_installed('lua/auto-updater')
-    scaleform = require_dependency("auto-updater")
+    auto_updater = require_dependency("auto-updater")
 end)
 
 util.require_natives("2944a")
