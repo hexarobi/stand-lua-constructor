@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.41"
+local SCRIPT_VERSION = "0.42"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -97,6 +97,7 @@ convertor.set_default_spawn_mode = function(attachment)
 end
 
 local function convert_legacy_construct(construct_plan)
+    if construct_plan.options == nil then construct_plan.options = {} end
 
     -- 0.28 Renamed `rotation_axis` to `rotation_order`
     if construct_plan.rotation_axis ~= nil and construct_plan.rotation_order == nil then
@@ -1094,12 +1095,12 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
             if construct_plan.model == nil then
                 map_placement(construct_plan, placement)
                 if construct_plan.type == "OBJECT" then
-                    construct_plan.always_spawn_at_position = true
+                    construct_plan.options.spawn_mode = 2
                 end
             else
                 local attachment = {}
                 map_placement(attachment, placement)
-                if construct_plan.always_spawn_at_position == true then attachment.options.is_attached = false end
+                if constructor_lib.is_spawn_mode_position(construct_plan) then attachment.options.is_attached = false end
                 table.insert(construct_plan.children, attachment)
             end
         end
@@ -1127,7 +1128,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
             if construct_plan.model == nil then
                 map_mapobject_placement(construct_plan, placement)
                 if construct_plan.type == "OBJECT" then
-                    construct_plan.always_spawn_at_position = true
+                    construct_plan.options.spawn_mode = 2
                 end
             else
                 local attachment = {}
@@ -2043,7 +2044,7 @@ local function map_ini_attachment_flavor_8(attachment, data)
     attachment.type = "OBJECT"
     attachment.options.is_frozen = true
     attachment.options.is_attached = false
-    attachment.always_spawn_at_position = true
+    attachment.options.spawn_mode = 2
 
     --if data["offx"] ~= nil then attachment.offset.x = tonumber(data["offx"]) end
     --if data["offy"] ~= nil then attachment.offset.y = tonumber(data["offy"]) end
@@ -2072,6 +2073,7 @@ end
 
 local function map_ini_data_flavor_8(construct_plan, data)
     map_ini_attachment_flavor_8(construct_plan, data["1"])
+    construct_plan.options.spawn_mode = 2
     if data.Player ~= nil then
         -- TODO: Handle teleport coords
     end
