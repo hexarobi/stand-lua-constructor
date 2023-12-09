@@ -580,12 +580,12 @@ for code, station_name in pairs(constants.radio_station_map) do
 end
 
 constants.rotation_orders = {
-    { "ZYX", {}, "Rotate around the z-axis, then the y-axis and finally the x-axis.", 0 },
-    { "YZX", {}, "Rotate around the y-axis, then the z-axis and finally the x-axis.", 1 },
-    { "ZXY", {}, "Rotate around the z-axis, then the x-axis and finally the y-axis.", 2 },
-    { "XZY", {}, "Rotate around the x-axis, then the z-axis and finally the y-axis.", 3 },
-    { "YXZ", {}, "Rotate around the y-axis, then the x-axis and finally the z-axis.", 4 },
-    { "XYZ", {}, "Rotate around the x-axis, then the y-axis and finally the z-axis.", 5 },
+    { "ZYX", {}, 0 },
+    { "YZX", {}, 1 },
+    { "ZXY", {}, 2 },
+    { "XZY", {}, 3 },
+    { "YXZ", {}, 4 },
+    { "XYZ", {}, 5 },
 }
 
 constants.ped_props = {
