@@ -10,7 +10,7 @@ local AUTO_UPDATE_BRANCHES = {
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
     --{ "stand_repository", {}, "The version used by the stand repository. Removes this picker so you can't easily undo this action.", "stand_repository", },
 }
-local SELECTED_BRANCH_INDEX = 1
+local SELECTED_BRANCH_INDEX = 2
 local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 
 ---
