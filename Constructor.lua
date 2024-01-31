@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.42"
+local SCRIPT_VERSION = "0.43b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -351,8 +351,26 @@ local function delete_menu_list(menu_list)
     end
 end
 
+local function scale_input_color(input_color)
+    if input_color == nil then
+        return 0
+    end
+    if input_color > 1 then
+        return input_color / 255
+    else
+        return input_color
+    end
+end
+
 local function color_menu_input(input_color)
-    return { r=input_color.r or 0, g=input_color.g or 0, b=input_color.b or 0, a=1 }
+    local color = {
+        r = scale_input_color(input_color.r),
+        g = scale_input_color(input_color.g),
+        b = scale_input_color(input_color.b),
+        a = 1
+    }
+    debug_log("color menu input "..inspect(color))
+    return color
 end
 
 local function color_menu_output(output_color)
