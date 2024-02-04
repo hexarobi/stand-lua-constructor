@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41"
+local SCRIPT_VERSION = "0.44b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -268,9 +268,10 @@ constructor_lib.is_spawn_mode_position = function(attachment)
 end
 
 constructor_lib.is_freezable = function(attachment)
-    return constructor_lib.is_attachment_root(attachment)
-            or attachment.options.is_attached == false
-            or attachment.type == "PED"
+    return true
+    --return constructor_lib.is_attachment_root(attachment)
+    --        or attachment.options.is_attached == false
+    --        or attachment.type == "PED"
 end
 
 constructor_lib.serialize_entity_position = function(attachment)
