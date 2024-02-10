@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.44b1"
+local SCRIPT_VERSION = "0.44b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -147,7 +147,7 @@ constructor_lib.use_player_ped_attributes_as_base = function(attachment)
         if attachment.ped_attributes == nil then attachment.ped_attributes = {} end
         constructor_lib.table_merge(player_preview.ped_attributes, attachment.ped_attributes)
         constructor_lib.table_merge(attachment.ped_attributes, player_preview.ped_attributes)
-        debug_log("Using player as base for "..inspect(attachment))
+        --debug_log("Using player as base for "..inspect(attachment))
     end
 end
 
@@ -324,6 +324,9 @@ constructor_lib.deserialize_entity_attributes = function(attachment)
             PED.SET_PED_GRAVITY(attachment.handle, attachment.options.has_gravity)
         end
     end
+    if attachment.options.max_speed ~= nil then
+        ENTITY.SET_ENTITY_MAX_SPEED(attachment.handle, attachment.options.max_speed)
+    end
     if attachment.options.has_special_physics then
         OBJECT.SET_OBJECT_PHYSICS_PARAMS(attachment.handle, attachment.options.weight, 0.0, 0.0, 0.0, 0.0,
                 attachment.options.gravity, 0.0, 0.0, 0.0, 0.0, attachment.options.buoyancy)
@@ -374,10 +377,8 @@ end
 constructor_lib.attach_entity = function(attachment)
     --debug_log("Updating attachment "..tostring(attachment.name))
     constructor_lib.deserialize_entity_attributes(attachment)
-    if attachment.options.is_attached or attachment.is_preview then
-        if constructor_lib.is_attachment_root(attachment) then
-            debug_log("Cannot attach attachment to itself "..tostring(attachment.name))
-        elseif attachment.type == "PED" and attachment.parent.is_player then
+    if not constructor_lib.is_attachment_root(attachment) and (attachment.options.is_attached or attachment.is_preview) then
+        if attachment.type == "PED" and attachment.parent.is_player then
             util.toast("Cannot attach ped to player. Spawning new ped "..tostring(attachment.name), TOAST_ALL)
         else
             debug_log("Attaching entity to entity "..tostring(attachment.name))
@@ -393,8 +394,12 @@ constructor_lib.attach_entity = function(attachment)
         if attachment.options.is_frozen ~= nil then
             ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
         end
-        if attachment.options.is_frozen and attachment.options.has_collision ~= nil then
-            ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
+        if attachment.options.has_collision ~= nil then
+            if attachment.options.is_frozen then
+                ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
+            else
+                ENTITY.SET_ENTITY_COLLISION(attachment.handle, attachment.options.has_collision, true)
+            end
         end
         ENTITY.DETACH_ENTITY(attachment.handle, true, true)
         constructor_lib.deserialize_entity_position(attachment)
@@ -1915,6 +1920,12 @@ constructor_lib.deserialize_vehicle_tick = function(vehicle)
             AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
         end
     end
+    if vehicle.vehicle_attributes.options.gravity_multiplier ~= nil then
+        entities.set_gravity_multiplier(entities.handle_to_pointer(vehicle.handle), vehicle.vehicle_attributes.options.gravity_multiplier)
+    end
+    if vehicle.vehicle_attributes.options.downforce ~= nil and vehicle.vehicle_attributes.options.downforce > 0 then
+        ENTITY.APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(vehicle.handle, 1, 0, 0, 0 - vehicle.vehicle_attributes.options.downforce, 0, true, true, true, true)
+    end
     --if vehicle.temp.vehicle_next_update_tick_time == nil then vehicle.temp.vehicle_next_update_tick_time = util.current_time_millis() end
     --if vehicle.temp.vehicle_next_update_tick_time < util.current_time_millis() then
     --    debug_log(vehicle.name .. " = "..vehicle.temp.vehicle_next_update_tick_time)
@@ -1968,7 +1979,6 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
     end
     if vehicle.vehicle_attributes.options.top_speed ~= nil then
         VEHICLE.MODIFY_VEHICLE_TOP_SPEED(vehicle.handle, vehicle.vehicle_attributes.options.top_speed)
-        ENTITY.SET_ENTITY_MAX_SPEED(vehicle.handle, vehicle.vehicle_attributes.options.top_speed)
     end
     if vehicle.vehicle_attributes.options.engine_power ~= nil then
         VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(vehicle.handle, vehicle.vehicle_attributes.options.engine_power)
