@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.44b2"
+local SCRIPT_VERSION = "0.44b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -207,6 +207,7 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.alpha == nil then attachment.options.alpha = 255 end
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
     if attachment.options.gravity == nil then attachment.options.gravity = 0.0 end
+    --if attachment.options.gravity_multiplier == nil then attachment.options.gravity_multiplier = 10 end
     if attachment.options.weight == nil then attachment.options.weight = 0.0 end
     if attachment.options.buoyancy == nil then attachment.options.buoyancy = 0.0 end
     if attachment.options.has_collision == nil then
@@ -272,6 +273,19 @@ constructor_lib.is_freezable = function(attachment)
     --return constructor_lib.is_attachment_root(attachment)
     --        or attachment.options.is_attached == false
     --        or attachment.type == "PED"
+end
+
+constructor_lib.deserialize_entity_tick = function(attachment)
+    if attachment.options == nil then return end
+    if attachment.options.is_frozen ~= nil then
+        ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
+    end
+    if attachment.options.gravity_multiplier ~= nil then
+        entities.set_gravity_multiplier(entities.handle_to_pointer(attachment.handle), attachment.options.gravity_multiplier)
+    end
+    if attachment.options.downforce ~= nil and attachment.options.downforce > 0 then
+        ENTITY.APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(attachment.handle, 1, 0, 0, 0 - attachment.options.downforce, 0, true, true, true, true)
+    end
 end
 
 constructor_lib.serialize_entity_position = function(attachment)
@@ -952,13 +966,8 @@ end
 ---
 
 constructor_lib.update_attachment_tick = function(attachment)
-    if attachment.options ~= nil and attachment.options.is_frozen ~= nil then
-        ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
-    end
-    if attachment.vehicle_attributes ~= nil and attachment.vehicle_attributes.options ~= nil and attachment.vehicle_attributes.options.engine_power ~= nil then
-        VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, attachment.vehicle_attributes.options.engine_power)
-    end
     --constructor_lib.serialize_entity_position(attachment)
+    constructor_lib.deserialize_entity_tick(attachment)
     constructor_lib.deserialize_vehicle_tick(attachment)
     constructor_lib.update_particle_tick(attachment)
     constructor_lib.refresh_ped_animation(attachment)
@@ -1911,6 +1920,9 @@ end
 
 constructor_lib.deserialize_vehicle_tick = function(vehicle)
     if vehicle.vehicle_attributes == nil then return end
+    if vehicle.vehicle_attributes ~= nil and vehicle.vehicle_attributes.options ~= nil and vehicle.vehicle_attributes.options.engine_power ~= nil then
+        VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(vehicle.handle, vehicle.vehicle_attributes.options.engine_power)
+    end
     if vehicle.vehicle_attributes.wheels ~= nil and vehicle.vehicle_attributes.wheels.steering_bias ~= nil then
         VEHICLE.SET_VEHICLE_STEER_BIAS(vehicle.handle, vehicle.vehicle_attributes.wheels.steering_bias)
     end
@@ -1919,12 +1931,6 @@ constructor_lib.deserialize_vehicle_tick = function(vehicle)
         if STREAMING.IS_MODEL_VALID(hash) and VEHICLE.IS_THIS_MODEL_A_CAR(hash) then
             AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
         end
-    end
-    if vehicle.vehicle_attributes.options.gravity_multiplier ~= nil then
-        entities.set_gravity_multiplier(entities.handle_to_pointer(vehicle.handle), vehicle.vehicle_attributes.options.gravity_multiplier)
-    end
-    if vehicle.vehicle_attributes.options.downforce ~= nil and vehicle.vehicle_attributes.options.downforce > 0 then
-        ENTITY.APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(vehicle.handle, 1, 0, 0, 0 - vehicle.vehicle_attributes.options.downforce, 0, true, true, true, true)
     end
     --if vehicle.temp.vehicle_next_update_tick_time == nil then vehicle.temp.vehicle_next_update_tick_time = util.current_time_millis() end
     --if vehicle.temp.vehicle_next_update_tick_time < util.current_time_millis() then
