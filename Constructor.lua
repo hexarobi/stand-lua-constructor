@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.43b1"
+local SCRIPT_VERSION = "0.44b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -369,7 +369,6 @@ local function color_menu_input(input_color)
         b = scale_input_color(input_color.b),
         a = 1
     }
-    debug_log("color menu input "..inspect(color))
     return color
 end
 
@@ -1014,10 +1013,10 @@ local function gizmo_edit_mode_tick()
     end
 
     if grabbed_gizmo_index == -1 and PAD.IS_DISABLED_CONTROL_JUST_PRESSED(2, 237) then
-        ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, false)
+        --ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, false)
         PHYSICS.ACTIVATE_PHYSICS(current_gizmo_entity)
         current_gizmo_entity = constructor_lib.get_ent_clicked_on(mouse_dir)
-        ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, true)
+        --ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, true)
     end
     GRAPHICS.SET_DEPTHWRITING(false)
     return true
@@ -2283,8 +2282,8 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_options(attachment)
     end)
 
-    menu.slider_float(attachment.menus.vehicle_options_engine_options, t("Engine Power"), {"constructorenginepower"..attachment.id}, t("Additional torque boost"), -10000, 10000, math.floor((attachment.vehicle_attributes.paint.engine_power or 1) * 1000), 1, function(value)
-        attachment.vehicle_attributes.options.engine_power = value / 1000
+    menu.slider_float(attachment.menus.vehicle_options_engine_options, t("Engine Power"), {"constructorenginepower"..attachment.id}, t("Additional torque boost"), -10000, 10000, math.floor((attachment.vehicle_attributes.paint.engine_power or 1) * 100), 10, function(value)
+        attachment.vehicle_attributes.options.engine_power = value / 100
         constructor_lib.deserialize_vehicle_options(attachment)
     end)
 
@@ -2861,25 +2860,39 @@ constructor.add_attachment_entity_options = function(attachment)
             --end
         end
 
-        attachment.menus.option_has_special_physics = menu.toggle(attachment.menus.more_options, t("Special Physics"), {}, t("Allow for special physics overrides"), function(on)
-            attachment.options.has_special_physics = on
-            constructor_lib.attach_entity(attachment)
-        end, attachment.options.has_special_physics)
+        -- Physics
+        menu.divider(attachment.menus.more_options, t("Physics"))
 
-        attachment.menus.option_has_gravity = menu.toggle(attachment.menus.more_options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
-            attachment.options.has_gravity = on
-            constructor_lib.attach_entity(attachment)
-        end, attachment.options.has_gravity)
+        --attachment.menus.option_has_special_physics = menu.toggle(attachment.menus.more_options, t("Special Physics"), {}, t("Allow for special physics overrides"), function(on)
+        --    attachment.options.has_special_physics = on
+        --    constructor_lib.attach_entity(attachment)
+        --end, attachment.options.has_special_physics)
+        --
+        --attachment.menus.option_has_gravity = menu.toggle(attachment.menus.more_options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
+        --    attachment.options.has_gravity = on
+        --    constructor_lib.attach_entity(attachment)
+        --end, attachment.options.has_gravity)
+
+        --attachment.menus.option_gravity = menu.slider(attachment.menus.more_options, t("Gravity"), {"constructorsetgravity"..attachment.id}, t(""), 1, 20, attachment.options.gravity, 1, function(value)
+        --    attachment.options.gravity = value
+        --    constructor_lib.deserialize_entity_attributes(attachment)
+        --end)
+
+        attachment.menus.option_gravity_multiplier = menu.slider_float(attachment.menus.more_options, t("Gravity Multiplier"), {"constructorgravitymultiplier"..attachment.id}, t("Additional gravity can make cars much faster"), -1000, 1000, math.floor((attachment.options.gravity_multiplier or 10) * 10), 100, function(value)
+            attachment.options.gravity_multiplier = value / 10
+        end)
+
+        attachment.menus.option_downforce = menu.slider_float(attachment.menus.more_options, t("Downforce"), {"constructordownforce"..attachment.id}, t("Additional downforce constantly applied to the vehicle"), 0, 1000, math.floor((attachment.options.downforce or 0) * 1000), 1, function(value)
+            attachment.options.downforce = value / 1000
+        end)
 
         attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, t("LoD Distance"), {"constructorsetloddistance"..attachment.id}, t("Level of Detail draw distance"), 1, 9999999, attachment.options.lod_distance, 100, function(value)
             attachment.options.lod_distance = value
             constructor_lib.attach_entity(attachment)
         end)
 
-        attachment.menus.option_gravity = menu.slider(attachment.menus.more_options, t("Gravity"), {"constructorsetgravity"..attachment.id}, t(""), 0, 100, attachment.options.gravity, 1, function(value)
-            attachment.options.gravity = value
-            constructor_lib.deserialize_entity_attributes(attachment)
-        end)
+        -- Visibility
+        menu.divider(attachment.menus.more_options, t("Visibility"))
 
         attachment.menus.option_alpha = menu.slider(attachment.menus.more_options, t("Alpha"), {}, t("The amount of transparency the object has. Local only!"), 0, 255, attachment.options.alpha, 51, function(value)
             attachment.options.alpha = value
