@@ -1076,13 +1076,15 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
         local root = vehicle_handler.root.Vehicle
         if root[1] == nil then root = {root} end
         map_placement(construct_plan, root[1])
-        local attachments = root[1].SpoonerAttachments.Attachment
-        if attachments then
-            if attachments[1] == nil then attachments = {attachments} end
-            for _, placement in pairs(attachments) do
-                local attachment = {}
-                map_placement(attachment, placement)
-                table.insert(construct_plan.children, attachment)
+        if root[1].SpoonerAttachments ~= nil then
+            local attachments = root[1].SpoonerAttachments.Attachment
+            if attachments then
+                if attachments[1] == nil then attachments = {attachments} end
+                for _, placement in pairs(attachments) do
+                    local attachment = {}
+                    map_placement(attachment, placement)
+                    table.insert(construct_plan.children, attachment)
+                end
             end
         end
     elseif vehicle_handler.root.SpoonerPlacements ~= nil then
