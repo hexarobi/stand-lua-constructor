@@ -1,4 +1,4 @@
--- Auto-Updater v2.8r
+-- Auto-Updater v2.9r
 -- by Hexarobi
 -- For Lua Scripts for the Stand Mod Menu for GTA5
 -- https://github.com/hexarobi/stand-lua-auto-updater
@@ -221,10 +221,9 @@ local function extract_zip(auto_update_config)
     local fr = soup.FileReader(auto_update_config.script_path)
     local zr = soup.ZipReader(fr)
     for _, f in zr:getFileList() do
-        for _, extraction in pairs(auto_update_config.extractions) do
+        for _2, extraction in pairs(auto_update_config.extractions) do
             local pattern = "^"..escape_pattern(extraction.from).."/(.*[^/])$"
-            local _, _, relative_path = f.name:find(pattern)
-            --local relative_path = f.name:gsub(pattern, "")
+            local relative_path = f.name:match(pattern)
             if relative_path and not is_ignored_filename(relative_path) then
                 local output_filepath = filesystem.stand_dir() .. extraction.to .. "/" .. relative_path
                 debug_log("Extracting file "..output_filepath)
@@ -232,7 +231,7 @@ local function extract_zip(auto_update_config)
                 if not expand_status then
                     debug_log("Failed to extract "..f.name..": "..content)
                 else
-                    local _, _, lua_filename = f.name:find("([^/]+)%.lua$")
+                    local lua_filename = f.name:match("([^/]+)%.lua$")
                     if first_lua_file == nil and lua_filename then
                         debug_log("Found first lua filename "..lua_filename)
                         first_lua_file = lua_filename
@@ -279,7 +278,7 @@ end
 ---
 
 local function parse_github_user_and_project(url)
-    local _, _, user, project = url:find("^https://github%.com/([^/]+)/([^/]+)/?$")
+    local user, project = url:match("^https://github%.com/([^/]+)/([^/]+)/?$")
     if not user or not project then
         error("Invalid project url (must be a GitHub.com project): "..url)
     end
@@ -475,6 +474,7 @@ local function process_auto_update(auto_update_config)
         -- Use ETags to only fetch files if they have been updated
         -- https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
         if auto_update_config.version_data.version_id then
+            --debug_log("Adding existing etag "..inspect(auto_update_config.version_data.version_id))
             async_http.add_header("If-None-Match", auto_update_config.version_data.version_id)
         end
     end
@@ -522,7 +522,7 @@ function run_auto_update(auto_update_config)
     expand_auto_update_config(auto_update_config)
     debug_log("Running auto-update on "..auto_update_config.script_filename.."...")
     if is_update_disabled() then
-        util.toast("Cannot auto-update due to disabled internet access. To enable auto-updates uncheck Disable Internet Access for this script.", TOAST_ALL)
+        util.toast("Cannot auto-update due to disabled internet access. To enable updates, please stop the script then uncheck the `Disable Internet Access` option.", TOAST_ALL)
         return false
     end
     local busy_menu
@@ -603,15 +603,15 @@ end
 --- Self-Update
 ---
 
---  util.create_thread(function()
---      run_auto_update({
---          source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
---          script_relpath="lib/auto-updater.lua",
---          auto_restart = false,
---          verify_file_begins_with="--",
---          check_interval = 86400,
---      })
---  end)
+--util.create_thread(function()
+--    run_auto_update({
+--        source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
+--        script_relpath="lib/auto-updater.lua",
+--        auto_restart = false,
+--        verify_file_begins_with="--",
+--        check_interval = 86400,
+--    })
+--end)
 
 ---
 --- Return Object
