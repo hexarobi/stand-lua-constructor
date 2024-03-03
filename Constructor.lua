@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.44b1"
+local SCRIPT_VERSION = "0.45"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -20,8 +20,11 @@ local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
 -- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
 local status, auto_updater = pcall(require, "auto-updater")
 if not status then
-    local auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
-    async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
+    if not async_http.have_access() then
+        util.toast("Failed to install auto-updater. Internet access is disabled. To enable automatic updates, please stop the script then uncheck the `Disable Internet Access` option.")
+    else
+        local auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
+        async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
             function(result, headers, status_code)
                 local function parse_auto_update_result(result, headers, status_code)
                     local error_prefix = "Error downloading auto-updater: "
@@ -34,9 +37,10 @@ if not status then
                 end
                 auto_update_complete = parse_auto_update_result(result, headers, status_code)
             end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
-    async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 40) do util.yield(250) i = i + 1 end
-    if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
-    auto_updater = require("auto-updater")
+        async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 40) do util.yield(250) i = i + 1 end
+        if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
+        auto_updater = require("auto-updater")
+    end
 end
 if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
 
@@ -63,7 +67,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = true,
+    debug_mode = false,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -2215,6 +2219,11 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             constructor_lib.deserialize_vehicle_paint(attachment)
         end)
     end
+
+    attachment.menus.vehicle_options_primary_custom_color_cycle = menu.slider(attachment.menus.vehicle_options_primary, t("Color Cycle"), {}, t("Cycle through the rainbow of colors, this value is the delay between each change"), 0, 1000, attachment.vehicle_attributes.paint.primary_rainbow_paint_delay or 0, 10, function(value)
+        attachment.vehicle_attributes.paint.primary_rainbow_paint_delay = value
+    end)
+
     attachment.menus.vehicle_options_primary_custom_color = menu.colour(attachment.menus.vehicle_options_primary, t("Custom Color"), {}, t("Mix up a custom paint color"), color_menu_input(attachment.vehicle_attributes.paint.primary.custom_color), false, function(color)
         attachment.vehicle_attributes.paint.primary.is_custom = true
         attachment.vehicle_attributes.paint.primary.custom_color = color_menu_output(color)
@@ -2285,6 +2294,10 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     menu.slider_float(attachment.menus.vehicle_options_engine_options, t("Engine Power"), {"constructorenginepower"..attachment.id}, t("Additional torque boost"), -10000, 10000, math.floor((attachment.vehicle_attributes.paint.engine_power or 1) * 100), 10, function(value)
         attachment.vehicle_attributes.options.engine_power = value / 100
         constructor_lib.deserialize_vehicle_options(attachment)
+    end)
+
+    menu.toggle(attachment.menus.vehicle_options_engine_options, "Freeze when Unoccupied", {}, "Freeze vehicle position when no driver", function(value)
+        attachment.vehicle_attributes.options.freeze_when_empty = value
     end)
 
     --- Lights Options
