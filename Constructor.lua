@@ -4,7 +4,45 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.42.2r"
+local SCRIPT_VERSION = "0.45"
+local AUTO_UPDATE_BRANCHES = {
+    { "main", {}, "More stable, but updated less often.", "main", },
+    { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
+    --{ "stand_repository", {}, "The version used by the stand repository. Removes this picker so you can't easily undo this action.", "stand_repository", },
+}
+local SELECTED_BRANCH_INDEX = 1
+local selected_branch = AUTO_UPDATE_BRANCHES[SELECTED_BRANCH_INDEX][1]
+
+---
+--- Auto-Updater Lib Install
+---
+
+-- Auto Updater from https://github.com/hexarobi/stand-lua-auto-updater
+local status, auto_updater = pcall(require, "auto-updater")
+if not status then
+    if not async_http.have_access() then
+        util.toast("Failed to install auto-updater. Internet access is disabled. To enable automatic updates, please stop the script then uncheck the `Disable Internet Access` option.")
+    else
+        local auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
+        async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
+            function(result, headers, status_code)
+                local function parse_auto_update_result(result, headers, status_code)
+                    local error_prefix = "Error downloading auto-updater: "
+                    if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
+                    if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
+                    filesystem.mkdir(filesystem.scripts_dir() .. "lib")
+                    local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
+                    if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
+                    file:write(result) file:close() util.toast("Successfully installed auto-updater lib", TOAST_ALL) return true
+                end
+                auto_update_complete = parse_auto_update_result(result, headers, status_code)
+            end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
+        async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 40) do util.yield(250) i = i + 1 end
+        if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
+        auto_updater = require("auto-updater")
+    end
+end
+if auto_updater == true then error("Invalid auto-updater lib. Please delete your Stand/Lua Scripts/lib/auto-updater.lua and try again") end
 
 ---
 --- Config
@@ -40,6 +78,81 @@ local config = CONSTRUCTOR_CONFIG
 local state = {}
 
 ---
+--- Auto-Update
+---
+
+local default_check_interval = 604800
+local auto_update_config = {
+    source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/Constructor.lua",
+    script_relpath=SCRIPT_RELPATH,
+    switch_to_branch=selected_branch,
+    verify_file_begins_with="--",
+    check_interval=config.auto_update_check_interval,
+    dependencies={
+        {
+            name="constants",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constants.lua",
+            script_relpath="lib/constructor/constants.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="constructor_lib",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_lib.lua",
+            script_relpath="lib/constructor/constructor_lib.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="convertors",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/convertors.lua",
+            script_relpath="lib/constructor/convertors.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="curated_attachments",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/curated_attachments.lua",
+            script_relpath="lib/constructor/curated_attachments.lua",
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="translations",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/translations.lua",
+            script_relpath="lib/constructor/translations.lua",
+            switch_to_branch=selected_branch,
+            verify_file_begins_with="--",
+            check_interval=default_check_interval,
+            is_required=true,
+        },
+        {
+            name="constructor_logo",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png",
+            script_relpath="lib/constructor/constructor_logo.png",
+            check_interval=default_check_interval,
+        },
+        {
+            name="objects_complete",
+            source_url="https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/objects_complete.txt",
+            script_relpath="lib/constructor/objects_complete.txt",
+            check_interval=default_check_interval,
+        },
+    }
+}
+local update_success
+if config.auto_update then
+    update_success = auto_updater.run_auto_update(auto_update_config)
+end
+
+---
 --- Dependencies
 ---
 
@@ -59,7 +172,6 @@ local convertors
 local curated_attachments
 local translations
 local scaleform
-local auto_updater
 
 util.execute_in_os_thread(function()
     constructor_lib = require_dependency("constructor/constructor_lib")
@@ -73,9 +185,6 @@ util.execute_in_os_thread(function()
 
     util.ensure_package_is_installed('lua/ScaleformLib')
     scaleform = require_dependency("ScaleformLib")
-
-    util.ensure_package_is_installed('lua/auto-updater')
-    auto_updater = require_dependency("auto-updater")
 end)
 
 util.require_natives("2944a")
@@ -246,8 +355,25 @@ local function delete_menu_list(menu_list)
     end
 end
 
+local function scale_input_color(input_color)
+    if input_color == nil then
+        return 0
+    end
+    if input_color > 1 then
+        return input_color / 255
+    else
+        return input_color
+    end
+end
+
 local function color_menu_input(input_color)
-    return { r=input_color.r or 0, g=input_color.g or 0, b=input_color.b or 0, a=1 }
+    local color = {
+        r = scale_input_color(input_color.r),
+        g = scale_input_color(input_color.g),
+        b = scale_input_color(input_color.b),
+        a = 1
+    }
+    return color
 end
 
 local function color_menu_output(output_color)
@@ -891,10 +1017,10 @@ local function gizmo_edit_mode_tick()
     end
 
     if grabbed_gizmo_index == -1 and PAD.IS_DISABLED_CONTROL_JUST_PRESSED(2, 237) then
-        ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, false)
+        --ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, false)
         PHYSICS.ACTIVATE_PHYSICS(current_gizmo_entity)
         current_gizmo_entity = constructor_lib.get_ent_clicked_on(mouse_dir)
-        ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, true)
+        --ENTITY.FREEZE_ENTITY_POSITION(current_gizmo_entity, true)
     end
     GRAPHICS.SET_DEPTHWRITING(false)
     return true
@@ -2093,6 +2219,11 @@ constructor.add_attachment_vehicle_menu = function(attachment)
             constructor_lib.deserialize_vehicle_paint(attachment)
         end)
     end
+
+    attachment.menus.vehicle_options_primary_custom_color_cycle = menu.slider(attachment.menus.vehicle_options_primary, t("Color Cycle"), {}, t("Cycle through the rainbow of colors, this value is the delay between each change"), 0, 1000, attachment.vehicle_attributes.paint.primary_rainbow_paint_delay or 0, 10, function(value)
+        attachment.vehicle_attributes.paint.primary_rainbow_paint_delay = value
+    end)
+
     attachment.menus.vehicle_options_primary_custom_color = menu.colour(attachment.menus.vehicle_options_primary, t("Custom Color"), {}, t("Mix up a custom paint color"), color_menu_input(attachment.vehicle_attributes.paint.primary.custom_color), false, function(color)
         attachment.vehicle_attributes.paint.primary.is_custom = true
         attachment.vehicle_attributes.paint.primary.custom_color = color_menu_output(color)
@@ -2160,9 +2291,13 @@ constructor.add_attachment_vehicle_menu = function(attachment)
         constructor_lib.deserialize_vehicle_options(attachment)
     end)
 
-    menu.slider_float(attachment.menus.vehicle_options_engine_options, t("Engine Power"), {"constructorenginepower"..attachment.id}, t("Additional torque boost"), -10000, 10000, math.floor((attachment.vehicle_attributes.paint.engine_power or 1) * 1000), 1, function(value)
-        attachment.vehicle_attributes.options.engine_power = value / 1000
+    menu.slider_float(attachment.menus.vehicle_options_engine_options, t("Engine Power"), {"constructorenginepower"..attachment.id}, t("Additional torque boost"), -10000, 10000, math.floor((attachment.vehicle_attributes.paint.engine_power or 1) * 100), 10, function(value)
+        attachment.vehicle_attributes.options.engine_power = value / 100
         constructor_lib.deserialize_vehicle_options(attachment)
+    end)
+
+    menu.toggle(attachment.menus.vehicle_options_engine_options, "Freeze when Unoccupied", {}, "Freeze vehicle position when no driver", function(value)
+        attachment.vehicle_attributes.options.freeze_when_empty = value
     end)
 
     --- Lights Options
@@ -2738,25 +2873,39 @@ constructor.add_attachment_entity_options = function(attachment)
             --end
         end
 
-        attachment.menus.option_has_special_physics = menu.toggle(attachment.menus.more_options, t("Special Physics"), {}, t("Allow for special physics overrides"), function(on)
-            attachment.options.has_special_physics = on
-            constructor_lib.attach_entity(attachment)
-        end, attachment.options.has_special_physics)
+        -- Physics
+        menu.divider(attachment.menus.more_options, t("Physics"))
 
-        attachment.menus.option_has_gravity = menu.toggle(attachment.menus.more_options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
-            attachment.options.has_gravity = on
-            constructor_lib.attach_entity(attachment)
-        end, attachment.options.has_gravity)
+        --attachment.menus.option_has_special_physics = menu.toggle(attachment.menus.more_options, t("Special Physics"), {}, t("Allow for special physics overrides"), function(on)
+        --    attachment.options.has_special_physics = on
+        --    constructor_lib.attach_entity(attachment)
+        --end, attachment.options.has_special_physics)
+        --
+        --attachment.menus.option_has_gravity = menu.toggle(attachment.menus.more_options, t("Gravity"), {}, t("Will the attachment be effected by gravity, or be weightless"), function(on)
+        --    attachment.options.has_gravity = on
+        --    constructor_lib.attach_entity(attachment)
+        --end, attachment.options.has_gravity)
+
+        --attachment.menus.option_gravity = menu.slider(attachment.menus.more_options, t("Gravity"), {"constructorsetgravity"..attachment.id}, t(""), 1, 20, attachment.options.gravity, 1, function(value)
+        --    attachment.options.gravity = value
+        --    constructor_lib.deserialize_entity_attributes(attachment)
+        --end)
+
+        attachment.menus.option_gravity_multiplier = menu.slider_float(attachment.menus.more_options, t("Gravity Multiplier"), {"constructorgravitymultiplier"..attachment.id}, t("Additional gravity can make cars much faster"), -1000, 1000, math.floor((attachment.options.gravity_multiplier or 10) * 10), 100, function(value)
+            attachment.options.gravity_multiplier = value / 10
+        end)
+
+        attachment.menus.option_downforce = menu.slider_float(attachment.menus.more_options, t("Downforce"), {"constructordownforce"..attachment.id}, t("Additional downforce constantly applied to the vehicle"), 0, 1000, math.floor((attachment.options.downforce or 0) * 1000), 1, function(value)
+            attachment.options.downforce = value / 1000
+        end)
 
         attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, t("LoD Distance"), {"constructorsetloddistance"..attachment.id}, t("Level of Detail draw distance"), 1, 9999999, attachment.options.lod_distance, 100, function(value)
             attachment.options.lod_distance = value
             constructor_lib.attach_entity(attachment)
         end)
 
-        attachment.menus.option_gravity = menu.slider(attachment.menus.more_options, t("Gravity"), {"constructorsetgravity"..attachment.id}, t(""), 0, 100, attachment.options.gravity, 1, function(value)
-            attachment.options.gravity = value
-            constructor_lib.deserialize_entity_attributes(attachment)
-        end)
+        -- Visibility
+        menu.divider(attachment.menus.more_options, t("Visibility"))
 
         attachment.menus.option_alpha = menu.slider(attachment.menus.more_options, t("Alpha"), {}, t("The amount of transparency the object has. Local only!"), 0, 255, attachment.options.alpha, 51, function(value)
             attachment.options.alpha = value

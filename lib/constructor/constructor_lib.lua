@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.41"
+local SCRIPT_VERSION = "0.45"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -147,7 +147,7 @@ constructor_lib.use_player_ped_attributes_as_base = function(attachment)
         if attachment.ped_attributes == nil then attachment.ped_attributes = {} end
         constructor_lib.table_merge(player_preview.ped_attributes, attachment.ped_attributes)
         constructor_lib.table_merge(attachment.ped_attributes, player_preview.ped_attributes)
-        debug_log("Using player as base for "..inspect(attachment))
+        --debug_log("Using player as base for "..inspect(attachment))
     end
 end
 
@@ -207,6 +207,7 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.alpha == nil then attachment.options.alpha = 255 end
     if attachment.options.has_gravity == nil then attachment.options.has_gravity = true end
     if attachment.options.gravity == nil then attachment.options.gravity = 0.0 end
+    --if attachment.options.gravity_multiplier == nil then attachment.options.gravity_multiplier = 10 end
     if attachment.options.weight == nil then attachment.options.weight = 0.0 end
     if attachment.options.buoyancy == nil then attachment.options.buoyancy = 0.0 end
     if attachment.options.has_collision == nil then
@@ -268,9 +269,23 @@ constructor_lib.is_spawn_mode_position = function(attachment)
 end
 
 constructor_lib.is_freezable = function(attachment)
-    return constructor_lib.is_attachment_root(attachment)
-            or attachment.options.is_attached == false
-            or attachment.type == "PED"
+    return true
+    --return constructor_lib.is_attachment_root(attachment)
+    --        or attachment.options.is_attached == false
+    --        or attachment.type == "PED"
+end
+
+constructor_lib.deserialize_entity_tick = function(attachment)
+    if attachment.options == nil then return end
+    if attachment.options.is_frozen ~= nil then
+        ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
+    end
+    if attachment.options.gravity_multiplier ~= nil then
+        entities.set_gravity_multiplier(entities.handle_to_pointer(attachment.handle), attachment.options.gravity_multiplier)
+    end
+    if attachment.options.downforce ~= nil and attachment.options.downforce > 0 then
+        ENTITY.APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(attachment.handle, 1, 0, 0, 0 - attachment.options.downforce, 0, true, true, true, true)
+    end
 end
 
 constructor_lib.serialize_entity_position = function(attachment)
@@ -323,6 +338,9 @@ constructor_lib.deserialize_entity_attributes = function(attachment)
             PED.SET_PED_GRAVITY(attachment.handle, attachment.options.has_gravity)
         end
     end
+    if attachment.options.max_speed ~= nil then
+        ENTITY.SET_ENTITY_MAX_SPEED(attachment.handle, attachment.options.max_speed)
+    end
     if attachment.options.has_special_physics then
         OBJECT.SET_OBJECT_PHYSICS_PARAMS(attachment.handle, attachment.options.weight, 0.0, 0.0, 0.0, 0.0,
                 attachment.options.gravity, 0.0, 0.0, 0.0, 0.0, attachment.options.buoyancy)
@@ -373,10 +391,8 @@ end
 constructor_lib.attach_entity = function(attachment)
     --debug_log("Updating attachment "..tostring(attachment.name))
     constructor_lib.deserialize_entity_attributes(attachment)
-    if attachment.options.is_attached or attachment.is_preview then
-        if constructor_lib.is_attachment_root(attachment) then
-            debug_log("Cannot attach attachment to itself "..tostring(attachment.name))
-        elseif attachment.type == "PED" and attachment.parent.is_player then
+    if not constructor_lib.is_attachment_root(attachment) and (attachment.options.is_attached or attachment.is_preview) then
+        if attachment.type == "PED" and attachment.parent.is_player then
             util.toast("Cannot attach ped to player. Spawning new ped "..tostring(attachment.name), TOAST_ALL)
         else
             debug_log("Attaching entity to entity "..tostring(attachment.name))
@@ -392,8 +408,12 @@ constructor_lib.attach_entity = function(attachment)
         if attachment.options.is_frozen ~= nil then
             ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
         end
-        if attachment.options.is_frozen and attachment.options.has_collision ~= nil then
-            ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
+        if attachment.options.has_collision ~= nil then
+            if attachment.options.is_frozen then
+                ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, attachment.options.has_collision, true)
+            else
+                ENTITY.SET_ENTITY_COLLISION(attachment.handle, attachment.options.has_collision, true)
+            end
         end
         ENTITY.DETACH_ENTITY(attachment.handle, true, true)
         constructor_lib.deserialize_entity_position(attachment)
@@ -946,13 +966,8 @@ end
 ---
 
 constructor_lib.update_attachment_tick = function(attachment)
-    if attachment.options ~= nil and attachment.options.is_frozen ~= nil then
-        ENTITY.FREEZE_ENTITY_POSITION(attachment.handle, attachment.options.is_frozen)
-    end
-    if attachment.vehicle_attributes ~= nil and attachment.vehicle_attributes.options ~= nil and attachment.vehicle_attributes.options.engine_power ~= nil then
-        VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(attachment.handle, attachment.vehicle_attributes.options.engine_power)
-    end
     --constructor_lib.serialize_entity_position(attachment)
+    constructor_lib.deserialize_entity_tick(attachment)
     constructor_lib.deserialize_vehicle_tick(attachment)
     constructor_lib.update_particle_tick(attachment)
     constructor_lib.refresh_ped_animation(attachment)
@@ -1523,6 +1538,11 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
             )
         end
         if vehicle.vehicle_attributes.paint.primary.is_custom then
+            --util.toast("setting custom color"
+            --        .." r="..vehicle.vehicle_attributes.paint.primary.custom_color.r
+            --        .." g="..vehicle.vehicle_attributes.paint.primary.custom_color.g
+            --        .." b="..vehicle.vehicle_attributes.paint.primary.custom_color.b
+            --)
             VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
                     vehicle.handle,
                     vehicle.vehicle_attributes.paint.primary.custom_color.r,
@@ -1905,6 +1925,9 @@ end
 
 constructor_lib.deserialize_vehicle_tick = function(vehicle)
     if vehicle.vehicle_attributes == nil then return end
+    if vehicle.vehicle_attributes ~= nil and vehicle.vehicle_attributes.options ~= nil and vehicle.vehicle_attributes.options.engine_power ~= nil then
+        VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(vehicle.handle, vehicle.vehicle_attributes.options.engine_power)
+    end
     if vehicle.vehicle_attributes.wheels ~= nil and vehicle.vehicle_attributes.wheels.steering_bias ~= nil then
         VEHICLE.SET_VEHICLE_STEER_BIAS(vehicle.handle, vehicle.vehicle_attributes.wheels.steering_bias)
     end
@@ -1913,6 +1936,40 @@ constructor_lib.deserialize_vehicle_tick = function(vehicle)
         if STREAMING.IS_MODEL_VALID(hash) and VEHICLE.IS_THIS_MODEL_A_CAR(hash) then
             AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
         end
+    end
+    if vehicle.vehicle_attributes.options.freeze_when_empty then
+        if VEHICLE.IS_VEHICLE_SEAT_FREE(vehicle.handle, -1, false) then
+            ENTITY.FREEZE_ENTITY_POSITION(vehicle.handle, true)
+            VEHICLE.SET_VEHICLE_FIXED(vehicle.handle)
+            vehicle.temp.is_frozen_while_empty = true
+        else
+            if vehicle.temp.is_frozen_while_empty then
+                ENTITY.FREEZE_ENTITY_POSITION(vehicle.handle, false)
+                VEHICLE.SET_VEHICLE_FIXED(vehicle.handle)
+                vehicle.temp.is_frozen_while_empty = false
+            end
+        end
+    end
+    if vehicle.vehicle_attributes.paint ~= nil
+        and vehicle.vehicle_attributes.paint.primary_rainbow_paint_delay ~= nil
+        and vehicle.vehicle_attributes.paint.primary_rainbow_paint_delay > 0
+        and (vehicle.temp.next_rainbow_paint_tick == nil or vehicle.temp.next_rainbow_paint_tick < util.current_time_millis())
+    then
+        local custom_color = vehicle.vehicle_attributes.paint.primary.custom_color
+        if custom_color == nil then custom_color = {r=0, g=0, b=0} end
+        local hue, saturation, value = util.rgb2hsv(custom_color.r or 0, custom_color.g or 0, custom_color.b or 0)
+
+        hue = hue + 1
+        if hue >= 360 then hue = 0 end
+        if value == 0 then value = 100 end
+        if saturation == 0 then saturation = 100 end
+
+        local red, green, blue = util.hsv2rgb(hue, saturation, value)
+
+        vehicle.vehicle_attributes.paint.primary.is_custom = true
+        vehicle.vehicle_attributes.paint.primary.custom_color = {r=math.floor(red), g=math.floor(green), b=math.floor(blue)}
+        constructor_lib.deserialize_vehicle_paint(vehicle)
+        vehicle.temp.next_rainbow_paint_tick = util.current_time_millis() + (vehicle.vehicle_attributes.paint.primary_rainbow_paint_delay * 10)
     end
     --if vehicle.temp.vehicle_next_update_tick_time == nil then vehicle.temp.vehicle_next_update_tick_time = util.current_time_millis() end
     --if vehicle.temp.vehicle_next_update_tick_time < util.current_time_millis() then
@@ -1967,7 +2024,6 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
     end
     if vehicle.vehicle_attributes.options.top_speed ~= nil then
         VEHICLE.MODIFY_VEHICLE_TOP_SPEED(vehicle.handle, vehicle.vehicle_attributes.options.top_speed)
-        ENTITY.SET_ENTITY_MAX_SPEED(vehicle.handle, vehicle.vehicle_attributes.options.top_speed)
     end
     if vehicle.vehicle_attributes.options.engine_power ~= nil then
         VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(vehicle.handle, vehicle.vehicle_attributes.options.engine_power)
