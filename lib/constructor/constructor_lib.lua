@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.46b1"
+local SCRIPT_VERSION = "0.47b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -212,9 +212,6 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.buoyancy == nil then attachment.options.buoyancy = 0.0 end
     if attachment.options.has_collision == nil then
         attachment.options.has_collision = true
-        if attachment.root ~= nil and attachment.root.type == "PED" then
-            attachment.options.has_collision = false
-        end
     end
     if attachment.root ~= nil and attachment.root.is_preview then attachment.is_preview = true end
     if attachment.options.is_networked == nil and (attachment.root ~= nil and not attachment.root.is_preview) then
@@ -475,7 +472,9 @@ constructor_lib.start_particle_fx = function(attachment)
 end
 
 constructor_lib.is_particle_loop_due_for_refresh = function(attachment)
-    return attachment.particle_attributes.loop_timer > 0 and (
+    return attachment.particle_attributes.loop_timer ~= nil
+            and attachment.particle_attributes.loop_timer > 0
+            and (
         attachment.temp.particle_refresh_time == nil
         or util.current_time_millis() >= attachment.temp.particle_refresh_time
     )
