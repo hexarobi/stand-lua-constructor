@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.44b3"
+local SCRIPT_VERSION = "0.46b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -441,6 +441,9 @@ constructor_lib.start_particle_fx = function(attachment)
     constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
     GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
     if attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0 then
+        if attachment.handle ~= nil then
+            GRAPHICS.REMOVE_PARTICLE_FX(attachment.handle)
+        end
         attachment.handle = GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
                 attachment.particle_attributes.effect_name,
                 attachment.parent.handle,
@@ -472,12 +475,9 @@ constructor_lib.start_particle_fx = function(attachment)
 end
 
 constructor_lib.is_particle_loop_due_for_refresh = function(attachment)
-    return (
-        attachment.particle_attributes.refresh_time ~= nil
-        and util.current_time_millis() >= attachment.particle_attributes.refresh_time
-    ) or (
-        attachment.particle_attributes.refresh_time == nil and
-        attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0
+    return attachment.particle_attributes.loop_timer > 0 and (
+        attachment.temp.particle_refresh_time == nil
+        or util.current_time_millis() >= attachment.temp.particle_refresh_time
     )
 end
 
@@ -486,7 +486,7 @@ constructor_lib.update_particle_tick = function(attachment)
     if constructor_lib.is_particle_loop_due_for_refresh(attachment) then
         constructor_lib.start_particle_fx(attachment)
         constructor_lib.deserialize_particle_attributes(attachment)
-        attachment.particle_attributes.refresh_time = util.current_time_millis() + attachment.particle_attributes.loop_timer
+        attachment.temp.particle_refresh_time = util.current_time_millis() + attachment.particle_attributes.loop_timer
     end
 end
 
@@ -969,7 +969,7 @@ constructor_lib.update_attachment_tick = function(attachment)
     --constructor_lib.serialize_entity_position(attachment)
     constructor_lib.deserialize_entity_tick(attachment)
     constructor_lib.deserialize_vehicle_tick(attachment)
-    constructor_lib.update_particle_tick(attachment)
+    constructor_lib.update_particles_tick(attachment)
     constructor_lib.refresh_ped_animation(attachment)
 end
 
@@ -1538,6 +1538,11 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
             )
         end
         if vehicle.vehicle_attributes.paint.primary.is_custom then
+            --util.toast("setting custom color"
+            --        .." r="..vehicle.vehicle_attributes.paint.primary.custom_color.r
+            --        .." g="..vehicle.vehicle_attributes.paint.primary.custom_color.g
+            --        .." b="..vehicle.vehicle_attributes.paint.primary.custom_color.b
+            --)
             VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
                     vehicle.handle,
                     vehicle.vehicle_attributes.paint.primary.custom_color.r,
@@ -1931,6 +1936,40 @@ constructor_lib.deserialize_vehicle_tick = function(vehicle)
         if STREAMING.IS_MODEL_VALID(hash) and VEHICLE.IS_THIS_MODEL_A_CAR(hash) then
             AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
         end
+    end
+    if vehicle.vehicle_attributes.options.freeze_when_empty then
+        if VEHICLE.IS_VEHICLE_SEAT_FREE(vehicle.handle, -1, false) then
+            ENTITY.FREEZE_ENTITY_POSITION(vehicle.handle, true)
+            VEHICLE.SET_VEHICLE_FIXED(vehicle.handle)
+            vehicle.temp.is_frozen_while_empty = true
+        else
+            if vehicle.temp.is_frozen_while_empty then
+                ENTITY.FREEZE_ENTITY_POSITION(vehicle.handle, false)
+                VEHICLE.SET_VEHICLE_FIXED(vehicle.handle)
+                vehicle.temp.is_frozen_while_empty = false
+            end
+        end
+    end
+    if vehicle.vehicle_attributes.paint ~= nil
+        and vehicle.vehicle_attributes.paint.primary_rainbow_paint_delay ~= nil
+        and vehicle.vehicle_attributes.paint.primary_rainbow_paint_delay > 0
+        and (vehicle.temp.next_rainbow_paint_tick == nil or vehicle.temp.next_rainbow_paint_tick < util.current_time_millis())
+    then
+        local custom_color = vehicle.vehicle_attributes.paint.primary.custom_color
+        if custom_color == nil then custom_color = {r=0, g=0, b=0} end
+        local hue, saturation, value = util.rgb2hsv(custom_color.r or 0, custom_color.g or 0, custom_color.b or 0)
+
+        hue = hue + 1
+        if hue >= 360 then hue = 0 end
+        if value == 0 then value = 100 end
+        if saturation == 0 then saturation = 100 end
+
+        local red, green, blue = util.hsv2rgb(hue, saturation, value)
+
+        vehicle.vehicle_attributes.paint.primary.is_custom = true
+        vehicle.vehicle_attributes.paint.primary.custom_color = {r=math.floor(red), g=math.floor(green), b=math.floor(blue)}
+        constructor_lib.deserialize_vehicle_paint(vehicle)
+        vehicle.temp.next_rainbow_paint_tick = util.current_time_millis() + (vehicle.vehicle_attributes.paint.primary_rainbow_paint_delay * 10)
     end
     --if vehicle.temp.vehicle_next_update_tick_time == nil then vehicle.temp.vehicle_next_update_tick_time = util.current_time_millis() end
     --if vehicle.temp.vehicle_next_update_tick_time < util.current_time_millis() then
