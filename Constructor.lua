@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.46b1"
+local SCRIPT_VERSION = "0.46b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -25,18 +25,18 @@ if not status then
     else
         local auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
         async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
-            function(result, headers, status_code)
-                local function parse_auto_update_result(result, headers, status_code)
-                    local error_prefix = "Error downloading auto-updater: "
-                    if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
-                    if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
-                    filesystem.mkdir(filesystem.scripts_dir() .. "lib")
-                    local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
-                    if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
-                    file:write(result) file:close() util.toast("Successfully installed auto-updater lib", TOAST_ALL) return true
-                end
-                auto_update_complete = parse_auto_update_result(result, headers, status_code)
-            end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
+                function(result, headers, status_code)
+                    local function parse_auto_update_result(result, headers, status_code)
+                        local error_prefix = "Error downloading auto-updater: "
+                        if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
+                        if not result or result == "" then util.toast(error_prefix.."Found empty file.", TOAST_ALL) return false end
+                        filesystem.mkdir(filesystem.scripts_dir() .. "lib")
+                        local file = io.open(filesystem.scripts_dir() .. "lib\\auto-updater.lua", "wb")
+                        if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
+                        file:write(result) file:close() util.toast("Successfully installed auto-updater lib", TOAST_ALL) return true
+                    end
+                    auto_update_complete = parse_auto_update_result(result, headers, status_code)
+                end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
         async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 40) do util.yield(250) i = i + 1 end
         if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
         auto_updater = require("auto-updater")
@@ -67,7 +67,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = false,
+    debug_mode = true,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -185,6 +185,11 @@ util.execute_in_os_thread(function()
 
     util.ensure_package_is_installed('lua/ScaleformLib')
     scaleform = require_dependency("ScaleformLib")
+
+    if not auto_updater then
+        util.ensure_package_is_installed('lua/auto-updater')
+        auto_updater = require_dependency("auto-updater")
+    end
 end)
 
 util.require_natives("2944a")
@@ -227,6 +232,7 @@ local CONSTRUCTS_DIR = filesystem.stand_dir() .. 'Constructs\\'
 filesystem.mkdirs(CONSTRUCTS_DIR)
 
 local JACKZ_BUILD_DIR = filesystem.stand_dir() .. 'Builds\\'
+local STAND_GARAGE_DIR = filesystem.stand_dir() .. 'Vehicles\\'
 
 local spawned_constructs = {}
 local last_spawned_construct
@@ -1580,6 +1586,15 @@ local function load_construct_plan_from_ini_file(construct_plan_file)
     return construct_plan
 end
 
+local function load_construct_plan_from_txt_file(construct_plan_file)
+    local construct_plan = convertors.convert_txt_to_construct_plan(construct_plan_file)
+    if not construct_plan then
+        util.toast("Failed to load TXT file: "..construct_plan_file.filepath, TOAST_ALL)
+        return
+    end
+    return construct_plan
+end
+
 local function load_construct_plan_from_json_file(construct_plan_file)
     local construct_plan = convertors.convert_json_to_construct_plan(construct_plan_file)
     if not construct_plan then
@@ -1590,7 +1605,7 @@ local function load_construct_plan_from_json_file(construct_plan_file)
 end
 
 local function is_file_type_supported(file_extension)
-    return (file_extension == "json" or file_extension == "xml" or file_extension == "ini")
+    return (file_extension == "json" or file_extension == "xml" or file_extension == "ini" or file_extension == "txt")
 end
 
 local function load_construct_plan_file(construct_plan_file)
@@ -1603,6 +1618,8 @@ local function load_construct_plan_file(construct_plan_file)
         construct_plan.name = construct_plan_file.filename
     elseif construct_plan_file.ext == "ini" then
         construct_plan = load_construct_plan_from_ini_file(construct_plan_file)
+    elseif construct_plan_file.ext == "txt" then
+        construct_plan = load_construct_plan_from_txt_file(construct_plan_file)
     end
     if not construct_plan then return end
     if construct_plan.name == nil then construct_plan.name = construct_plan_file.filename or "Unknown" end
@@ -3619,6 +3636,15 @@ constructor.add_directory_to_load_constructs = function(path, parent_construct_p
         end)
         jackz_builds.menu=menus.load_jackz_builds
         table.insert(load_constructs_root_menu_file.menus, jackz_builds.menu)
+    end
+
+    if path == CONSTRUCTS_DIR and filesystem.exists(STAND_GARAGE_DIR) then
+        local stand_garage_vehicles = {}
+        menus.load_stand_garage_vehicles = menu.list(load_constructs_root_menu_file.menu, "Garage", {}, "Vehicles from Stand Garage", function()
+            constructor.add_directory_to_load_constructs(STAND_GARAGE_DIR, stand_garage_vehicles, action_function)
+        end)
+        stand_garage_vehicles.menu=menus.load_stand_garage_vehicles
+        table.insert(load_constructs_root_menu_file.menus, stand_garage_vehicles.menu)
     end
 
     local construct_plan_files = load_construct_plans_files_from_dir(path)
