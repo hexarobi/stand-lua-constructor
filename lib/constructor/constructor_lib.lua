@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.47b2"
+local SCRIPT_VERSION = "0.47b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -93,23 +93,23 @@ constructor_lib.string_starts = function(String,Start)
 end
 
 -- From https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
-constructor_lib.array_remove = function(t, fnKeep)
-    local j, n = 1, #t;
+constructor_lib.array_remove = function(tbl, fnKeep)
+    local j, n = 1, #tbl;
 
     for i=1,n do
-        if (fnKeep(t, i, j)) then
+        if (fnKeep(tbl, i, j)) then
             -- Move i's kept value to j's position, if it's not already there.
             if (i ~= j) then
-                t[j] = t[i];
-                t[i] = nil;
+                tbl[j] = tbl[i];
+                tbl[i] = nil;
             end
             j = j + 1; -- Increment position of where we'll place the next kept value.
         else
-            t[i] = nil;
+            tbl[i] = nil;
         end
     end
 
-    return t;
+    return tbl;
 end
 
 constructor_lib.table_merge = function(t1, t2)
@@ -864,8 +864,8 @@ end
 constructor_lib.separate_attachment = function(attachment)
     debug_log("Separating attachment "..tostring(attachment.name))
     ENTITY.DETACH_ENTITY(attachment.handle, true, true)
-    constructor_lib.array_remove(attachment.parent.children, function(t, i)
-        local child_attachment = t[i]
+    constructor_lib.array_remove(attachment.parent.children, function(tbl, i)
+        local child_attachment = tbl[i]
         return child_attachment ~= attachment
     end)
     attachment.root = attachment
@@ -890,8 +890,8 @@ constructor_lib.remove_attachment = function(attachment)
     if not attachment then return end
     debug_log("Removing attachment "..tostring(attachment.name))
     if attachment.children then
-        constructor_lib.array_remove(attachment.children, function(t, i)
-            local child_attachment = t[i]
+        constructor_lib.array_remove(attachment.children, function(tbl, i)
+            local child_attachment = tbl[i]
             if child_attachment == attachment then error("Invalid child attachment") end
             constructor_lib.remove_attachment(child_attachment)
             return false
@@ -913,8 +913,8 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
     if constructor_lib.is_attachment_root(attachment) then
         constructor_lib.remove_attachment(attachment)
     elseif attachment.parent ~= nil then
-        constructor_lib.array_remove(attachment.parent.children, function(t, i)
-            local child_attachment = t[i]
+        constructor_lib.array_remove(attachment.parent.children, function(tbl, i)
+            local child_attachment = tbl[i]
             if child_attachment.id == attachment.id then
                 constructor_lib.remove_attachment(attachment)
                 return false
