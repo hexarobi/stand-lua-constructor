@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.45"
+local SCRIPT_VERSION = "0.47"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -93,23 +93,23 @@ constructor_lib.string_starts = function(String,Start)
 end
 
 -- From https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
-constructor_lib.array_remove = function(t, fnKeep)
-    local j, n = 1, #t;
+constructor_lib.array_remove = function(tbl, fnKeep)
+    local j, n = 1, #tbl;
 
     for i=1,n do
-        if (fnKeep(t, i, j)) then
+        if (fnKeep(tbl, i, j)) then
             -- Move i's kept value to j's position, if it's not already there.
             if (i ~= j) then
-                t[j] = t[i];
-                t[i] = nil;
+                tbl[j] = tbl[i];
+                tbl[i] = nil;
             end
             j = j + 1; -- Increment position of where we'll place the next kept value.
         else
-            t[i] = nil;
+            tbl[i] = nil;
         end
     end
 
-    return t;
+    return tbl;
 end
 
 constructor_lib.table_merge = function(t1, t2)
@@ -212,9 +212,6 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.buoyancy == nil then attachment.options.buoyancy = 0.0 end
     if attachment.options.has_collision == nil then
         attachment.options.has_collision = true
-        if attachment.root ~= nil and attachment.root.type == "PED" then
-            attachment.options.has_collision = false
-        end
     end
     if attachment.root ~= nil and attachment.root.is_preview then attachment.is_preview = true end
     if attachment.options.is_networked == nil and (attachment.root ~= nil and not attachment.root.is_preview) then
@@ -441,6 +438,9 @@ constructor_lib.start_particle_fx = function(attachment)
     constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
     GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
     if attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0 then
+        if attachment.handle ~= nil then
+            GRAPHICS.REMOVE_PARTICLE_FX(attachment.handle)
+        end
         attachment.handle = GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
                 attachment.particle_attributes.effect_name,
                 attachment.parent.handle,
@@ -472,12 +472,11 @@ constructor_lib.start_particle_fx = function(attachment)
 end
 
 constructor_lib.is_particle_loop_due_for_refresh = function(attachment)
-    return (
-        attachment.particle_attributes.refresh_time ~= nil
-        and util.current_time_millis() >= attachment.particle_attributes.refresh_time
-    ) or (
-        attachment.particle_attributes.refresh_time == nil and
-        attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0
+    return attachment.particle_attributes.loop_timer ~= nil
+            and attachment.particle_attributes.loop_timer > 0
+            and (
+        attachment.temp.particle_refresh_time == nil
+        or util.current_time_millis() >= attachment.temp.particle_refresh_time
     )
 end
 
@@ -486,7 +485,7 @@ constructor_lib.update_particle_tick = function(attachment)
     if constructor_lib.is_particle_loop_due_for_refresh(attachment) then
         constructor_lib.start_particle_fx(attachment)
         constructor_lib.deserialize_particle_attributes(attachment)
-        attachment.particle_attributes.refresh_time = util.current_time_millis() + attachment.particle_attributes.loop_timer
+        attachment.temp.particle_refresh_time = util.current_time_millis() + attachment.particle_attributes.loop_timer
     end
 end
 
@@ -865,8 +864,8 @@ end
 constructor_lib.separate_attachment = function(attachment)
     debug_log("Separating attachment "..tostring(attachment.name))
     ENTITY.DETACH_ENTITY(attachment.handle, true, true)
-    constructor_lib.array_remove(attachment.parent.children, function(t, i)
-        local child_attachment = t[i]
+    constructor_lib.array_remove(attachment.parent.children, function(tbl, i)
+        local child_attachment = tbl[i]
         return child_attachment ~= attachment
     end)
     attachment.root = attachment
@@ -891,8 +890,8 @@ constructor_lib.remove_attachment = function(attachment)
     if not attachment then return end
     debug_log("Removing attachment "..tostring(attachment.name))
     if attachment.children then
-        constructor_lib.array_remove(attachment.children, function(t, i)
-            local child_attachment = t[i]
+        constructor_lib.array_remove(attachment.children, function(tbl, i)
+            local child_attachment = tbl[i]
             if child_attachment == attachment then error("Invalid child attachment") end
             constructor_lib.remove_attachment(child_attachment)
             return false
@@ -914,8 +913,8 @@ constructor_lib.remove_attachment_from_parent = function(attachment)
     if constructor_lib.is_attachment_root(attachment) then
         constructor_lib.remove_attachment(attachment)
     elseif attachment.parent ~= nil then
-        constructor_lib.array_remove(attachment.parent.children, function(t, i)
-            local child_attachment = t[i]
+        constructor_lib.array_remove(attachment.parent.children, function(tbl, i)
+            local child_attachment = tbl[i]
             if child_attachment.id == attachment.id then
                 constructor_lib.remove_attachment(attachment)
                 return false
@@ -969,7 +968,7 @@ constructor_lib.update_attachment_tick = function(attachment)
     --constructor_lib.serialize_entity_position(attachment)
     constructor_lib.deserialize_entity_tick(attachment)
     constructor_lib.deserialize_vehicle_tick(attachment)
-    constructor_lib.update_particle_tick(attachment)
+    constructor_lib.update_particles_tick(attachment)
     constructor_lib.refresh_ped_animation(attachment)
 end
 
@@ -1538,11 +1537,6 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
             )
         end
         if vehicle.vehicle_attributes.paint.primary.is_custom then
-            --util.toast("setting custom color"
-            --        .." r="..vehicle.vehicle_attributes.paint.primary.custom_color.r
-            --        .." g="..vehicle.vehicle_attributes.paint.primary.custom_color.g
-            --        .." b="..vehicle.vehicle_attributes.paint.primary.custom_color.b
-            --)
             VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
                     vehicle.handle,
                     vehicle.vehicle_attributes.paint.primary.custom_color.r,
