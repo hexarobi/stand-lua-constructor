@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.45.1"
+local SCRIPT_VERSION = "0.47"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -434,7 +434,13 @@ local function find_root_entity(data)
 end
 
 local function set_table_value_by_path(current_table, path, value)
+    if tonumber(value) ~= nil then value = tonumber(value) end
+    if value == "Yes" then value = true end
+    if value == "No" then value = false end
     local path_parts = path:split(".")
+    if path_parts[1] == "mods" and tonumber(value) ~= nil then
+        value = tonumber(value) - 1
+    end
     for i = 1, (#path_parts - 1) do
         if type(current_table) ~= "table" then
             util.toast("Non-table in map path "..path, TOAST_ALL)
@@ -634,7 +640,7 @@ convertor.convert_craftlab_to_construct_plan = function(data)
     local construct_plan = constructor_lib.table_copy(constructor_lib.construct_base)
     construct_plan.temp.source_file_type = "PhantomX CraftLab"
 
-    debug_log("Parsed CraftLab: "..inspect(data))
+    --debug_log("Parsed CraftLab: "..inspect(data))
 
     local root_entity = find_root_entity(data)
     if not root_entity then
@@ -653,8 +659,159 @@ convertor.convert_craftlab_to_construct_plan = function(data)
 
     convertor.rearrange_by_initial_attachment(construct_plan)
 
-    debug_log("Loaded CraftLab construct plan: "..inspect(construct_plan))
+    --debug_log("Loaded CraftLab construct plan: "..inspect(construct_plan))
 
+    return construct_plan
+end
+
+---
+--- Stand Garage Convertor
+---
+
+local function map_stand_garage_fields(field_map, attachment, entity)
+    for stand_key, constructor_key in pairs(field_map) do
+        if type(constructor_key) == "table" then
+            map_stand_garage_fields(constructor_key, attachment, entity[stand_key])
+        else
+            local value = entity[stand_key]
+            if value ~= nil then
+                set_table_value_by_path(attachment, constructor_key, value)
+            end
+        end
+    end
+end
+
+local function color_hex_to_rgb(value)
+    local hexcode = value:sub(2)
+    return {
+        r=tonumber(string.sub(hexcode, 1, 2),16),
+        g=tonumber(string.sub(hexcode, 3, 4),16),
+        b=tonumber(string.sub(hexcode, 5, 6),16),
+    }
+end
+
+local function map_stand_garage_vehicle(attachment, vehicle_data)
+    if attachment.vehicle_attributes == nil then attachment.vehicle_attributes = {} end
+
+    local stand_garage_constructor_field_map = {
+        Aerials = "mods._43",
+        ["Air Filter"] = "mods._40",
+        ["Arch Cover"] = "mods._42",
+        Armor = "mods._16",
+        Brakes = "mods._12",
+        Chassis = "mods._5",
+        Dashboard = "mods._29",
+        ["Dashboard Colour"] = "paint.dashboard_color",
+        Dial = "mods._30",
+        ["Door Speaker"] = "mods._31",
+        Engine = "mods._11",
+        ["Engine Block"] = "mods._39",
+        Exhaust = "mods._4",
+        Fender = "mods._8",
+        ["Front Bumper"] = "mods._1",
+        ["Front Wheels"] = "mods._23",
+        Grille = "mods._6",
+        Headlights = "mods._22",
+        Hood = "mods._7",
+        Horns = "mods._14",
+        ["Interior Colour"] = "paint.interior_color",
+        Nitrous = "mods._18",
+        ["Pearl Colour"] = "paint.primary.pearlescent_color",
+        ["Plate Holder"] = "mods._25",
+        ["Plate Style"] = "options.license_plate_type",
+        ["Plate Text"] = "options.license_plate_text",
+        ["Primary Colour"] = "paint.primary.vehicle_standard_color",
+        ["Rear Bumper"] = "mods._2",
+        Roof = "mods._10",
+        Seats = "mods._32",
+        ["Secondary Colour"] = "paint.secondary.vehicle_standard_color",
+        Sideskirt = "mods._3",
+        Spoiler = "mods._0",
+        ["Steering Wheel"] = "mods._33",
+        Struts = "mods._41",
+        Subwoofer = "mods._36",
+        Suspension = "mods._15",
+        Tank = "mods._37",
+        Tiresmoke = "mods._20",
+        Transmission = "mods._13",
+        Trim = "mods._27",
+        Trim2 = "mods._44",
+        Turbo = "mods._18",
+        ["Tyres Mode"] = "wheels.bulletproof_tires",
+        ["Vanity Plates"] = "mods._26",
+        ["Wheel Colour"] = "paint.extra_colors.wheel",
+        ["Wheel Type"] = "wheels.wheel_type",
+        ["Window Tint"] = "options.window_tint",
+    }
+
+    map_stand_garage_fields(stand_garage_constructor_field_map, attachment.vehicle_attributes, vehicle_data)
+
+    if attachment.vehicle_attributes.neon == nil then attachment.vehicle_attributes.neon = {} end
+    if attachment.vehicle_attributes.neon.lights == nil then attachment.vehicle_attributes.neon.lights = {} end
+    attachment.vehicle_attributes.neon.lights.back = vehicle_data["Neon Back"] == "Yes"
+    attachment.vehicle_attributes.neon.lights.front = vehicle_data["Neon Front"] == "Yes"
+    attachment.vehicle_attributes.neon.lights.left = vehicle_data["Neon Left"] == "Yes"
+    attachment.vehicle_attributes.neon.lights.right = vehicle_data["Neon Right"] == "Yes"
+
+    if attachment.vehicle_attributes.paint == nil then attachment.vehicle_attributes.paint = {} end
+    if attachment.vehicle_attributes.paint.primary == nil then attachment.vehicle_attributes.paint.primary = {} end
+    if attachment.vehicle_attributes.paint.secondary == nil then attachment.vehicle_attributes.paint.secondary = {} end
+    if vehicle_data["Livery"] then
+        local livery_value = tonumber(vehicle_data["Livery"]) - 1
+        attachment.vehicle_attributes.mods["_48"] = livery_value
+        attachment.vehicle_attributes.paint.livery = livery_value
+        attachment.vehicle_attributes.paint.livery_legacy = livery_value
+    end
+    attachment.vehicle_attributes.paint.primary.is_custom = false
+    if vehicle_data["Custom Primary Colour"] and vehicle_data["Custom Primary Colour"] ~= "" then
+        attachment.vehicle_attributes.paint.primary.is_custom = true
+        attachment.vehicle_attributes.paint.primary.custom_color = color_hex_to_rgb(vehicle_data["Custom Primary Colour"])
+    end
+    attachment.vehicle_attributes.paint.secondary.is_custom = false
+    if vehicle_data["Custom Secondary Colour"] and vehicle_data["Custom Secondary Colour"] ~= "" then
+        attachment.vehicle_attributes.paint.secondary.is_custom = true
+        attachment.vehicle_attributes.paint.secondary.custom_color = color_hex_to_rgb(vehicle_data["Custom Secondary Colour"])
+    end
+    if attachment.vehicle_attributes.neon == nil then attachment.vehicle_attributes.neon = {} end
+    if vehicle_data["Neon Colour"] then
+        attachment.vehicle_attributes.neon.color = color_hex_to_rgb(vehicle_data["Neon Colour"])
+    end
+    if attachment.vehicle_attributes.wheels == nil then attachment.vehicle_attributes.wheels = {} end
+    if vehicle_data["Tyre Smoke Colour"] then
+        attachment.vehicle_attributes.wheels.tire_smoke_color = color_hex_to_rgb(vehicle_data["Tyre Smoke Colour"])
+    end
+
+    if attachment.vehicle_attributes.extras == nil then attachment.vehicle_attributes.extras = {} end
+    for index = 0, 60 do
+        if vehicle_data["Extra "..index] ~= nil then
+            attachment.vehicle_attributes.extras["_"..index] = vehicle_data["Extra "..index]
+        end
+    end
+
+end
+
+
+local function map_stand_garage_entity(attachment, name, vehicle_data)
+    if vehicle_data.Model ~= nil then attachment.model = vehicle_data.Model end
+    if attachment.model ~= nil and attachment.hash == nil then
+        attachment.hash = util.joaat(attachment.model)
+    end
+    constructor_lib.default_attachment_attributes(attachment)
+
+    if attachment.name ~= nil then attachment.name = name end
+    attachment.type = "VEHICLE"
+
+    map_stand_garage_vehicle(attachment, vehicle_data)
+end
+
+convertor.convert_txt_to_construct_plan = function(construct_plan_file)
+    local vehicle_data = util.read_colons_and_tabs_file(construct_plan_file.filepath)
+    if not vehicle_data or type(vehicle_data) ~= "table" then return end
+    local construct_plan = constructor_lib.table_copy(constructor_lib.construct_base)
+    construct_plan.temp.source_file_type = "Stand Garage"
+    --debug_log("Parsed Stand Garage: "..inspect(vehicle_data))
+    map_stand_garage_entity(construct_plan, construct_plan_file.filename, vehicle_data)
+    --debug_log("Loaded Stand Garage construct plan: "..inspect(construct_plan))
     return construct_plan
 end
 
