@@ -2,6 +2,8 @@
 
 Constructor is a Lua Script for Stand that allows for creating fun vehicles, maps and player skins by combining existing GTA assets. 
 
+![Constructpr](https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png)
+
 ## Easy Install
 
 Install from the Stand Lua Script Respository at `Stand > Lua Scripts > Repository > Constructor`. Check the box to install the script.
