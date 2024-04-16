@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.48b1"
+local SCRIPT_VERSION = "0.48b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2606,19 +2606,42 @@ constructor.add_attachment_ped_menu = function(attachment)
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
 
+    --- Drive Menu
+
+    attachment.menus.option_ped_drive_options = attachment.menus.ped_options:list("Drive Options", {}, "Options related to making this ped drive a vehicle")
+
+
+    local driving_styles = {}
+    local driving_style_counter = 1
+    for key, value in constants.driving_styles do
+        table.insert(driving_styles, {driving_style_counter, key})
+        driving_style_counter = driving_style_counter + 1
+    end
+
+    attachment.menus.option_ped_driving_style = attachment.menus.option_ped_drive_options:list_select(t("Driving Style"), {}, t("How the driver will behave when driving."), driving_styles, attachment.ped_attributes.driving_style or 1, function(value)
+        attachment.ped_attributes.driving_style = constants.driving_styles[value]
+        constructor_lib.start_vehicle_drive_wander(attachment)
+    end)
+
+    attachment.menus.option_task_vehicle_drive_wander = attachment.menus.option_ped_drive_options:toggle(t("Task Vehicle Drive Wander"), {}, t("Should driver wander around in vehicle"), function(on)
+        attachment.ped_attributes.task_vehicle_drive_wander = on
+        if attachment.ped_attributes.task_vehicle_drive_wander then
+            constructor_lib.start_vehicle_drive_wander(attachment)
+        else
+            constructor_lib.stop_vehicle_drive_wander(attachment)
+        end
+    end, attachment.ped_attributes.task_vehicle_drive_wander)
+
+    attachment.menus.option_task_vehicle_drive_wander_speed = attachment.menus.option_ped_drive_options:slider(t("Drive Speed"), {}, "", 1, 50, attachment.ped_attributes.task_vehicle_drive_speed, 1, function(value)
+        attachment.ped_attributes.task_vehicle_drive_speed = value
+        constructor_lib.start_vehicle_drive_wander(attachment)
+        constructor_lib.deserialize_ped_attributes(attachment)
+    end)
+
     attachment.menus.option_keep_on_task = menu.toggle(attachment.menus.ped_options, t("Keep Task"), {}, t("Keep ped on assigned task"), function(on)
         attachment.ped_attributes.keep_on_task = on
         constructor_lib.deserialize_ped_attributes(attachment)
     end, attachment.ped_attributes.keep_on_task)
-
-    attachment.menus.option_task_vehicle_drive_wander = menu.toggle(attachment.menus.ped_options, t("Task Vehicle Drive Wander"), {}, t("Should driver wander around in vehicle"), function(on)
-        attachment.ped_attributes.task_vehicle_drive_wander = on
-    end, attachment.ped_attributes.task_vehicle_drive_wander)
-
-    attachment.menus.option_task_vehicle_drive_wander_speed = menu.slider(attachment.menus.ped_options, t("Wander Speed"), {}, "", 1, 50, attachment.ped_attributes.task_vehicle_drive_wander_speed or 20, 1, function(value)
-        attachment.ped_attributes.task_vehicle_drive_wander_speed = value
-        constructor_lib.deserialize_ped_attributes(attachment)
-    end)
 
     attachment.menus.option_ped_can_rag_doll = menu.toggle(attachment.menus.ped_options, t("Can Rag Doll"), {}, t("If enabled, the ped can go limp."), function(value)
         attachment.ped_attributes.can_rag_doll = value
@@ -3111,6 +3134,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
                     construct_plan.root = attachment.root
                     construct_plan.parent = attachment
                     construct_plan.options.is_attached = true
+                    construct_plan.is_player = false
                     build_construct_from_plan(construct_plan)
                 end
             end
