@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.47b3"
+local SCRIPT_VERSION = "0.48b1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -968,6 +968,7 @@ constructor_lib.update_attachment_tick = function(attachment)
     --constructor_lib.serialize_entity_position(attachment)
     constructor_lib.deserialize_entity_tick(attachment)
     constructor_lib.deserialize_vehicle_tick(attachment)
+    constructor_lib.deserialize_ped_tick(attachment)
     constructor_lib.update_particles_tick(attachment)
     constructor_lib.refresh_ped_animation(attachment)
 end
@@ -1537,11 +1538,6 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
             )
         end
         if vehicle.vehicle_attributes.paint.primary.is_custom then
-            --util.toast("setting custom color"
-            --        .." r="..vehicle.vehicle_attributes.paint.primary.custom_color.r
-            --        .." g="..vehicle.vehicle_attributes.paint.primary.custom_color.g
-            --        .." b="..vehicle.vehicle_attributes.paint.primary.custom_color.b
-            --)
             VEHICLE.SET_VEHICLE_CUSTOM_PRIMARY_COLOUR(
                     vehicle.handle,
                     vehicle.vehicle_attributes.paint.primary.custom_color.r,
@@ -2124,28 +2120,46 @@ constructor_lib.deserialize_ped_weapon = function(attachment)
     end
 end
 
-constructor_lib.deserialize_ped_attributes = function(attachment)
-    debug_log("Deserializing ped attributes "..tostring(attachment.name))
+constructor_lib.start_vehicle_drive_wander = function(attachment)
     if attachment.ped_attributes == nil then return end
-    if attachment.parent.type == "VEHICLE" then
-        if attachment.ped_attributes.seat ~= -3 then    -- -3 is special value to mean unseated
-            PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, attachment.ped_attributes.seat)
-        elseif PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
-            TASK.TASK_LEAVE_VEHICLE(attachment.handle, attachment.parent.handle, 16)
-            util.yield(100)
-            constructor_lib.move_attachment(attachment)
-        end
-    end
-    if attachment.ped_attributes.keep_on_task ~= nil then
-        PED.SET_PED_KEEP_TASK(attachment.handle, attachment.ped_attributes.keep_on_task)
-    end
     if attachment.ped_attributes.task_vehicle_drive_wander == true
-            and PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+        and PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle)
+        and not TASK.GET_IS_TASK_ACTIVE(attachment.handle, constants.ped_task_types.CarDriveWander)
+    then
         if attachment.ped_attributes.task_vehicle_drive_wander_speed == nil then
             attachment.ped_attributes.task_vehicle_drive_wander_speed = 20.0
         end
         TASK.TASK_VEHICLE_DRIVE_WANDER(attachment.handle, attachment.parent.handle,
                 attachment.ped_attributes.task_vehicle_drive_wander_speed, 786603)
+    end
+end
+
+constructor_lib.deserialize_ped_tick = function(attachment)
+    if attachment.ped_attributes == nil then return end
+    if attachment.parent and attachment.parent.handle and attachment.parent.type == "VEHICLE" then
+        if attachment.ped_attributes.seat ~= -3 then    -- -3 is special value to mean unseated
+            if not PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+                PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, attachment.ped_attributes.seat)
+            end
+        elseif PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+                TASK.TASK_LEAVE_VEHICLE(attachment.handle, attachment.parent.handle, 16)
+                util.yield(100)
+                constructor_lib.move_attachment(attachment)
+        end
+    end
+    if attachment.parent and attachment.parent.handle and attachment.ped_attributes.task_vehicle_drive_wander == true
+        and PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+        constructor_lib.start_vehicle_drive_wander(attachment)
+    else
+        TASK.CLEAR_PED_TASKS(attachment.handle)
+    end
+end
+
+constructor_lib.deserialize_ped_attributes = function(attachment)
+    debug_log("Deserializing ped attributes "..tostring(attachment.name))
+    if attachment.ped_attributes == nil then return end
+    if attachment.ped_attributes.keep_on_task ~= nil then
+        PED.SET_PED_KEEP_TASK(attachment.handle, attachment.ped_attributes.keep_on_task)
     end
     if attachment.ped_attributes.can_rag_doll ~= nil then
         PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
