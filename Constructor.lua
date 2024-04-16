@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.46b2"
+local SCRIPT_VERSION = "0.48b1"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -67,7 +67,7 @@ CONSTRUCTOR_CONFIG = {
     clean_up_distance = 500,
     num_allowed_spawned_constructs_per_player = 1,
     chat_spawnable_dir = "spawnable",
-    debug_mode = true,
+    debug_mode = false,
     auto_update = true,
     auto_update_check_interval = 86400,
     freecam_speed = 1,
@@ -185,11 +185,6 @@ util.execute_in_os_thread(function()
 
     util.ensure_package_is_installed('lua/ScaleformLib')
     scaleform = require_dependency("ScaleformLib")
-
-    if not auto_updater then
-        util.ensure_package_is_installed('lua/auto-updater')
-        auto_updater = require_dependency("auto-updater")
-    end
 end)
 
 util.require_natives("2944a")
@@ -2598,8 +2593,15 @@ constructor.add_attachment_ped_menu = function(attachment)
 
     constructor.add_attachment_ped_animation_menu(attachment)
 
-    local ped_seats = { t("Unseated"), t("Any free seat"), t("Driver"), t("Passenger"), t("Backseat Driver Side"), t("Backseat Passenger Side") }
-    attachment.menus.option_ped_seat_select = menu.list_select(attachment.menus.ped_options, t("Seat"), {}, t("If attached to a vehicle, which seat should this ped occupy."), ped_seats, 1, function(value)
+    local ped_seats = {
+        { 1, t("Unseated"), },
+        { 2, t("Any free seat"), },
+        { 3, t("Driver"), },
+        { 4, t("Passenger"), },
+        { 5, t("Backseat Driver Side"), },
+        { 6, t("Backseat Passenger Side"), },
+    }
+    attachment.menus.option_ped_seat_select = menu.list_select(attachment.menus.ped_options, t("Seat"), {}, t("If attached to a vehicle, which seat should this ped occupy."), ped_seats, attachment.ped_attributes.seat + 4, function(value)
         attachment.ped_attributes.seat = value - 4
         constructor_lib.deserialize_ped_attributes(attachment)
     end)
@@ -2611,7 +2613,6 @@ constructor.add_attachment_ped_menu = function(attachment)
 
     attachment.menus.option_task_vehicle_drive_wander = menu.toggle(attachment.menus.ped_options, t("Task Vehicle Drive Wander"), {}, t("Should driver wander around in vehicle"), function(on)
         attachment.ped_attributes.task_vehicle_drive_wander = on
-        constructor_lib.deserialize_ped_attributes(attachment)
     end, attachment.ped_attributes.task_vehicle_drive_wander)
 
     attachment.menus.option_task_vehicle_drive_wander_speed = menu.slider(attachment.menus.ped_options, t("Wander Speed"), {}, "", 1, 50, attachment.ped_attributes.task_vehicle_drive_wander_speed or 20, 1, function(value)
