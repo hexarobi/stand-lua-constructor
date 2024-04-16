@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.48b2"
+local SCRIPT_VERSION = "0.48b3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -2161,6 +2161,15 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
     if attachment.ped_attributes == nil then return end
     if attachment.ped_attributes.keep_on_task ~= nil then
         PED.SET_PED_KEEP_TASK(attachment.handle, attachment.ped_attributes.keep_on_task)
+    end
+    if attachment.parent and attachment.parent.handle and attachment.parent.type == "VEHICLE" then
+        if attachment.ped_attributes.seat ~= -3 then    -- -3 is special value to mean unseated
+            PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, attachment.ped_attributes.seat)
+        elseif PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+            TASK.TASK_LEAVE_VEHICLE(attachment.handle, attachment.parent.handle, 16)
+            util.yield(100)
+            constructor_lib.move_attachment(attachment)
+        end
     end
     if attachment.ped_attributes.can_rag_doll ~= nil then
         PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)
