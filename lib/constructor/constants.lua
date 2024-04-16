@@ -1,9 +1,16 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.48"
+local SCRIPT_VERSION = "0.48b2"
 local constants = {}
 
 constants.spawn_modes = {"Offset From Parent", "World Position"}
+
+constants.driving_styles = {
+    Normal = 786603,
+    Rushed = 1074528293,
+    ["Ignore Lights"] = 2883621,
+    ["Avoid Traffic"] = 786468,
+}
 
 -- From https://alloc8or.re/gta5/doc/enums/eTaskTypeIndex.txt
 constants.ped_task_types = {
