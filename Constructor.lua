@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.48b2"
+local SCRIPT_VERSION = "0.48b3"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -53,6 +53,7 @@ CONSTRUCTOR_CONFIG = {
     edit_offset_step = 10,
     edit_rotation_step = 15,
     add_attachment_gun_active = false,
+    create_construct_gun_active = false,
     show_previews = true,
     preview_camera_distance = 3,
     preview_bounding_box_color = {r=255,g=0,b=255,a=255},
@@ -863,11 +864,11 @@ end
 
 local was_key_down = false
 local function aim_info_tick()
-    if not config.add_attachment_gun_active then return end
+    if not (config.add_attachment_gun_active or config.create_construct_gun_active) then return end
     --debug_log("Attachment gun tick")
     local info = get_aim_info()
     if info.handle ~= 0 then
-        local text = "Shoot (or press J) to add " .. info.type .. " `" .. info.model .. "` to construct " .. config.add_attachment_gun_recipient.name
+        local text = "Shoot (or press J) to add " .. info.type .. " `" .. info.model .. "` to construct " -- .. config.add_attachment_gun_recipient.name or ""
         directx.draw_text(0.501, 0.301, text, 5, 0.5, {r=0,g=0,b=0,a=0.3}, true)
         directx.draw_text(0.499, 0.299, text, 5, 0.5, {r=0,g=0,b=0,a=0.3}, true)
         directx.draw_text(0.501, 0.299, text, 5, 0.5, {r=0,g=0,b=0,a=0.3}, true)
@@ -876,14 +877,27 @@ local function aim_info_tick()
         constructor_lib.draw_bounding_box(info.handle, config.preview_bounding_box_color)
         if util.is_key_down(0x4A) or PED.IS_PED_SHOOTING(players.user_ped()) then
             if was_key_down == false then
-                util.toast("Attaching "..info.model)
-                add_attachment_to_construct({
-                    parent=config.add_attachment_gun_recipient,
-                    root=config.add_attachment_gun_recipient.root,
-                    hash=info.hash,
-                    model=info.model,
-                })
-                config.add_attachment_gun_recipient.root.functions.refresh()
+                if config.create_construct_gun_active then
+                    util.toast("Creating "..info.model)
+                    local construct = constructor.create_construct_from_handle(info.handle)
+                    construct.name = info.model
+                    if construct then
+                        menus.rebuild_attachment_menu(construct)
+                        construct.functions.refresh()
+                        if menu.is_ref_valid(construct.menus.info) then
+                            menu.focus(construct.menus.info)
+                        end
+                    end
+                elseif config.add_attachment_gun_active then
+                    util.toast("Attaching "..info.model)
+                    add_attachment_to_construct({
+                        parent=config.add_attachment_gun_recipient,
+                        root=config.add_attachment_gun_recipient.root,
+                        hash=info.hash,
+                        model=info.model,
+                    })
+                    config.add_attachment_gun_recipient.root.functions.refresh()
+                end
             end
             was_key_down = true
         else
@@ -1243,6 +1257,30 @@ local function add_spawned_construct(construct)
     table.insert(spawned_constructs, construct)
     if construct.temp.spawn_for_player then track_construct_spawn_for_player(construct.temp.spawn_for_player, construct) end
     last_spawned_construct = construct
+end
+
+constructor.create_construct_from_handle = function(handle)
+    debug_log("Creating construct from handle "..tostring(handle))
+    for _, construct in pairs(spawned_constructs) do
+        if construct.handle == handle then
+            util.toast("Object is already a construct")
+            if menu.is_ref_valid(construct.menus.info) then
+                menu.focus(construct.menus.info)
+            end
+            return
+        end
+    end
+    local construct = copy_construct_plan(constructor_lib.construct_base)
+    construct.handle = handle
+    construct.type = constructor_lib.ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(construct.handle)]
+    construct.root = construct
+    construct.parent = construct
+    construct.hash = ENTITY.GET_ENTITY_MODEL(handle)
+    construct.model = VEHICLE.GET_DISPLAY_NAME_FROM_VEHICLE_MODEL(construct.hash)
+    constructor_lib.default_attachment_attributes(construct)
+    constructor_lib.serialize_attachment(construct)
+    add_spawned_construct(construct)
+    return construct
 end
 
 local function create_construct_from_vehicle(vehicle_handle)
@@ -2632,7 +2670,7 @@ constructor.add_attachment_ped_menu = function(attachment)
         end
     end, attachment.ped_attributes.task_vehicle_drive_wander)
 
-    attachment.menus.option_task_vehicle_drive_wander_speed = attachment.menus.option_ped_drive_options:slider(t("Drive Speed"), {}, "", 1, 50, attachment.ped_attributes.task_vehicle_drive_speed, 1, function(value)
+    attachment.menus.option_task_vehicle_drive_wander_speed = attachment.menus.option_ped_drive_options:slider(t("Drive Speed"), {}, "", 1, 50, attachment.ped_attributes.task_vehicle_drive_speed or 20, 1, function(value)
         attachment.ped_attributes.task_vehicle_drive_speed = value
         constructor_lib.start_vehicle_drive_wander(attachment)
         constructor_lib.deserialize_ped_attributes(attachment)
@@ -3554,6 +3592,11 @@ menu.text_input(menus.create_new_construct, t("From Ped Name"), {"constructorcre
     construct_plan.parent = construct_plan
     build_construct_from_plan(construct_plan)
 end)
+
+
+menu.toggle(menus.create_new_construct, t("Create Construct Gun"), {}, t("Allow for creating a new construct from any object in game"), function(on)
+    config.create_construct_gun_active = on
+end, config.create_construct_gun_active)
 
 ---
 --- Load Construct Menu
