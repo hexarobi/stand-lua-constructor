@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.48b3"
+local SCRIPT_VERSION = "0.48b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -25,7 +25,7 @@ if not status then
     else
         local auto_update_complete = nil util.toast("Installing auto-updater...", TOAST_ALL)
         async_http.init("raw.githubusercontent.com", "/hexarobi/stand-lua-auto-updater/main/auto-updater.lua",
-                function(result, headers, status_code)
+                function(root_result, root_headers, root_status_code)
                     local function parse_auto_update_result(result, headers, status_code)
                         local error_prefix = "Error downloading auto-updater: "
                         if status_code ~= 200 then util.toast(error_prefix..status_code, TOAST_ALL) return false end
@@ -35,7 +35,7 @@ if not status then
                         if file == nil then util.toast(error_prefix.."Could not open file for writing.", TOAST_ALL) return false end
                         file:write(result) file:close() util.toast("Successfully installed auto-updater lib", TOAST_ALL) return true
                     end
-                    auto_update_complete = parse_auto_update_result(result, headers, status_code)
+                    auto_update_complete = parse_auto_update_result(root_result, root_headers, root_status_code)
                 end, function() util.toast("Error downloading auto-updater lib. Update failed to download.", TOAST_ALL) end)
         async_http.dispatch() local i = 1 while (auto_update_complete == nil and i < 40) do util.yield(250) i = i + 1 end
         if auto_update_complete == nil then error("Error downloading auto-updater lib. HTTP Request timeout") end
@@ -730,8 +730,8 @@ local image_preview
 
 local function cleanup_previews_tick()
     --debug_log("Cleanup previews tick. Checking "..#spawned_previews.." spawned previews.")
-    constructor_lib.array_remove(spawned_previews, function(t, i)
-        local spawned_preview = t[i]
+    constructor_lib.array_remove(spawned_previews, function(tbl, i)
+        local spawned_preview = tbl[i]
         if spawned_preview ~= current_preview then
             --debug_log("Removing preview "..tostring(spawned_preview.name))
             constructor_lib.remove_attachment(spawned_preview)
@@ -1076,36 +1076,37 @@ local free_edit_mode_tick = function()
     --debug_log("Setting pos "..attachment.name.." to "..inspect(attachment.position))
     constructor_lib.move_attachment(attachment)
 
+    local new_cam_pos
     local sensitivity = 0.3
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 32) then
         --local offset = get_offset_from_cam_in_world_coords(cam, {x=1,y=0,z=0})
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (forward.x * sensitivity), cam_pos.y + (forward.y * sensitivity), cam_pos.z)
+        cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        new_cam_pos = v3(cam_pos.x + (forward.x * sensitivity), cam_pos.y + (forward.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 33) then
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (forward.x * sensitivity), cam_pos.y - (forward.y * sensitivity), cam_pos.z)
+        cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        new_cam_pos = v3(cam_pos.x - (forward.x * sensitivity), cam_pos.y - (forward.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 35) then
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x + (right.x * sensitivity), cam_pos.y + (right.y * sensitivity), cam_pos.z)
+        cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        new_cam_pos = v3(cam_pos.x + (right.x * sensitivity), cam_pos.y + (right.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 34) then
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x - (right.x * sensitivity), cam_pos.y - (right.y * sensitivity), cam_pos.z)
+        cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        new_cam_pos = v3(cam_pos.x - (right.x * sensitivity), cam_pos.y - (right.y * sensitivity), cam_pos.z)
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 22) then
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x, cam_pos.y, cam_pos.z + (up.z * sensitivity))
+        cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        new_cam_pos = v3(cam_pos.x, cam_pos.y, cam_pos.z + (up.z * sensitivity))
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
     if PAD.IS_DISABLED_CONTROL_PRESSED(2, 36) then
-        local cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
-        local new_cam_pos = v3(cam_pos.x, cam_pos.y, cam_pos.z - (up.z * sensitivity))
+        cam_pos = CAM.GET_CAM_COORD(free_edit_cam, 2)
+        new_cam_pos = v3(cam_pos.x, cam_pos.y, cam_pos.z - (up.z * sensitivity))
         CAM.SET_CAM_COORD(free_edit_cam, new_cam_pos.x, new_cam_pos.y, new_cam_pos.z)
     end
 
@@ -1369,8 +1370,8 @@ end
 
 constructor.delete_spawned_construct =  function(construct)
     constructor.delete_construct(construct)
-    constructor_lib.array_remove(spawned_constructs, function(t, i)
-        local spawned_construct = t[i]
+    constructor_lib.array_remove(spawned_constructs, function(tbl, i)
+        local spawned_construct = tbl[i]
         return spawned_construct ~= construct
     end)
     menus.refresh_loaded_constructs()
@@ -1587,8 +1588,8 @@ end
 local function read_file(filepath)
     local file, err = io.open(filepath, "r")
     if file then
-        local status, data = pcall(function() return file:read("*a") end)
-        if not status then
+        local read_status, data = pcall(function() return file:read("*a") end)
+        if not read_status then
             util.toast("Invalid construct file. "..filepath, TOAST_ALL)
             return
         end
@@ -1671,7 +1672,7 @@ local function load_construct_plans_files_from_dir(directory)
     local construct_plan_files = {}
     for _, filepath in ipairs(filesystem.list_files(directory)) do
         if filesystem.is_dir(filepath) then
-            local _, dirname = string.match(filepath, "(.-)([^\\/]-%.?)$")
+            local _2, dirname = string.match(filepath, "(.-)([^\\/]-%.?)$")
             local dir_file = {
                 is_directory=true,
                 filepath=filepath,
@@ -1680,7 +1681,7 @@ local function load_construct_plans_files_from_dir(directory)
             }
             table.insert(construct_plan_files, dir_file)
         else
-            local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
+            local _2, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
             if is_file_type_supported(ext) then
                 local construct_plan_file = {
                     is_directory=false,
@@ -1702,7 +1703,7 @@ local function load_all_construct_plan_files_from_dir(directory)
     local construct_plan_files = load_construct_plans_files_from_dir(directory)
     for _, filepath in ipairs(filesystem.list_files(directory)) do
         if filesystem.is_dir(filepath) then
-            for _, construct_plan_file in pairs(load_all_construct_plan_files_from_dir(filepath)) do
+            for _2, construct_plan_file in pairs(load_all_construct_plan_files_from_dir(filepath)) do
                 table.insert(construct_plan_files, construct_plan_file)
             end
         end
@@ -1718,7 +1719,7 @@ local function search_constructs(directory, query, results)
             search_constructs(filepath, query, results)
         else
             if string.match(filepath:lower(), query:lower()) then
-                local _, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
+                local _2, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
                 if is_file_type_supported(ext) then
                     local construct_plan_file = {
                         is_directory=false,
@@ -2889,7 +2890,7 @@ constructor.add_child_attachment_menu = function(attachment)
         attachment.menus.option_bone_index_picker = menu.list(attachment.menus.attachment_options, t("Bone Index Picker"), {}, t("Some common bones can be selected by name"))
         for _, bone_index_category in pairs(constants.bone_index_names) do
             local category_menu = menu.list(attachment.menus.option_bone_index_picker, bone_index_category.name)
-            for _, bone_name in pairs(bone_index_category.bone_names) do
+            for _2, bone_name in pairs(bone_index_category.bone_names) do
                 menu.action(category_menu, bone_name, {}, "", function()
                     attachment.options.bone_index = ENTITY.GET_ENTITY_BONE_INDEX_BY_NAME(attachment.parent.handle, bone_name)
                     constructor_lib.attach_entity(attachment)
