@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.48b4"
+local SCRIPT_VERSION = "0.48b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2979,14 +2979,24 @@ constructor.add_attachment_entity_options = function(attachment)
             attachment.options.downforce = value / 1000
         end)
 
-        attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, t("LoD Distance"), {"constructorsetloddistance"..attachment.id}, t("Level of Detail draw distance"), 1, 9999999, attachment.options.lod_distance, 100, function(value)
-            attachment.options.lod_distance = value
-            constructor_lib.attach_entity(attachment)
+        attachment.menus.edit_rotation_divider = attachment.menus.more_options:list(t("Rotational Velocity"), {}, "Apply rotational velocity to object")
+        attachment.menus.edit_rotational_velocity_x = attachment.menus.edit_rotation_divider:slider_float(t("X: Pitch"), {"constructorrotatevel"..attachment.id.."x"}, "Apply rotational velocity in the X axis", -1800, 1800, math.floor(attachment.options.angular_velocity.x * 10), 1, function(value)
+            attachment.options.angular_velocity.x = value / 10
+        end)
+        attachment.menus.edit_rotational_velocity_y = attachment.menus.edit_rotation_divider:slider_float(t("Y: Roll"), {"constructorrotatevel"..attachment.id.."y"}, "Apply rotational velocity in the Y axis", -1800, 1800, math.floor(attachment.options.angular_velocity.y * 10), 1, function(value)
+            attachment.options.angular_velocity.y = value / 10
+        end)
+        attachment.menus.edit_rotational_velocity_z = attachment.menus.edit_rotation_divider:slider_float(t("Z: Yaw"), {"constructorrotatevel"..attachment.id.."z"}, "Apply rotational velocity in the Z axis", -1800, 1800, math.floor(attachment.options.angular_velocity.z * 10), 1, function(value)
+            attachment.options.angular_velocity.z = value / 10
         end)
 
         -- Visibility
         menu.divider(attachment.menus.more_options, t("Visibility"))
 
+        attachment.menus.option_lod_distance = menu.slider(attachment.menus.more_options, t("LoD Distance"), {"constructorsetloddistance"..attachment.id}, t("Level of Detail draw distance"), 1, 9999999, attachment.options.lod_distance, 100, function(value)
+            attachment.options.lod_distance = value
+            constructor_lib.attach_entity(attachment)
+        end)
         attachment.menus.option_alpha = menu.slider(attachment.menus.more_options, t("Alpha"), {}, t("The amount of transparency the object has. Local only!"), 0, 255, attachment.options.alpha, 51, function(value)
             attachment.options.alpha = value
             constructor_lib.attach_entity(attachment)
