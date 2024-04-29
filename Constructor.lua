@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.48b5"
+local SCRIPT_VERSION = "0.48b6"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -449,6 +449,10 @@ end
 browser.browse_item = function(parent_menu, this_item, add_item_menu_function, browse_params)
     if browse_params == nil then browse_params = {} end
     if this_item.items ~= nil then
+        -- Expand model name strings into item tables
+        for key, item in this_item.items do
+            if type(item) == "string" then this_item.items[key] = { name=item, model=item } end
+        end
         local menu_list = parent_menu:list(
                 this_item.name.." ("..#this_item.items..")",
                 {},
@@ -486,6 +490,7 @@ browser.browse_item = function(parent_menu, this_item, add_item_menu_function, b
         --end
         menu_list:divider("Browse")
         for _, item in pairs(this_item.items) do
+            if type(item) == "string" then item = { name=item, model=item } end
             if type(item) == "table" then
                 if item.items ~= nil then
                     browser.browse_item(menu_list, item, add_item_menu_function)
@@ -3064,14 +3069,6 @@ end
 --- Add Attachment Menu
 ---
 
-local function find_curated_section(query)
-    for _, curated_section in curated_attachments do
-        if curated_section.name == query then
-            return curated_section
-        end
-    end
-end
-
 constructor.add_attachment_add_attachment_options = function(attachment)
 
     --menu.divider(attachment.menus.main, t("Attachments"))
@@ -3079,7 +3076,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
     attachment.menus.add_attachment = menu.list(attachment.menus.main, t("Add Attachment"), {}, t("Options for attaching other entities to this construct"), function()
 
         if attachment.menus.search_add_prop ~= nil then return end
-        attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, t("Search"), {}, t("Search for all objects by name"), function()
+        attachment.menus.search_add_prop = menu.list(attachment.menus.add_attachment, t("Search All Objects"), {}, t("Search for all objects by name"), function()
             menu.show_command_box("constructorsearchprop"..attachment.id.." ")
         end)
         menu.text_input(attachment.menus.search_add_prop, t("Search"), {"constructorsearchprop"..attachment.id}, "", function (query)
