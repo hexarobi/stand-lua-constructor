@@ -1,6 +1,6 @@
 -- Curated Attachments
 
-local SCRIPT_VERSION = "0.46"
+local SCRIPT_VERSION = "0.46.1"
 
 local curated_attachments <const> = {
     {
@@ -42,7 +42,7 @@ local curated_attachments <const> = {
                 }
             },
             {
-                name = "Track",
+                name = "Race Track",
                 items = {
                     {
                         name="Track without side barrier",
@@ -133,6 +133,163 @@ local curated_attachments <const> = {
                             "stt_prop_track_tube_02",
                         },
                     },
+                    {
+                        name='Special Races',
+                        items = {
+                            "sr_prop_sr_start_line_02",
+                            "sr_prop_sr_track_block_01",
+                            "sr_prop_sr_track_jumpwall",
+                            "sr_prop_sr_track_wall",
+                            "sr_prop_sr_tube_end",
+                            "sr_prop_sr_tube_wall",
+                            "sr_mp_spec_races_ammu_sign",
+                            "sr_mp_spec_races_blimp_sign",
+                            "sr_mp_spec_races_ron_sign",
+                            "sr_mp_spec_races_take_flight_sign",
+                            "sr_mp_spec_races_xero_sign",
+                        }
+                    },
+                }
+            },
+            {
+                name = 'Tubes',
+                items = {
+
+                    {
+                        name = 'Stunt Race Tube',
+                        items = {
+                            "stt_prop_stunt_tube_xxs",
+                            "stt_prop_stunt_tube_xs",
+                            "stt_prop_stunt_tube_s",
+                            "stt_prop_stunt_tube_m",
+                            "stt_prop_stunt_tube_l",
+                            "stt_prop_stunt_tube_crn",
+                            "stt_prop_stunt_tube_crn_5d",
+                            "stt_prop_stunt_tube_crn_15d",
+                            "stt_prop_stunt_tube_crn_30d",
+                            "stt_prop_stunt_tube_crn2",
+                            "stt_prop_stunt_tube_cross",
+                            "stt_prop_stunt_tube_end",
+                            "stt_prop_stunt_tube_ent",
+                            "stt_prop_stunt_tube_qg",
+                            "stt_prop_stunt_tube_hg",
+                            "stt_prop_stunt_tube_fn_01",
+                            "stt_prop_stunt_tube_fn_02",
+                            "stt_prop_stunt_tube_fn_03",
+                            "stt_prop_stunt_tube_fn_04",
+                            "stt_prop_stunt_tube_fn_05",
+                            "stt_prop_stunt_tube_fork",
+                            "stt_prop_stunt_tube_gap_01",
+                            "stt_prop_stunt_tube_gap_02",
+                            "stt_prop_stunt_tube_gap_03",
+                            "stt_prop_stunt_tube_jmp",
+                            "stt_prop_stunt_tube_jmp2",
+                            "stt_prop_stunt_tube_speed",
+                            "stt_prop_stunt_tube_speeda",
+                            "stt_prop_stunt_tube_speedb",
+                        }
+                    },
+                    {
+                        name = 'Twilight Zone Tube',
+                        items = {
+                            "sr_prop_spec_tube_xxs_01a",
+                            "sr_prop_spec_tube_s_01a",
+                            "sr_prop_spec_tube_m_01a",
+                            "sr_prop_spec_tube_l_01a",
+                            "sr_prop_spec_tube_crn_01a",
+                            "sr_prop_spec_tube_crn_30d_01a",
+                        }
+                    },
+                    {
+                        name = 'Warp Speed Tube',
+                        items = {
+                            "sr_prop_spec_tube_xxs_02a",
+                            "sr_prop_spec_tube_s_02a",
+                            "sr_prop_spec_tube_m_02a",
+                            "sr_prop_spec_tube_l_02a",
+                            "sr_prop_spec_tube_crn_02a",
+                            "sr_prop_spec_tube_crn_30d_02a",
+                        }
+                    },
+                    {
+                        name = 'Rainbow Swirl Tube',
+                        items = {
+                            "sr_prop_spec_tube_xxs_03a",
+                            "sr_prop_spec_tube_s_03a",
+                            "sr_prop_spec_tube_m_03a",
+                            "sr_prop_spec_tube_l_03a",
+                            "sr_prop_spec_tube_crn_03a",
+                            "sr_prop_spec_tube_crn_30d_03a",
+                        }
+                    },
+                    {
+                        name = 'Rainbow Wave Tube',
+                        items = {
+                            "sr_prop_spec_tube_xxs_04a",
+                            "sr_prop_spec_tube_s_04a",
+                            "sr_prop_spec_tube_m_04a",
+                            "sr_prop_spec_tube_l_04a",
+                            "sr_prop_spec_tube_crn_04a",
+                            "sr_prop_spec_tube_crn_30d_04a",
+                        }
+                    },
+                    {
+                        name = 'Star Grid Tube',
+                        items = {
+                            "sr_prop_spec_tube_xxs_05a",
+                            "sr_prop_spec_tube_s_05a",
+                            "sr_prop_spec_tube_m_05a",
+                            "sr_prop_spec_tube_l_05a",
+                            "sr_prop_spec_tube_crn_05a",
+                            "sr_prop_spec_tube_crn_30d_05a",
+                        }
+                    },
+                    {
+                        name = 'Turbo Refill Tube',
+                        model = 'sr_prop_spec_tube_refill',
+                    },
+                }
+            },
+            {
+                name = 'Targets',
+                items = {
+                    "sr_prop_spec_target_b_01a",
+                    "sr_prop_spec_target_m_01a",
+                    "sr_prop_spec_target_s_01a",
+                    "sr_prop_sr_target_1_01a",
+                    "sr_prop_sr_target_2_04a",
+                    "sr_prop_sr_target_3_03a",
+                    "sr_prop_sr_target_4_01a",
+                    "sr_prop_sr_target_5_01a",
+                    "sr_prop_sr_target_large_01a",
+                    "sr_prop_sr_target_long_01a",
+                    "sr_prop_sr_target_small_01a",
+                    "sr_prop_sr_target_small_02a",
+                    "sr_prop_sr_target_small_03a",
+                    "sr_prop_sr_target_small_04a",
+                    "sr_prop_sr_target_small_05a",
+                    "sr_prop_sr_target_small_06a",
+                    "sr_prop_sr_target_small_07a",
+                    "sr_prop_sr_target_trap_01a",
+                    "sr_prop_sr_target_trap_02a",
+                }
+            },
+            {
+                name = 'Black Blocks',
+                items = {
+                    "sr_prop_special_bblock_sml1",
+                    "sr_prop_special_bblock_sml2",
+                    "sr_prop_special_bblock_sml3",
+                    "sr_prop_special_bblock_mdm1",
+                    "sr_prop_special_bblock_mdm2",
+                    "sr_prop_special_bblock_mdm3",
+                    "sr_prop_special_bblock_lrg11",
+                    "sr_prop_special_bblock_lrg2",
+                    "sr_prop_special_bblock_lrg3",
+                    "sr_prop_special_bblock_xl1",
+                    "sr_prop_special_bblock_xl2",
+                    "sr_prop_special_bblock_xl3",
+                    "sr_prop_special_bblock_xl3_fixed",
                 }
             },
             {
