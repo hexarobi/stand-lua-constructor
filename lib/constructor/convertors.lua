@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.47"
+local SCRIPT_VERSION = "0.48"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -21,6 +21,7 @@ end
 
 util.ensure_package_is_installed('lua/iniparser')
 util.ensure_package_is_installed('lua/xml2lua')
+util.ensure_package_is_installed('lua/xml2lua-handler-tree')
 
 local inspect = require_dependency("inspect")
 local xml2lua = require_dependency("xml2lua")
@@ -34,7 +35,7 @@ local constructor_lib = require_dependency("constructor/constructor_lib")
 ---
 
 local function debug_log(message, additional_details)
-    if CONSTRUCTOR_CONFIG.debug_mode then
+    if (CONSTRUCTOR_CONFIG and CONSTRUCTOR_CONFIG.debug_mode) then
         if CONSTRUCTOR_CONFIG.debug_mode == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
@@ -85,12 +86,12 @@ convertor.set_default_spawn_mode = function(attachment)
         if attachment.always_spawn_at_position == false then
             attachment.options.spawn_mode = 1
         end
-    --else
-    --    if attachment.type == "OBJECT" and attachment.options.is_attached == false then
-    --        attachment.options.spawn_mode = 2
-    --    else
-    --        attachment.options.spawn_mode = 1
-    --    end
+        --else
+        --    if attachment.type == "OBJECT" and attachment.options.is_attached == false then
+        --        attachment.options.spawn_mode = 2
+        --    else
+        --        attachment.options.spawn_mode = 1
+        --    end
     end
     for _, child_attachment in attachment.children do
         convertor.set_default_spawn_mode(child_attachment)
@@ -729,7 +730,7 @@ local function map_stand_garage_vehicle(attachment, vehicle_data)
         Spoiler = "mods._0",
         ["Steering Wheel"] = "mods._33",
         Struts = "mods._41",
-        Subwoofer = "mods._36",
+        --Subwoofer = "mods._36",
         Suspension = "mods._15",
         Tank = "mods._37",
         Tiresmoke = "mods._20",

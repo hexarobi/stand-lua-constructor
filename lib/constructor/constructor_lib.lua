@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.47"
+local SCRIPT_VERSION = "0.48.1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -230,6 +230,7 @@ constructor_lib.default_entity_attributes = function(attachment)
     if attachment.options.is_dynamic == nil then attachment.options.is_dynamic = true end
     if attachment.options.lod_distance == nil then attachment.options.lod_distance = 16960 end
     if attachment.options.object_tint == nil then attachment.options.object_tint = 0 end
+    if attachment.options.angular_velocity == nil then attachment.options.angular_velocity = {x=0, y=0, z=0} end
     if attachment.options.is_attached == nil then
         attachment.options.is_attached = (not constructor_lib.is_attachment_root(attachment))
     end
@@ -282,6 +283,12 @@ constructor_lib.deserialize_entity_tick = function(attachment)
     end
     if attachment.options.downforce ~= nil and attachment.options.downforce > 0 then
         ENTITY.APPLY_FORCE_TO_ENTITY_CENTER_OF_MASS(attachment.handle, 1, 0, 0, 0 - attachment.options.downforce, 0, true, true, true, true)
+    end
+    if attachment.options.angular_velocity ~= nil then
+        local vel = attachment.options.angular_velocity
+        if vel.x > 0 or vel.y > 0 or vel.z > 0 then
+            ENTITY.SET_ENTITY_ANGULAR_VELOCITY(attachment.handle, vel.x, vel.y, vel.z)
+        end
     end
 end
 
@@ -350,8 +357,8 @@ constructor_lib.deserialize_entity_attributes = function(attachment)
         AUDIO.SET_SIREN_BYPASS_MP_DRIVER_CHECK(attachment.handle, true)
     end
     if (attachment.options.is_bullet_proof ~= nil or attachment.options.is_fire_proof ~= nil
-        or attachment.options.is_explosion_proof ~= nil or attachment.options.is_melee_proof ~= nil)
-        and attachment.options.is_on_fire == nil
+            or attachment.options.is_explosion_proof ~= nil or attachment.options.is_melee_proof ~= nil)
+            and attachment.options.is_on_fire == nil
     then
         ENTITY.SET_ENTITY_PROOFS(
                 attachment.handle,
@@ -377,11 +384,11 @@ constructor_lib.deserialize_trailer_attachment = function(attachment)
         VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
     end
     if trailer_parent == 0 and attachment.options.is_trailer_attached
-        and ENTITY.DOES_ENTITY_EXIST(attachment.parent.handle) and ENTITY.DOES_ENTITY_EXIST(attachment.handle) then
-            --debug_log("attaching trailer "..attachment.name)
-            --VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
-            --util.yield(100)
-            VEHICLE.ATTACH_VEHICLE_TO_TRAILER(attachment.parent.handle, attachment.handle, 1065353216)
+            and ENTITY.DOES_ENTITY_EXIST(attachment.parent.handle) and ENTITY.DOES_ENTITY_EXIST(attachment.handle) then
+        --debug_log("attaching trailer "..attachment.name)
+        --VEHICLE.DETACH_VEHICLE_FROM_TRAILER(attachment.parent.handle)
+        --util.yield(100)
+        VEHICLE.ATTACH_VEHICLE_TO_TRAILER(attachment.parent.handle, attachment.handle, 1065353216)
     end
 end
 
@@ -394,11 +401,11 @@ constructor_lib.attach_entity = function(attachment)
         else
             debug_log("Attaching entity to entity "..tostring(attachment.name))
             ENTITY.ATTACH_ENTITY_TO_ENTITY(
-                attachment.handle, attachment.parent.handle, attachment.options.bone_index,
-                attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
-                attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
-                false, attachment.options.use_soft_pinning, attachment.options.has_collision,
-                false, attachment.rotation_order, true, 0
+                    attachment.handle, attachment.parent.handle, attachment.options.bone_index,
+                    attachment.offset.x or 0, attachment.offset.y or 0, attachment.offset.z or 0,
+                    attachment.rotation.x or 0, attachment.rotation.y or 0, attachment.rotation.z or 0,
+                    false, attachment.options.use_soft_pinning, attachment.options.has_collision,
+                    false, attachment.rotation_order, true, 0
             )
         end
     else
@@ -475,8 +482,8 @@ constructor_lib.is_particle_loop_due_for_refresh = function(attachment)
     return attachment.particle_attributes.loop_timer ~= nil
             and attachment.particle_attributes.loop_timer > 0
             and (
-        attachment.temp.particle_refresh_time == nil
-        or util.current_time_millis() >= attachment.temp.particle_refresh_time
+            attachment.temp.particle_refresh_time == nil
+                    or util.current_time_millis() >= attachment.temp.particle_refresh_time
     )
 end
 
@@ -528,7 +535,7 @@ end
 constructor_lib.update_attachment_position = function(attachment)
     --debug_log("Updating attachment position "..tostring(attachment.name))
     if constructor_lib.is_attachment_root(attachment) or (
-        not attachment.options.is_attached and constructor_lib.is_spawn_mode_position(attachment)
+            not attachment.options.is_attached and constructor_lib.is_spawn_mode_position(attachment)
     ) then
         --debug_log("Updating attachment world rotation "..tostring(attachment.name))
         if attachment.quaternion ~= nil then
@@ -741,9 +748,9 @@ constructor_lib.create_entity = function(attachment)
     end
 
     if is_networked and not (
-        attachment.type == "VEHICLE" and (
-            constructor_lib.is_attachment_root(attachment) or not attachment.options.is_attached
-        )
+            attachment.type == "VEHICLE" and (
+                    constructor_lib.is_attachment_root(attachment) or not attachment.options.is_attached
+            )
     ) then
         constructor_lib.make_entity_networked(attachment)
     end
@@ -840,10 +847,10 @@ end
 
 constructor_lib.set_offset_from_parent = function(attachment)
     local offset = ENTITY.GET_OFFSET_FROM_ENTITY_GIVEN_WORLD_COORDS(
-        attachment.parent.handle,
-        attachment.position.x,
-        attachment.position.y,
-        attachment.position.z
+            attachment.parent.handle,
+            attachment.position.x,
+            attachment.position.y,
+            attachment.position.z
     )
     attachment.offset = {x=offset.x, y=offset.y, z=offset.z}
 end
@@ -968,6 +975,7 @@ constructor_lib.update_attachment_tick = function(attachment)
     --constructor_lib.serialize_entity_position(attachment)
     constructor_lib.deserialize_entity_tick(attachment)
     constructor_lib.deserialize_vehicle_tick(attachment)
+    constructor_lib.deserialize_ped_tick(attachment)
     constructor_lib.update_particles_tick(attachment)
     constructor_lib.refresh_ped_animation(attachment)
 end
@@ -1164,9 +1172,9 @@ constructor_lib.animate_peds = function(attachment)
         constructor_lib.load_animation_dictionary(animation.dictionary)
         attach_animation_props(attachment)
         TASK.TASK_PLAY_ANIM(
-            attachment.handle, animation.dictionary, animation.clip,
-            8.0, 8.0, (animation.emote_duration or -1), build_animation_flags(attachment),
-            0.0, false, false, false
+                attachment.handle, animation.dictionary, animation.clip,
+                8.0, 8.0, (animation.emote_duration or -1), build_animation_flags(attachment),
+                0.0, false, false, false
         )
     end
     if attachment.ped_attributes.animation.refresh_timer ~= nil and attachment.ped_attributes.animation.refresh_timer > 0 then
@@ -1179,7 +1187,7 @@ end
 constructor_lib.refresh_ped_animation = function(attachment)
     if attachment.ped_attributes == nil or attachment.ped_attributes.animation == nil then return end
     if (attachment.ped_attributes.animation.refresh_time ~= nil
-        and attachment.ped_attributes.animation.refresh_time < util.current_time_millis()) then
+            and attachment.ped_attributes.animation.refresh_time < util.current_time_millis()) then
         constructor_lib.animate_peds(attachment)
     end
 end
@@ -1383,8 +1391,8 @@ constructor_lib.default_vehicle_attributes = function(vehicle)
     if vehicle.vehicle_attributes.wheels.tire_smoke_color == nil then vehicle.vehicle_attributes.wheels.tire_smoke_color = {} end
     if vehicle.vehicle_attributes.headlights == nil then vehicle.vehicle_attributes.headlights = {} end
     if vehicle.vehicle_attributes.headlights.headlight_color == nil
-        or vehicle.vehicle_attributes.headlights.headlight_color < -1
-        or vehicle.vehicle_attributes.headlights.headlight_color > 14 then
+            or vehicle.vehicle_attributes.headlights.headlight_color < -1
+            or vehicle.vehicle_attributes.headlights.headlight_color > 14 then
         vehicle.vehicle_attributes.headlights.headlight_color = -1
     end
     if vehicle.vehicle_attributes.options == nil then vehicle.vehicle_attributes.options = {} end
@@ -1653,10 +1661,10 @@ constructor_lib.deserialize_vehicle_neon = function(vehicle)
     end
     if vehicle.vehicle_attributes.neon.color ~= nil and vehicle.vehicle_attributes.neon.color.r ~= nil then
         VEHICLE.SET_VEHICLE_NEON_COLOUR(
-            vehicle.handle,
-            vehicle.vehicle_attributes.neon.color.r,
-            vehicle.vehicle_attributes.neon.color.g,
-            vehicle.vehicle_attributes.neon.color.b
+                vehicle.handle,
+                vehicle.vehicle_attributes.neon.color.r,
+                vehicle.vehicle_attributes.neon.color.g,
+                vehicle.vehicle_attributes.neon.color.b
         )
     end
 end
@@ -1945,9 +1953,9 @@ constructor_lib.deserialize_vehicle_tick = function(vehicle)
         end
     end
     if vehicle.vehicle_attributes.paint ~= nil
-        and vehicle.vehicle_attributes.paint.primary_rainbow_paint_delay ~= nil
-        and vehicle.vehicle_attributes.paint.primary_rainbow_paint_delay > 0
-        and (vehicle.temp.next_rainbow_paint_tick == nil or vehicle.temp.next_rainbow_paint_tick < util.current_time_millis())
+            and vehicle.vehicle_attributes.paint.primary_rainbow_paint_delay ~= nil
+            and vehicle.vehicle_attributes.paint.primary_rainbow_paint_delay > 0
+            and (vehicle.temp.next_rainbow_paint_tick == nil or vehicle.temp.next_rainbow_paint_tick < util.current_time_millis())
     then
         local custom_color = vehicle.vehicle_attributes.paint.primary.custom_color
         if custom_color == nil then custom_color = {r=0, g=0, b=0} end
@@ -2049,6 +2057,7 @@ constructor_lib.default_ped_attributes = function(attachment)
     if attachment.ped_attributes.seat == nil then attachment.ped_attributes.seat = -3 end
     if attachment.ped_attributes.ignore_events == nil then attachment.ped_attributes.ignore_events = true end
     if attachment.ped_attributes.ped_config_flags == nil then attachment.ped_attributes.ped_config_flags = {} end
+    if attachment.ped_attributes.task_vehicle_drive_speed == nil then attachment.ped_attributes.task_vehicle_drive_speed = 20.0 end
     for prop_index = 0, 9 do
         if attachment.ped_attributes.props["_"..prop_index] == nil then attachment.ped_attributes.props["_"..prop_index] = {} end
         if attachment.ped_attributes.props["_"..prop_index].drawable_variation == nil then attachment.ped_attributes.props["_"..prop_index].drawable_variation = -1 end
@@ -2111,10 +2120,45 @@ constructor_lib.deserialize_ped_weapon = function(attachment)
         WEAPON.SET_CURRENT_PED_WEAPON(attachment.handle, attachment.ped_attributes.weapon.hash, true)
         if attachment.ped_attributes.weapon.component_hash ~= nil then
             WEAPON.GIVE_WEAPON_COMPONENT_TO_PED(
-                attachment.handle,
-                attachment.ped_attributes.weapon.hash,
-                attachment.ped_attributes.weapon.component_hash
+                    attachment.handle,
+                    attachment.ped_attributes.weapon.hash,
+                    attachment.ped_attributes.weapon.component_hash
             )
+        end
+    end
+end
+
+constructor_lib.start_vehicle_drive_wander = function(attachment)
+    if attachment.ped_attributes == nil then return end
+    if attachment.ped_attributes.task_vehicle_drive_wander == true
+            and PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+        TASK.CLEAR_PED_TASKS(attachment.handle)
+        TASK.TASK_VEHICLE_DRIVE_WANDER(attachment.handle, attachment.parent.handle,
+                attachment.ped_attributes.task_vehicle_drive_speed, attachment.ped_attributes.driving_style)
+    end
+end
+
+constructor_lib.stop_vehicle_drive_wander = function(attachment)
+    TASK.CLEAR_PED_TASKS(attachment.handle)
+end
+
+constructor_lib.deserialize_ped_tick = function(attachment)
+    if attachment.ped_attributes == nil then return end
+    if attachment.parent and attachment.parent.handle and attachment.parent.type == "VEHICLE" then
+        if attachment.ped_attributes.seat ~= -3 then    -- -3 is special value to mean unseated
+            if not PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+                PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, attachment.ped_attributes.seat)
+            end
+        elseif PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+            TASK.TASK_LEAVE_VEHICLE(attachment.handle, attachment.parent.handle, 16)
+            util.yield(100)
+            constructor_lib.move_attachment(attachment)
+        end
+    end
+    if attachment.parent and attachment.parent.handle and attachment.ped_attributes.task_vehicle_drive_wander == true
+            and PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
+        if not TASK.GET_IS_TASK_ACTIVE(attachment.handle, constants.ped_task_types.CarDriveWander) then
+            constructor_lib.start_vehicle_drive_wander(attachment)
         end
     end
 end
@@ -2122,7 +2166,10 @@ end
 constructor_lib.deserialize_ped_attributes = function(attachment)
     debug_log("Deserializing ped attributes "..tostring(attachment.name))
     if attachment.ped_attributes == nil then return end
-    if attachment.parent.type == "VEHICLE" then
+    if attachment.ped_attributes.keep_on_task ~= nil then
+        PED.SET_PED_KEEP_TASK(attachment.handle, attachment.ped_attributes.keep_on_task)
+    end
+    if attachment.parent and attachment.parent.handle and attachment.parent.type == "VEHICLE" then
         if attachment.ped_attributes.seat ~= -3 then    -- -3 is special value to mean unseated
             PED.SET_PED_INTO_VEHICLE(attachment.handle, attachment.parent.handle, attachment.ped_attributes.seat)
         elseif PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
@@ -2130,17 +2177,6 @@ constructor_lib.deserialize_ped_attributes = function(attachment)
             util.yield(100)
             constructor_lib.move_attachment(attachment)
         end
-    end
-    if attachment.ped_attributes.keep_on_task ~= nil then
-        PED.SET_PED_KEEP_TASK(attachment.handle, attachment.ped_attributes.keep_on_task)
-    end
-    if attachment.ped_attributes.task_vehicle_drive_wander == true
-            and PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
-        if attachment.ped_attributes.task_vehicle_drive_wander_speed == nil then
-            attachment.ped_attributes.task_vehicle_drive_wander_speed = 20.0
-        end
-        TASK.TASK_VEHICLE_DRIVE_WANDER(attachment.handle, attachment.parent.handle,
-                attachment.ped_attributes.task_vehicle_drive_wander_speed, 786603)
     end
     if attachment.ped_attributes.can_rag_doll ~= nil then
         PED.SET_PED_CAN_RAGDOLL(attachment.handle, attachment.ped_attributes.can_rag_doll)

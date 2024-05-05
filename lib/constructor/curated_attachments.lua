@@ -1,6 +1,6 @@
 -- Curated Attachments
 
-local SCRIPT_VERSION = "0.39"
+local SCRIPT_VERSION = "0.48"
 
 local curated_attachments <const> = {
     {
@@ -8,7 +8,398 @@ local curated_attachments <const> = {
         description = "Curated collection of objects useful for constructing with",
         items = {
             {
+                name = "Ramps",
+                items = {
+                    "prop_jetski_ramp_01",
+                    "lts_prop_lts_ramp_01",
+                    "lts_prop_lts_ramp_02",
+                    "lts_prop_lts_ramp_03",
+                    "xs_prop_x18_flatbed_ramp",
+                    "stt_prop_ramp_jump_xs",
+                    "stt_prop_ramp_jump_s",
+                    "stt_prop_ramp_jump_m",
+                    "stt_prop_ramp_jump_l",
+                    "stt_prop_ramp_jump_xl",
+                    "stt_prop_ramp_jump_xxl",
+                    "stt_prop_ramp_adj_flip_m",
+                    "stt_prop_ramp_adj_flip_mb",
+                    "stt_prop_ramp_adj_flip_s",
+                    "stt_prop_ramp_adj_flip_sb",
+                    "stt_prop_ramp_spiral_s",
+                    "stt_prop_ramp_spiral_m",
+                    "stt_prop_ramp_spiral_l",
+                    "stt_prop_ramp_spiral_xxl",
+                    "stt_prop_ramp_spiral_l_s",
+                    "stt_prop_ramp_spiral_l_m",
+                    "stt_prop_ramp_spiral_l_l",
+                    "stt_prop_ramp_spiral_l_xxl",
+                    "stt_prop_ramp_adj_hloop",
+                    "stt_prop_ramp_adj_loop",
+                    "stt_prop_ramp_multi_loop_rb",
+                    "xs_prop_arena_pipe_ramp_01a",
+                    "xs_propint2_ramp_large",
+                    "xs_propint2_ramp_large_2",
+                }
+            },
+            {
+                name = "Race Track",
+                items = {
+                    {
+                        name="Track without side barrier",
+                        items={
+                            "stt_prop_track_straight_s",
+                            "stt_prop_track_straight_m",
+                            "stt_prop_track_straight_l",
+                            "stt_prop_track_straight_lm",
+                            "stt_prop_track_bend_5d",
+                            "stt_prop_track_bend_15d",
+                            "stt_prop_track_bend_30d",
+                            "stt_prop_track_bend_180d",
+                            "stt_prop_track_bend_l",
+                            "stt_prop_track_bend_l_b",
+                            "stt_prop_track_bend_m",
+                            "stt_prop_track_bend2_l",
+                            "stt_prop_track_bend2_l_b",
+                            "stt_prop_track_cross",
+                            "stt_prop_track_fork",
+                        },
+                    },
+                    {
+                        name="Track with side barrier",
+                        items={
+                            "stt_prop_track_straight_bar_s",
+                            "stt_prop_track_straight_bar_m",
+                            "stt_prop_track_straight_bar_l",
+                            "stt_prop_track_straight_lm_bar",
+                            "stt_prop_track_bend_5d_bar",
+                            "stt_prop_track_bend_15d_bar",
+                            "stt_prop_track_bend_30d_bar",
+                            "stt_prop_track_bend_180d_bar",
+                            "stt_prop_track_bend_bar_m",
+                            "stt_prop_track_bend_bar_l",
+                            "stt_prop_track_bend_bar_l_b",
+                            "stt_prop_track_bend2_bar_l",
+                            "stt_prop_track_bend2_bar_l_b",
+                            "stt_prop_track_cross_bar",
+                            "stt_prop_track_fork_bar",
+                        },
+                    },
+                    {
+                        name="Chicanes (Turns)",
+                        items={
+                            "stt_prop_track_chicane_l",
+                            "stt_prop_track_chicane_l_02",
+                            "stt_prop_track_chicane_r",
+                            "stt_prop_track_chicane_r_02",
+                        },
+                    },
+                    {
+                        name="Jumps",
+                        items={
+                            "stt_prop_track_jump_01a",
+                            "stt_prop_track_jump_01b",
+                            "stt_prop_track_jump_01c",
+                            "stt_prop_track_jump_02a",
+                            "stt_prop_track_jump_02b",
+                            "stt_prop_track_jump_02c",
+                        },
+                    },
+                    {
+                        name="Speed",
+                        items={
+                            "stt_prop_track_speedup",
+                            "stt_prop_track_speedup_t1",
+                            "stt_prop_track_speedup_t2",
+                            "stt_prop_track_slowdown",
+                            "stt_prop_track_slowdown_t1",
+                            "stt_prop_track_slowdown_t2",
+                        },
+                    },
+                    {
+                        name="Other",
+                        items={
+                            "stt_prop_track_start",
+                            "stt_prop_track_start_02",
+                            "stt_prop_track_link",
+                            "stt_prop_track_block_01",
+                            "stt_prop_track_block_02",
+                            "stt_prop_track_block_03",
+                            "stt_prop_track_funnel",
+                            "stt_prop_track_funnel_ads_01a",
+                            "stt_prop_track_funnel_ads_01b",
+                            "stt_prop_track_funnel_ads_01c",
+                            "stt_prop_track_stop_sign",
+                            "stt_prop_track_tube_01",
+                            "stt_prop_track_tube_02",
+                        },
+                    },
+                    {
+                        name='Special Races',
+                        items = {
+                            "sr_prop_sr_start_line_02",
+                            "sr_prop_sr_track_block_01",
+                            "sr_prop_sr_track_jumpwall",
+                            "sr_prop_sr_track_wall",
+                            "sr_prop_sr_tube_end",
+                            "sr_prop_sr_tube_wall",
+                            "sr_mp_spec_races_ammu_sign",
+                            "sr_mp_spec_races_blimp_sign",
+                            "sr_mp_spec_races_ron_sign",
+                            "sr_mp_spec_races_take_flight_sign",
+                            "sr_mp_spec_races_xero_sign",
+                        }
+                    },
+                }
+            },
+            {
+                name = 'Tubes',
+                items = {
+
+                    {
+                        name = 'Stunt Race Tube',
+                        items = {
+                            "stt_prop_stunt_tube_xxs",
+                            "stt_prop_stunt_tube_xs",
+                            "stt_prop_stunt_tube_s",
+                            "stt_prop_stunt_tube_m",
+                            "stt_prop_stunt_tube_l",
+                            "stt_prop_stunt_tube_crn",
+                            "stt_prop_stunt_tube_crn_5d",
+                            "stt_prop_stunt_tube_crn_15d",
+                            "stt_prop_stunt_tube_crn_30d",
+                            "stt_prop_stunt_tube_crn2",
+                            "stt_prop_stunt_tube_cross",
+                            "stt_prop_stunt_tube_end",
+                            "stt_prop_stunt_tube_ent",
+                            "stt_prop_stunt_tube_qg",
+                            "stt_prop_stunt_tube_hg",
+                            "stt_prop_stunt_tube_fn_01",
+                            "stt_prop_stunt_tube_fn_02",
+                            "stt_prop_stunt_tube_fn_03",
+                            "stt_prop_stunt_tube_fn_04",
+                            "stt_prop_stunt_tube_fn_05",
+                            "stt_prop_stunt_tube_fork",
+                            "stt_prop_stunt_tube_gap_01",
+                            "stt_prop_stunt_tube_gap_02",
+                            "stt_prop_stunt_tube_gap_03",
+                            "stt_prop_stunt_tube_jmp",
+                            "stt_prop_stunt_tube_jmp2",
+                            "stt_prop_stunt_tube_speed",
+                            "stt_prop_stunt_tube_speeda",
+                            "stt_prop_stunt_tube_speedb",
+                        }
+                    },
+                    {
+                        name = 'Twilight Zone Tube',
+                        items = {
+                            "sr_prop_spec_tube_xxs_01a",
+                            "sr_prop_spec_tube_s_01a",
+                            "sr_prop_spec_tube_m_01a",
+                            "sr_prop_spec_tube_l_01a",
+                            "sr_prop_spec_tube_crn_01a",
+                            "sr_prop_spec_tube_crn_30d_01a",
+                        }
+                    },
+                    {
+                        name = 'Warp Speed Tube',
+                        items = {
+                            "sr_prop_spec_tube_xxs_02a",
+                            "sr_prop_spec_tube_s_02a",
+                            "sr_prop_spec_tube_m_02a",
+                            "sr_prop_spec_tube_l_02a",
+                            "sr_prop_spec_tube_crn_02a",
+                            "sr_prop_spec_tube_crn_30d_02a",
+                        }
+                    },
+                    {
+                        name = 'Rainbow Swirl Tube',
+                        items = {
+                            "sr_prop_spec_tube_xxs_03a",
+                            "sr_prop_spec_tube_s_03a",
+                            "sr_prop_spec_tube_m_03a",
+                            "sr_prop_spec_tube_l_03a",
+                            "sr_prop_spec_tube_crn_03a",
+                            "sr_prop_spec_tube_crn_30d_03a",
+                        }
+                    },
+                    {
+                        name = 'Rainbow Wave Tube',
+                        items = {
+                            "sr_prop_spec_tube_xxs_04a",
+                            "sr_prop_spec_tube_s_04a",
+                            "sr_prop_spec_tube_m_04a",
+                            "sr_prop_spec_tube_l_04a",
+                            "sr_prop_spec_tube_crn_04a",
+                            "sr_prop_spec_tube_crn_30d_04a",
+                        }
+                    },
+                    {
+                        name = 'Star Grid Tube',
+                        items = {
+                            "sr_prop_spec_tube_xxs_05a",
+                            "sr_prop_spec_tube_s_05a",
+                            "sr_prop_spec_tube_m_05a",
+                            "sr_prop_spec_tube_l_05a",
+                            "sr_prop_spec_tube_crn_05a",
+                            "sr_prop_spec_tube_crn_30d_05a",
+                        }
+                    },
+                    {
+                        name = 'Turbo Refill Tube',
+                        model = 'sr_prop_spec_tube_refill',
+                    },
+                }
+            },
+            {
+                name = 'Targets',
+                items = {
+                    "sr_prop_spec_target_b_01a",
+                    "sr_prop_spec_target_m_01a",
+                    "sr_prop_spec_target_s_01a",
+                    "sr_prop_sr_target_1_01a",
+                    "sr_prop_sr_target_2_04a",
+                    "sr_prop_sr_target_3_03a",
+                    "sr_prop_sr_target_4_01a",
+                    "sr_prop_sr_target_5_01a",
+                    "sr_prop_sr_target_large_01a",
+                    "sr_prop_sr_target_long_01a",
+                    "sr_prop_sr_target_small_01a",
+                    "sr_prop_sr_target_small_02a",
+                    "sr_prop_sr_target_small_03a",
+                    "sr_prop_sr_target_small_04a",
+                    "sr_prop_sr_target_small_05a",
+                    "sr_prop_sr_target_small_06a",
+                    "sr_prop_sr_target_small_07a",
+                    "sr_prop_sr_target_trap_01a",
+                    "sr_prop_sr_target_trap_02a",
+                }
+            },
+            {
+                name = 'Black Blocks',
+                items = {
+                    "sr_prop_special_bblock_sml1",
+                    "sr_prop_special_bblock_sml2",
+                    "sr_prop_special_bblock_sml3",
+                    "sr_prop_special_bblock_mdm1",
+                    "sr_prop_special_bblock_mdm2",
+                    "sr_prop_special_bblock_mdm3",
+                    "sr_prop_special_bblock_lrg11",
+                    "sr_prop_special_bblock_lrg2",
+                    "sr_prop_special_bblock_lrg3",
+                    "sr_prop_special_bblock_xl1",
+                    "sr_prop_special_bblock_xl2",
+                    "sr_prop_special_bblock_xl3",
+                    "sr_prop_special_bblock_xl3_fixed",
+                }
+            },
+            {
                 name = "Lights",
+                items = {
+                    {
+                        name = "Work Lights",
+                        items = {
+                            "prop_worklight_01a",
+                            "prop_worklight_01a_l1",
+                            "prop_worklight_02a",
+                            "prop_worklight_03a",
+                            "prop_worklight_03b",
+                            "prop_worklight_04a",
+                            "prop_worklight_04b",
+                            "prop_worklight_04b_l1",
+                            "prop_worklight_04b_l1",
+                            "prop_worklight_04c",
+                            "prop_worklight_04c_l1",
+                            "prop_worklight_04d",
+                            "prop_worklight_04d_l1",
+                        }
+                    },
+                    {
+                        name = "Wall Lights",
+                        items = {
+                            "prop_wall_light_01a",
+                            "prop_wall_light_02a",
+                            "prop_wall_light_03a",
+                            "prop_wall_light_03b",
+                            "prop_wall_light_05a",
+                            "prop_wall_light_05c",
+                            "prop_wall_light_06a",
+                            "prop_wall_light_07a",
+                            "prop_wall_light_08a",
+                            "prop_wall_light_09a",
+                            "prop_wall_light_09b",
+                            "prop_wall_light_09c",
+                            "prop_wall_light_09d",
+                            "prop_wall_light_10a",
+                            "prop_wall_light_10b",
+                            "prop_wall_light_10c",
+                            "prop_wall_light_11",
+                            "prop_wall_light_12",
+                            "prop_wall_light_12a",
+                            "prop_wall_light_13_snw",
+                            "prop_wall_light_13a",
+                            "prop_wall_light_14a",
+                            "prop_wall_light_14b",
+                            "prop_wall_light_15a",
+                            "prop_wall_light_16a",
+                            "prop_wall_light_16b",
+                            "prop_wall_light_16c",
+                            "prop_wall_light_16d",
+                            "prop_wall_light_16e",
+                            "prop_wall_light_17a",
+                            "prop_wall_light_17b",
+                            "prop_wall_light_18a",
+                            "prop_wall_light_19a",
+                            "prop_wall_light_20a",
+                            "prop_wall_light_21",
+                        }
+                    },
+                    {
+                        name="Street Lights",
+                        items={
+                            "prop_streetlight_01",
+                            "prop_streetlight_01b",
+                            "prop_streetlight_02",
+                            "prop_streetlight_03",
+                            "prop_streetlight_03b",
+                            "prop_streetlight_03c",
+                            "prop_streetlight_03d",
+                            "prop_streetlight_03e",
+                            "prop_streetlight_04",
+                            "prop_streetlight_05",
+                            "prop_streetlight_05_b",
+                            "prop_streetlight_06",
+                            "prop_streetlight_07a",
+                            "prop_streetlight_07b",
+                            "prop_streetlight_08",
+                            "prop_streetlight_09",
+                            "prop_streetlight_10",
+                            "prop_streetlight_11a",
+                            "prop_streetlight_11b",
+                            "prop_streetlight_11c",
+                            "prop_streetlight_12a",
+                            "prop_streetlight_12b",
+                            "prop_streetlight_14a",
+                            "prop_streetlight_15a",
+                            "prop_streetlight_16a",
+                        }
+                    }
+                }
+            },
+            {
+              name = "Downtown Buildings",
+              items = {
+                  "dt1_01_build",
+                  "dt1_02_ground",
+                  "dt1_02_ground_ns",
+                  "dr1_02_groundb",
+
+                  "dt1_04_build",
+                  "dt1_05_build1_damage_lod",
+
+              }
+            },
+            {
+                name = "Police Lights",
                 items = {
                     {
                         name = "Red Spinning Light",
@@ -360,6 +751,7 @@ local curated_attachments <const> = {
                         name = "Radar Dish",
                         model = "hei_prop_carrier_radar_1_l1"
                     },
+                    { name="Yacht Radar", model="apa_mp_apa_yacht_radar_01a" },
                     {
                         name = "UFO",
                         model = "p_spinning_anus_s"
