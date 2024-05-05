@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.48b4"
+local SCRIPT_VERSION = "0.48.1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -286,7 +286,9 @@ constructor_lib.deserialize_entity_tick = function(attachment)
     end
     if attachment.options.angular_velocity ~= nil then
         local vel = attachment.options.angular_velocity
-        ENTITY.SET_ENTITY_ANGULAR_VELOCITY(attachment.handle, vel.x, vel.y, vel.z)
+        if vel.x > 0 or vel.y > 0 or vel.z > 0 then
+            ENTITY.SET_ENTITY_ANGULAR_VELOCITY(attachment.handle, vel.x, vel.y, vel.z)
+        end
     end
 end
 
