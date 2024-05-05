@@ -21,6 +21,7 @@ end
 
 util.ensure_package_is_installed('lua/iniparser')
 util.ensure_package_is_installed('lua/xml2lua')
+util.ensure_package_is_installed('lua/xml2lua-handler-tree')
 
 local inspect = require_dependency("inspect")
 local xml2lua = require_dependency("xml2lua")
