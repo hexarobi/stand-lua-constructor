@@ -1,57 +1,46 @@
 # Constructor
 
-A Lua Script for the Stand mod menu for GTA5
+Constructor is a Lua Script for Stand that allows for creating fun vehicles, maps and player skins by combining existing GTA assets. 
 
-Allows for creation of custom vehicles and maps using the in-game props and vehicles, and sharing your creations, and loading others creations.
+![Constructpr](https://raw.githubusercontent.com/hexarobi/stand-lua-constructor/main/lib/constructor/constructor_logo.png)
 
 ## Easy Install
 
-The current stable version of Constructor is available via the Stand Lua Script Respository at `Stand > Lua Scripts > Repository > Constructor`.
-This version is slightly slower to get updates, but is also less likely to have issues.
+Install from the Stand Lua Script Respository at `Stand > Lua Scripts > Repository > Constructor`. Check the box to install the script.
 
-Alternatively, you can use ScriptManager to install Constructor (and many other scripts)
+## How to run Constructor
 
-1. Download and install [ScriptManager](https://github.com/hexarobi/stand-lua-scriptmanager/raw/main/ScriptManagerInstaller.exe)
-2. In game, goto `Stand > Lua Scripts > ScriptManager > Install Scripts > Constructor > Install`
+Within the Stand menu, goto `Stand>Lua Scripts>Constructor>Start Script`
 
-## Manual install
+## How to load Constructs
 
-#### Script
+Goto `Stand>Lua Scripts>Constructor>Load Constructs`. This will browse the content of your `Stand/Constructs` folder, as well as your Stand Garage (`Stand/Vehicles`)
 
-Constructor will auto-update itself, so the main script file is all that is needed to install.
+Constructor can load many kinds of construct files including JSON, XML, INI, and TXT. Put any files you want to make loadable into `Stand/Constructs`. You may organize with sub-folders as desired.
 
-1. Download [the script file](https://github.com/hexarobi/stand-lua-constructor/raw/main/Constructor.lua)
-2. Copy into your `Stand/Lua Scripts` folder as `Constructor.lua`
+## How to find more Construct files
 
-#### Full Project
+Constructor comes with a curated collection of constructs to get started with. You can attempt to auto-install these by going to `Constructor>Load Constructs>Options>Auto-Install Curated Constructs`. If that fails you can manually download and install the [curated collection](https://github.com/hexarobi/stand-curated-constructs).
 
-If the above methods fail, you can manually install the entire project using this method.
+You can find additional compatible files lots of places:
+* Discord - Stand's official discord, as well the Constructor discord (Hexa's Scripts)
+* Web - Menyoo XML files are most popular on GTA5-Mods.com
+* Other Menus - INI files from PhantomX and 2take1 can be loaded, if you have a source for those files
 
-1. Download [the projects zip archive file](https://github.com/hexarobi/stand-lua-constructor/archive/refs/heads/main.zip).
-2. Extract the contents of `stand-lua-constructor-main` into your `Stand/Lua Scripts` folder
-2. Run by going to `Stand > Lua Scripts > Constructor`.
+## How to build your own Constructs
 
-## Loading Constructs
+Start by creating a root object. This can be a vehicle, an object, NPC, or player skin. For a vehicle you can choose from your current vehicle, from a list, or entering the model name directly. For a map you can start with a construction cone, or search for any object. For a ped you can start with your current player model, or select from a list, or enter a ped model name.
 
-1. Select `Load Constructs` from the main menu.
-2. If your `Stand/Constructs` folder is empty, then and you will be prompted to download and install a [curated collection of construct files](https://github.com/hexarobi/stand-curated-constructs), including popular vehicles, maps, and player skins. These can also be installed or updated at any time from the `Load Constructs > Options` menu.
-3. Browse the curated collection and select a construct to spawn it into the game world and add it to your `Loaded Constructs` menu for editing.
-4. Any additional construct files (vehicles, maps, or player skins in either `json`, `xml` or `ini` format) can be saved into your `Stand/Constructs` folder. You can organize this folder, and optional sub-folders, however you wish.
+Once you have created a root construct, you can edit its various options such as position, visibility or collision. Vehicles can modify LS Customs options, as well as things like speed mods. Peds you can change clothes or weapons, or give animations.
 
-## Creating New Constructs
+Most importantly, you can attach other objects, vehicles, peds to your root object. And then the attach more to them. You can browse some curated attachments, but the full object list is also searchable. You can also browse GTA object online at [PlebMasters](https://forge.plebmasters.de/)
 
-1. Select `Create New Construct` from the main menu.
-2. To create using your current vehicle as the base select `From Current Vehicle`. This will add it to your `Loaded Constructs` menu for editing.
-3. Select `Add Attachment > Search` and enter in a search term such as "tree"
-4. Browse search results and select a tree to attach to your vehicle
-5. Use the `Position` menu to move the tree attachment into an appropriate position
-6. Use the `Options` menu to modify various attributes about the attachment, including visibility, collision, and invincibility.
-7. Use `Add Attachment` to attach another attachment to the tree attachment, maybe one the curated objects, or try searching "art"
-8. Try using `Add Attachment` to attach another vehicle to the base vehicle and explore the various vehicle options
-9. Try using `Add Attachment` to add a pedestrian (ped) and explore the ped options, including clothing and animations
-10. Continue explopring, building, and having fun
-11. Save your construct and share it with others on Dicord! =)
+Building a construct is like building with lego bricks. Let your imagination run wild! And don't forget to save and share your creations with others. =)
 
-## Updating
+# Troubleshooting
 
-The script will check for updates the first time it is run each day. If updates are found they will be auto-downloaded from https://github.com/hexarobi/stand-lua-constructor and auto-installed. You can manually check for updates any time within the Script Meta menu.
+## Why can’t other players see my construct?
+
+Since constructs only use assets available in the game, they ARE generally visible to other players. Stand blocks World Object Sync for all users by default, so if your friends use Stand make sure they relax that protection.
+
+If your construct is very large it may not network to everyone properly. The exact limits aren’t clear, but usually up to about 50 or so objects, vehicles and peds should be ok. Larger constructs may sync better if you clear the map first (Constuctor>Settings>CleanUp)

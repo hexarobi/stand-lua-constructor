@@ -186,6 +186,11 @@ util.execute_in_os_thread(function()
 
     util.ensure_package_is_installed('lua/ScaleformLib')
     scaleform = require_dependency("ScaleformLib")
+
+    if not auto_updater then
+        util.ensure_package_is_installed('lua/auto-updater')
+        auto_updater = require_dependency("auto-updater")
+    end
 end)
 
 util.require_natives("2944a")
@@ -3002,6 +3007,10 @@ constructor.add_attachment_entity_options = function(attachment)
             attachment.options.lod_distance = value
             constructor_lib.attach_entity(attachment)
         end)
+
+        -- Visibility
+        menu.divider(attachment.menus.more_options, t("Visibility"))
+
         attachment.menus.option_alpha = menu.slider(attachment.menus.more_options, t("Alpha"), {}, t("The amount of transparency the object has. Local only!"), 0, 255, attachment.options.alpha, 51, function(value)
             attachment.options.alpha = value
             constructor_lib.attach_entity(attachment)
