@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.49b1"
+local SCRIPT_VERSION = "0.49b2"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -3180,6 +3180,14 @@ constructor.add_attachment_add_attachment_options = function(attachment)
             config.add_attachment_gun_active = on
             config.add_attachment_gun_recipient = attachment
         end, config.add_attachment_gun_active)
+
+        attachment.menus.attach_self = menu.action(attachment.menus.add_attachment, t("Attach Self"), {}, t("Attach your own player to the construct"), function()
+            get_player_construct()
+            constructor_lib.serialize_ped_attributes(player_construct)
+            player_construct.root = attachment.root
+            player_construct.parent = attachment
+            build_construct_from_plan(player_construct)
+        end)
 
         attachment.menus.add_construct = menu.list(attachment.menus.add_attachment, t("Saved Constructs"), {}, t("Attach another construct to the current construct"), function()
             local load_constructs_root_menu_file = {menu=attachment.menus.add_construct, name=t("Loaded Constructs Menu"), menus={}}
