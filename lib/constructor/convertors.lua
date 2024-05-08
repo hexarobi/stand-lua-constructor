@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.49b1"
+local SCRIPT_VERSION = "0.49b2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -72,6 +72,17 @@ local function read_file(filepath)
     else
         error("Could not read file '" .. filepath .. "': " .. err, TOAST_ALL)
     end
+end
+
+local function strsplit(str, sep)
+    sep = sep or "%s";
+    local tbl = {};
+    local i = 1;
+    for str_part in string.gmatch(str, "([^"..sep.."]+)") do
+        tbl[i] = str_part;
+        i = i + 1;
+    end
+    return tbl;
 end
 
 ---
@@ -710,7 +721,7 @@ local function map_stand_garage_vehicle(attachment, vehicle_data)
         Exhaust = "mods._4",
         Fender = "mods._8",
         ["Front Bumper"] = "mods._1",
-        ["Front Wheels"] = "mods._23",
+        --["Front Wheels"] = "mods._23",
         Grille = "mods._6",
         Headlights = "mods._22",
         Hood = "mods._7",
@@ -746,6 +757,15 @@ local function map_stand_garage_vehicle(attachment, vehicle_data)
     }
 
     map_stand_garage_fields(stand_garage_constructor_field_map, attachment.vehicle_attributes, vehicle_data)
+
+    local wheels_string = vehicle_data["Front Wheels"]
+    local wheels_parts = strsplit(wheels_string, ", ")
+    if wheels_parts[1] ~= nil then
+        attachment.vehicle_attributes.mods["_23"] = wheels_parts[1]
+    end
+    if wheels_parts[2] == "Custom" then
+        attachment.vehicle_attributes.wheels.is_custom = true
+    end
 
     if attachment.vehicle_attributes.neon == nil then attachment.vehicle_attributes.neon = {} end
     if attachment.vehicle_attributes.neon.lights == nil then attachment.vehicle_attributes.neon.lights = {} end
@@ -837,17 +857,6 @@ end
 ---
 --- XML to Construct Plan Convertor
 ---
-
-local function strsplit(str, sep)
-    sep = sep or "%s";
-    local tbl = {};
-    local i = 1;
-    for str_part in string.gmatch(str, "([^"..sep.."]+)") do
-        tbl[i] = str_part;
-        i = i + 1;
-    end
-    return tbl;
-end
 
 local function find_attachment_by_initial_handle(attachment, initial_handle)
     if attachment.initial_handle == initial_handle then return attachment end
