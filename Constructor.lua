@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.49b3"
+local SCRIPT_VERSION = "0.49b4"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -2659,16 +2659,8 @@ constructor.add_attachment_ped_menu = function(attachment)
 
     attachment.menus.option_ped_drive_options = attachment.menus.ped_options:list("Drive Options", {}, "Options related to making this ped drive a vehicle")
 
-
-    local driving_styles = {}
-    local driving_style_counter = 1
-    for key, value in constants.driving_styles do
-        table.insert(driving_styles, {driving_style_counter, key})
-        driving_style_counter = driving_style_counter + 1
-    end
-
-    attachment.menus.option_ped_driving_style = attachment.menus.option_ped_drive_options:list_select(t("Driving Style"), {}, t("How the driver will behave when driving."), driving_styles, attachment.ped_attributes.driving_style or 1, function(value)
-        attachment.ped_attributes.driving_style = constants.driving_styles[value]
+    attachment.menus.option_ped_driving_style = attachment.menus.option_ped_drive_options:list_select(t("Driving Style"), {}, t("How the driver will behave when driving."), constants.driving_styles_menu, attachment.ped_attributes.driving_style_index, function(value, key)
+        attachment.ped_attributes.driving_style_index = value
         constructor_lib.start_vehicle_drive_wander(attachment)
     end)
 
