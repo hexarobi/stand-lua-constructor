@@ -1,6 +1,6 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.48b2"
+local SCRIPT_VERSION = "0.48b3"
 local constants = {}
 
 constants.spawn_modes = {"Offset From Parent", "World Position"}
@@ -10,6 +10,12 @@ constants.driving_styles = {
     Rushed = 1074528293,
     ["Ignore Lights"] = 2883621,
     ["Avoid Traffic"] = 786468,
+}
+constants.driving_styles_menu = {
+    {1, "Normal"},
+    {2, "Rushed"},
+    {3, "Ignore Lights"},
+    {4, "Avoid Traffic"},
 }
 
 -- From https://alloc8or.re/gta5/doc/enums/eTaskTypeIndex.txt
@@ -5488,18 +5494,18 @@ constants.animations = {
                                               prop = "prop_drink_redwine"
                                           } }
                             } , {
-                              clip = "pd_dance_02",
-                              controllable = true,
-                              dictionary = "mini@strip_club@pole_dance@pole_dance2",
-                              loop = true,
-                              name = "Strip Pole",
-                              props = { {
-                                            --bone = 18905,
-                                            delete_on_end = true,
-                                            placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
-                                            prop = "prop_strip_pole_01"
-                                        } }
-                          }
+                                clip = "pd_dance_02",
+                                controllable = true,
+                                dictionary = "mini@strip_club@pole_dance@pole_dance2",
+                                loop = true,
+                                name = "Strip Pole",
+                                props = { {
+                                              --bone = 18905,
+                                              delete_on_end = true,
+                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                              prop = "prop_strip_pole_01"
+                                          } }
+                            }
                   },
                   name = "Props"
               }, {
