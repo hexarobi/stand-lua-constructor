@@ -2058,6 +2058,7 @@ constructor_lib.default_ped_attributes = function(attachment)
     if attachment.ped_attributes.ignore_events == nil then attachment.ped_attributes.ignore_events = true end
     if attachment.ped_attributes.ped_config_flags == nil then attachment.ped_attributes.ped_config_flags = {} end
     if attachment.ped_attributes.task_vehicle_drive_speed == nil then attachment.ped_attributes.task_vehicle_drive_speed = 20.0 end
+    if attachment.ped_attributes.driving_style_index == nil then attachment.ped_attributes.driving_style_index = 1 end
     for prop_index = 0, 9 do
         if attachment.ped_attributes.props["_"..prop_index] == nil then attachment.ped_attributes.props["_"..prop_index] = {} end
         if attachment.ped_attributes.props["_"..prop_index].drawable_variation == nil then attachment.ped_attributes.props["_"..prop_index].drawable_variation = -1 end
@@ -2133,8 +2134,10 @@ constructor_lib.start_vehicle_drive_wander = function(attachment)
     if attachment.ped_attributes.task_vehicle_drive_wander == true
             and PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
         TASK.CLEAR_PED_TASKS(attachment.handle)
+        local driving_style = constants.driving_styles[attachment.ped_attributes.driving_style_index]
+        debug_log("driving style = "..driving_style.." from index "..attachment.ped_attributes.driving_style_index)
         TASK.TASK_VEHICLE_DRIVE_WANDER(attachment.handle, attachment.parent.handle,
-                attachment.ped_attributes.task_vehicle_drive_speed, attachment.ped_attributes.driving_style)
+                attachment.ped_attributes.task_vehicle_drive_speed, driving_style)
     end
 end
 
