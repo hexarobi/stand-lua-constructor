@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.47.1"
+local SCRIPT_VERSION = "0.49b1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -27,7 +27,7 @@ local inspect = require_dependency("inspect")
 local xml2lua = require_dependency("xml2lua")
 local xmlhandler = require_dependency("xmlhandler/tree")
 local iniparser = require_dependency("iniparser")
-local json = require_dependency("json")
+--local json = require_dependency("json")
 local constructor_lib = require_dependency("constructor/constructor_lib")
 
 ---
@@ -823,7 +823,7 @@ end
 convertor.convert_json_to_construct_plan = function(construct_plan_file)
     local raw_data = read_file(construct_plan_file.filepath)
     if not raw_data or raw_data == "" then return end
-    local construct_plan = json.decode(raw_data)
+    local construct_plan = soup.json.decode(raw_data)
     if construct_plan.version and string.find(construct_plan.version, "Jackz") then
         construct_plan = convertor.convert_jackz_to_construct_plan(construct_plan)
     elseif construct_plan.craftlab then
