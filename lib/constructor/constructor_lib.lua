@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.49b1"
+local SCRIPT_VERSION = "0.49b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1927,6 +1927,10 @@ end
 
 constructor_lib.deserialize_vehicle_tick = function(vehicle)
     if vehicle.vehicle_attributes == nil then return end
+    if vehicle.vehicle_attributes.options.top_speed ~= nil then
+        ENTITY.SET_ENTITY_MAX_SPEED(vehicle.handle, 45000)
+        VEHICLE.MODIFY_VEHICLE_TOP_SPEED(vehicle.handle, vehicle.vehicle_attributes.options.top_speed)
+    end
     if vehicle.vehicle_attributes ~= nil and vehicle.vehicle_attributes.options ~= nil and vehicle.vehicle_attributes.options.engine_power ~= nil then
         VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(vehicle.handle, vehicle.vehicle_attributes.options.engine_power)
     end
@@ -2025,6 +2029,7 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
         end
     end
     if vehicle.vehicle_attributes.options.top_speed ~= nil then
+        ENTITY.SET_ENTITY_MAX_SPEED(vehicle.handle, 45000)
         VEHICLE.MODIFY_VEHICLE_TOP_SPEED(vehicle.handle, vehicle.vehicle_attributes.options.top_speed)
     end
     if vehicle.vehicle_attributes.options.engine_power ~= nil then
