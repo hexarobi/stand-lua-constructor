@@ -721,7 +721,6 @@ local function map_stand_garage_vehicle(attachment, vehicle_data)
         Exhaust = "mods._4",
         Fender = "mods._8",
         ["Front Bumper"] = "mods._1",
-        --["Front Wheels"] = "mods._23",
         Grille = "mods._6",
         Headlights = "mods._22",
         Hood = "mods._7",

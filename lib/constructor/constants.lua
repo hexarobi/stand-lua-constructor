@@ -1,6 +1,6 @@
 -- Constructor Constants
 
-local SCRIPT_VERSION = "0.48b3"
+local SCRIPT_VERSION = "0.49"
 local constants = {}
 
 constants.spawn_modes = {"Offset From Parent", "World Position"}
@@ -5494,18 +5494,18 @@ constants.animations = {
                                               prop = "prop_drink_redwine"
                                           } }
                             } , {
-                                clip = "pd_dance_02",
-                                controllable = true,
-                                dictionary = "mini@strip_club@pole_dance@pole_dance2",
-                                loop = true,
-                                name = "Strip Pole",
-                                props = { {
-                                              --bone = 18905,
-                                              delete_on_end = true,
-                                              placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
-                                              prop = "prop_strip_pole_01"
-                                          } }
-                            }
+                              clip = "pd_dance_02",
+                              controllable = true,
+                              dictionary = "mini@strip_club@pole_dance@pole_dance2",
+                              loop = true,
+                              name = "Strip Pole",
+                              props = { {
+                                            --bone = 18905,
+                                            delete_on_end = true,
+                                            placement = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 },
+                                            prop = "prop_strip_pole_01"
+                                        } }
+                          }
                   },
                   name = "Props"
               }, {

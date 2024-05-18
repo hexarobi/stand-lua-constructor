@@ -1,6 +1,6 @@
 -- Curated Attachments
 
-local SCRIPT_VERSION = "0.46.1"
+local SCRIPT_VERSION = "0.48"
 
 local curated_attachments <const> = {
     {
