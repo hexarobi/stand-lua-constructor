@@ -1,6 +1,6 @@
 -- Curated Attachments
 
-local SCRIPT_VERSION = "0.48"
+local SCRIPT_VERSION = "0.50"
 
 local curated_attachments <const> = {
     {
@@ -8888,12 +8888,6 @@ local curated_attachments <const> = {
                         particle_attributes = {
                             asset = "scr_as_trans",
                             effect_name = "scr_as_trans_smoke",
-                            color = {
-                                r = 100,
-                                g = 100,
-                                b = 100,
-                                a = 100,
-                            }
                         }
                     },
                     {
