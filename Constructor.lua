@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.49b4"
+local SCRIPT_VERSION = "0.49b5"
 local AUTO_UPDATE_BRANCHES = {
     { "main", {}, "More stable, but updated less often.", "main", },
     { "dev", {}, "Cutting edge updates, but less stable.", "dev", },
@@ -1318,46 +1318,9 @@ local function create_construct_from_vehicle(vehicle_handle)
     return construct
 end
 
-local function write_file(filepath, content)
-    local file = io.open(filepath, "wb")
-    if not file then
-        error("Cannot write to file " .. filepath, TOAST_ALL)
-        return false
-    end
-    file:write(content)
-    file:close()
-    return true
-end
-
-local function write_json_file(filepath, object)
-    local encode_status, content = pcall(soup.json.encode, object)
-    if not encode_status then
-        util.toast("Error encoding object: "..content)
-        debug_log("Error encoding object: "..content.." object: "..inspect(object))
-    end
-    if content == "" or (not string.startswith(content, "{")) then
-        util.toast("Cannot save object as JSON: Error serializing. "..content, TOAST_ALL)
-        debug_log("Failed to JSON serialize object: "..inspect(object))
-        return
-    end
-    return write_file(filepath, content)
-end
-
-local function set_save_defaults(construct)
-    if construct.author == nil then construct.author = players.get_name(players.user()) end
-    if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
-    if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
-end
-
 local function save_vehicle(construct)
-    debug_log("Saving construct "..tostring(construct.name), construct)
-    set_save_defaults(construct)
-    local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
-    local serialized_construct = constructor_lib.serialize_attachment(construct)
-    --debug_log("Serialized construct "..inspect(serialized_construct))
-    if write_json_file(filepath, serialized_construct) then
-        util.toast("Saved ".. construct.name)
-        util.log("Saved ".. construct.name .. " to " ..filepath)
+    if constructor_lib.save_construct(construct, CONSTRUCTS_DIR) then
+        util.toast("Saved to ".. construct.filepath)
         menus.rebuild_load_construct_menu()
     end
 end
@@ -1424,9 +1387,7 @@ local function spawn_construct_from_plan(construct_plan)
         set_spawned_construct_position(construct)
     end
     if construct.temp.spawn_for_player then remove_tracked_construct_for_player(construct.temp.spawn_for_player) end
-    construct.root = construct
-    construct.parent = construct
-    constructor_lib.reattach_attachment_with_children(construct)
+    constructor_lib.spawn_construct(construct)
     if not construct.handle then error("Failed to spawn construct from plan "..tostring(construct.name)) end
     add_spawned_construct(construct)
     constructor_lib.clear_all_internal_collisions(construct)
@@ -3288,10 +3249,10 @@ end
 
 constructor.add_attachment_save_attachment_option = function(attachment)
     attachment.menus.save = menu.text_input(attachment.menus.main, t("Save As"), { "constructorsaveas"..attachment.id}, t("Save construct to disk"), function(value)
-        attachment.name = value
+        attachment.filename = value
         save_vehicle(attachment)
         attachment.functions.refresh()
-    end, attachment.name)
+    end, attachment.filename or attachment.name)
 end
 
 ---
