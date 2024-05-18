@@ -1,6 +1,6 @@
 -- Constructor Translations
 
-local SCRIPT_VERSION = "0.33"
+local SCRIPT_VERSION = "0.49"
 local translations = {}
 
 ---
@@ -314,8 +314,7 @@ translations.lang["zh"] = {
     ["Delete construct and all attachments. Cannot be reconstructed unless saved."] = "删除构造和所有附件.除非保存，否则无法重建.",
     ["Are you sure you want to delete this construct? "] = "您确定要删除此构造吗？ ",
     [" children will also be deleted."] = " 附件也将被删除.",
-    ["Edit Attachments"] = "编辑附件",
-    ["Rebuilding attachment menu "] = "重建附件菜单 ",
+    --["Rebuilding attachment menu "] = "重建附件菜单 ",
     ["Focusing on attachment menu "] = "调整附件菜单 ",
     ["Create New Construct"] = "创建新构造",
     ["Vehicle"] = "载具",
@@ -502,8 +501,8 @@ translations.lang["zh"] = {
     ["Scenario List"] = "场景列表",
     ["Will this construct always spawn at the same world position it's in now (for stationary maps) or in front of the player (for props or small structures)"] = "该建筑是否总是在它现在所处的世界位置（对于静止的地图）或在玩家面前（对于道具或小型结构）生成？",
     ["Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."] = "作者更新lua时会自动进行更新,如果你无法更新,请取消自动更新.",
-    ["From Vehicle List"] = "载具列表",
-    ["From Ped List"] = "人物列表",
+    --["From Vehicle List"] = "载具列表",
+    --["From Ped List"] = "人物列表",
     ["About Constructor"] = "关于Constructor",
     ["Gizmo Edit Mode"] = "箭头编辑模式",
     ["Enabled mouse-based edit mode. Click any world object to enable edit handles."] = "启用基于鼠标的编辑模式.单击任何世界物体以启用编辑模式.",
@@ -512,8 +511,8 @@ translations.lang["zh"] = {
     ["Edit Modes"] = "编辑模式",
     ["Gizmo Edit"] = "箭头编辑",
     ["Position this object using clickable arrow handles"] = "点击箭头方向拖动物体位置",
-    ["Free Edit"] = "自由编辑",
-    ["Position this object using controller or mouse"] = "用鼠标或手柄来移动物体位置",
+    --["Free Edit"] = "自由编辑",
+    --["Position this object using controller or mouse"] = "用鼠标或手柄来移动物体位置",
     ["Attached to Parent"] = "附加到父级",
     ["Seat"] = "座位",
     ["If attached to a vehicle, which seat should this ped occupy."] = "NPC如果连接到车上应该在哪个座椅上.",
@@ -538,12 +537,12 @@ translations.lang["zh"] = {
     ["Set the animation scenario."] = "设置动画场景",
     ["Special Physics"] = "特殊物理",
     ["Allow for special physics overrides"] = "允许特殊物理覆盖",
-    ["Browse"] = "浏览",
-    ["More Options"] = "更多选项",
+    --["Browse"] = "浏览",
+    --["More Options"] = "更多选项",
     ["Add Current Vehicle"] = "添加当前载具",
     ["Attach your current vehicle to the construct"] = "将你当前载具添加到构造中",
     ["Saved Constructs"] = "保存构造",
-    ["Attach another construct to the current construct"] = "将保存的构造添加到当前的构造中",
+    --["Attach another construct to the current construct"] = "将保存的构造添加到当前的构造中",
 }
 
 
@@ -742,8 +741,8 @@ translations.lang["es"] = {
     ["Delete construct and all attachments. Cannot be reconstructed unless saved."] = "Borrar el constructo y todos sus accesorios. no podrá ser reconstruido a menos que se guarde.",
     ["Are you sure you want to delete this construct? "] = "¿Estas seguro que quieres borrar este constructo? ",
     [" children will also be deleted."] = " El pequeño tambien será borrado",
-    ["Edit Attachments"] = "Editar accesorios",
-    ["Rebuilding attachment menu "] = "Reconstruir menu de accesorios ",
+    --["Edit Attachments"] = "Editar accesorios",
+    --["Rebuilding attachment menu "] = "Reconstruir menu de accesorios ",
     ["Focusing on attachment menu "] = "Enfocar en el menu de accesorios ",
     ["Create New Construct"] = "Crear nuevo constructo",
     ["Vehicle"] = "Vehiculo",
@@ -1090,8 +1089,8 @@ translations.lang["fr"] = {
     ["Delete construct and all attachments. Cannot be reconstructed unless saved."] = "Supprime le Construct et toutes les jonctions. Ne peut pas être reconstruits s'il n'est pas sauvegardé.",
     ["Are you sure you want to delete this construct? "] = "Êtes-vous sûr de vouloir supprimer le Construct? ",
     [" children will also be deleted."] = " descendants seront aussi supprimés.",
-    ["Edit Attachments"] = "Modifier les jonctions",
-    ["Rebuilding attachment menu "] = "Reconstruction du menu de jonctions ",
+    --["Edit Attachments"] = "Modifier les jonctions",
+    --["Rebuilding attachment menu "] = "Reconstruction du menu de jonctions ",
     ["Focusing on attachment menu "] = "Mise en évidence du menu de jonctions ",
     ["Create New Construct"] = "Créer un nouveau Construct",
     ["Vehicle"] = "Véhicule",
