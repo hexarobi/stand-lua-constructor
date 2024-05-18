@@ -4,11 +4,16 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.48.1"
+local SCRIPT_VERSION = "0.49"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
     model_load_timeout = 3000,
+}
+
+local config = CONSTRUCTOR_CONFIG or {
+    debug_mode=true,
+    spawn_entity_delay = 0
 }
 
 ---
@@ -64,8 +69,8 @@ local function t(text)
 end
 
 local function debug_log(message, additional_details)
-    if CONSTRUCTOR_CONFIG ~= nil and CONSTRUCTOR_CONFIG.debug_mode then
-        if CONSTRUCTOR_CONFIG.debug_mode == 2 and additional_details ~= nil then
+    if config.debug_mode then
+        if config.debug_mode == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
         util.log("[constructor_lib] "..message)
@@ -180,6 +185,10 @@ end
 constructor_lib.default_attachment_attributes = function(attachment)
     --debug_log("Defaulting attachment attributes "..tostring(attachment.name))
     ensure_unique_id(attachment)
+    if attachment.parent == nil then constructor_lib.set_attachment_as_root(attachment) end
+    if attachment.handle and attachment.type == nil then
+        attachment.type = constructor_lib.ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)]
+    end
     if attachment.children == nil then attachment.children = {} end
     if attachment.temp == nil then attachment.temp = {} end
     if attachment.options == nil then attachment.options = {} end
@@ -767,8 +776,8 @@ constructor_lib.create_entity = function(attachment)
     constructor_lib.update_attachment_position(attachment)
     constructor_lib.refresh_blip(attachment)
 
-    if attachment.root.is_preview ~= true and CONSTRUCTOR_CONFIG.spawn_entity_delay > 0 then
-        util.yield(CONSTRUCTOR_CONFIG.spawn_entity_delay)
+    if attachment.root.is_preview ~= true and config.spawn_entity_delay > 0 then
+        util.yield(config.spawn_entity_delay)
     end
 
     --debug_log("Done attaching "..tostring(attachment.name))
@@ -1927,6 +1936,10 @@ end
 
 constructor_lib.deserialize_vehicle_tick = function(vehicle)
     if vehicle.vehicle_attributes == nil then return end
+    if vehicle.vehicle_attributes.options.top_speed ~= nil then
+        ENTITY.SET_ENTITY_MAX_SPEED(vehicle.handle, 45000)
+        VEHICLE.MODIFY_VEHICLE_TOP_SPEED(vehicle.handle, vehicle.vehicle_attributes.options.top_speed)
+    end
     if vehicle.vehicle_attributes ~= nil and vehicle.vehicle_attributes.options ~= nil and vehicle.vehicle_attributes.options.engine_power ~= nil then
         VEHICLE.SET_VEHICLE_CHEAT_POWER_INCREASE(vehicle.handle, vehicle.vehicle_attributes.options.engine_power)
     end
@@ -2025,6 +2038,7 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
         end
     end
     if vehicle.vehicle_attributes.options.top_speed ~= nil then
+        ENTITY.SET_ENTITY_MAX_SPEED(vehicle.handle, 45000)
         VEHICLE.MODIFY_VEHICLE_TOP_SPEED(vehicle.handle, vehicle.vehicle_attributes.options.top_speed)
     end
     if vehicle.vehicle_attributes.options.engine_power ~= nil then
@@ -2129,13 +2143,20 @@ constructor_lib.deserialize_ped_weapon = function(attachment)
     end
 end
 
+local function get_driving_style_value(driving_style_index)
+    for index, menu in constants.driving_styles_menu do
+        if menu[1] == driving_style_index then
+            return constants.driving_styles[menu[2]]
+        end
+    end
+end
+
 constructor_lib.start_vehicle_drive_wander = function(attachment)
     if attachment.ped_attributes == nil then return end
     if attachment.ped_attributes.task_vehicle_drive_wander == true
             and PED.IS_PED_SITTING_IN_VEHICLE(attachment.handle, attachment.parent.handle) then
         TASK.CLEAR_PED_TASKS(attachment.handle)
-        local driving_style = constants.driving_styles[attachment.ped_attributes.driving_style_index]
-        debug_log("driving style = "..driving_style.." from index "..attachment.ped_attributes.driving_style_index)
+        local driving_style = get_driving_style_value(attachment.ped_attributes.driving_style_index)
         TASK.TASK_VEHICLE_DRIVE_WANDER(attachment.handle, attachment.parent.handle,
                 attachment.ped_attributes.task_vehicle_drive_speed, driving_style)
     end
@@ -2619,6 +2640,91 @@ constructor_lib.draw_all_gizmos = function(gizmos, gizmo_scale)
     end
 end
 
+---
+--- Save Construct File
+---
+
+local function write_file(filepath, content)
+    local file = io.open(filepath, "wb")
+    if not file then
+        error("Cannot write to file " .. filepath, TOAST_ALL)
+        return false
+    end
+    file:write(content)
+    file:close()
+    return true
+end
+
+local function write_json_file(filepath, object)
+    local encode_status, content = pcall(soup.json.encode, object)
+    if not encode_status then
+        util.toast("Error encoding object: "..content)
+        debug_log("Error encoding object: "..content.." object: "..inspect(object))
+    end
+    if content == "" or (not string.startswith(content, "{")) then
+        util.toast("Cannot save object as JSON: Error serializing. "..content, TOAST_ALL)
+        debug_log("Failed to JSON serialize object: "..inspect(object))
+        return
+    end
+    return write_file(filepath, content)
+end
+
+local function set_save_defaults(construct)
+    if construct.author == nil then construct.author = players.get_name(players.user()) end
+    if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
+    if construct.version == nil then construct.version = "ConstructorLib "..SCRIPT_VERSION end
+end
+
+local function build_unique_filepath(construct, constructs_dir)
+    -- If construct already has a filepath then update existing file, else generate a unique name
+    if construct.filepath then return end
+    local file_base_name = construct.filename or construct.name
+    local filename_counter = 1
+    while filename_counter < 999 do
+        if filename_counter > 1 then
+            construct.filename = file_base_name .. filename_counter
+        else
+            construct.filename = file_base_name
+        end
+        construct.filepath = constructs_dir .. construct.filename .. ".json"
+        local file, err = io.open(construct.filepath, "r")
+        if file then
+            debug_log("File already exists at "..construct.filepath.." so retrying with new name")
+            filename_counter = filename_counter + 1
+        else
+            return
+        end
+    end
+    error("Failed to save file, too many copies of this name already exist.")
+end
+
+constructor_lib.save_construct = function(construct, constructs_dir)
+    debug_log("Saving construct "..tostring(construct.name), construct)
+    set_save_defaults(construct)
+    build_unique_filepath(construct, constructs_dir)
+    local serialized_construct = constructor_lib.serialize_attachment(construct)
+    --debug_log("Serialized construct "..inspect(serialized_construct))
+    if write_json_file(construct.filepath, serialized_construct) then
+        util.log("Saved ".. construct.name .. " to " ..construct.filepath)
+        return true
+    end
+    return false
+end
+
+constructor_lib.spawn_construct = function(construct)
+    if type(construct) ~= "table" then error("Construct must be a table") end
+    if construct.model == nil then error("Construct must have a model") end
+    debug_log("Spawning construct "..inspect(construct))
+    return constructor_lib.reattach_attachment_with_children(construct)
+end
+
+constructor_lib.create_construct_from_handle = function(handle)
+    local construct = constructor_lib.copy_construct_plan(constructor_lib.construct_base)
+    construct.handle = handle
+    constructor_lib.default_attachment_attributes(construct)
+    constructor_lib.serialize_attachment_attributes(construct)
+    return construct
+end
 
 ---
 --- Return

@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.48r"
+local SCRIPT_VERSION = "0.49r"
 
 ---
 --- Config
@@ -80,7 +80,7 @@ util.execute_in_os_thread(function()
     end
 end)
 
-util.require_natives("2944a")
+util.require_natives("3095a")
 
 ---
 --- Debug Log
@@ -1205,46 +1205,9 @@ local function create_construct_from_vehicle(vehicle_handle)
     return construct
 end
 
-local function write_file(filepath, content)
-    local file = io.open(filepath, "wb")
-    if not file then
-        error("Cannot write to file " .. filepath, TOAST_ALL)
-        return false
-    end
-    file:write(content)
-    file:close()
-    return true
-end
-
-local function write_json_file(filepath, object)
-    local encode_status, content = pcall(soup.json.encode, object)
-    if not encode_status then
-        util.toast("Error encoding object: "..content)
-        debug_log("Error encoding object: "..content.." object: "..inspect(object))
-    end
-    if content == "" or (not string.startswith(content, "{")) then
-        util.toast("Cannot save object as JSON: Error serializing. "..content, TOAST_ALL)
-        debug_log("Failed to JSON serialize object: "..inspect(object))
-        return
-    end
-    return write_file(filepath, content)
-end
-
-local function set_save_defaults(construct)
-    if construct.author == nil then construct.author = players.get_name(players.user()) end
-    if construct.created == nil then construct.created = os.date("!%Y-%m-%dT%H:%M:%SZ") end
-    if construct.version == nil then construct.version = "Constructor "..VERSION_STRING end
-end
-
 local function save_vehicle(construct)
-    debug_log("Saving construct "..tostring(construct.name), construct)
-    set_save_defaults(construct)
-    local filepath = CONSTRUCTS_DIR .. construct.name .. ".json"
-    local serialized_construct = constructor_lib.serialize_attachment(construct)
-    --debug_log("Serialized construct "..inspect(serialized_construct))
-    if write_json_file(filepath, serialized_construct) then
-        util.toast("Saved ".. construct.name)
-        util.log("Saved ".. construct.name .. " to " ..filepath)
+    if constructor_lib.save_construct(construct, CONSTRUCTS_DIR) then
+        util.toast("Saved to ".. construct.filepath)
         menus.rebuild_load_construct_menu()
     end
 end
@@ -1311,9 +1274,7 @@ local function spawn_construct_from_plan(construct_plan)
         set_spawned_construct_position(construct)
     end
     if construct.temp.spawn_for_player then remove_tracked_construct_for_player(construct.temp.spawn_for_player) end
-    construct.root = construct
-    construct.parent = construct
-    constructor_lib.reattach_attachment_with_children(construct)
+    constructor_lib.spawn_construct(construct)
     if not construct.handle then error("Failed to spawn construct from plan "..tostring(construct.name)) end
     add_spawned_construct(construct)
     constructor_lib.clear_all_internal_collisions(construct)
@@ -2546,16 +2507,8 @@ constructor.add_attachment_ped_menu = function(attachment)
 
     attachment.menus.option_ped_drive_options = attachment.menus.ped_options:list("Drive Options", {}, "Options related to making this ped drive a vehicle")
 
-
-    local driving_styles = {}
-    local driving_style_counter = 1
-    for key, value in constants.driving_styles do
-        table.insert(driving_styles, {driving_style_counter, key})
-        driving_style_counter = driving_style_counter + 1
-    end
-
-    attachment.menus.option_ped_driving_style = attachment.menus.option_ped_drive_options:list_select(t("Driving Style"), {}, t("How the driver will behave when driving."), driving_styles, attachment.ped_attributes.driving_style or 1, function(value)
-        attachment.ped_attributes.driving_style = constants.driving_styles[value]
+    attachment.menus.option_ped_driving_style = attachment.menus.option_ped_drive_options:list_select(t("Driving Style"), {}, t("How the driver will behave when driving."), constants.driving_styles_menu, attachment.ped_attributes.driving_style_index, function(value, key)
+        attachment.ped_attributes.driving_style_index = value
         constructor_lib.start_vehicle_drive_wander(attachment)
     end)
 
@@ -3068,6 +3021,14 @@ constructor.add_attachment_add_attachment_options = function(attachment)
             config.add_attachment_gun_recipient = attachment
         end, config.add_attachment_gun_active)
 
+        attachment.menus.attach_self = menu.action(attachment.menus.add_attachment, t("Attach Self"), {}, t("Attach your own player to the construct"), function()
+            get_player_construct()
+            constructor_lib.serialize_ped_attributes(player_construct)
+            player_construct.root = attachment.root
+            player_construct.parent = attachment
+            build_construct_from_plan(player_construct)
+        end)
+
         attachment.menus.add_construct = menu.list(attachment.menus.add_attachment, t("Saved Constructs"), {}, t("Attach another construct to the current construct"), function()
             local load_constructs_root_menu_file = {menu=attachment.menus.add_construct, name=t("Loaded Constructs Menu"), menus={}}
             local action_function = function(construct_plan_file)
@@ -3175,10 +3136,10 @@ end
 
 constructor.add_attachment_save_attachment_option = function(attachment)
     attachment.menus.save = menu.text_input(attachment.menus.main, t("Save As"), { "constructorsaveas"..attachment.id}, t("Save construct to disk"), function(value)
-        attachment.name = value
+        attachment.filename = value
         save_vehicle(attachment)
         attachment.functions.refresh()
-    end, attachment.name)
+    end, attachment.filename or attachment.name)
 end
 
 ---
