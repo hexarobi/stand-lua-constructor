@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.49b3"
+local SCRIPT_VERSION = "0.49b4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -12,6 +12,7 @@ local constructor_lib = {
 }
 
 local config = CONSTRUCTOR_CONFIG or {
+    debug_mode=true,
     spawn_entity_delay = 0
 }
 
@@ -68,8 +69,8 @@ local function t(text)
 end
 
 local function debug_log(message, additional_details)
-    if CONSTRUCTOR_CONFIG ~= nil and CONSTRUCTOR_CONFIG.debug_mode then
-        if CONSTRUCTOR_CONFIG.debug_mode == 2 and additional_details ~= nil then
+    if config.debug_mode then
+        if config.debug_mode == 2 and additional_details ~= nil then
             message = message .. "\n" .. inspect(additional_details)
         end
         util.log("[constructor_lib] "..message)
@@ -185,6 +186,9 @@ constructor_lib.default_attachment_attributes = function(attachment)
     --debug_log("Defaulting attachment attributes "..tostring(attachment.name))
     ensure_unique_id(attachment)
     if attachment.parent == nil then constructor_lib.set_attachment_as_root(attachment) end
+    if attachment.handle and attachment.type == nil then
+        attachment.type = constructor_lib.ENTITY_TYPES[ENTITY.GET_ENTITY_TYPE(attachment.handle)]
+    end
     if attachment.children == nil then attachment.children = {} end
     if attachment.temp == nil then attachment.temp = {} end
     if attachment.options == nil then attachment.options = {} end
@@ -2710,7 +2714,16 @@ end
 constructor_lib.spawn_construct = function(construct)
     if type(construct) ~= "table" then error("Construct must be a table") end
     if construct.model == nil then error("Construct must have a model") end
+    debug_log("Spawning construct "..inspect(construct))
     return constructor_lib.reattach_attachment_with_children(construct)
+end
+
+constructor_lib.create_construct_from_handle = function(handle)
+    local construct = constructor_lib.copy_construct_plan(constructor_lib.construct_base)
+    construct.handle = handle
+    constructor_lib.default_attachment_attributes(construct)
+    constructor_lib.serialize_attachment_attributes(construct)
+    return construct
 end
 
 ---
