@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.50b1"
+local SCRIPT_VERSION = "0.50b2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1426,7 +1426,7 @@ constructor_lib.serialize_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
     debug_log("Serializing vehicle attributes "..tostring(vehicle.name))
     constructor_lib.default_vehicle_attributes(vehicle)
-    if not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
+    if not vehicle.handle or not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
     debug_log("Serializing vehicle attributes "..tostring(vehicle.name))
     constructor_lib.serialize_vehicle_paint(vehicle)
     constructor_lib.serialize_vehicle_neon(vehicle)
