@@ -1021,6 +1021,7 @@ constructor_lib.load_animation_dictionary = function(dictionary, timeout)
 end
 
 constructor_lib.load_hash_for_attachment = function(attachment)
+    if not attachment.hash then return end
     if not STREAMING.IS_MODEL_VALID(attachment.hash) then
         util.toast("Warning: Ignored invalid model: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]", TOAST_ALL)
         --return false
