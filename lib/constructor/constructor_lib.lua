@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.49"
+local SCRIPT_VERSION = "0.49.1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -438,23 +438,25 @@ end
 ---
 
 constructor_lib.default_particle_attributes = function(attachment)
+    debug_log("defaulting particle")
     if attachment.offset == nil or attachment.offset == {} then attachment.offset = { x = 0, y = 0, z = 0 } end
     if attachment.rotation == nil or attachment.rotation == {} then attachment.rotation = { x = 0, y = 0, z = 0 } end
     if attachment.rotation_order == nil then attachment.rotation_order = 2 end
     if attachment.particle_attributes == nil then attachment.particle_attributes = {} end
     if attachment.particle_attributes.bone_index == nil then attachment.particle_attributes.bone_index = 0 end
-    if attachment.particle_attributes.scale == nil then attachment.particle_attributes.scale = 1 end
+    if attachment.particle_attributes.scale == nil then attachment.particle_attributes.scale = 1.0 end
     if attachment.particle_attributes.color == nil or attachment.particle_attributes.color == {} then
-        attachment.particle_attributes.color = { r = 1, g = 1, b = 1, a = 1 }
+        attachment.particle_attributes.color = { r = 1.0, g = 1.0, b = 1.0, a = 1.0 }
     end
 end
 
 constructor_lib.start_particle_fx = function(attachment)
+    if attachment.type ~= "PARTICLE" then return end
     --debug_log("Starting particle fx name="..attachment.name.." asset="..attachment.particle_attributes.asset.." effect="..attachment.particle_attributes.effect_name)
     constructor_lib.load_particle_fx_asset(attachment.particle_attributes.asset)
     GRAPHICS.USE_PARTICLE_FX_ASSET(attachment.particle_attributes.asset)
     if attachment.particle_attributes.loop_timer ~= nil and attachment.particle_attributes.loop_timer > 0 then
-        if attachment.handle ~= nil then
+        if tonumber(attachment.handle) ~= nil and tonumber(attachment.handle) > 0 then
             GRAPHICS.REMOVE_PARTICLE_FX(attachment.handle)
         end
         attachment.handle = GRAPHICS.START_PARTICLE_FX_NON_LOOPED_ON_ENTITY_BONE(
@@ -527,6 +529,8 @@ constructor_lib.update_particle = function(attachment)
 end
 
 constructor_lib.deserialize_particle_attributes = function(attachment)
+    if attachment.type ~= "PARTICLE" then return end
+    if type(attachment.handle) == "boolean" then return end
     if attachment.particle_attributes.scale ~= nil then
         GRAPHICS.SET_PARTICLE_FX_LOOPED_SCALE(attachment.handle, attachment.particle_attributes.scale)
     end
@@ -1017,6 +1021,7 @@ constructor_lib.load_animation_dictionary = function(dictionary, timeout)
 end
 
 constructor_lib.load_hash_for_attachment = function(attachment)
+    if not attachment.hash then return end
     if not STREAMING.IS_MODEL_VALID(attachment.hash) then
         util.toast("Warning: Ignored invalid model: " .. tostring(attachment.model) .. " ["..tostring(attachment.hash).."]", TOAST_ALL)
         --return false
@@ -1207,7 +1212,9 @@ end
 
 constructor_lib.clear_collisions_between_attachments = function(current_attachment, new_attachment)
     if current_attachment.handle ~= new_attachment.handle then
-        ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(current_attachment.handle, new_attachment.handle)
+        if current_attachment.type ~= "PARTICLE" and new_attachment.type ~= "PARTICLE" then
+            ENTITY.SET_ENTITY_NO_COLLISION_ENTITY(current_attachment.handle, new_attachment.handle)
+        end
     end
     if current_attachment.children ~= nil then
         for _, child_attachment in pairs(current_attachment.children) do
@@ -1226,6 +1233,7 @@ constructor_lib.clear_all_internal_collisions = function(attachment)
 end
 
 constructor_lib.completely_disable_attachment_collision = function(attachment)
+    if attachment.type == "PARTICLE" then return end
     ENTITY.SET_ENTITY_COMPLETELY_DISABLE_COLLISION(attachment.handle, false, true)
     for _, child_attachment in pairs(attachment.children) do
         constructor_lib.completely_disable_attachment_collision(child_attachment)
@@ -1419,7 +1427,7 @@ constructor_lib.serialize_vehicle_attributes = function(vehicle)
     if vehicle.type ~= "VEHICLE" then return end
     debug_log("Serializing vehicle attributes "..tostring(vehicle.name))
     constructor_lib.default_vehicle_attributes(vehicle)
-    if not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
+    if not vehicle.handle or not ENTITY.DOES_ENTITY_EXIST(vehicle.handle) then return end
     debug_log("Serializing vehicle attributes "..tostring(vehicle.name))
     constructor_lib.serialize_vehicle_paint(vehicle)
     constructor_lib.serialize_vehicle_neon(vehicle)
@@ -2425,7 +2433,6 @@ end
 
 local indices <const> = {{1, 2},{1, 4},{1, 8},{3, 4},{3, 2},{3, 5},{6, 5},{6, 8},{6, 2},{7, 4},{7, 5},{7, 8}}
 constructor_lib.draw_bounding_box = function(entity, colour)
-
     local rot = quaternionLib.from_entity(entity)
     local pos = ENTITY.GET_ENTITY_COORDS(entity)
 
@@ -2590,7 +2597,7 @@ local probe_start_pos_out = memory.alloc()
 local probe_end_pos_out = memory.alloc()
 
 constructor_lib.get_mouse_cursor_dir = function()
-    SHAPETEST.START_SHAPE_TEST_MOUSE_CURSOR_LOS_PROBE(probe_start_pos_out, probe_end_pos_out, 0, nil, 0)
+    SHAPETEST.START_SHAPE_TEST_MOUSE_CURSOR_LOS_PROBE(probe_start_pos_out, probe_end_pos_out, 0, 0, 0)
     local probe_dir = v3.new(probe_end_pos_out)
     probe_dir:sub(v3.new(probe_start_pos_out))
     return probe_dir
@@ -2598,7 +2605,7 @@ end
 
 constructor_lib.get_ent_clicked_on = function(dir)
     local cam_coord = CAM.GET_FINAL_RENDERED_CAM_COORD()
-    local shapetest_index = SHAPETEST.START_EXPENSIVE_SYNCHRONOUS_SHAPE_TEST_LOS_PROBE(cam_coord.x, cam_coord.y, cam_coord.z, cam_coord.x + dir.x, cam_coord.y + dir.y,cam_coord.z + dir.z, SCRIPT_INCLUDE_VEHICLE | SCRIPT_INCLUDE_OBJECT | SCRIPT_INCLUDE_PED, nil, 0)
+    local shapetest_index = SHAPETEST.START_EXPENSIVE_SYNCHRONOUS_SHAPE_TEST_LOS_PROBE(cam_coord.x, cam_coord.y, cam_coord.z, cam_coord.x + dir.x, cam_coord.y + dir.y,cam_coord.z + dir.z, SCRIPT_INCLUDE_VEHICLE | SCRIPT_INCLUDE_OBJECT | SCRIPT_INCLUDE_PED, 0, 0)
     local hit_pointer = memory.alloc_int()
     local hit_entity_pointer = memory.alloc_int()
 

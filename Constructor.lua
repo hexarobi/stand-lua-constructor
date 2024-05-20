@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.49r"
+local SCRIPT_VERSION = "0.49.1r"
 
 ---
 --- Config
@@ -860,7 +860,9 @@ end
 local function draw_editing_bounding_box(attachment)
     if attachment.is_editing and menu.is_open() then
         --debug_log("Drawing bounding box tick "..attachment.name)
-        constructor_lib.draw_bounding_box(attachment.handle, config.preview_bounding_box_color)
+        if attachment.type ~= "PARTICLE" then
+            constructor_lib.draw_bounding_box(attachment.handle, config.preview_bounding_box_color)
+        end
     end
     for _, child_attachment in pairs(attachment.children) do
         if child_attachment == attachment then error("Invalid child attachment") end
