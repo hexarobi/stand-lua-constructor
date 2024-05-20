@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.50"
+local SCRIPT_VERSION = "0.49.1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -2597,7 +2597,7 @@ local probe_start_pos_out = memory.alloc()
 local probe_end_pos_out = memory.alloc()
 
 constructor_lib.get_mouse_cursor_dir = function()
-    SHAPETEST.START_SHAPE_TEST_MOUSE_CURSOR_LOS_PROBE(probe_start_pos_out, probe_end_pos_out, 0, nil, 0)
+    SHAPETEST.START_SHAPE_TEST_MOUSE_CURSOR_LOS_PROBE(probe_start_pos_out, probe_end_pos_out, 0, 0, 0)
     local probe_dir = v3.new(probe_end_pos_out)
     probe_dir:sub(v3.new(probe_start_pos_out))
     return probe_dir
@@ -2605,7 +2605,7 @@ end
 
 constructor_lib.get_ent_clicked_on = function(dir)
     local cam_coord = CAM.GET_FINAL_RENDERED_CAM_COORD()
-    local shapetest_index = SHAPETEST.START_EXPENSIVE_SYNCHRONOUS_SHAPE_TEST_LOS_PROBE(cam_coord.x, cam_coord.y, cam_coord.z, cam_coord.x + dir.x, cam_coord.y + dir.y,cam_coord.z + dir.z, SCRIPT_INCLUDE_VEHICLE | SCRIPT_INCLUDE_OBJECT | SCRIPT_INCLUDE_PED, nil, 0)
+    local shapetest_index = SHAPETEST.START_EXPENSIVE_SYNCHRONOUS_SHAPE_TEST_LOS_PROBE(cam_coord.x, cam_coord.y, cam_coord.z, cam_coord.x + dir.x, cam_coord.y + dir.y,cam_coord.z + dir.z, SCRIPT_INCLUDE_VEHICLE | SCRIPT_INCLUDE_OBJECT | SCRIPT_INCLUDE_PED, 0, 0)
     local hit_pointer = memory.alloc_int()
     local hit_entity_pointer = memory.alloc_int()
 
