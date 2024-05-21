@@ -1149,7 +1149,7 @@ local function create_free_edit_cam(attachment)
     free_edit_cam = CAM.CREATE_CAM_WITH_PARAMS(
             "DEFAULT_SCRIPTED_CAMERA",
             cam_pos.x, cam_pos.y, cam_pos.z,
-            0.0, 0.0, 0.0, 70.0, false, false
+            0.0, 0.0, 0.0, 70.0, false, 0
     )
     CAM.POINT_CAM_AT_ENTITY(free_edit_cam, attachment.handle, 0, 0, 0, true)
     CAM.SET_CAM_ACTIVE(free_edit_cam, true)
