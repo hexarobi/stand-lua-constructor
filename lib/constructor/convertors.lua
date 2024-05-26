@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.49"
+local SCRIPT_VERSION = "0.50b2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -27,7 +27,7 @@ local inspect = require_dependency("inspect")
 local xml2lua = require_dependency("xml2lua")
 local xmlhandler = require_dependency("xmlhandler/tree")
 local iniparser = require_dependency("iniparser")
---local json = require_dependency("json")
+local json = require_dependency("json")
 local constructor_lib = require_dependency("constructor/constructor_lib")
 
 ---
@@ -669,7 +669,7 @@ convertor.convert_craftlab_to_construct_plan = function(data)
         end
     end
 
-    convertor.rearrange_by_initial_attachment(construct_plan)
+    construct_plan = convertor.rearrange_by_initial_attachment(construct_plan)
 
     --debug_log("Loaded CraftLab construct plan: "..inspect(construct_plan))
 
@@ -842,7 +842,7 @@ end
 convertor.convert_json_to_construct_plan = function(construct_plan_file)
     local raw_data = read_file(construct_plan_file.filepath)
     if not raw_data or raw_data == "" then return end
-    local construct_plan = soup.json.decode(raw_data)
+    local construct_plan = json.decode(raw_data)
     if construct_plan.version and string.find(construct_plan.version, "Jackz") then
         construct_plan = convertor.convert_jackz_to_construct_plan(construct_plan)
     elseif construct_plan.craftlab then
@@ -865,13 +865,49 @@ local function find_attachment_by_initial_handle(attachment, initial_handle)
     end
 end
 
+local MAX_DEPTH = 1000
+convertor.check_for_safe_depth = function(attachment, depth)
+    if depth == nil then depth = 1 end
+    if depth > MAX_DEPTH then
+        util.log("Max depth reached!")
+        return false
+    end
+    for _, child_attachment in attachment.children do
+        if not convertor.check_for_safe_depth(child_attachment, depth + 1) then
+            return false
+        end
+    end
+    return true
+end
+
 convertor.swap_new_children_for_old = function(attachment)
+    --debug_log("Swapping children for "..attachment.name)
     if attachment.new_children ~= nil then
         attachment.children = attachment.new_children
         attachment.new_children = nil
+        for _, child_attachment in attachment.children do
+            if child_attachment.initial_handle == attachment.initial_handle then
+                debug_log("Loop found in tree!")
+            else
+                convertor.swap_new_children_for_old(child_attachment)
+            end
+        end
+    else
+        attachment.children = {}
     end
-    for _, child_attachment in pairs(attachment.children) do
-        convertor.swap_new_children_for_old(child_attachment)
+end
+
+convertor.find_new_root_attachment = function(attachment)
+    if attachment.parents_initial_handle == nil then
+        return attachment
+    end
+    if attachment.children then
+        for _, child_attachment in attachment.children do
+            local child_root_attachment = convertor.find_new_root_attachment(child_attachment)
+            if child_root_attachment then
+                return child_root_attachment
+            end
+        end
     end
 end
 
@@ -899,8 +935,14 @@ convertor.build_new_children = function(attachment, root_attachment)
 end
 
 convertor.rearrange_by_initial_attachment = function(attachment)
-    convertor.build_new_children(attachment, attachment)
-    convertor.swap_new_children_for_old(attachment, attachment)
+    if not convertor.check_for_safe_depth(attachment) then
+        util.toast("Construct file is too complicated to be loaded")
+        return
+    end
+    local root_attachment = convertor.find_new_root_attachment(attachment)
+    convertor.build_new_children(attachment, root_attachment)
+    convertor.swap_new_children_for_old(root_attachment)
+    return root_attachment
 end
 
 local function value_splitter(value)
@@ -1152,6 +1194,7 @@ local function map_placement(attachment, placement)
     attachment.initial_handle = tonumber(placement.InitialHandle)
     -- dynamic?
     if attachment.children == nil then attachment.children = {} end
+    if attachment.temp == nil then attachment.temp = {} end
 
     map_placement_options(attachment, placement)
     map_placement_position(attachment, placement)
@@ -1307,7 +1350,7 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
         end
     end
 
-    convertor.rearrange_by_initial_attachment(construct_plan)
+    construct_plan = convertor.rearrange_by_initial_attachment(construct_plan)
     convertor.set_default_spawn_mode(construct_plan)
 
     --debug_log("Loaded XML construct plan: "..inspect(construct_plan))
@@ -2333,7 +2376,7 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
     end
     construct_plan.temp.source_file_type = "INI Flavor "..construct_plan.temp.ini_flavor
     map_ini_data(construct_plan, data)
-    convertor.rearrange_by_initial_attachment(construct_plan)
+    construct_plan = convertor.rearrange_by_initial_attachment(construct_plan)
 
     --debug_log("Loaded INI construct plan: "..inspect(construct_plan))
 
