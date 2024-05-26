@@ -4,13 +4,13 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.49.2r"
+local SCRIPT_VERSION = "0.50r"
 
 ---
 --- Config
 ---
 
-CONSTRUCTOR_CONFIG = {
+local config = {
     source_code_branch = "main",
     edit_offset_step = 10,
     edit_rotation_step = 15,
@@ -36,8 +36,8 @@ CONSTRUCTOR_CONFIG = {
     freecam_speed = 1,
     change_parent_keep_position = true,
 }
--- Short local alias
-local config = CONSTRUCTOR_CONFIG
+-- Long global alias
+CONSTRUCTOR_CONFIG = config
 local state = {}
 
 ---
