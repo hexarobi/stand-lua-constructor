@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.50"
+local SCRIPT_VERSION = "0.50.1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -10,33 +10,17 @@ local convertor = {
 --- Dependencies
 ---
 
-local function require_dependency(path)
-    local status, required_dep = pcall(require, path)
-    if not status then
-        error("Could not load "..path..": "..required_dep)
-    else
-        return required_dep
-    end
-end
+local inspect = require("inspect")
+local constructor_lib = require("constructor/constructor_lib")
 
-util.ensure_package_is_installed('lua/json')
-local json = require_dependency("json")
+local json = require("json")
 -- Enabling this causes crashes when reading certain large JSON files
 --local json = require "pluto:json"
 
-util.ensure_package_is_installed('lua/iniparser')
-local iniparser = require_dependency("iniparser")
+local xml2lua = require("xml2lua")
+local xmlhandler = require("xmlhandler/tree")
 
-util.ensure_package_is_installed('lua/xml2lua')
-local xml2lua = require_dependency("xml2lua")
-
-util.ensure_package_is_installed('lua/xml2lua-handler-tree')
-local xmlhandler = require_dependency("xmlhandler/tree")
-
-util.ensure_package_is_installed('lua/inspect')
-local inspect = require_dependency("inspect")
-
-local constructor_lib = require_dependency("constructor/constructor_lib")
+local iniparser = require("iniparser")
 
 ---
 --- Utils
