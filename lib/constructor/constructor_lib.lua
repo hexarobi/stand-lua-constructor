@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.50"
+local SCRIPT_VERSION = "0.49.1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -97,10 +97,6 @@ constructor_lib.string_starts = function(String,Start)
     return string.sub(String,1,string.len(Start))==Start
 end
 
-constructor_lib.string_ends = function(string, suffix)
-    return string:sub(-#suffix) == suffix
-end
-
 -- From https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
 constructor_lib.array_remove = function(tbl, fnKeep)
     local j, n = 1, #tbl;
@@ -165,14 +161,14 @@ constructor_lib.round = function(num, numDecimalPlaces)
     return math.floor(num * mult + 0.5) / mult
 end
 
---constructor_lib.is_in_list = function(needle, list)
---    for _, item in pairs(list) do
---        if item == needle then
---            return true
---        end
---    end
---    return false
---end
+constructor_lib.is_in_list = function(needle, list)
+    for _, item in pairs(list) do
+        if item == needle then
+            return true
+        end
+    end
+    return false
+end
 
 ---
 --- Attachment Construction
@@ -2318,7 +2314,7 @@ constructor_lib.copy_serializable = function(attachment)
         children = {}
     }
     for k, v in pairs(attachment) do
-        if not table.contains(ignored_keys, k) then
+        if not constructor_lib.is_in_list(k, ignored_keys) then
             serializeable_attachment[k] = constructor_lib.table_copy(v)
         end
     end
@@ -2687,9 +2683,8 @@ local function set_save_defaults(construct)
 end
 
 local function build_unique_filepath(construct, constructs_dir)
-    --debug_log("Filename: "..construct.filename.." Filepath: "..construct.filepath)
     -- If construct already has a filepath then update existing file, else generate a unique name
-    if construct.filepath and constructor_lib.string_ends(construct.filepath, construct.filename..".json") then return end
+    if construct.filepath then return end
     local file_base_name = construct.filename or construct.name
     local filename_counter = 1
     while filename_counter < 999 do
