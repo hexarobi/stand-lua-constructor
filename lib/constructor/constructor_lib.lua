@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.49.1"
+local SCRIPT_VERSION = "0.50.1"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -20,20 +20,9 @@ local config = CONSTRUCTOR_CONFIG or {
 --- Dependencies
 ---
 
-local function require_dependency(path)
-    local status, required_dep = pcall(require, path)
-    if not status then
-        error("Could not load "..path..": "..required_dep)
-    else
-        return required_dep
-    end
-end
-
-util.ensure_package_is_installed('lua/quaternionLib')
-
-local inspect = require_dependency("inspect")
-local constants = require_dependency("constructor/constants")
-local quaternionLib = require_dependency("quaternionLib")
+local inspect = require("inspect")
+local constants = require("constructor/constants")
+local quaternionLib = require("quaternionLib")
 
 ---
 --- Data
@@ -95,6 +84,10 @@ end
 
 constructor_lib.string_starts = function(String,Start)
     return string.sub(String,1,string.len(Start))==Start
+end
+
+constructor_lib.string_ends = function(string, suffix)
+    return string:sub(-#suffix) == suffix
 end
 
 -- From https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
@@ -161,14 +154,14 @@ constructor_lib.round = function(num, numDecimalPlaces)
     return math.floor(num * mult + 0.5) / mult
 end
 
-constructor_lib.is_in_list = function(needle, list)
-    for _, item in pairs(list) do
-        if item == needle then
-            return true
-        end
-    end
-    return false
-end
+--constructor_lib.is_in_list = function(needle, list)
+--    for _, item in pairs(list) do
+--        if item == needle then
+--            return true
+--        end
+--    end
+--    return false
+--end
 
 ---
 --- Attachment Construction
@@ -2314,7 +2307,7 @@ constructor_lib.copy_serializable = function(attachment)
         children = {}
     }
     for k, v in pairs(attachment) do
-        if not constructor_lib.is_in_list(k, ignored_keys) then
+        if not table.contains(ignored_keys, k) then
             serializeable_attachment[k] = constructor_lib.table_copy(v)
         end
     end
@@ -2683,8 +2676,9 @@ local function set_save_defaults(construct)
 end
 
 local function build_unique_filepath(construct, constructs_dir)
+    --debug_log("Filename: "..construct.filename.." Filepath: "..construct.filepath)
     -- If construct already has a filepath then update existing file, else generate a unique name
-    if construct.filepath then return end
+    if construct.filepath and constructor_lib.string_ends(construct.filepath, construct.filename..".json") then return end
     local file_base_name = construct.filename or construct.name
     local filename_counter = 1
     while filename_counter < 999 do
