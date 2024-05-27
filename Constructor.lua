@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.50r"
+local SCRIPT_VERSION = "0.50.1r"
 
 ---
 --- Config
@@ -44,43 +44,17 @@ local state = {}
 --- Dependencies
 ---
 
-local function require_dependency(path)
-    local dep_status, required_dep = pcall(require, path)
-    if not dep_status then
-        error("Could not load "..path..": "..required_dep)
-    else
-        return required_dep
-    end
-end
-
-local inspect
-local constructor_lib
-local constants
-local convertors
-local curated_attachments
-local translations
-local scaleform
-
-util.execute_in_os_thread(function()
-    constructor_lib = require_dependency("constructor/constructor_lib")
-    constants = require_dependency("constructor/constants")
-    convertors = require_dependency("constructor/convertors")
-    curated_attachments = require_dependency("constructor/curated_attachments")
-    translations = require_dependency("constructor/translations")
-
-    util.ensure_package_is_installed('lua/inspect')
-    inspect = require_dependency("inspect")
-
-    util.ensure_package_is_installed('lua/ScaleformLib')
-    scaleform = require_dependency("ScaleformLib")
-
-    if not auto_updater then
-        util.ensure_package_is_installed('lua/auto-updater')
-        auto_updater = require_dependency("auto-updater")
-    end
-end)
-
 util.require_natives("3095a")
+
+local inspect = require("inspect")
+local scaleform = require("ScaleformLib")
+local auto_updater = require('auto-updater')
+
+local constants = require("constructor/constants")
+local constructor_lib = require("constructor/constructor_lib")
+local convertors = require("constructor/convertors")
+local curated_attachments = require("constructor/curated_attachments")
+local translations = require("constructor/translations")
 
 ---
 --- Debug Log
@@ -3731,12 +3705,6 @@ menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
 if auto_update_config ~= nil then
     menu.toggle(script_meta_menu, t("Auto-Update"), {}, t("Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."), function()  end, config.auto_update)
-    menu.list_select(script_meta_menu, t("Release Branch"), {}, t("Switch from main to dev to get cutting edge updates, but also potentially more bugs."), AUTO_UPDATE_BRANCHES, SELECTED_BRANCH_INDEX, function(index, menu_name, previous_option, click_type)
-        if click_type ~= 0 then return end
-        auto_update_config.switch_to_branch = AUTO_UPDATE_BRANCHES[index][1]
-        auto_update_config.check_interval = 0
-        auto_updater.run_auto_update(auto_update_config)
-    end)
     menu.action(script_meta_menu, t("Check for Update"), {}, t("The script will automatically check for updates at most daily, but you can manually check using this option anytime."), function()
         auto_update_config.check_interval = 0
         if auto_updater.run_auto_update(auto_update_config) then
