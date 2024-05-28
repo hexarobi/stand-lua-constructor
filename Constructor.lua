@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.50.1"
+local SCRIPT_VERSION = "0.50.2"
 
 ---
 --- Auto-Updater
@@ -26,7 +26,6 @@ local auto_update_config = {
         "lib/inspect.lua",
         "lib/quaternionLib.lua",
         "lib/ScaleformLib.lua",
-        "lib/json.lua",
         "lib/iniparser.lua",
         "lib/xml2lua.lua",
         "lib/xmlhandler/tree.lua",
@@ -37,9 +36,12 @@ local auto_update_config = {
     }
 }
 
+-- If loading from Stand repository, then rely on it for updates and skip auto-updater
+local is_from_repository = false
+
 util.ensure_package_is_installed('lua/auto-updater')
 local auto_updater = require('auto-updater')
-if auto_updater == true then
+if auto_updater == true and not is_from_repository then
     auto_updater.run_auto_update(auto_update_config)
 end
 
@@ -3739,7 +3741,7 @@ end)
 local script_meta_menu = menu.list(menu.my_root(), t("About Constructor"), {}, t("Information and options about the Constructor script itself."))
 menu.divider(script_meta_menu, t("Constructor"))
 menu.readonly(script_meta_menu, t("Version"), VERSION_STRING)
-if auto_update_config ~= nil then
+if auto_update_config ~= nil and not is_from_repository then
     menu.toggle(script_meta_menu, t("Auto-Update"), {}, t("Automatically install updates as they are released. Disable if you cannot successfully fetch updates as normal."), function()  end, config.auto_update)
     menu.action(script_meta_menu, t("Check for Update"), {}, t("The script will automatically check for updates at most daily, but you can manually check using this option anytime."), function()
         auto_update_config.check_interval = 0
