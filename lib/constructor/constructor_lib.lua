@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.50.1"
+local SCRIPT_VERSION = "0.50.2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -23,6 +23,7 @@ local config = CONSTRUCTOR_CONFIG or {
 local inspect = require("inspect")
 local constants = require("constructor/constants")
 local quaternionLib = require("quaternionLib")
+local json = require("pluto:json")
 
 ---
 --- Data
@@ -2656,7 +2657,7 @@ local function write_file(filepath, content)
 end
 
 local function write_json_file(filepath, object)
-    local encode_status, content = pcall(soup.json.encode, object)
+    local encode_status, content = pcall(json.encode, object)
     if not encode_status then
         util.toast("Error encoding object: "..content)
         debug_log("Error encoding object: "..content.." object: "..inspect(object))

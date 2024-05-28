@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.50.1"
+local SCRIPT_VERSION = "0.50.2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -13,13 +13,9 @@ local convertor = {
 local inspect = require("inspect")
 local constructor_lib = require("constructor/constructor_lib")
 
-local json = require("json")
--- Enabling this causes crashes when reading certain large JSON files
---local json = require "pluto:json"
-
+local json = require("pluto:json")
 local xml2lua = require("xml2lua")
 local xmlhandler = require("xmlhandler/tree")
-
 local iniparser = require("iniparser")
 
 ---
