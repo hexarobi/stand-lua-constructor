@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.50.2"
+local SCRIPT_VERSION = "0.50.3"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -873,9 +873,10 @@ convertor.swap_new_children_for_old = function(attachment)
     if attachment.new_children ~= nil then
         attachment.children = attachment.new_children
         attachment.new_children = nil
-        for _, child_attachment in attachment.children do
+        for index, child_attachment in attachment.children do
             if child_attachment.initial_handle == attachment.initial_handle then
-                debug_log("Loop found in tree!")
+                debug_log("Loop found in tree. Pruning self-loop from "..attachment.name)
+                table.remove(attachment.children, index)
             else
                 convertor.swap_new_children_for_old(child_attachment)
             end
@@ -901,23 +902,41 @@ end
 
 convertor.build_new_children = function(attachment, root_attachment)
     debug_log("Building new children "..tostring(attachment.name).." ["..tostring(attachment.initial_handle).."]")
+    local parent_handle
+    if attachment.parent and attachment.parent.initial_handle then
+        parent_handle = attachment.parent.initial_handle
+    end
     if attachment.parents_initial_handle then
-        local new_parent = find_attachment_by_initial_handle(root_attachment, attachment.parents_initial_handle)
-        if new_parent then
-            debug_log("Adding new child "..tostring(attachment.name).." ["..tostring(attachment.initial_handle).."] to "..tostring(new_parent.name).." ["..tostring(new_parent.initial_handle).."]")
-            --constructor_lib.array_remove(parent_attachment.children, function(t, i)
-            --    local child_attachment = t[i]
-            --    return child_attachment ~= attachment
-            --end)
-            if new_parent.new_children == nil then new_parent.new_children = {} end
-            table.insert(new_parent.new_children, attachment)
-        else
-            util.toast("Could not rearrange attachment "..attachment.name.." to "..attachment.parents_initial_handle, TOAST_ALL)
-        end
+        parent_handle = attachment.parents_initial_handle
+    end
+    if parent_handle then
+        local new_parent = find_attachment_by_initial_handle(root_attachment, parent_handle)
+        debug_log("Adding new child "..tostring(attachment.name).." ["..tostring(attachment.initial_handle).."] to "..tostring(new_parent.name).." ["..tostring(new_parent.initial_handle).."]")
+        --constructor_lib.array_remove(parent_attachment.children, function(t, i)
+        --    local child_attachment = t[i]
+        --    return child_attachment ~= attachment
+        --end)
+        if new_parent.new_children == nil then new_parent.new_children = {} end
+        table.insert(new_parent.new_children, attachment)
+        attachment.parents_initial_handle = nil
+    --else
+    --    util.log("Could not rearrange attachment "..tostring(attachment.name).." to "..tostring(parent_handle), TOAST_ALL)
     end
     if attachment.children then
         for _, child_attachment in pairs(attachment.children) do
             convertor.build_new_children(child_attachment, root_attachment)
+        end
+    end
+end
+
+convertor.default_new_children_with_old = function(attachment)
+    debug_log("Defaulting new children "..tostring(attachment.name).." ["..tostring(attachment.initial_handle).."]")
+    if attachment.new_children == nil then
+        attachment.new_children = attachment.children
+    end
+    if attachment.children then
+        for _, child_attachment in pairs(attachment.children) do
+            convertor.default_new_children_with_old(child_attachment)
         end
     end
 end
@@ -929,6 +948,8 @@ convertor.rearrange_by_initial_attachment = function(attachment)
     end
     local root_attachment = convertor.find_new_root_attachment(attachment)
     convertor.build_new_children(attachment, root_attachment)
+    convertor.default_new_children_with_old(root_attachment)
+    --debug_log("New childrened XML construct plan: "..inspect(root_attachment, {depth=3}))
     convertor.swap_new_children_for_old(root_attachment)
     return root_attachment
 end
@@ -1338,10 +1359,12 @@ convertor.convert_xml_to_construct_plan = function(xmldata)
         end
     end
 
+    --debug_log("Loaded XML construct plan: "..inspect(construct_plan, {depth=3}))
+
     construct_plan = convertor.rearrange_by_initial_attachment(construct_plan)
     convertor.set_default_spawn_mode(construct_plan)
 
-    --debug_log("Loaded XML construct plan: "..inspect(construct_plan))
+    --debug_log("Loaded re-arranged XML construct plan: "..inspect(construct_plan, {depth=3}))
 
     if construct_plan.hash == nil and construct_plan.model == nil then
         util.toast("Failed to load XML construct. Missing hash or model.", TOAST_ALL)
