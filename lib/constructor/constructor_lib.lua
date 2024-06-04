@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.50.2"
+local SCRIPT_VERSION = "0.50.3"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -87,8 +87,8 @@ constructor_lib.string_starts = function(String,Start)
     return string.sub(String,1,string.len(Start))==Start
 end
 
-constructor_lib.string_ends = function(string, suffix)
-    return string:sub(-#suffix) == suffix
+constructor_lib.string_ends = function(str, suffix)
+    return str:sub(-#suffix) == suffix
 end
 
 -- From https://stackoverflow.com/questions/12394841/safely-remove-items-from-an-array-table-while-iterating
@@ -122,8 +122,8 @@ constructor_lib.table_merge = function(t1, t2)
     return t1
 end
 
-constructor_lib.trim = function(string)
-    return string:gsub("%s+", "")
+constructor_lib.trim = function(str)
+    return str:gsub("%s+", "")
 end
 
 constructor_lib.is_attachment_entity = function(attachment)
@@ -1367,6 +1367,30 @@ end
 --- Serializers
 ---
 
+constructor_lib.get_entity_model_hash = function(handle_or_ptr)
+    --debug_log("Loading model hash for "..tostring(handle_or_ptr))
+    if handle_or_ptr == nil or not (handle_or_ptr > 0) then return end
+    local pointer = handle_or_ptr
+    if handle_or_ptr < 0xFFFFFF then
+        pointer = entities.handle_to_pointer(handle_or_ptr)
+    end
+    if pointer == nil or not (pointer > 0) then return end
+    local status, model_info
+    --if config.wrap_read_model_with_pcall then
+    --    status, model_info = pcall(memory.read_long, pointer + 0x20)
+    --    if not status then
+    --        util.toast("Warning: Access Violation for Handle: "..handle_or_ptr.." Pointer:"..pointer, TOAST_ALL)
+    --        return
+    --    end
+    --else
+        --util.log("Reading model hash Handle: "..handle_or_ptr.." Pointer:"..pointer, TOAST_ALL)
+        model_info = memory.read_long(pointer + 0x20)
+    --end
+    if model_info ~= 0 then
+        return memory.read_int(model_info + 0x18)
+    end
+end
+
 constructor_lib.serialize_hash_and_model = function(attachment)
     if attachment.hash == nil and attachment.model ~= nil then
         attachment.hash = util.joaat(attachment.model)
@@ -1374,6 +1398,7 @@ constructor_lib.serialize_hash_and_model = function(attachment)
         attachment.model = util.reverse_joaat(attachment.hash)
     elseif attachment.hash == nil and attachment.model == nil and attachment.handle ~= nil and attachment.handle > 0 then
         attachment.hash = ENTITY.GET_ENTITY_MODEL(attachment.handle)
+        --attachment.hash = constructor_lib.get_entity_model_hash(attachment.handle)
         attachment.model = util.reverse_joaat(attachment.hash)
     end
 end
@@ -2146,9 +2171,9 @@ constructor_lib.deserialize_ped_weapon = function(attachment)
 end
 
 local function get_driving_style_value(driving_style_index)
-    for index, menu in constants.driving_styles_menu do
-        if menu[1] == driving_style_index then
-            return constants.driving_styles[menu[2]]
+    for index, driving_style_menu in constants.driving_styles_menu do
+        if driving_style_menu[1] == driving_style_index then
+            return constants.driving_styles[driving_style_menu[2]]
         end
     end
 end
@@ -2716,7 +2741,7 @@ end
 constructor_lib.spawn_construct = function(construct)
     if type(construct) ~= "table" then error("Construct must be a table") end
     if construct.model == nil then error("Construct must have a model") end
-    debug_log("Spawning construct "..inspect(construct))
+    --debug_log("Spawning construct "..inspect(construct))
     return constructor_lib.reattach_attachment_with_children(construct)
 end
 
