@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.50.3"
+local SCRIPT_VERSION = "0.50.4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1592,8 +1592,8 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
             VEHICLE.SET_VEHICLE_MOD_COLOR_1(
                     vehicle.handle,
                     vehicle.vehicle_attributes.paint.primary.paint_type,
-                    vehicle.vehicle_attributes.paint.primary.color,
-                    vehicle.vehicle_attributes.paint.primary.pearlescent_color
+                    vehicle.vehicle_attributes.paint.primary.color or 0,
+                    vehicle.vehicle_attributes.paint.primary.pearlescent_color or 0
             )
         end
         if vehicle.vehicle_attributes.paint.secondary.is_custom then
@@ -1607,8 +1607,8 @@ constructor_lib.deserialize_vehicle_paint = function(vehicle)
         if vehicle.vehicle_attributes.paint.secondary.paint_type ~= nil then
             VEHICLE.SET_VEHICLE_MOD_COLOR_2(
                     vehicle.handle,
-                    vehicle.vehicle_attributes.paint.secondary.paint_type,
-                    vehicle.vehicle_attributes.paint.secondary.color
+                    vehicle.vehicle_attributes.paint.secondary.paint_type or 0,
+                    vehicle.vehicle_attributes.paint.secondary.color or 0
             )
         end
     end
