@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.50.4"
+local SCRIPT_VERSION = "0.51"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -2738,9 +2738,11 @@ constructor_lib.save_construct = function(construct, constructs_dir)
     return false
 end
 
-constructor_lib.spawn_construct = function(construct)
+constructor_lib.spawn_construct = function(construct, position, heading)
     if type(construct) ~= "table" then error("Construct must be a table") end
     if construct.model == nil then error("Construct must have a model") end
+    if position ~= nil then construct.position = position end
+    if heading ~= nil then construct.world_rotation.z = heading end
     --debug_log("Spawning construct "..inspect(construct))
     return constructor_lib.reattach_attachment_with_children(construct)
 end
