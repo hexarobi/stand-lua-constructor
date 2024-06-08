@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.51"
+local SCRIPT_VERSION = "0.51r"
 
 ---
 --- Auto-Updater
@@ -37,7 +37,7 @@ local auto_update_config = {
 }
 
 -- If loading from Stand repository, then rely on it for updates and skip auto-updater
-local is_from_repository = false
+local is_from_repository = true
 
 util.ensure_package_is_installed('lua/auto-updater')
 local auto_updater = require('auto-updater')
