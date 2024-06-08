@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.50.3"
+local SCRIPT_VERSION = "0.51.1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -71,6 +71,121 @@ local function strsplit(str, sep)
         i = i + 1;
     end
     return tbl;
+end
+
+---
+--- File Loaders
+---
+
+local function load_construct_plan_from_xml_file(construct_plan_file)
+    local data = read_file(construct_plan_file.filepath)
+    if not data then return end
+    local construct_plan = convertor.convert_xml_to_construct_plan(data)
+    if not construct_plan then
+        util.toast("Failed to load XML file: ".. construct_plan_file.filepath, TOAST_ALL)
+        return
+    end
+    return construct_plan
+end
+
+local function load_construct_plan_from_ini_file(construct_plan_file)
+    local construct_plan = convertor.convert_ini_to_construct_plan(construct_plan_file)
+    if not construct_plan then
+        util.toast("Failed to load INI file: "..construct_plan_file.filepath, TOAST_ALL)
+        return
+    end
+    return construct_plan
+end
+
+local function load_construct_plan_from_txt_file(construct_plan_file)
+    local construct_plan = convertor.convert_txt_to_construct_plan(construct_plan_file)
+    if not construct_plan then
+        util.toast("Failed to load TXT file: "..construct_plan_file.filepath, TOAST_ALL)
+        return
+    end
+    return construct_plan
+end
+
+local function load_construct_plan_from_json_file(construct_plan_file)
+    local construct_plan = convertor.convert_json_to_construct_plan(construct_plan_file)
+    if not construct_plan then
+        util.toast("Failed to load JSON file: "..construct_plan_file.filepath, TOAST_ALL)
+        return
+    end
+    return construct_plan
+end
+
+convertor.is_file_type_supported = function(file_extension)
+    return (file_extension == "json" or file_extension == "xml" or file_extension == "ini" or file_extension == "txt")
+end
+
+convertor.load_construct_plan_file = function(construct_plan_file)
+    debug_log("Loading construct plan file from "..tostring(construct_plan_file.filepath), construct_plan_file)
+    local construct_plan
+    if construct_plan_file.ext == "json" then
+        construct_plan = load_construct_plan_from_json_file(construct_plan_file)
+    elseif construct_plan_file.ext == "xml" then
+        construct_plan = load_construct_plan_from_xml_file(construct_plan_file)
+        construct_plan.name = construct_plan_file.filename
+    elseif construct_plan_file.ext == "ini" then
+        construct_plan = load_construct_plan_from_ini_file(construct_plan_file)
+    elseif construct_plan_file.ext == "txt" then
+        construct_plan = load_construct_plan_from_txt_file(construct_plan_file)
+    end
+    if not construct_plan then return end
+    if construct_plan.name == nil then construct_plan.name = construct_plan_file.filename or "Unknown" end
+    if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil and not construct_plan.is_player) then
+        util.toast("Failed to load construct from file "..construct_plan_file.filepath, TOAST_ALL)
+        debug_log("Failed to load construct \nPlan:"..inspect(construct_plan_file).."\nLoaded construct plan "..inspect(construct_plan))
+        return
+    end
+    if construct_plan_file.load_menu ~= nil then construct_plan.load_menu = construct_plan_file.load_menu end
+    construct_plan.temp.filepath = construct_plan_file.filepath
+    debug_log("Loaded construct plan "..tostring(construct_plan.name), construct_plan)
+    return construct_plan
+end
+
+convertor.load_construct_plans_files_from_dir = function(directory)
+    local construct_plan_files = {}
+    for _, filepath in ipairs(filesystem.list_files(directory)) do
+        if filesystem.is_dir(filepath) then
+            local _2, dirname = string.match(filepath, "(.-)([^\\/]-%.?)$")
+            local dir_file = {
+                is_directory=true,
+                filepath=filepath,
+                filename=dirname,
+                name=dirname,
+            }
+            table.insert(construct_plan_files, dir_file)
+        else
+            local _2, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
+            if convertor.is_file_type_supported(ext) then
+                local construct_plan_file = {
+                    is_directory=false,
+                    filepath=filepath,
+                    filename=filename,
+                    name=filename,
+                    ext=ext,
+                    preview_image_path = directory .. "/" .. filename .. ".png",
+                }
+                table.insert(construct_plan_files, construct_plan_file)
+            end
+        end
+    end
+    return construct_plan_files
+end
+
+convertor.load_all_construct_plan_files_from_dir = function(directory)
+    if not filesystem.exists(directory) then return {} end
+    local construct_plan_files = convertor.load_construct_plans_files_from_dir(directory)
+    for _, filepath in ipairs(filesystem.list_files(directory)) do
+        if filesystem.is_dir(filepath) then
+            for _2, construct_plan_file in pairs(convertor.load_all_construct_plan_files_from_dir(filepath)) do
+                table.insert(construct_plan_files, construct_plan_file)
+            end
+        end
+    end
+    return construct_plan_files
 end
 
 ---
@@ -875,7 +990,7 @@ convertor.swap_new_children_for_old = function(attachment)
         attachment.new_children = nil
         for index, child_attachment in attachment.children do
             if child_attachment.initial_handle == attachment.initial_handle then
-                debug_log("Loop found in tree. Pruning self-loop from "..attachment.name)
+                debug_log("Loop found in tree. Pruning self-loop from "..tostring(attachment.name))
                 table.remove(attachment.children, index)
             else
                 convertor.swap_new_children_for_old(child_attachment)
@@ -949,7 +1064,7 @@ convertor.rearrange_by_initial_attachment = function(attachment)
     local root_attachment = convertor.find_new_root_attachment(attachment)
     convertor.build_new_children(attachment, root_attachment)
     convertor.default_new_children_with_old(root_attachment)
-    --debug_log("New childrened XML construct plan: "..inspect(root_attachment, {depth=3}))
+    --debug_log("New children construct plan: "..inspect(root_attachment, {depth=3}))
     convertor.swap_new_children_for_old(root_attachment)
     return root_attachment
 end
@@ -2387,6 +2502,9 @@ convertor.convert_ini_to_construct_plan = function(construct_plan_file)
     end
     construct_plan.temp.source_file_type = "INI Flavor "..construct_plan.temp.ini_flavor
     map_ini_data(construct_plan, data)
+
+    --debug_log("Mapped INI: "..inspect(construct_plan))
+
     construct_plan = convertor.rearrange_by_initial_attachment(construct_plan)
 
     --debug_log("Loaded INI construct plan: "..inspect(construct_plan))
