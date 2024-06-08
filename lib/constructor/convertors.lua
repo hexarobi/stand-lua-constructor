@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.51"
+local SCRIPT_VERSION = "0.51.1"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -115,7 +115,7 @@ local function load_construct_plan_from_json_file(construct_plan_file)
     return construct_plan
 end
 
-local function is_file_type_supported(file_extension)
+convertor.is_file_type_supported = function(file_extension)
     return (file_extension == "json" or file_extension == "xml" or file_extension == "ini" or file_extension == "txt")
 end
 
@@ -145,7 +145,7 @@ convertor.load_construct_plan_file = function(construct_plan_file)
     return construct_plan
 end
 
-local function load_construct_plans_files_from_dir(directory)
+convertor.load_construct_plans_files_from_dir = function(directory)
     local construct_plan_files = {}
     for _, filepath in ipairs(filesystem.list_files(directory)) do
         if filesystem.is_dir(filepath) then
@@ -159,7 +159,7 @@ local function load_construct_plans_files_from_dir(directory)
             table.insert(construct_plan_files, dir_file)
         else
             local _2, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
-            if is_file_type_supported(ext) then
+            if convertor.is_file_type_supported(ext) then
                 local construct_plan_file = {
                     is_directory=false,
                     filepath=filepath,
@@ -177,7 +177,7 @@ end
 
 convertor.load_all_construct_plan_files_from_dir = function(directory)
     if not filesystem.exists(directory) then return {} end
-    local construct_plan_files = load_construct_plans_files_from_dir(directory)
+    local construct_plan_files = convertor.load_construct_plans_files_from_dir(directory)
     for _, filepath in ipairs(filesystem.list_files(directory)) do
         if filesystem.is_dir(filepath) then
             for _2, construct_plan_file in pairs(convertor.load_all_construct_plan_files_from_dir(filepath)) do
