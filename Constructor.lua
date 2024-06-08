@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.50.2"
+local SCRIPT_VERSION = "0.51"
 
 ---
 --- Auto-Updater
@@ -1454,134 +1454,8 @@ local function refresh_siren_status(attachment)
 end
 
 ---
---- File Loaders
+--- Search Constructs
 ---
-
-local function read_file(filepath)
-    local file, err = io.open(filepath, "r")
-    if file then
-        local read_status, data = pcall(function() return file:read("*a") end)
-        if not read_status then
-            util.toast("Invalid construct file. "..filepath, TOAST_ALL)
-            return
-        end
-        file:close()
-        return data
-    else
-        error("Could not read file '" .. filepath .. "': " .. err, TOAST_ALL)
-    end
-end
-
-local function load_construct_plan_from_xml_file(construct_plan_file)
-    local data = read_file(construct_plan_file.filepath)
-    if not data then return end
-    local construct_plan = convertors.convert_xml_to_construct_plan(data)
-    if not construct_plan then
-        util.toast("Failed to load XML file: ".. construct_plan_file.filepath, TOAST_ALL)
-        return
-    end
-    return construct_plan
-end
-
-local function load_construct_plan_from_ini_file(construct_plan_file)
-    local construct_plan = convertors.convert_ini_to_construct_plan(construct_plan_file)
-    if not construct_plan then
-        util.toast("Failed to load INI file: "..construct_plan_file.filepath, TOAST_ALL)
-        return
-    end
-    return construct_plan
-end
-
-local function load_construct_plan_from_txt_file(construct_plan_file)
-    local construct_plan = convertors.convert_txt_to_construct_plan(construct_plan_file)
-    if not construct_plan then
-        util.toast("Failed to load TXT file: "..construct_plan_file.filepath, TOAST_ALL)
-        return
-    end
-    return construct_plan
-end
-
-local function load_construct_plan_from_json_file(construct_plan_file)
-    local construct_plan = convertors.convert_json_to_construct_plan(construct_plan_file)
-    if not construct_plan then
-        util.toast("Failed to load JSON file: "..construct_plan_file.filepath, TOAST_ALL)
-        return
-    end
-    return construct_plan
-end
-
-local function is_file_type_supported(file_extension)
-    return (file_extension == "json" or file_extension == "xml" or file_extension == "ini" or file_extension == "txt")
-end
-
-local function load_construct_plan_file(construct_plan_file)
-    debug_log("Loading construct plan file from "..tostring(construct_plan_file.filepath), construct_plan_file)
-    local construct_plan
-    if construct_plan_file.ext == "json" then
-        construct_plan = load_construct_plan_from_json_file(construct_plan_file)
-    elseif construct_plan_file.ext == "xml" then
-        construct_plan = load_construct_plan_from_xml_file(construct_plan_file)
-        construct_plan.name = construct_plan_file.filename
-    elseif construct_plan_file.ext == "ini" then
-        construct_plan = load_construct_plan_from_ini_file(construct_plan_file)
-    elseif construct_plan_file.ext == "txt" then
-        construct_plan = load_construct_plan_from_txt_file(construct_plan_file)
-    end
-    if not construct_plan then return end
-    if construct_plan.name == nil then construct_plan.name = construct_plan_file.filename or "Unknown" end
-    if not construct_plan or (construct_plan.hash == nil and construct_plan.model == nil and not construct_plan.is_player) then
-        util.toast(t("Failed to load construct from file ")..construct_plan_file.filepath, TOAST_ALL)
-        debug_log("Failed to load construct \nPlan:"..inspect(construct_plan_file).."\nLoaded construct plan "..inspect(construct_plan))
-        return
-    end
-    if construct_plan_file.load_menu ~= nil then construct_plan.load_menu = construct_plan_file.load_menu end
-    construct_plan.temp.filepath = construct_plan_file.filepath
-    debug_log("Loaded construct plan "..tostring(construct_plan.name), construct_plan)
-    return construct_plan
-end
-
-local function load_construct_plans_files_from_dir(directory)
-    local construct_plan_files = {}
-    for _, filepath in ipairs(filesystem.list_files(directory)) do
-        if filesystem.is_dir(filepath) then
-            local _2, dirname = string.match(filepath, "(.-)([^\\/]-%.?)$")
-            local dir_file = {
-                is_directory=true,
-                filepath=filepath,
-                filename=dirname,
-                name=dirname,
-            }
-            table.insert(construct_plan_files, dir_file)
-        else
-            local _2, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
-            if is_file_type_supported(ext) then
-                local construct_plan_file = {
-                    is_directory=false,
-                    filepath=filepath,
-                    filename=filename,
-                    name=filename,
-                    ext=ext,
-                    preview_image_path = directory .. "/" .. filename .. ".png",
-                }
-                table.insert(construct_plan_files, construct_plan_file)
-            end
-        end
-    end
-    return construct_plan_files
-end
-
-local function load_all_construct_plan_files_from_dir(directory)
-    if not filesystem.exists(directory) then return {} end
-    local construct_plan_files = load_construct_plans_files_from_dir(directory)
-    for _, filepath in ipairs(filesystem.list_files(directory)) do
-        if filesystem.is_dir(filepath) then
-            for _2, construct_plan_file in pairs(load_all_construct_plan_files_from_dir(filepath)) do
-                table.insert(construct_plan_files, construct_plan_file)
-            end
-        end
-    end
-    return construct_plan_files
-end
 
 local function search_constructs(directory, query, results)
     if results == nil then results = {} end
@@ -1592,7 +1466,7 @@ local function search_constructs(directory, query, results)
         else
             if string.match(filepath:lower(), query:lower()) then
                 local _2, filename, ext = string.match(filepath, "(.-)([^\\/]-%.?)[.]([^%.\\/]*)$")
-                if is_file_type_supported(ext) then
+                if convertors.is_file_type_supported(ext) then
                     local construct_plan_file = {
                         is_directory=false,
                         filepath=filepath,
@@ -3046,7 +2920,7 @@ constructor.add_attachment_add_attachment_options = function(attachment)
         attachment.menus.add_construct = menu.list(attachment.menus.add_attachment, t("Saved Constructs"), {}, t("Attach another construct to the current construct"), function()
             local load_constructs_root_menu_file = {menu=attachment.menus.add_construct, name=t("Loaded Constructs Menu"), menus={}}
             local action_function = function(construct_plan_file)
-                local construct_plan = load_construct_plan_file(construct_plan_file)
+                local construct_plan = convertors.load_construct_plan_file(construct_plan_file)
                 if construct_plan then
                     construct_plan.root = attachment.root
                     construct_plan.parent = attachment
@@ -3484,14 +3358,14 @@ end, config.create_construct_gun_active)
 constructor.add_load_construct_plan_file_menu = function(root_menu, construct_plan_file)
     construct_plan_file.load_menu = menu.action(root_menu, construct_plan_file.name, {}, "", function()
         remove_preview()
-        local construct_plan = load_construct_plan_file(construct_plan_file)
+        local construct_plan = convertors.load_construct_plan_file(construct_plan_file)
         if construct_plan then
             construct_plan.root = construct_plan
             construct_plan.parent = construct_plan
             build_construct_from_plan(construct_plan)
         end
     end)
-    menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
+    menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(convertors.load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
     menu.on_blur(construct_plan_file.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
 end
 local load_constructs_root_menu_file
@@ -3567,7 +3441,7 @@ constructor.add_directory_to_load_constructs = function(path, parent_construct_p
 
     if action_function == nil then
         action_function = function(construct_plan_file)
-            local construct_plan = load_construct_plan_file(construct_plan_file)
+            local construct_plan = convertors.load_construct_plan_file(construct_plan_file)
             if construct_plan then
                 construct_plan.root = construct_plan
                 construct_plan.parent = construct_plan
@@ -3594,7 +3468,7 @@ constructor.add_directory_to_load_constructs = function(path, parent_construct_p
         table.insert(load_constructs_root_menu_file.menus, stand_garage_vehicles.menu)
     end
 
-    local construct_plan_files = load_construct_plans_files_from_dir(path)
+    local construct_plan_files = convertors.load_construct_plans_files_from_dir(path)
     for _, construct_plan_file in pairs(construct_plan_files) do
         if construct_plan_file.is_directory then
             construct_plan_file.menu = menu.list(parent_construct_plan_file.menu, construct_plan_file.name or "unknown", {}, "", function()
@@ -3605,18 +3479,18 @@ constructor.add_directory_to_load_constructs = function(path, parent_construct_p
     end
     for _, construct_plan_file in pairs(construct_plan_files) do
         if not construct_plan_file.is_directory then
-            if is_file_type_supported(construct_plan_file.ext) then
+            if convertors.is_file_type_supported(construct_plan_file.ext) then
                 construct_plan_file.load_menu = menu.action(parent_construct_plan_file.menu, construct_plan_file.name, {}, "", function()
                     remove_preview()
                     action_function(construct_plan_file)
-                    --local construct_plan = load_construct_plan_file(construct_plan_file)
+                    --local construct_plan = convertors.load_construct_plan_file(construct_plan_file)
                     --if construct_plan then
                     --    construct_plan.root = construct_plan
                     --    construct_plan.parent = construct_plan
                     --    build_construct_from_plan(construct_plan)
                     --end
                 end)
-                menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
+                menu.on_focus(construct_plan_file.load_menu, function(direction) if direction ~= 0 then add_preview(convertors.load_construct_plan_file(construct_plan_file), construct_plan_file.preview_image_path) end end)
                 menu.on_blur(construct_plan_file.load_menu, function(direction) if direction ~= 0 then remove_preview() end end)
                 table.insert(parent_construct_plan_file.menus, construct_plan_file.load_menu)
             end
@@ -3636,11 +3510,11 @@ local player_menu_actions = function(pid)
     menus.constructor_player_menu = menu.divider(menu.player_root(pid), t("Constructor"))
 
     menus.spawn_commands = menu.list(menu.player_root(pid), t("Chat Spawn Commands"))
-    local construct_plan_files = load_all_construct_plan_files_from_dir(CONSTRUCTS_DIR..config.chat_spawnable_dir)
+    local construct_plan_files = convertors.load_all_construct_plan_files_from_dir(CONSTRUCTS_DIR..config.chat_spawnable_dir)
     for _, construct_plan_file in pairs(construct_plan_files) do
-        if not construct_plan_file.is_directory and is_file_type_supported(construct_plan_file.ext) then
+        if not construct_plan_file.is_directory and convertors.is_file_type_supported(construct_plan_file.ext) then
             menu.action(menus.spawn_commands, construct_plan_file.name, {construct_plan_file.name}, "", function()
-                local construct_plan = load_construct_plan_file(construct_plan_file)
+                local construct_plan = convertors.load_construct_plan_file(construct_plan_file)
                 if construct_plan then
                     construct_plan.root = construct_plan
                     construct_plan.parent = construct_plan
