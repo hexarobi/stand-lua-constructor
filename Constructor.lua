@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.51"
+local SCRIPT_VERSION = "0.51.1"
 
 ---
 --- Auto-Updater
@@ -1358,6 +1358,7 @@ end
 local function rebuild_attachment(attachment)
     debug_log("Rebuilding "..tostring(attachment.name))
     attachment.root.menu_auto_focus = false
+    constructor_lib.serialize_entity_position(attachment)
     local construct_plan = constructor_lib.clone_attachment(attachment)
     constructor.delete_spawned_construct(attachment)
     construct_plan.root.menu_auto_focus = true
@@ -3013,7 +3014,7 @@ end
 ---
 
 constructor.add_attachment_rebuild_attachment_option = function(attachment)
-    attachment.menus.reconstruct_vehicle = menu.action(attachment.menus.main, t("Rebuild"), {}, t("Delete construct (if it still exists), then recreate a new one from scratch."), function()
+    attachment.menus.reconstruct_vehicle = menu.action(attachment.menus.main, t("Rebuild"), {"constructorrebuild"..attachment.handle}, t("Delete construct (if it still exists), then recreate a new one from scratch."), function()
         rebuild_attachment(attachment)
     end)
 end
