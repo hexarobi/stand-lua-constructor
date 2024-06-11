@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.51.1"
+local SCRIPT_VERSION = "0.51.2"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -466,7 +466,7 @@ constructor_lib.start_particle_fx = function(attachment)
                 attachment.particle_attributes.color.b,
                 attachment.particle_attributes.color.a
         )
-        if not is_successful then util.toast("Failed to attach particle") end
+        if not is_successful then debug_log("Failed to attach particle") end
     else
         attachment.handle = GRAPHICS.START_NETWORKED_PARTICLE_FX_LOOPED_ON_ENTITY_BONE(
                 attachment.particle_attributes.effect_name,
@@ -1488,8 +1488,8 @@ end
 
 constructor_lib.deserialize_vehicle_headlights = function(vehicle)
     if vehicle.vehicle_attributes.headlights == nil then return end
-    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, vehicle.vehicle_attributes.headlights.headlights_color or -1)
     VEHICLE.TOGGLE_VEHICLE_MOD(vehicle.handle, 22, vehicle.vehicle_attributes.headlights.headlights_type or false)
+    VEHICLE.SET_VEHICLE_XENON_LIGHT_COLOR_INDEX(vehicle.handle, vehicle.vehicle_attributes.headlights.headlights_color or -1)
     VEHICLE.SET_VEHICLE_LIGHT_MULTIPLIER(vehicle.handle, vehicle.vehicle_attributes.headlights.multiplier or 1)
 end
 
