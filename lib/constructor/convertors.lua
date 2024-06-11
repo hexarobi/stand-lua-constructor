@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.51.1"
+local SCRIPT_VERSION = "0.51.2"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -868,6 +868,10 @@ local function map_stand_garage_vehicle(attachment, vehicle_data)
     if wheels_parts[2] == "Custom" then
         attachment.vehicle_attributes.wheels.is_custom = true
     end
+
+    if attachment.vehicle_attributes.headlights == nil then attachment.vehicle_attributes.headlights = {} end
+    attachment.vehicle_attributes.headlights.headlights_color = tonumber(vehicle_data["Headlights"]) - 2
+    attachment.vehicle_attributes.headlights.headlights_type = true
 
     if attachment.vehicle_attributes.neon == nil then attachment.vehicle_attributes.neon = {} end
     if attachment.vehicle_attributes.neon.lights == nil then attachment.vehicle_attributes.neon.lights = {} end
