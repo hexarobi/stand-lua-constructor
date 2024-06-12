@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.51.4"
+local SCRIPT_VERSION = "0.51.5"
 
 ---
 --- Auto-Updater
@@ -292,8 +292,14 @@ end
 
 local browser = {}
 browser.state = {
-    search_menu_counter = 1
+    item_counter = 0,
+    search_menu_counter = 0
 }
+
+browser.get_unique_item_id = function()
+    browser.state.item_counter = browser.state.item_counter + 1
+    return browser.state.item_counter
+end
 
 browser.table_copy = function(obj)
     if type(obj) ~= 'table' then return obj end
@@ -384,6 +390,7 @@ browser.browse_item = function(parent_menu, this_item, add_item_menu_function, b
                 end,
                 add_item_menu_function=function(search_params, item)
                     if add_item_menu_function ~= nil then
+                        if item.item_id == nil then item.item_id = browser.get_unique_item_id() end
                         return add_item_menu_function(search_params.menus.root, item)
                     end
                 end,
