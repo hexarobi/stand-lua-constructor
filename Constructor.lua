@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.51.2"
+local SCRIPT_VERSION = "0.51.3"
 
 ---
 --- Auto-Updater
@@ -2259,7 +2259,15 @@ constructor.add_attachment_vehicle_menu = function(attachment)
     --- Radio Options
     attachment.menus.vehicle_options_radio_options = menu.list(attachment.menus.vehicle_options, t("Radio Options"), {}, t("Options about the vehicles radio"))
 
-    menu.list_select(attachment.menus.vehicle_options_radio_options, t("Radio Station"), {}, "", constants.radio_station_names, 1, function(value)
+    local function get_radio_station_index(query_radio_station_code)
+        for index, radio_station_code in constants.radio_station_codes do
+            if radio_station_code == query_radio_station_code then
+                return index
+            end
+        end
+    end
+
+    menu.list_select(attachment.menus.vehicle_options_radio_options, t("Radio Station"), {}, "", constants.radio_station_names, get_radio_station_index(attachment.vehicle_attributes.options.radio_station), function(value)
         attachment.vehicle_attributes.options.radio_station = constants.radio_station_codes[value]
         constructor_lib.deserialize_vehicle_options(attachment)
     end)
