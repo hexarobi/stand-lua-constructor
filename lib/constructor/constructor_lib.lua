@@ -4,7 +4,7 @@
 -- Allows for constructing custom vehicles and maps
 -- https://github.com/hexarobi/stand-lua-constructor
 
-local SCRIPT_VERSION = "0.51.3"
+local SCRIPT_VERSION = "0.51.4"
 
 local constructor_lib = {
     LIB_VERSION = SCRIPT_VERSION,
@@ -1974,12 +1974,6 @@ constructor_lib.deserialize_vehicle_tick = function(vehicle)
     if vehicle.vehicle_attributes.wheels ~= nil and vehicle.vehicle_attributes.wheels.steering_bias ~= nil then
         VEHICLE.SET_VEHICLE_STEER_BIAS(vehicle.handle, vehicle.vehicle_attributes.wheels.steering_bias)
     end
-    if vehicle.vehicle_attributes.engine_sound ~= nil then
-        local hash = util.joaat(vehicle.vehicle_attributes.engine_sound)
-        if STREAMING.IS_MODEL_VALID(hash) and VEHICLE.IS_THIS_MODEL_A_CAR(hash) then
-            AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
-        end
-    end
     if vehicle.vehicle_attributes.options.freeze_when_empty then
         if VEHICLE.IS_VEHICLE_SEAT_FREE(vehicle.handle, -1, false) then
             ENTITY.FREEZE_ENTITY_POSITION(vehicle.handle, true)
@@ -2056,6 +2050,12 @@ constructor_lib.deserialize_vehicle_options = function(vehicle)
     end
     if vehicle.vehicle_attributes.options.license_plate_type ~= nil then
         VEHICLE.SET_VEHICLE_NUMBER_PLATE_TEXT_INDEX(vehicle.handle, vehicle.vehicle_attributes.options.license_plate_type)
+    end
+    if vehicle.vehicle_attributes.engine_sound ~= nil then
+        local hash = util.joaat(vehicle.vehicle_attributes.engine_sound)
+        if STREAMING.IS_MODEL_VALID(hash) and VEHICLE.IS_THIS_MODEL_A_CAR(hash) then
+            AUDIO.FORCE_USE_AUDIO_GAME_OBJECT(vehicle.handle, vehicle.vehicle_attributes.engine_sound)
+        end
     end
     if vehicle.vehicle_attributes.options.engine_running == true then
         VEHICLE.SET_VEHICLE_ENGINE_ON(vehicle.handle, true, true, false)
