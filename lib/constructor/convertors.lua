@@ -1,7 +1,7 @@
 -- Construct Convertors
 -- Transforms various file formats into Construct format
 
-local SCRIPT_VERSION = "0.51.2"
+local SCRIPT_VERSION = "0.51.3"
 local convertor = {
     SCRIPT_VERSION = SCRIPT_VERSION
 }
@@ -833,7 +833,7 @@ local function map_stand_garage_vehicle(attachment, vehicle_data)
         ["Pearl Colour"] = "paint.primary.pearlescent_color",
         ["Plate Holder"] = "mods._25",
         ["Plate Style"] = "options.license_plate_type",
-        ["Plate Text"] = "options.license_plate_text",
+        --["Plate Text"] = "options.license_plate_text",
         ["Primary Colour"] = "paint.primary.vehicle_standard_color",
         ["Rear Bumper"] = "mods._2",
         Roof = "mods._10",
@@ -907,14 +907,16 @@ local function map_stand_garage_vehicle(attachment, vehicle_data)
     if vehicle_data["Tyre Smoke Colour"] then
         attachment.vehicle_attributes.wheels.tire_smoke_color = color_hex_to_rgb(vehicle_data["Tyre Smoke Colour"])
     end
-
     if attachment.vehicle_attributes.extras == nil then attachment.vehicle_attributes.extras = {} end
     for index = 0, 60 do
         if vehicle_data["Extra "..index] ~= nil then
             attachment.vehicle_attributes.extras["_"..index] = vehicle_data["Extra "..index]
         end
     end
-
+    if attachment.vehicle_attributes.options == nil then attachment.vehicle_attributes.options = {} end
+    if vehicle_data["Plate Text"] then
+        attachment.vehicle_attributes.options.license_plate_text = vehicle_data["Plate Text"]
+    end
 end
 
 
